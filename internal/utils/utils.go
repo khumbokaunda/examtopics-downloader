@@ -165,7 +165,12 @@ func Sleep(seconds time.Duration) {
 
 func SortCachedLinks(linksWithNumbers []models.FileInfo) []string {
 	sort.Slice(linksWithNumbers, func(i, j int) bool {
-		return linksWithNumbers[i].Number < linksWithNumbers[j].Number
+		if linksWithNumbers[i].Number != linksWithNumbers[j].Number {
+			return linksWithNumbers[i].Number < linksWithNumbers[j].Number
+		}
+		// Files without a parsable number all share -1; fall back to the name
+		// so the order is at least deterministic.
+		return linksWithNumbers[i].Name < linksWithNumbers[j].Name
 	})
 
 	// Collect sorted links
@@ -231,20 +236,6 @@ func GetNameFromLink(link string) string {
 	name := strings.TrimSuffix(path.Base(link), ".json")
 	name = strings.ReplaceAll(name, "-", " ")
 	return strings.Join(strings.Fields(name), " ")
-}
-
-func SortQuestionDataByPageNumber(data []models.QuestionData) []models.QuestionData {
-	sortedData := make([]models.QuestionData, len(data))
-	copy(sortedData, data)
-
-	sort.Slice(sortedData, func(i, j int) bool {
-		pageNumI := ExtractNumberFromPath(sortedData[i].Title)
-		pageNumJ := ExtractNumberFromPath(sortedData[j].Title)
-
-		return pageNumI < pageNumJ
-	})
-
-	return sortedData
 }
 
 func StartTime() time.Time {

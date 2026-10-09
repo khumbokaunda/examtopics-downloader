@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -18,11 +17,10 @@ import (
 	"github.com/cheggaaa/pb/v3"
 )
 
-func getDataFromLink(link string) *models.QuestionData {
+func getDataFromLink(link string) (*models.QuestionData, error) {
 	doc, err := scrapeFetcher.Document(link)
 	if err != nil {
-		log.Printf("Failed parsing HTML data from link: %v", err)
-		return nil
+		return nil, err
 	}
 
 	var allQuestions []string
@@ -72,30 +70,20 @@ func getDataFromLink(link string) *models.QuestionData {
 		Timestamp:    utils.CleanText(doc.Find(".discussion-meta-data > i").Text()),
 		QuestionLink: link,
 		Comments:     utils.CleanText(doc.Find(".discussion-container").Text()),
-	}
+	}, nil
 }
 
-var (
-	counterMu sync.Mutex
-	counter   int
-)
-
-// nextQuestionNumber hands out question numbers. getJSONFromLink runs in
-// parallel, so the bare counter++ it used before was a data race and produced
-// nondeterministic numbering.
-func nextQuestionNumber() int {
-	counterMu.Lock()
-	defer counterMu.Unlock()
-	counter++
-	return counter
-}
-
-// getJSONFromLink resolves a cached file's GitHub API entry and downloads it.
-// cacheClient is used for the API call only; the raw.githubusercontent.com
-// download needs no credentials, so it goes out over the unauthenticated
-// client.
-func getJSONFromLink(link string, cacheFetcher *Fetcher) ([]*models.QuestionData, error) {
-	initialResp, err := cacheFetcher.Get(link)
+// getJSONFromLink resolves a cached file's GitHub API entry and downloads it,
+// returning its questions in the order they appear in the file. Titles are left
+// empty: question numbers depend on the file's position among all the files, so
+// the caller assigns them once every file is in order.
+//
+// apiFetcher may carry a GitHub token and is used for the API call only.
+// downloadFetcher fetches the raw.githubusercontent.com file, which needs no
+// credentials; it must not be scrapeFetcher, whose throttle is paced for
+// examtopics.com and would slow the cached path to a crawl.
+func getJSONFromLink(link string, apiFetcher, downloadFetcher *Fetcher) ([]models.QuestionData, error) {
+	initialResp, err := apiFetcher.Get(link)
 	if err != nil {
 		return nil, fmt.Errorf("fetching cached question metadata: %w", err)
 	}
@@ -110,7 +98,7 @@ func getJSONFromLink(link string, cacheFetcher *Fetcher) ([]*models.QuestionData
 		return nil, fmt.Errorf("no download_url in GitHub API response for %s", link)
 	}
 
-	jsonResp, err := scrapeFetcher.Get(downloadURL)
+	jsonResp, err := downloadFetcher.Get(downloadURL)
 	if err != nil {
 		return nil, fmt.Errorf("fetching cached questions from %s: %w", downloadURL, err)
 	}
@@ -122,7 +110,7 @@ func getJSONFromLink(link string, cacheFetcher *Fetcher) ([]*models.QuestionData
 
 	fmt.Println("Processing content from:", downloadURL)
 
-	var questions []*models.QuestionData
+	var questions []models.QuestionData
 
 	if content.PageProps.Questions == nil {
 		return nil, fmt.Errorf("no questions found in JSON content from %s", downloadURL)
@@ -144,10 +132,7 @@ func getJSONFromLink(link string, cacheFetcher *Fetcher) ([]*models.QuestionData
 			choicesHeader += fmt.Sprintf("**%s:** %s\n\n", key, q.Choices[key])
 		}
 
-		name := utils.GetNameFromLink(link)
-
-		questions = append(questions, &models.QuestionData{
-			Title:        "Examtopics " + strings.ReplaceAll(name, ".json?ref=main", "") + " question #" + strconv.Itoa(nextQuestionNumber()),
+		questions = append(questions, models.QuestionData{
 			Header:       q.QuestionText,
 			Content:      strings.Join(q.QuestionImages, "\n"),
 			Questions:    []string{choicesHeader},
@@ -207,13 +192,16 @@ func fetchAllPageLinksConcurrently(providerName, grepStr string, numPages, concu
 	return all, int(atomic.LoadInt32(&failedPages))
 }
 
-// ScrapeResult reports what the live scrape retrieved, including how many
-// listing pages were refused, so a caller can distinguish an exam with no
-// matching questions from a run the site rate-limited into uselessness.
+// ScrapeResult reports what the live scrape retrieved. The scrape has two
+// phases, listing pages and then one page per question, and either can be
+// refused, so both failure counts are carried; otherwise a rate-limited run is
+// indistinguishable from an exam that simply has fewer questions.
 type ScrapeResult struct {
-	Questions   []models.QuestionData
-	Pages       int
-	FailedPages int
+	Questions       []models.QuestionData
+	Pages           int
+	FailedPages     int
+	Links           int
+	FailedQuestions int
 }
 
 // Main concurrent page scraping logic
@@ -229,44 +217,52 @@ func GetAllPages(providerName string, grepStr string) ScrapeResult {
 
 	fmt.Printf("Found %d unique matching links:\n", len(sortedLinks))
 
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, constants.MaxConcurrentRequests)
-	results := make([]*models.QuestionData, len(sortedLinks))
-	startTime := utils.StartTime()
-	bar := pb.StartNew(len(sortedLinks))
+	questions, failedQuestions := scrapeQuestionPages(sortedLinks)
 
-	for i, link := range sortedLinks {
+	return ScrapeResult{
+		Questions:       questions,
+		Pages:           numPages,
+		FailedPages:     failedPages,
+		Links:           len(sortedLinks),
+		FailedQuestions: failedQuestions,
+	}
+}
+
+// scrapeQuestionPages fetches one page per question link, preserving the order
+// of links, and returns the questions plus how many pages could not be fetched.
+// Those failures used to be logged and dropped, so a run that lost questions to
+// rate limiting still reported success.
+func scrapeQuestionPages(links []string) ([]models.QuestionData, int) {
+	var (
+		wg              sync.WaitGroup
+		failedQuestions int32
+		results         = make([]*models.QuestionData, len(links))
+		sem             = make(chan struct{}, constants.MaxConcurrentRequests)
+		bar             = pb.StartNew(len(links))
+		startTime       = utils.StartTime()
+	)
+
+	for i, link := range links {
 		wg.Add(1)
-		url := utils.AddToBaseUrl(link)
-
 		go func(i int, url string) {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			data := getDataFromLink(url)
-			if data != nil {
+			data, err := getDataFromLink(url)
+			if err != nil {
+				atomic.AddInt32(&failedQuestions, 1)
+				log.Printf("question page %s: %v", url, err)
+			} else {
 				results[i] = data
 			}
 			bar.Increment()
-		}(i, url)
+		}(i, utils.AddToBaseUrl(link))
 	}
 
 	wg.Wait()
 	bar.Finish()
-	// Filter out nil entries
-	var finalData []models.QuestionData
-	for _, entry := range results {
-		if entry != nil {
-			finalData = append(finalData, *entry)
-		}
-	}
-
 	fmt.Printf("Scraping completed in %s.\n", utils.TimeSince(startTime))
 
-	return ScrapeResult{
-		Questions:   finalData,
-		Pages:       numPages,
-		FailedPages: failedPages,
-	}
+	return utils.FilterOutNilData(results), int(atomic.LoadInt32(&failedQuestions))
 }

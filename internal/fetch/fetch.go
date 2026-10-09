@@ -325,39 +325,52 @@ type CacheResult struct {
 }
 
 func GetCachedPages(providerName string, grepStr string, token string) CacheResult {
-	cacheClient := utils.NewHTTPClient()
+	apiClient := utils.NewHTTPClient()
 	if token != "" {
-		cacheClient = utils.NewGitHubClient(token)
+		apiClient = utils.NewGitHubClient(token)
 	}
-	cacheFetcher := NewFetcher(cacheClient, constants.CacheRequestsPerSecond)
-	defer cacheFetcher.Stop()
+	apiFetcher := NewFetcher(apiClient, constants.CacheRequestsPerSecond)
+	defer apiFetcher.Stop()
 
-	links := FetchCachedLinks(providerName, grepStr, cacheFetcher)
+	// Raw file downloads get their own unauthenticated fetcher. They used to go
+	// through scrapeFetcher, which shares the 1/s throttle meant for
+	// examtopics.com, so ~150 files took minutes instead of seconds.
+	downloadFetcher := NewFetcher(utils.NewHTTPClient(), constants.CacheRequestsPerSecond)
+	defer downloadFetcher.Stop()
+
+	links := FetchCachedLinks(providerName, grepStr, apiFetcher)
 	if len(links) == 0 {
 		return CacheResult{}
 	}
+	return collectCachedQuestions(links, apiFetcher, downloadFetcher)
+}
 
+// collectCachedQuestions downloads every cached file and returns their
+// questions in file order, numbered sequentially. links must already be in file
+// order, as FetchCachedLinks returns them. Each download writes only its own
+// slot in perFile, so the output order no longer depends on which download
+// finishes first.
+func collectCachedQuestions(links []string, apiFetcher, downloadFetcher *Fetcher) CacheResult {
 	var (
-		wg       sync.WaitGroup
-		mu       sync.Mutex
-		allData  []models.QuestionData
-		failed   int
-		limited  bool
-		dataChan = make(chan models.QuestionData, len(links))
+		wg      sync.WaitGroup
+		mu      sync.Mutex
+		failed  int
+		limited bool
+		perFile = make([][]models.QuestionData, len(links))
 	)
 
 	// Previously this launched one unbounded goroutine per file, firing hundreds
 	// of simultaneous GitHub API requests and tripping the quota immediately.
 	sem := make(chan struct{}, constants.CacheMaxConcurrentRequests)
 
-	for _, link := range links {
+	for i, link := range links {
 		wg.Add(1)
-		go func(link string) {
+		go func(i int, link string) {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			dataList, err := getJSONFromLink(link, cacheFetcher)
+			questions, err := getJSONFromLink(link, apiFetcher, downloadFetcher)
 			if err != nil {
 				var rateErr *RateLimitError
 				mu.Lock()
@@ -369,23 +382,22 @@ func GetCachedPages(providerName string, grepStr string, token string) CacheResu
 				log.Printf("skipping %s: %v", link, err)
 				return
 			}
-			for _, data := range dataList {
-				dataChan <- *data
-			}
-		}(link)
+			perFile[i] = questions
+		}(i, link)
 	}
+	wg.Wait()
 
-	go func() {
-		wg.Wait()
-		close(dataChan)
-	}()
-
-	for data := range dataChan {
-		allData = append(allData, data)
+	var all []models.QuestionData
+	for i, link := range links {
+		name := strings.ReplaceAll(utils.GetNameFromLink(link), ".json?ref=main", "")
+		for _, q := range perFile[i] {
+			q.Title = fmt.Sprintf("Examtopics %s question #%d", name, len(all)+1)
+			all = append(all, q)
+		}
 	}
 
 	return CacheResult{
-		Questions:   utils.SortQuestionDataByPageNumber(allData),
+		Questions:   all,
 		Files:       len(links),
 		Failed:      failed,
 		RateLimited: limited,
