@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 
+	"examtopics-downloader/internal/constants"
 	"examtopics-downloader/internal/fetch"
 	"examtopics-downloader/internal/utils"
 )
@@ -19,8 +20,13 @@ func main() {
 	examsFlag := flag.Bool("exams", false, "Optionally show all the possible exams for your selected provider and exit")
 	saveUrls := flag.Bool("save-links", false, "Optional argument to save unique links to questions")
 	noCache := flag.Bool("no-cache", false, "Optional argument, set to disable looking through cached data on github")
-	token := flag.String("t", "", "Optional argument to make cached requests faster to gh api")
+	token := flag.String("t", os.Getenv("EXAMTOPICS_GITHUB_TOKEN"), "GitHub PAT to raise the API rate limit; defaults to $EXAMTOPICS_GITHUB_TOKEN")
+	rps := flag.Float64("rps", constants.RequestsPerSecond, "Requests per second when scraping; lower this if ExamTopics returns 429")
 	flag.Parse()
+
+	if *rps > 0 {
+		fetch.SetScrapeRate(*rps)
+	}
 
 	if *examsFlag {
 		exams := fetch.GetProviderExams(*provider)
@@ -68,16 +74,33 @@ func main() {
 	if !*noCache {
 		fmt.Println("No cached data available, falling back to manual scraping.")
 	}
-	links := fetch.GetAllPages(*provider, *grepStr)
+	result := fetch.GetAllPages(*provider, *grepStr)
 
-	if len(links) == 0 {
+	if result.FailedPages > 0 {
+		fmt.Fprintf(os.Stderr,
+			"\nWARNING: %d of %d listing pages could not be fetched, so questions are probably missing.\n",
+			result.FailedPages, result.Pages)
+		fmt.Fprintf(os.Stderr,
+			"ExamTopics rate-limits aggressively. Retry with slower pacing, e.g. -rps %.2f\n",
+			*rps/2)
+	}
+
+	if len(result.Questions) == 0 {
+		if result.FailedPages > 0 {
+			log.Fatalf("no questions retrieved for provider %q: %d of %d pages were refused, so this is a rate-limit problem rather than an empty exam",
+				*provider, result.FailedPages, result.Pages)
+		}
 		log.Fatalf("no questions found for provider %q with search string %q; nothing was written to %s",
 			*provider, *grepStr, *outputPath)
 	}
 
 	if *saveUrls {
-		utils.SaveLinks("saved-links.txt", links)
+		utils.SaveLinks("saved-links.txt", result.Questions)
 	}
-	utils.WriteData(links, *outputPath, *commentBool, *fileType)
+	utils.WriteData(result.Questions, *outputPath, *commentBool, *fileType)
 	fmt.Printf("Successfully saved output to %s (filetype: %s).\n", *outputPath, *fileType)
+
+	if result.FailedPages > 0 {
+		os.Exit(1)
+	}
 }

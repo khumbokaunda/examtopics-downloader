@@ -18,7 +18,7 @@ func TestGetAllPages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test with -short flag (requires network)")
 	}
-	links = fetch.GetAllPages("lpi", "010-160")
+	links = fetch.GetAllPages("lpi", "010-160").Questions
 	if len(links) == 0 {
 		t.Fatalf("Expected non-empty data for provider 'lpi', but got: %v", links)
 	}

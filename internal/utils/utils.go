@@ -136,7 +136,13 @@ func GrepStringFromCache(baseString, searchString string) bool {
 	)
 }
 
+// AddToBaseUrl makes a scraped href absolute. ExamTopics serves some hrefs
+// already absolute, so prefixing unconditionally produced doubled URLs like
+// "https://www.examtopics.comhttps://www.examtopics.com/exams/...".
 func AddToBaseUrl(addString string) string {
+	if strings.HasPrefix(addString, "http://") || strings.HasPrefix(addString, "https://") {
+		return addString
+	}
 	return fmt.Sprintf("https://www.examtopics.com%s", addString)
 }
 
@@ -203,7 +209,7 @@ func CapitalizeFirstLetter(s string) string {
 // NewGitHubClient creates an authenticated HTTP client with optimized transport
 func NewGitHubClient(token string) *http.Client {
 	transport := models.OptimizedTransport()
-	
+
 	return &http.Client{
 		Timeout: constants.HttpTimeout,
 		Transport: &models.AuthTransport{

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"examtopics-downloader/internal/fetch"
+	"examtopics-downloader/internal/utils"
 )
 
 func TestFetchURLReturnsBody(t *testing.T) {
@@ -19,7 +20,7 @@ func TestFetchURLReturnsBody(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	body, err := fetch.FetchURL(srv.URL, srv.Client())
+	body, err := fetch.NewFetcher(srv.Client(), 1000).Get(srv.URL)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -36,7 +37,7 @@ func TestFetchURLReportsStatusCode(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	body, err := fetch.FetchURL(srv.URL, srv.Client())
+	body, err := fetch.NewFetcher(srv.Client(), 1000).Get(srv.URL)
 	if err == nil {
 		t.Fatal("expected an error for a 404 response, got nil")
 	}
@@ -70,7 +71,7 @@ func TestFetchURLRetriesTooManyRequests(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	body, err := fetch.FetchURL(srv.URL, srv.Client())
+	body, err := fetch.NewFetcher(srv.Client(), 1000).Get(srv.URL)
 	if err != nil {
 		t.Fatalf("expected the retry to succeed, got %v", err)
 	}
@@ -94,7 +95,7 @@ func TestFetchURLDetectsExhaustedQuota(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	_, err := fetch.FetchURL(srv.URL, srv.Client())
+	_, err := fetch.NewFetcher(srv.Client(), 1000).Get(srv.URL)
 	if err == nil {
 		t.Fatal("expected an error for an exhausted quota")
 	}
@@ -108,5 +109,55 @@ func TestFetchURLDetectsExhaustedQuota(t *testing.T) {
 	}
 	if got := atomic.LoadInt32(&attempts); got != 1 {
 		t.Errorf("expected to fail fast in 1 attempt, got %d", got)
+	}
+}
+
+// The throttle must gate retries, not just first attempts. Previously the
+// rate limiter lived in the callers, so once a host began returning 429 the
+// retries went out unmetered and amplified the overload that caused them.
+func TestFetcherThrottlesRetries(t *testing.T) {
+	var attempts int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if atomic.AddInt32(&attempts, 1) <= 3 {
+			w.WriteHeader(http.StatusTooManyRequests)
+			return
+		}
+		w.Write([]byte("ok"))
+	}))
+	defer srv.Close()
+
+	// 5 requests/second => each attempt waits ~200ms on the throttle.
+	f := fetch.NewFetcher(srv.Client(), 5)
+	defer f.Stop()
+
+	start := time.Now()
+	if _, err := f.Get(srv.URL); err != nil {
+		t.Fatalf("expected success after retries, got %v", err)
+	}
+	elapsed := time.Since(start)
+
+	got := atomic.LoadInt32(&attempts)
+	if got != 4 {
+		t.Fatalf("expected 4 attempts, got %d", got)
+	}
+	// 4 attempts * 200ms of throttle = ~800ms, on top of backoff sleeps. If the
+	// throttle were bypassed on retries this would come in far quicker.
+	if elapsed < 800*time.Millisecond {
+		t.Errorf("expected the throttle to gate all %d attempts (>=800ms), took %v", got, elapsed)
+	}
+	t.Logf("%d attempts in %v", got, elapsed)
+}
+
+func TestAddToBaseUrlDoesNotDoublePrefix(t *testing.T) {
+	cases := map[string]string{
+		"/exams/huawei/h19-101-v6-0/": "https://www.examtopics.com/exams/huawei/h19-101-v6-0/",
+		// ExamTopics now serves some hrefs already absolute.
+		"https://www.examtopics.com/exams/huawei/h19-101-v6-0/": "https://www.examtopics.com/exams/huawei/h19-101-v6-0/",
+		"http://www.examtopics.com/discussions/huawei/1/":       "http://www.examtopics.com/discussions/huawei/1/",
+	}
+	for in, want := range cases {
+		if got := utils.AddToBaseUrl(in); got != want {
+			t.Errorf("AddToBaseUrl(%q) = %q, want %q", in, got, want)
+		}
 	}
 }

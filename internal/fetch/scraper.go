@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"examtopics-downloader/internal/constants"
 	"examtopics-downloader/internal/models"
@@ -19,7 +19,7 @@ import (
 )
 
 func getDataFromLink(link string) *models.QuestionData {
-	doc, err := ParseHTML(link, scrapeClient)
+	doc, err := scrapeFetcher.Document(link)
 	if err != nil {
 		log.Printf("Failed parsing HTML data from link: %v", err)
 		return nil
@@ -94,8 +94,8 @@ func nextQuestionNumber() int {
 // cacheClient is used for the API call only; the raw.githubusercontent.com
 // download needs no credentials, so it goes out over the unauthenticated
 // client.
-func getJSONFromLink(link string, cacheClient *http.Client) ([]*models.QuestionData, error) {
-	initialResp, err := FetchURL(link, cacheClient)
+func getJSONFromLink(link string, cacheFetcher *Fetcher) ([]*models.QuestionData, error) {
+	initialResp, err := cacheFetcher.Get(link)
 	if err != nil {
 		return nil, fmt.Errorf("fetching cached question metadata: %w", err)
 	}
@@ -110,7 +110,7 @@ func getJSONFromLink(link string, cacheClient *http.Client) ([]*models.QuestionD
 		return nil, fmt.Errorf("no download_url in GitHub API response for %s", link)
 	}
 
-	jsonResp, err := FetchURL(downloadURL, scrapeClient)
+	jsonResp, err := scrapeFetcher.Get(downloadURL)
 	if err != nil {
 		return nil, fmt.Errorf("fetching cached questions from %s: %w", downloadURL, err)
 	}
@@ -161,15 +161,16 @@ func getJSONFromLink(link string, cacheClient *http.Client) ([]*models.QuestionD
 	return questions, nil
 }
 
-func fetchAllPageLinksConcurrently(providerName, grepStr string, numPages, concurrency int) []string {
+// fetchAllPageLinksConcurrently returns the matching links plus the number of
+// pages that could not be fetched, so the caller can tell "this exam has no
+// questions" apart from "most of the site refused us".
+func fetchAllPageLinksConcurrently(providerName, grepStr string, numPages, concurrency int) ([]string, int) {
+	var failedPages int32
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, concurrency)
 	results := make(chan []string, numPages)
 	bar := pb.StartNew(numPages)
 	startTime := utils.StartTime()
-
-	rateLimiter := utils.CreateRateLimiter(constants.RequestsPerSecond)
-	defer rateLimiter.Stop()
 
 	for i := 1; i <= numPages; i++ {
 		wg.Add(1)
@@ -178,11 +179,14 @@ func fetchAllPageLinksConcurrently(providerName, grepStr string, numPages, concu
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			<-rateLimiter.C
-
 			// The trailing slash is required; without it ExamTopics returns 404.
 			url := fmt.Sprintf("https://www.examtopics.com/discussions/%s/%d/", providerName, i)
-			results <- getLinksFromPage(url, grepStr)
+			links, err := getLinksFromPage(url, grepStr)
+			if err != nil {
+				atomic.AddInt32(&failedPages, 1)
+				log.Printf("page %d: %v", i, err)
+			}
+			results <- links
 			bar.Increment()
 		}(i)
 	}
@@ -200,16 +204,25 @@ func fetchAllPageLinksConcurrently(providerName, grepStr string, numPages, concu
 
 	bar.Finish()
 	fmt.Printf("Scraping completed in %s.\n", utils.TimeSince(startTime))
-	return all
+	return all, int(atomic.LoadInt32(&failedPages))
+}
+
+// ScrapeResult reports what the live scrape retrieved, including how many
+// listing pages were refused, so a caller can distinguish an exam with no
+// matching questions from a run the site rate-limited into uselessness.
+type ScrapeResult struct {
+	Questions   []models.QuestionData
+	Pages       int
+	FailedPages int
 }
 
 // Main concurrent page scraping logic
-func GetAllPages(providerName string, grepStr string) []models.QuestionData {
+func GetAllPages(providerName string, grepStr string) ScrapeResult {
 	baseURL := fmt.Sprintf("https://www.examtopics.com/discussions/%s/", providerName)
 	numPages := getMaxNumPages(baseURL)
 	fmt.Printf("Fetching %d pages for provider '%s'\n", numPages, providerName)
 
-	allLinks := fetchAllPageLinksConcurrently(providerName, grepStr, numPages, constants.MaxConcurrentRequests)
+	allLinks, failedPages := fetchAllPageLinksConcurrently(providerName, grepStr, numPages, constants.MaxConcurrentRequests)
 
 	unique := utils.DeduplicateLinks(allLinks)
 	sortedLinks := utils.SortLinksByQuestionNumber(unique)
@@ -222,9 +235,6 @@ func GetAllPages(providerName string, grepStr string) []models.QuestionData {
 	startTime := utils.StartTime()
 	bar := pb.StartNew(len(sortedLinks))
 
-	rateLimiter := utils.CreateRateLimiter(constants.RequestsPerSecond)
-	defer rateLimiter.Stop()
-
 	for i, link := range sortedLinks {
 		wg.Add(1)
 		url := utils.AddToBaseUrl(link)
@@ -233,8 +243,6 @@ func GetAllPages(providerName string, grepStr string) []models.QuestionData {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-
-			<-rateLimiter.C
 
 			data := getDataFromLink(url)
 			if data != nil {
@@ -256,5 +264,9 @@ func GetAllPages(providerName string, grepStr string) []models.QuestionData {
 
 	fmt.Printf("Scraping completed in %s.\n", utils.TimeSince(startTime))
 
-	return finalData
+	return ScrapeResult{
+		Questions:   finalData,
+		Pages:       numPages,
+		FailedPages: failedPages,
+	}
 }

@@ -20,11 +20,37 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-// scrapeClient talks to examtopics.com and must never carry a GitHub token.
-// It was previously a single mutable global that FetchCachedLinks reassigned to
-// the authenticated client, which leaked the token to examtopics.com on every
-// cache miss that fell through to scraping.
-var scrapeClient = utils.NewHTTPClient()
+// Fetcher pairs an HTTP client with a throttle shared by every request it
+// makes, retries included. Rate limiting used to live in the callers, which
+// gated only each URL's first attempt; once a host started refusing requests,
+// the retries went out unmetered and made the overload worse.
+type Fetcher struct {
+	client   *http.Client
+	throttle *time.Ticker
+}
+
+func NewFetcher(client *http.Client, rps float64) *Fetcher {
+	return &Fetcher{client: client, throttle: utils.CreateRateLimiter(rps)}
+}
+
+// Stop releases the throttle's ticker.
+func (f *Fetcher) Stop() { f.throttle.Stop() }
+
+// wait blocks until the shared throttle allows another request.
+func (f *Fetcher) wait() { <-f.throttle.C }
+
+// scrapeFetcher talks to examtopics.com and must never carry a GitHub token.
+// The client behind it was previously a single mutable global that
+// FetchCachedLinks reassigned to the authenticated one, which leaked the token
+// to examtopics.com on every cache miss that fell through to scraping.
+var scrapeFetcher = NewFetcher(utils.NewHTTPClient(), constants.RequestsPerSecond)
+
+// SetScrapeRate replaces the scrape throttle, letting the caller tune pacing
+// without a recompile. ExamTopics tolerates less than you would expect.
+func SetScrapeRate(rps float64) {
+	scrapeFetcher.Stop()
+	scrapeFetcher = NewFetcher(utils.NewHTTPClient(), rps)
+}
 
 // StatusError reports a response whose status code was not 200 OK. Callers can
 // use errors.As to react to a specific code, e.g. treating 404 as "not found"
@@ -106,12 +132,12 @@ func retryAfter(resp *http.Response) (time.Duration, bool) {
 	return d, true
 }
 
-// FetchURL retrieves url, retrying on transport errors and on statuses that
+// Get retrieves url, retrying on transport errors and on statuses that
 // retryable reports as transient (429, 502, 503, 504), honouring Retry-After
 // when the server sends it. A non-retryable status is returned immediately as a
 // *StatusError, and an exhausted API quota as a *RateLimitError, so callers can
 // see what actually went wrong instead of receiving a bare nil body.
-func FetchURL(url string, client *http.Client) ([]byte, error) {
+func (f *Fetcher) Get(url string) ([]byte, error) {
 	backoff := constants.InitalBackoff
 	var lastErr error
 
@@ -126,7 +152,10 @@ func FetchURL(url string, client *http.Client) ([]byte, error) {
 			backoff = utils.BackoffTime(backoff, constants.BackoffFactor)
 		}
 
-		resp, err := client.Get(url)
+		// Every attempt, not just the first, goes through the throttle.
+		f.wait()
+
+		resp, err := f.client.Get(url)
 		if err != nil {
 			lastErr = fmt.Errorf("fetching %q: %w", url, err)
 			continue
@@ -165,7 +194,7 @@ func FetchURL(url string, client *http.Client) ([]byte, error) {
 }
 
 // retryHint carries an optional server-supplied wait alongside the underlying
-// error, so the retry loop can honour Retry-After without widening FetchURL's
+// error, so the retry loop can honour Retry-After without widening Get's
 // signature.
 type retryHint struct {
 	err   error
@@ -175,8 +204,8 @@ type retryHint struct {
 func (h *retryHint) Error() string { return h.err.Error() }
 func (h *retryHint) Unwrap() error { return h.err }
 
-func ParseHTML(url string, client *http.Client) (*goquery.Document, error) {
-	body, err := FetchURL(url, client)
+func (f *Fetcher) Document(url string) (*goquery.Document, error) {
+	body, err := f.Get(url)
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +220,7 @@ func ParseHTML(url string, client *http.Client) (*goquery.Document, error) {
 
 // Fetches total number of pages
 func getMaxNumPages(url string) int {
-	doc, err := ParseHTML(url, scrapeClient)
+	doc, err := scrapeFetcher.Document(url)
 	if err != nil {
 		log.Panicf("Failed parsing HTML for number of pages: %v", err)
 	}
@@ -213,7 +242,7 @@ func getMaxNumPages(url string) int {
 
 func GetProviderExams(providerName string) []string {
 	baseURL := fmt.Sprintf("https://www.examtopics.com/exams/%s/", providerName)
-	doc, err := ParseHTML(baseURL, scrapeClient)
+	doc, err := scrapeFetcher.Document(baseURL)
 	if err != nil {
 		log.Fatalf("Failed to parse HTML for provider exams: %v", err)
 	}
@@ -230,11 +259,10 @@ func GetProviderExams(providerName string) []string {
 }
 
 // Extracts matching links from a single page
-func getLinksFromPage(url string, grepStr string) []string {
-	doc, err := ParseHTML(url, scrapeClient)
+func getLinksFromPage(url string, grepStr string) ([]string, error) {
+	doc, err := scrapeFetcher.Document(url)
 	if err != nil {
-		log.Printf("Failed to parse HTML for %s: %v", url, err)
-		return nil
+		return nil, err
 	}
 
 	var matchingLinks []string
@@ -245,13 +273,13 @@ func getLinksFromPage(url string, grepStr string) []string {
 		}
 	})
 
-	return matchingLinks
+	return matchingLinks, nil
 }
 
-func FetchCachedLinks(providerName string, grepStr string, cacheClient *http.Client) []string {
+func FetchCachedLinks(providerName string, grepStr string, cacheFetcher *Fetcher) []string {
 	parsedProviderName := utils.CapitalizeFirstLetter(strings.ToLower(providerName))
 	baseURL := fmt.Sprintf("https://api.github.com/repos/thatonecodes/examtopics-data/contents/%s", parsedProviderName)
-	resp, err := FetchURL(baseURL, cacheClient)
+	resp, err := cacheFetcher.Get(baseURL)
 	if err != nil {
 		// A cache miss is expected for providers the upstream dataset does not
 		// cover; it is not a failure, so say so and let the caller scrape.
@@ -297,12 +325,14 @@ type CacheResult struct {
 }
 
 func GetCachedPages(providerName string, grepStr string, token string) CacheResult {
-	cacheClient := scrapeClient
+	cacheClient := utils.NewHTTPClient()
 	if token != "" {
 		cacheClient = utils.NewGitHubClient(token)
 	}
+	cacheFetcher := NewFetcher(cacheClient, constants.CacheRequestsPerSecond)
+	defer cacheFetcher.Stop()
 
-	links := FetchCachedLinks(providerName, grepStr, cacheClient)
+	links := FetchCachedLinks(providerName, grepStr, cacheFetcher)
 	if len(links) == 0 {
 		return CacheResult{}
 	}
@@ -319,8 +349,6 @@ func GetCachedPages(providerName string, grepStr string, token string) CacheResu
 	// Previously this launched one unbounded goroutine per file, firing hundreds
 	// of simultaneous GitHub API requests and tripping the quota immediately.
 	sem := make(chan struct{}, constants.CacheMaxConcurrentRequests)
-	rateLimiter := utils.CreateRateLimiter(constants.CacheRequestsPerSecond)
-	defer rateLimiter.Stop()
 
 	for _, link := range links {
 		wg.Add(1)
@@ -329,9 +357,7 @@ func GetCachedPages(providerName string, grepStr string, token string) CacheResu
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			<-rateLimiter.C
-
-			dataList, err := getJSONFromLink(link, cacheClient)
+			dataList, err := getJSONFromLink(link, cacheFetcher)
 			if err != nil {
 				var rateErr *RateLimitError
 				mu.Lock()

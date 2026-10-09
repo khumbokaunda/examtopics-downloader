@@ -4,9 +4,19 @@ import "time"
 
 // Request behaviour
 const HttpTimeout = 20 * time.Second
-const MaxConcurrentRequests = 15
-const RequestsPerSecond = 2.0
-const MaxRetries = 3
+
+// MaxConcurrentRequests caps in-flight scrape requests. The Fetcher's throttle
+// sets the actual pace, so a high value here only queues goroutines on the
+// ticker.
+const MaxConcurrentRequests = 5
+
+// RequestsPerSecond is deliberately conservative: ExamTopics began returning
+// 429 after roughly a dozen pages at 2/s. Override with -rps.
+const RequestsPerSecond = 1.0
+
+// MaxRetries is higher than it was because 429s need patience; retries are now
+// throttled too, so they no longer amplify an overload.
+const MaxRetries = 5
 
 // Backoff configuration
 const InitalBackoff = time.Second
