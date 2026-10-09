@@ -36,9 +36,30 @@ func main() {
 	}
 
 	if !*noCache {
-		links := fetch.GetCachedPages(*provider, *grepStr, *token)
-		if len(links) > 0 {
-			utils.WriteData(links, *outputPath, *commentBool, *fileType)
+		result := fetch.GetCachedPages(*provider, *grepStr, *token)
+		if len(result.Questions) > 0 {
+			utils.WriteData(result.Questions, *outputPath, *commentBool, *fileType)
+
+			if result.Failed > 0 {
+				fmt.Fprintf(os.Stderr,
+					"\nWARNING: output is INCOMPLETE - %d of %d cached files could not be fetched.\n",
+					result.Failed, result.Files)
+				if result.RateLimited {
+					if *token == "" {
+						fmt.Fprintf(os.Stderr,
+							"The GitHub API quota was exhausted. Unauthenticated requests are capped at\n"+
+								"60/hour; pass a token with -t to raise this to 5000/hour:\n"+
+								"  go run ./cmd/main.go -p %s -s %s -t $GITHUB_TOKEN\n",
+							*provider, *grepStr)
+					} else {
+						fmt.Fprintf(os.Stderr,
+							"The GitHub API quota for your token was exhausted. Wait for it to reset and retry.\n")
+					}
+				}
+				fmt.Fprintf(os.Stderr, "Wrote %d questions to %s anyway.\n", len(result.Questions), *outputPath)
+				os.Exit(1)
+			}
+
 			fmt.Printf("Successfully saved cached output to %s (filetype: %s).\n", *outputPath, *fileType)
 			os.Exit(0)
 		}

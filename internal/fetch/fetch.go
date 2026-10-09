@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"examtopics-downloader/internal/constants"
 	"examtopics-downloader/internal/models"
@@ -19,7 +20,11 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-var client = utils.NewHTTPClient()
+// scrapeClient talks to examtopics.com and must never carry a GitHub token.
+// It was previously a single mutable global that FetchCachedLinks reassigned to
+// the authenticated client, which leaked the token to examtopics.com on every
+// cache miss that fell through to scraping.
+var scrapeClient = utils.NewHTTPClient()
 
 // StatusError reports a response whose status code was not 200 OK. Callers can
 // use errors.As to react to a specific code, e.g. treating 404 as "not found"
@@ -33,16 +38,89 @@ func (e *StatusError) Error() string {
 	return fmt.Sprintf("request for %q failed with status code %d", e.URL, e.StatusCode)
 }
 
-// FetchURL retrieves url, retrying on transport errors and 503 responses. Any
-// other non-200 status is returned immediately as a *StatusError so callers can
-// see what actually went wrong.
-func FetchURL(url string, client http.Client) ([]byte, error) {
+// RateLimitError reports that a host refused the request because an API quota
+// is exhausted, rather than because of a transient overload. Retrying will not
+// help until the quota resets.
+type RateLimitError struct {
+	URL        string
+	StatusCode int
+	ResetsIn   time.Duration
+}
+
+func (e *RateLimitError) Error() string {
+	if e.ResetsIn > 0 {
+		return fmt.Sprintf("rate limit exhausted for %q (status %d), resets in %s",
+			e.URL, e.StatusCode, e.ResetsIn.Round(time.Second))
+	}
+	return fmt.Sprintf("rate limit exhausted for %q (status %d)", e.URL, e.StatusCode)
+}
+
+// retryable reports whether a status code is worth another attempt. 429 is
+// included: ExamTopics returns it once the scrape outpaces what it tolerates,
+// and the previous code gave up on it immediately.
+func retryable(code int) bool {
+	switch code {
+	case http.StatusTooManyRequests,
+		http.StatusBadGateway,
+		http.StatusServiceUnavailable,
+		http.StatusGatewayTimeout:
+		return true
+	}
+	return false
+}
+
+// quotaExhausted distinguishes "you have used up your hourly quota" from a
+// transient 429. GitHub signals the former with x-ratelimit-remaining: 0, on
+// either a 403 or a 429.
+func quotaExhausted(resp *http.Response) (time.Duration, bool) {
+	if resp.StatusCode != http.StatusForbidden && resp.StatusCode != http.StatusTooManyRequests {
+		return 0, false
+	}
+	if resp.Header.Get("X-RateLimit-Remaining") != "0" {
+		return 0, false
+	}
+	var resetsIn time.Duration
+	if reset, err := strconv.ParseInt(resp.Header.Get("X-RateLimit-Reset"), 10, 64); err == nil {
+		if d := time.Until(time.Unix(reset, 0)); d > 0 {
+			resetsIn = d
+		}
+	}
+	return resetsIn, true
+}
+
+// retryAfter reads the Retry-After header, honouring it only up to
+// constants.MaxRetryAfter so a hostile value cannot stall the run.
+func retryAfter(resp *http.Response) (time.Duration, bool) {
+	v := resp.Header.Get("Retry-After")
+	if v == "" {
+		return 0, false
+	}
+	secs, err := strconv.Atoi(strings.TrimSpace(v))
+	if err != nil || secs < 0 {
+		return 0, false
+	}
+	d := time.Duration(secs) * time.Second
+	if d > constants.MaxRetryAfter {
+		return constants.MaxRetryAfter, true
+	}
+	return d, true
+}
+
+// FetchURL retrieves url, retrying on transport errors and on statuses that
+// retryable reports as transient (429, 502, 503, 504), honouring Retry-After
+// when the server sends it. A non-retryable status is returned immediately as a
+// *StatusError, and an exhausted API quota as a *RateLimitError, so callers can
+// see what actually went wrong instead of receiving a bare nil body.
+func FetchURL(url string, client *http.Client) ([]byte, error) {
 	backoff := constants.InitalBackoff
 	var lastErr error
 
 	for attempt := 0; attempt <= constants.MaxRetries; attempt++ {
 		if attempt > 0 {
 			delay := utils.DelayTime(backoff)
+			if hinted, ok := lastErr.(*retryHint); ok && hinted.after > 0 {
+				delay = hinted.after
+			}
 			log.Printf("Retry attempt %d for URL: %s after waiting %v", attempt, url, delay)
 			utils.Sleep(delay)
 			backoff = utils.BackoffTime(backoff, constants.BackoffFactor)
@@ -62,19 +140,42 @@ func FetchURL(url string, client http.Client) ([]byte, error) {
 			}
 			return body, nil
 		}
+
+		// An exhausted quota will not clear within our backoff window, so fail
+		// fast with an error the caller can explain to the user.
+		if resetsIn, exhausted := quotaExhausted(resp); exhausted {
+			resp.Body.Close()
+			return nil, &RateLimitError{URL: url, StatusCode: resp.StatusCode, ResetsIn: resetsIn}
+		}
+
+		wait, hasWait := retryAfter(resp)
+		code := resp.StatusCode
 		resp.Body.Close()
 
-		statusErr := &StatusError{URL: url, StatusCode: resp.StatusCode}
-		if resp.StatusCode != http.StatusServiceUnavailable {
-			return nil, statusErr
+		if !retryable(code) {
+			return nil, &StatusError{URL: url, StatusCode: code}
 		}
-		lastErr = statusErr
+		lastErr = &retryHint{err: &StatusError{URL: url, StatusCode: code}}
+		if hasWait {
+			lastErr.(*retryHint).after = wait
+		}
 	}
 
 	return nil, fmt.Errorf("exhausted retries for %q: %w", url, lastErr)
 }
 
-func ParseHTML(url string, client http.Client) (*goquery.Document, error) {
+// retryHint carries an optional server-supplied wait alongside the underlying
+// error, so the retry loop can honour Retry-After without widening FetchURL's
+// signature.
+type retryHint struct {
+	err   error
+	after time.Duration
+}
+
+func (h *retryHint) Error() string { return h.err.Error() }
+func (h *retryHint) Unwrap() error { return h.err }
+
+func ParseHTML(url string, client *http.Client) (*goquery.Document, error) {
 	body, err := FetchURL(url, client)
 	if err != nil {
 		return nil, err
@@ -90,7 +191,7 @@ func ParseHTML(url string, client http.Client) (*goquery.Document, error) {
 
 // Fetches total number of pages
 func getMaxNumPages(url string) int {
-	doc, err := ParseHTML(url, *client)
+	doc, err := ParseHTML(url, scrapeClient)
 	if err != nil {
 		log.Panicf("Failed parsing HTML for number of pages: %v", err)
 	}
@@ -112,7 +213,7 @@ func getMaxNumPages(url string) int {
 
 func GetProviderExams(providerName string) []string {
 	baseURL := fmt.Sprintf("https://www.examtopics.com/exams/%s/", providerName)
-	doc, err := ParseHTML(baseURL, *client)
+	doc, err := ParseHTML(baseURL, scrapeClient)
 	if err != nil {
 		log.Fatalf("Failed to parse HTML for provider exams: %v", err)
 	}
@@ -130,7 +231,7 @@ func GetProviderExams(providerName string) []string {
 
 // Extracts matching links from a single page
 func getLinksFromPage(url string, grepStr string) []string {
-	doc, err := ParseHTML(url, *client)
+	doc, err := ParseHTML(url, scrapeClient)
 	if err != nil {
 		log.Printf("Failed to parse HTML for %s: %v", url, err)
 		return nil
@@ -147,13 +248,10 @@ func getLinksFromPage(url string, grepStr string) []string {
 	return matchingLinks
 }
 
-func FetchCachedLinks(providerName string, grepStr string, token string) []string {
+func FetchCachedLinks(providerName string, grepStr string, cacheClient *http.Client) []string {
 	parsedProviderName := utils.CapitalizeFirstLetter(strings.ToLower(providerName))
 	baseURL := fmt.Sprintf("https://api.github.com/repos/thatonecodes/examtopics-data/contents/%s", parsedProviderName)
-	if token != "" {
-		client = utils.NewGitHubClient(token)
-	}
-	resp, err := FetchURL(baseURL, *client)
+	resp, err := FetchURL(baseURL, cacheClient)
 	if err != nil {
 		// A cache miss is expected for providers the upstream dataset does not
 		// cover; it is not a failure, so say so and let the caller scrape.
@@ -188,23 +286,65 @@ func FetchCachedLinks(providerName string, grepStr string, token string) []strin
 	return utils.SortCachedLinks(linksWithNumbers)
 }
 
-func GetCachedPages(providerName string, grepStr string, token string) []models.QuestionData {
-	links := FetchCachedLinks(providerName, grepStr, token)
-	var allData []models.QuestionData
+// CacheResult reports what the cached-data path managed to retrieve. Failed
+// counts files that could not be fetched, so callers can tell a complete run
+// from a partial one instead of silently writing a fraction of the exam.
+type CacheResult struct {
+	Questions   []models.QuestionData
+	Files       int
+	Failed      int
+	RateLimited bool
+}
 
-	var wg sync.WaitGroup
-	dataChan := make(chan models.QuestionData)
+func GetCachedPages(providerName string, grepStr string, token string) CacheResult {
+	cacheClient := scrapeClient
+	if token != "" {
+		cacheClient = utils.NewGitHubClient(token)
+	}
+
+	links := FetchCachedLinks(providerName, grepStr, cacheClient)
+	if len(links) == 0 {
+		return CacheResult{}
+	}
+
+	var (
+		wg       sync.WaitGroup
+		mu       sync.Mutex
+		allData  []models.QuestionData
+		failed   int
+		limited  bool
+		dataChan = make(chan models.QuestionData, len(links))
+	)
+
+	// Previously this launched one unbounded goroutine per file, firing hundreds
+	// of simultaneous GitHub API requests and tripping the quota immediately.
+	sem := make(chan struct{}, constants.CacheMaxConcurrentRequests)
+	rateLimiter := utils.CreateRateLimiter(constants.CacheRequestsPerSecond)
+	defer rateLimiter.Stop()
 
 	for _, link := range links {
 		wg.Add(1)
 		go func(link string) {
 			defer wg.Done()
-			dataList := getJSONFromLink(link)
-			if dataList == nil {
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			<-rateLimiter.C
+
+			dataList, err := getJSONFromLink(link, cacheClient)
+			if err != nil {
+				var rateErr *RateLimitError
+				mu.Lock()
+				failed++
+				if errors.As(err, &rateErr) {
+					limited = true
+				}
+				mu.Unlock()
+				log.Printf("skipping %s: %v", link, err)
 				return
 			}
 			for _, data := range dataList {
-				dataChan <- *data // send each QuestionData into the channel
+				dataChan <- *data
 			}
 		}(link)
 	}
@@ -218,5 +358,10 @@ func GetCachedPages(providerName string, grepStr string, token string) []models.
 		allData = append(allData, data)
 	}
 
-	return utils.SortQuestionDataByPageNumber(allData)
+	return CacheResult{
+		Questions:   utils.SortQuestionDataByPageNumber(allData),
+		Files:       len(links),
+		Failed:      failed,
+		RateLimited: limited,
+	}
 }

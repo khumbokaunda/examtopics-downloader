@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"sort"
 	"strconv"
 	"strings"
@@ -18,7 +19,7 @@ import (
 )
 
 func getDataFromLink(link string) *models.QuestionData {
-	doc, err := ParseHTML(link, *client)
+	doc, err := ParseHTML(link, scrapeClient)
 	if err != nil {
 		log.Printf("Failed parsing HTML data from link: %v", err)
 		return nil
@@ -74,36 +75,49 @@ func getDataFromLink(link string) *models.QuestionData {
 	}
 }
 
-var counter int = 0 //start counter at 1
-func getJSONFromLink(link string) []*models.QuestionData {
-	initialResp, err := FetchURL(link, *client)
+var (
+	counterMu sync.Mutex
+	counter   int
+)
+
+// nextQuestionNumber hands out question numbers. getJSONFromLink runs in
+// parallel, so the bare counter++ it used before was a data race and produced
+// nondeterministic numbering.
+func nextQuestionNumber() int {
+	counterMu.Lock()
+	defer counterMu.Unlock()
+	counter++
+	return counter
+}
+
+// getJSONFromLink resolves a cached file's GitHub API entry and downloads it.
+// cacheClient is used for the API call only; the raw.githubusercontent.com
+// download needs no credentials, so it goes out over the unauthenticated
+// client.
+func getJSONFromLink(link string, cacheClient *http.Client) ([]*models.QuestionData, error) {
+	initialResp, err := FetchURL(link, cacheClient)
 	if err != nil {
-		log.Printf("could not fetch cached question metadata: %v", err)
-		return nil
+		return nil, fmt.Errorf("fetching cached question metadata: %w", err)
 	}
 
 	var githubResp map[string]any
 	if err := json.Unmarshal(initialResp, &githubResp); err != nil {
-		log.Printf("error unmarshalling GitHub API response: %v", err)
-		return nil
+		return nil, fmt.Errorf("unmarshalling GitHub API response: %w", err)
 	}
 
 	downloadURL, ok := githubResp["download_url"].(string)
 	if !ok {
-		log.Printf("couldn't find download_url in GitHub API response")
-		return nil
+		return nil, fmt.Errorf("no download_url in GitHub API response for %s", link)
 	}
 
-	jsonResp, err := FetchURL(downloadURL, *client)
+	jsonResp, err := FetchURL(downloadURL, scrapeClient)
 	if err != nil {
-		log.Printf("could not fetch cached questions from %s: %v", downloadURL, err)
-		return nil
+		return nil, fmt.Errorf("fetching cached questions from %s: %w", downloadURL, err)
 	}
 
 	var content models.JSONResponse
 	if err := json.Unmarshal(jsonResp, &content); err != nil {
-		log.Printf("error unmarshalling the questions data: %v", err)
-		return nil
+		return nil, fmt.Errorf("unmarshalling questions data from %s: %w", downloadURL, err)
 	}
 
 	fmt.Println("Processing content from:", downloadURL)
@@ -111,8 +125,7 @@ func getJSONFromLink(link string) []*models.QuestionData {
 	var questions []*models.QuestionData
 
 	if content.PageProps.Questions == nil {
-		log.Printf("no questions found in JSON content")
-		return nil
+		return nil, fmt.Errorf("no questions found in JSON content from %s", downloadURL)
 	}
 
 	for _, q := range content.PageProps.Questions {
@@ -132,10 +145,9 @@ func getJSONFromLink(link string) []*models.QuestionData {
 		}
 
 		name := utils.GetNameFromLink(link)
-		counter++
 
 		questions = append(questions, &models.QuestionData{
-			Title:        "Examtopics " + strings.ReplaceAll(name, ".json?ref=main", "") + " question #" + strconv.Itoa(counter),
+			Title:        "Examtopics " + strings.ReplaceAll(name, ".json?ref=main", "") + " question #" + strconv.Itoa(nextQuestionNumber()),
 			Header:       q.QuestionText,
 			Content:      strings.Join(q.QuestionImages, "\n"),
 			Questions:    []string{choicesHeader},
@@ -146,7 +158,7 @@ func getJSONFromLink(link string) []*models.QuestionData {
 		})
 	}
 
-	return questions
+	return questions, nil
 }
 
 func fetchAllPageLinksConcurrently(providerName, grepStr string, numPages, concurrency int) []string {

@@ -4,8 +4,11 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"examtopics-downloader/internal/fetch"
 )
@@ -16,7 +19,7 @@ func TestFetchURLReturnsBody(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	body, err := fetch.FetchURL(srv.URL, *srv.Client())
+	body, err := fetch.FetchURL(srv.URL, srv.Client())
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -33,7 +36,7 @@ func TestFetchURLReportsStatusCode(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	body, err := fetch.FetchURL(srv.URL, *srv.Client())
+	body, err := fetch.FetchURL(srv.URL, srv.Client())
 	if err == nil {
 		t.Fatal("expected an error for a 404 response, got nil")
 	}
@@ -50,5 +53,60 @@ func TestFetchURLReportsStatusCode(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "404") {
 		t.Errorf("expected error text to mention 404, got %q", err.Error())
+	}
+}
+
+// A 429 was previously not retried at all: FetchURL gave up on the first one.
+// ExamTopics returns 429 as soon as the scrape outpaces it, so this mattered.
+func TestFetchURLRetriesTooManyRequests(t *testing.T) {
+	var attempts int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if atomic.AddInt32(&attempts, 1) == 1 {
+			w.Header().Set("Retry-After", "1")
+			w.WriteHeader(http.StatusTooManyRequests)
+			return
+		}
+		w.Write([]byte("recovered"))
+	}))
+	defer srv.Close()
+
+	body, err := fetch.FetchURL(srv.URL, srv.Client())
+	if err != nil {
+		t.Fatalf("expected the retry to succeed, got %v", err)
+	}
+	if string(body) != "recovered" {
+		t.Errorf("expected %q, got %q", "recovered", string(body))
+	}
+	if got := atomic.LoadInt32(&attempts); got != 2 {
+		t.Errorf("expected exactly 2 attempts, got %d", got)
+	}
+}
+
+// An exhausted GitHub quota must fail fast with an actionable error rather than
+// burning retries on something that will not clear for an hour.
+func TestFetchURLDetectsExhaustedQuota(t *testing.T) {
+	var attempts int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&attempts, 1)
+		w.Header().Set("X-RateLimit-Remaining", "0")
+		w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(time.Now().Add(time.Hour).Unix(), 10))
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	defer srv.Close()
+
+	_, err := fetch.FetchURL(srv.URL, srv.Client())
+	if err == nil {
+		t.Fatal("expected an error for an exhausted quota")
+	}
+
+	var rateErr *fetch.RateLimitError
+	if !errors.As(err, &rateErr) {
+		t.Fatalf("expected a *fetch.RateLimitError, got %T: %v", err, err)
+	}
+	if rateErr.ResetsIn <= 0 {
+		t.Errorf("expected a positive reset duration, got %v", rateErr.ResetsIn)
+	}
+	if got := atomic.LoadInt32(&attempts); got != 1 {
+		t.Errorf("expected to fail fast in 1 attempt, got %d", got)
 	}
 }

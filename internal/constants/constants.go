@@ -22,3 +22,12 @@ const IdleConnTimeout = 90 * time.Second
 const TLSHandshakeTimeout = 10 * time.Second
 const ResponseHeaderTimeout = 10 * time.Second
 const ExpectContinueTimeout = 1 * time.Second
+
+// Cache (GitHub API) request behaviour. Unauthenticated GitHub allows only 60
+// requests/hour, so a large exam will exhaust it regardless of pacing; pass a
+// token (-t) to raise the ceiling to 5000/hour.
+const CacheMaxConcurrentRequests = 10
+const CacheRequestsPerSecond = 10.0
+
+// Upper bound on how long we will honour a Retry-After header before giving up.
+const MaxRetryAfter = 30 * time.Second
