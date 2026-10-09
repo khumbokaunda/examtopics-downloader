@@ -76,11 +76,14 @@ func getDataFromLink(link string) *models.QuestionData {
 
 var counter int = 0 //start counter at 1
 func getJSONFromLink(link string) []*models.QuestionData {
-	initialResp := FetchURL(link, *client)
+	initialResp, err := FetchURL(link, *client)
+	if err != nil {
+		log.Printf("could not fetch cached question metadata: %v", err)
+		return nil
+	}
 
 	var githubResp map[string]any
-	err := json.Unmarshal(initialResp, &githubResp)
-	if err != nil {
+	if err := json.Unmarshal(initialResp, &githubResp); err != nil {
 		log.Printf("error unmarshalling GitHub API response: %v", err)
 		return nil
 	}
@@ -91,11 +94,14 @@ func getJSONFromLink(link string) []*models.QuestionData {
 		return nil
 	}
 
-	jsonResp := FetchURL(downloadURL, *client)
+	jsonResp, err := FetchURL(downloadURL, *client)
+	if err != nil {
+		log.Printf("could not fetch cached questions from %s: %v", downloadURL, err)
+		return nil
+	}
 
 	var content models.JSONResponse
-	err = json.Unmarshal(jsonResp, &content)
-	if err != nil {
+	if err := json.Unmarshal(jsonResp, &content); err != nil {
 		log.Printf("error unmarshalling the questions data: %v", err)
 		return nil
 	}
@@ -162,7 +168,8 @@ func fetchAllPageLinksConcurrently(providerName, grepStr string, numPages, concu
 
 			<-rateLimiter.C
 
-			url := fmt.Sprintf("https://www.examtopics.com/discussions/%s/%d", providerName, i)
+			// The trailing slash is required; without it ExamTopics returns 404.
+			url := fmt.Sprintf("https://www.examtopics.com/discussions/%s/%d/", providerName, i)
 			results <- getLinksFromPage(url, grepStr)
 			bar.Increment()
 		}(i)

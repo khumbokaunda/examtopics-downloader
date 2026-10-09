@@ -44,8 +44,15 @@ func main() {
 		}
 	}
 
-	fmt.Println("Going to manual scraping, cached data failed.")
+	if !*noCache {
+		fmt.Println("No cached data available, falling back to manual scraping.")
+	}
 	links := fetch.GetAllPages(*provider, *grepStr)
+
+	if len(links) == 0 {
+		log.Fatalf("no questions found for provider %q with search string %q; nothing was written to %s",
+			*provider, *grepStr, *outputPath)
+	}
 
 	if *saveUrls {
 		utils.SaveLinks("saved-links.txt", links)

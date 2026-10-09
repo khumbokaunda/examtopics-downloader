@@ -3,6 +3,7 @@ package fetch
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -20,8 +21,24 @@ import (
 
 var client = utils.NewHTTPClient()
 
-func FetchURL(url string, client http.Client) []byte {
+// StatusError reports a response whose status code was not 200 OK. Callers can
+// use errors.As to react to a specific code, e.g. treating 404 as "not found"
+// rather than as a hard failure.
+type StatusError struct {
+	URL        string
+	StatusCode int
+}
+
+func (e *StatusError) Error() string {
+	return fmt.Sprintf("request for %q failed with status code %d", e.URL, e.StatusCode)
+}
+
+// FetchURL retrieves url, retrying on transport errors and 503 responses. Any
+// other non-200 status is returned immediately as a *StatusError so callers can
+// see what actually went wrong.
+func FetchURL(url string, client http.Client) ([]byte, error) {
 	backoff := constants.InitalBackoff
+	var lastErr error
 
 	for attempt := 0; attempt <= constants.MaxRetries; attempt++ {
 		if attempt > 0 {
@@ -33,7 +50,7 @@ func FetchURL(url string, client http.Client) []byte {
 
 		resp, err := client.Get(url)
 		if err != nil {
-			log.Printf("failed to fetch URL (attempt %d): %v", attempt, err)
+			lastErr = fmt.Errorf("fetching %q: %w", url, err)
 			continue
 		}
 
@@ -41,27 +58,26 @@ func FetchURL(url string, client http.Client) []byte {
 			body, err := io.ReadAll(resp.Body)
 			resp.Body.Close()
 			if err != nil {
-				log.Printf("failed to read response body: %v", err)
-				return nil
+				return nil, fmt.Errorf("reading response body from %q: %w", url, err)
 			}
-			return body
+			return body, nil
 		}
 		resp.Body.Close()
 
+		statusErr := &StatusError{URL: url, StatusCode: resp.StatusCode}
 		if resp.StatusCode != http.StatusServiceUnavailable {
-			log.Printf("request failed with status code: %d", resp.StatusCode)
-			return nil
+			return nil, statusErr
 		}
+		lastErr = statusErr
 	}
 
-	log.Printf("exhausted retries for URL: %s", url)
-	return nil
+	return nil, fmt.Errorf("exhausted retries for %q: %w", url, lastErr)
 }
 
 func ParseHTML(url string, client http.Client) (*goquery.Document, error) {
-	body := FetchURL(url, client)
-	if body == nil {
-		return nil, fmt.Errorf("empty response body from URL %q", url)
+	body, err := FetchURL(url, client)
+	if err != nil {
+		return nil, err
 	}
 
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
@@ -137,18 +153,23 @@ func FetchCachedLinks(providerName string, grepStr string, token string) []strin
 	if token != "" {
 		client = utils.NewGitHubClient(token)
 	}
-	resp := FetchURL(baseURL, *client)
-
-	var content []models.FileInfo
-
-	if resp == nil {
-		log.Printf("the response body was nil, %v", resp)
+	resp, err := FetchURL(baseURL, *client)
+	if err != nil {
+		// A cache miss is expected for providers the upstream dataset does not
+		// cover; it is not a failure, so say so and let the caller scrape.
+		var statusErr *StatusError
+		if errors.As(err, &statusErr) && statusErr.StatusCode == http.StatusNotFound {
+			log.Printf("no cached data for provider %q, falling back to scraping", providerName)
+		} else {
+			log.Printf("could not fetch cached links for provider %q: %v", providerName, err)
+		}
 		return nil
 	}
 
-	err := json.Unmarshal(resp, &content)
-	if err != nil {
-		log.Fatalf("error unmarshaling response: %v", err)
+	var content []models.FileInfo
+	if err := json.Unmarshal(resp, &content); err != nil {
+		log.Printf("error unmarshaling cached link listing: %v", err)
+		return nil
 	}
 
 	var linksWithNumbers []models.FileInfo
