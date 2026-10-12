@@ -26,7 +26,7 @@ final class JobController extends Controller
         $page = max(1, (int) $this->request->query('page', '1'));
         $jobs = $this->s->jobs()->list($filters, 51, ($page - 1) * 50);
         return $this->render('jobs/index', [
-            'title' => 'Jobs & History',
+            'title' => 'Jobs & history',
             'nav' => 'jobs',
             'jobs' => array_slice($jobs, 0, 50),
             'hasMore' => count($jobs) > 50,

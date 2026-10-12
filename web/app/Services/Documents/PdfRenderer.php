@@ -47,7 +47,7 @@ final class PdfRenderer
         $title = $meta['provider'] . ' ' . $meta['exam'] . ': ' . $variant->label();
         $dompdf->addInfo('Title', $title);
         $dompdf->addInfo('Subject', 'Collected ' . $meta['collected_at'] . ', version ' . $meta['version']);
-        $dompdf->addInfo('Creator', 'Exam Library');
+        $dompdf->addInfo('Creator', 'Examtopics');
 
         $canvas = $dompdf->getCanvas();
         $font = $dompdf->getFontMetrics()->getFont('DejaVu Sans');
@@ -185,22 +185,23 @@ final class PdfRenderer
         return (string) preg_replace('/[^\x20-\x7E]/', '?', $s);
     }
 
+    // Print styles. One brand colour, the teal print shade (#0f766e), never a screen colour.
     private const CSS = <<<'CSS'
 @page { margin: 18mm 16mm 20mm 16mm; }
 body { font-family: "DejaVu Sans", sans-serif; font-size: 9.5pt; line-height: 1.38; color: #1d2327; }
-.cover { margin-bottom: 10mm; }
-.kicker { text-transform: uppercase; letter-spacing: 1px; color: #5b6770; font-size: 8.5pt; }
-h1 { font-size: 20pt; margin: 2pt 0 2pt 0; }
+.cover { margin-bottom: 10mm; padding-bottom: 6pt; border-bottom: 2pt solid #0f766e; }
+.kicker { text-transform: uppercase; letter-spacing: 1px; color: #0f766e; font-size: 8.5pt; font-weight: bold; }
+h1 { font-size: 20pt; margin: 2pt 0 2pt 0; color: #0f766e; }
 .subtitle { font-size: 11pt; color: #3d4a52; margin-bottom: 6pt; }
 table.meta { border-collapse: collapse; margin-top: 6pt; }
 table.meta th { text-align: left; color: #5b6770; font-weight: normal; padding: 1pt 10pt 1pt 0; }
 table.meta td { padding: 1pt 0; }
 .warn { border-left: 3pt solid #c77c02; padding: 4pt 8pt; background: #fff6e5; }
-.note { border-left: 3pt solid #3b6ea8; padding: 4pt 8pt; background: #eef4fb; }
+.note { border-left: 3pt solid #0f766e; padding: 4pt 8pt; background: #eef6f5; }
 .q { border-top: 0.6pt solid #c9d1d6; padding-top: 6pt; margin-top: 8pt; }
 .q-core { page-break-inside: avoid; }
 .q-head { margin-bottom: 3pt; }
-.q-num { font-weight: bold; font-size: 10.5pt; }
+.q-num { font-weight: bold; font-size: 10.5pt; color: #0f766e; }
 .q-meta { color: #5b6770; font-size: 8pt; margin-left: 6pt; }
 .q-text { margin-bottom: 4pt; }
 table.choices { border-collapse: collapse; margin: 2pt 0 4pt 0; width: 100%; }
@@ -216,9 +217,10 @@ table.choices td.letter { width: 16pt; font-weight: bold; }
 .img img { max-width: 100%; max-height: 120mm; margin: 3pt 0; }
 .img-missing { color: #5b6770; font-size: 8pt; word-wrap: break-word; }
 .key { page-break-before: always; }
-h2 { font-size: 14pt; }
+h2 { font-size: 14pt; color: #0f766e; }
 table.keytable { border-collapse: collapse; width: 100%; }
-table.keytable th, table.keytable td { border: 0.5pt solid #c9d1d6; padding: 2pt 5pt; text-align: left; }
+table.keytable th, table.keytable td { border: 0.5pt solid #cccccc; padding: 2pt 5pt; text-align: left; }
+table.keytable th { background: #f6f6f6; font-weight: bold; }
 table.keytable td.num { color: #5b6770; width: 12%; }
 CSS;
 }

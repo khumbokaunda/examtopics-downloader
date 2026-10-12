@@ -38,6 +38,7 @@ return static function (Router $r): void {
     $r->get('/api/jobs/{id}', [JobController::class, 'statusJson']);
 
     $r->get('/library', [LibraryController::class, 'index']);
+    $r->get('/api/palette', [LibraryController::class, 'paletteJson']);
     $r->get('/library/{provider}/{exam}', [LibraryController::class, 'exam']);
     $r->get('/library/{provider}/{exam}/view', [ViewerController::class, 'show']);
     $r->get('/library/{provider}/{exam}/{version}/json', [LibraryController::class, 'downloadJson']);
@@ -51,4 +52,6 @@ return static function (Router $r): void {
     $r->get('/settings', [SettingsController::class, 'index']);
     $r->post('/settings/password', [SettingsController::class, 'password']);
     $r->post('/settings/reconcile', [SettingsController::class, 'reconcile']);
+    $r->post('/settings/appearance', [SettingsController::class, 'appearance']);
+    $r->post('/api/appearance', [SettingsController::class, 'appearanceJson']);
 };

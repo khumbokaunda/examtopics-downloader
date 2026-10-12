@@ -1,4 +1,4 @@
-# Operating the Exam Library
+# Operating Examtopics
 
 Day-to-day running, recovery, backups and upgrades. Installation is in [INSTALL.md](INSTALL.md),
 design in [ARCHITECTURE.md](ARCHITECTURE.md).
@@ -30,7 +30,7 @@ All commands run from `web/` as the web server user, for example
 | One job's raw files | `storage/jobs/<id>/` (`events.jsonl`, `tool.log`, and `output.json` if it was rejected) |
 
 Logs are JSON Lines and are redacted: tokens, authorization headers, cookies and the
-database password never appear in them. Rotate them with `deploy/examlib.logrotate`.
+database password never appear in them. Rotate them with `deploy/examtopics.logrotate`.
 
 ## Recovery procedures
 
@@ -107,7 +107,7 @@ cached data.
 |---|---|
 | `web/storage/cache/` | The canonical exam data (datasets and manifests). **The one thing you cannot regenerate without scraping again.** |
 | `web/config/config.local.php` | Your configuration and secrets |
-| The MySQL database (`mysqldump examlib`) | Users, job history, inventories, document records |
+| The MySQL database (`mysqldump examtopics`) | Users, job history, inventories, document records |
 
 `storage/documents/` can be skipped: documents are regenerated on demand. `storage/jobs/` and
 `storage/logs/` are diagnostic only.
@@ -130,7 +130,7 @@ Refresh the inventories from the Providers page.
   complete version cannot be deleted, and nothing is deleted while a collection for that exam
   is active or a document is being generated from the version.
 - **Generated documents** can be deleted per document; the cached data is not affected.
-- **Job working files**: `php bin/cleanup.php --days=30` (scheduled by `deploy/examlib.cron`).
+- **Job working files**: `php bin/cleanup.php --days=30` (scheduled by `deploy/examtopics.cron`).
   Job history rows are kept.
 
 ## Upgrades
@@ -142,7 +142,7 @@ go build -o bin/examtopics-downloader ./cmd
 cd web
 composer install --no-dev --optimize-autoloader
 sudo -u www-data php bin/migrate.php
-sudo systemctl restart examlib-worker    # only if you use the systemd worker
+sudo systemctl restart examtopics-worker    # only if you use the systemd worker
 ```
 
 On-demand workers pick up new code with the next job. Upgrade between jobs: a worker that is
@@ -155,11 +155,11 @@ mid-job keeps running the old code until it finishes.
 go test -short ./...
 
 # Web application: needs a disposable MySQL/MariaDB database
-mysql -e "CREATE DATABASE examlib_test; CREATE USER 'examlib'@'localhost' IDENTIFIED BY 'examlib-test-pw';
-          GRANT ALL ON examlib_test.* TO 'examlib'@'localhost';"
+mysql -e "CREATE DATABASE examtopics_test; CREATE USER 'examtopics'@'localhost' IDENTIFIED BY 'examtopics-test-pw';
+          GRANT ALL ON examtopics_test.* TO 'examtopics'@'localhost';"
 cd web && composer install && vendor/bin/phpunit
 ```
 
-The PHP suite wipes `examlib_test` freely. Point it elsewhere with `EXAMLIB_TEST_DSN`,
-`EXAMLIB_TEST_USER` and `EXAMLIB_TEST_PASSWORD`. It never contacts ExamTopics: all collection
+The PHP suite wipes `examtopics_test` freely. Point it elsewhere with `EXAMTOPICS_TEST_DSN`,
+`EXAMTOPICS_TEST_USER` and `EXAMTOPICS_TEST_PASSWORD`. It never contacts ExamTopics: all collection
 tests run the real tool against `tests/fixtureserver`.

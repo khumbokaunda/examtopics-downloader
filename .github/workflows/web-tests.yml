@@ -19,9 +19,9 @@ jobs:
         image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: examlib_test
-          MYSQL_USER: examlib
-          MYSQL_PASSWORD: examlib-test-pw
+          MYSQL_DATABASE: examtopics_test
+          MYSQL_USER: examtopics
+          MYSQL_PASSWORD: examtopics-test-pw
         ports:
           - 3306:3306
         options: >-
@@ -51,7 +51,7 @@ jobs:
       - name: Run unit, integration and end-to-end tests
         working-directory: web
         env:
-          EXAMLIB_TEST_DSN: "mysql:host=127.0.0.1;port=3306;dbname=examlib_test;charset=utf8mb4"
-          EXAMLIB_TEST_USER: examlib
-          EXAMLIB_TEST_PASSWORD: examlib-test-pw
+          EXAMTOPICS_TEST_DSN: "mysql:host=127.0.0.1;port=3306;dbname=examtopics_test;charset=utf8mb4"
+          EXAMTOPICS_TEST_USER: examtopics
+          EXAMTOPICS_TEST_PASSWORD: examtopics-test-pw
         run: vendor/bin/phpunit

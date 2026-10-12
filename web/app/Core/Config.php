@@ -6,7 +6,7 @@ namespace App\Core;
 
 /**
  * Configuration: config/config.php, overlaid by config/config.local.php (or the file
- * named by EXAMLIB_CONFIG), overlaid by EXAMLIB_* environment variables.
+ * named by EXAMTOPICS_CONFIG), overlaid by EXAMTOPICS_* environment variables.
  */
 final class Config
 {
@@ -20,7 +20,7 @@ final class Config
         $configDir ??= dirname(__DIR__, 2) . '/config';
         $values = require $configDir . '/config.php';
 
-        $local = getenv('EXAMLIB_CONFIG') ?: $configDir . '/config.local.php';
+        $local = getenv('EXAMTOPICS_CONFIG') ?: $configDir . '/config.local.php';
         if (is_file($local)) {
             $overlay = require $local;
             if (is_array($overlay)) {
@@ -29,12 +29,12 @@ final class Config
         }
 
         $env = [
-            'EXAMLIB_DB_DSN'      => ['db', 'dsn'],
-            'EXAMLIB_DB_USER'     => ['db', 'user'],
-            'EXAMLIB_DB_PASSWORD' => ['db', 'password'],
-            'EXAMLIB_GITHUB_TOKEN' => ['github_token'],
-            'EXAMLIB_STORAGE_DIR' => ['storage_dir'],
-            'EXAMLIB_TOOL_BINARY' => ['tool', 'binary'],
+            'EXAMTOPICS_DB_DSN'      => ['db', 'dsn'],
+            'EXAMTOPICS_DB_USER'     => ['db', 'user'],
+            'EXAMTOPICS_DB_PASSWORD' => ['db', 'password'],
+            'EXAMTOPICS_GITHUB_TOKEN' => ['github_token'],
+            'EXAMTOPICS_STORAGE_DIR' => ['storage_dir'],
+            'EXAMTOPICS_TOOL_BINARY' => ['tool', 'binary'],
         ];
         foreach ($env as $name => $path) {
             $v = getenv($name);

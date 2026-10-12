@@ -1,6 +1,6 @@
 # Repository Audit: examtopics-downloader
 
-Audit of the Go tool as it stood at commit `d58f129`, before the Exam Library work.
+Audit of the Go tool as it stood at commit `d58f129`, before the Examtopics web app work.
 It describes what the code actually does, verified from source, the bundled
 `examples/` output and live runs reported by the owner. It is not based on the README.
 

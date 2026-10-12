@@ -47,7 +47,7 @@ final class ImageFetcher
         $this->count++;
         $ctx = stream_context_create([
             'http' => ['timeout' => $this->timeout, 'follow_location' => 0, 'ignore_errors' => false,
-                       'header' => "User-Agent: ExamLibrary/1.0\r\n"],
+                       'header' => "User-Agent: examtopics-downloader/1.0\r\n"],
             'ssl' => ['verify_peer' => true, 'verify_peer_name' => true],
         ]);
         $fh = @fopen($url, 'rb', false, $ctx);

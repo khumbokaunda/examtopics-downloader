@@ -53,7 +53,7 @@ final class ViewerController extends Controller
             $slice = array_map([self::class, 'practiceView'], $slice);
         }
         return $this->render('viewer/show', [
-            'title' => strtoupper((string) $e['code']) . ' viewer',
+            'title' => strtoupper((string) $e['code']) . ($mode === 'practice' ? ' practice' : ' study'),
             'nav' => 'library',
             'provider' => $p,
             'exam' => $e,

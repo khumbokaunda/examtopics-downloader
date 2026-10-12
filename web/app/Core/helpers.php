@@ -84,19 +84,74 @@ if (!function_exists('e')) {
             : sprintf('%dm %02ds', intdiv($d, 60), $d % 60);
     }
 
-    /** Bootstrap badge for a job/version/document status. */
+    /**
+     * URL of a file under public/, versioned by its modification time so a deploy that only
+     * changes CSS or JavaScript is never served stale from the browser cache.
+     */
+    function asset(string $path): string
+    {
+        $file = dirname(__DIR__, 2) . '/public' . $path;
+        $mtime = is_file($file) ? (int) filemtime($file) : 0;
+        return url($path, ['v' => base_convert((string) $mtime, 10, 36)]);
+    }
+
+    /** A Bootstrap Icons glyph, hidden from assistive technology (always beside a label). */
+    function icon(string $name, string $extra = ''): string
+    {
+        return '<i class="bi bi-' . e($name) . ($extra !== '' ? ' ' . e($extra) : '') . '" aria-hidden="true"></i>';
+    }
+
+    /** A status chip. $tone: neutral, primary, success, warning, danger or info. */
+    function chip(string $text, string $tone = 'neutral', ?string $iconName = null): string
+    {
+        $tone = in_array($tone, ['neutral', 'primary', 'success', 'warning', 'danger', 'info'], true) ? $tone : 'neutral';
+        return '<span class="chip chip--' . $tone . '">' . ($iconName !== null ? icon($iconName) : '') . e($text) . '</span>';
+    }
+
+    /** @return array{0:string,1:string} the tone and icon for a job, version or document status */
+    function status_style(?string $status): array
+    {
+        return match ($status) {
+            'completed', 'complete', 'ready', 'ok' => ['success', 'check2-circle'],
+            'running' => ['primary', 'arrow-repeat'],
+            'queued' => ['neutral', 'hourglass-split'],
+            'partial', 'partial-only' => ['warning', 'exclamation-triangle'],
+            'failed' => ['danger', 'x-circle'],
+            'cancelled' => ['neutral', 'slash-circle'],
+            default => ['neutral', 'dot'],
+        };
+    }
+
+    /** The status chip for a job, version or document. */
     function status_badge(?string $status): string
     {
-        $cls = match ($status) {
-            'completed', 'complete', 'ready' => 'text-bg-success',
-            'running' => 'text-bg-primary',
-            'queued' => 'text-bg-secondary',
-            'partial', 'partial-only' => 'text-bg-warning',
-            'failed' => 'text-bg-danger',
-            'cancelled' => 'text-bg-dark',
-            default => 'text-bg-light border',
-        };
-        return '<span class="badge ' . $cls . '">' . e($status ?? 'unknown') . '</span>';
+        [$tone, $iconName] = status_style($status);
+        $label = $status === 'partial-only' ? 'partial' : (string) ($status ?? 'unknown');
+        return '<span class="chip chip--' . $tone . '">' . icon($iconName, $status === 'running' ? 'spin' : '')
+            . e($label) . '</span>';
+    }
+
+    /**
+     * An empty state: an icon, a title and one line saying what to do next. $body is HTML the
+     * caller has already escaped (it may hold a link); $action is [label, href] for a button.
+     *
+     * @param array{0:string,1:string}|null $action
+     */
+    function empty_state(string $iconName, string $title, string $body = '', ?array $action = null, bool $compact = false): string
+    {
+        return '<div class="empty-state' . ($compact ? ' is-compact' : '') . '">' . icon($iconName, 'empty-icon')
+            . '<p class="empty-title">' . e($title) . '</p>'
+            . ($body !== '' ? '<p class="empty-body">' . $body . '</p>' : '')
+            . ($action !== null ? '<a class="btn btn-primary btn-sm" href="' . e($action[1]) . '">' . e($action[0]) . '</a>' : '')
+            . '</div>';
+    }
+
+    /** Initials for an avatar: up to two letters from a username. */
+    function initials(string $name): string
+    {
+        $parts = preg_split('/[^\p{L}\p{N}]+/u', $name, -1, PREG_SPLIT_NO_EMPTY) ?: [$name];
+        $letters = count($parts) > 1 ? mb_substr($parts[0], 0, 1) . mb_substr($parts[1], 0, 1) : mb_substr($parts[0], 0, 2);
+        return mb_strtoupper($letters);
     }
 
     function job_label(array $job): string

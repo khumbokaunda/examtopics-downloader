@@ -1,4 +1,4 @@
-# Installing the Exam Library on a VPS
+# Installing Examtopics on a VPS
 
 This guide installs the private web application (`web/`) next to the Go collection tool on
 an existing Linux server. It does not replace your web server configuration; it adds one
@@ -33,6 +33,14 @@ bin/examtopics-downloader -version
 Build the package (`./cmd`), not the file (`./cmd/main.go`): only a package build records the
 Git revision, which the library shows on every collected version.
 
+If the build stops with `error obtaining VCS status: exit status 128`, Git refused to read the
+checkout, usually because you are building as root in a directory another user owns. Mark it
+as safe once, then build again:
+
+```bash
+git config --global --add safe.directory /srv/examtopics-downloader
+```
+
 ## 3. Install the PHP dependencies
 
 ```bash
@@ -43,9 +51,9 @@ composer install --no-dev --optimize-autoloader
 ## 4. Create the database
 
 ```sql
-CREATE DATABASE examlib CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'examlib'@'localhost' IDENTIFIED BY 'a-long-random-password';
-GRANT ALL PRIVILEGES ON examlib.* TO 'examlib'@'localhost';
+CREATE DATABASE examtopics CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'examtopics'@'localhost' IDENTIFIED BY 'a-long-random-password';
+GRANT ALL PRIVILEGES ON examtopics.* TO 'examtopics'@'localhost';
 ```
 
 ## 5. Configure
@@ -67,8 +75,8 @@ Edit `config/config.local.php`:
 Every other setting and its default is documented in `config/config.php`. Do not edit
 that file; override values in `config.local.php`.
 
-Secrets can also come from the environment instead (`EXAMLIB_DB_DSN`, `EXAMLIB_DB_USER`,
-`EXAMLIB_DB_PASSWORD`, `EXAMLIB_GITHUB_TOKEN`), for example via `env[...]` in the php-fpm pool.
+Secrets can also come from the environment instead (`EXAMTOPICS_DB_DSN`, `EXAMTOPICS_DB_USER`,
+`EXAMTOPICS_DB_PASSWORD`, `EXAMTOPICS_GITHUB_TOKEN`), for example via `env[...]` in the php-fpm pool.
 
 ## 6. Permissions
 
@@ -132,8 +140,8 @@ Never enable it otherwise.
 ## 10. Scheduled maintenance
 
 ```bash
-sudo crontab -u www-data /srv/examtopics-downloader/web/deploy/examlib.cron
-sudo cp /srv/examtopics-downloader/web/deploy/examlib.logrotate /etc/logrotate.d/examlib
+sudo crontab -u www-data /srv/examtopics-downloader/web/deploy/examtopics.cron
+sudo cp /srv/examtopics-downloader/web/deploy/examtopics.logrotate /etc/logrotate.d/examtopics
 ```
 
 The cron file reconciles stale jobs every five minutes and removes working files of jobs
@@ -145,8 +153,8 @@ By default the web app starts a worker on demand and it exits when the queue is 
 you prefer a supervised, always-on worker:
 
 1. In `config.local.php`: `'worker' => ['autostart' => false]`.
-2. Install `web/deploy/examlib-worker.service` into `/etc/systemd/system/`, adjust paths,
-   then `systemctl enable --now examlib-worker`.
+2. Install `web/deploy/examtopics-worker.service` into `/etc/systemd/system/`, adjust paths,
+   then `systemctl enable --now examtopics-worker`.
 
 ## 12. First use
 
@@ -156,7 +164,7 @@ you prefer a supervised, always-on worker:
    has discussions, with question counts.
 3. **Collect Exam**: pick the provider and exam, then *Start collection*. You can close the
    browser; the job continues on the server.
-4. **Exam Library**: read the exam, practice with hidden answers, and generate Markdown or PDF
+4. **Library**: read the exam, practice with hidden answers, and generate Markdown or PDF
    documents.
 
 See [OPERATIONS.md](OPERATIONS.md) for backups, upgrades, logs and recovery.

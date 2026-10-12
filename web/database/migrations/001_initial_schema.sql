@@ -1,4 +1,4 @@
--- Exam Library initial schema (MySQL 5.7+ / MariaDB 10.3+, InnoDB, utf8mb4).
+-- Examtopics initial schema (MySQL 5.7+ / MariaDB 10.3+, InnoDB, utf8mb4).
 -- Question content lives in JSON cache files; these tables hold metadata only and can be
 -- rebuilt from cache manifests with bin/rebuild-index.php.
 

@@ -62,7 +62,7 @@ final class FullFlowTest extends WorkflowTestCase
     {
         $this->webPort = $this->webPort ?: self::freePort();
         $root = dirname(__DIR__, 2);
-        $env = ['EXAMLIB_CONFIG' => $this->configFile, 'PATH' => '/usr/local/bin:/usr/bin:/bin'];
+        $env = ['EXAMTOPICS_CONFIG' => $this->configFile, 'PATH' => '/usr/local/bin:/usr/bin:/bin'];
         $this->web = proc_open([PHP_BINARY, '-S', '127.0.0.1:' . $this->webPort, '-t', $root . '/public', $root . '/public/index.php'],
             [0 => ['file', '/dev/null', 'r'], 1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes, $root, $env);
         $client = new HttpClient('http://127.0.0.1:' . $this->webPort);
@@ -146,7 +146,7 @@ final class FullFlowTest extends WorkflowTestCase
         self::assertSame('completed', $this->waitForJob($c, $inv)['status']);
         $page = $c->get('/collect?provider=huawei&exam=h12-811')['body'];
         self::assertStringContainsString('Start collection', $page);
-        self::assertMatchesRegularExpression('#Reported questions</dt><dd class="col-6">5#', $page);
+        self::assertMatchesRegularExpression('#Reported questions</dt><dd>5#', $page);
 
         // 1-2. Collect an uncached exam and watch its progress.
         $id = $this->jobIdFrom($c->post('/collect', ['provider' => 'huawei', 'exam' => 'h12-811', 'source_mode' => 'live', 'rps' => '1'],
