@@ -5,8 +5,8 @@
 
 return [
     'db' => [
-        'dsn'      => 'mysql:host=127.0.0.1;port=3306;dbname=examlib;charset=utf8mb4',
-        'user'     => 'examlib',
+        'dsn'      => 'mysql:host=127.0.0.1;port=3306;dbname=examtopics;charset=utf8mb4',
+        'user'     => 'examtopics',
         'password' => 'change-me',
     ],
 

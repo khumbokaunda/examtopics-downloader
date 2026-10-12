@@ -23,7 +23,7 @@ final class LibraryController extends Controller
             'status' => in_array($status, ['complete', 'partial-only'], true) ? $status : '',
         ];
         return $this->render('library/index', [
-            'title' => 'Exam Library',
+            'title' => 'Library',
             'nav' => 'library',
             'rows' => $this->s->versions()->library($filters),
             'filters' => $filters,

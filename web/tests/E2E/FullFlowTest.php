@@ -62,7 +62,7 @@ final class FullFlowTest extends WorkflowTestCase
     {
         $this->webPort = $this->webPort ?: self::freePort();
         $root = dirname(__DIR__, 2);
-        $env = ['EXAMLIB_CONFIG' => $this->configFile, 'PATH' => '/usr/local/bin:/usr/bin:/bin'];
+        $env = ['EXAMTOPICS_CONFIG' => $this->configFile, 'PATH' => '/usr/local/bin:/usr/bin:/bin'];
         $this->web = proc_open([PHP_BINARY, '-S', '127.0.0.1:' . $this->webPort, '-t', $root . '/public', $root . '/public/index.php'],
             [0 => ['file', '/dev/null', 'r'], 1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes, $root, $env);
         $client = new HttpClient('http://127.0.0.1:' . $this->webPort);

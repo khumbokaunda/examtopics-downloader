@@ -2,7 +2,7 @@
 
 This repo aims to make it possible for you to obtain all the exam questions from the examtopics website (which is paywalled).
 
-## Exam Library web app
+## Examtopics web app
 
 `web/` contains a private, self-hosted web interface for this tool: browse providers and
 exams with question counts, run collections in the background, keep a versioned library,
@@ -269,7 +269,7 @@ D. 172.23.104.4
 
 ## Machine-readable mode
 
-These flags let other programs (such as the [Exam Library web app](web/README.md)) drive the
+These flags let other programs (such as the [Examtopics web app](web/README.md)) drive the
 tool unattended. The formats are specified in [docs/DATA_MODEL.md](docs/DATA_MODEL.md).
 
 ```bash

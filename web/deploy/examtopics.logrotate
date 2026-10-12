@@ -1,4 +1,4 @@
-# cp deploy/examlib.logrotate /etc/logrotate.d/examlib  (adjust the path and user)
+# cp deploy/examtopics.logrotate /etc/logrotate.d/examtopics  (adjust the path and user)
 /srv/examtopics-downloader/web/storage/logs/*.log {
     weekly
     rotate 8

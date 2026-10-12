@@ -25,7 +25,7 @@ abstract class WorkflowTestCase extends DbTestCase
     {
         parent::setUpBeforeClass();
         if (self::$binDir === '') {
-            self::$binDir = sys_get_temp_dir() . '/examlib-test-bin';
+            self::$binDir = sys_get_temp_dir() . '/examtopics-test-bin';
             @mkdir(self::$binDir, 0755, true);
             $repo = dirname(__DIR__, 3);
             foreach (['examtopics-downloader' => './cmd', 'fixtureserver' => './tests/fixtureserver'] as $out => $pkg) {
@@ -64,7 +64,7 @@ abstract class WorkflowTestCase extends DbTestCase
 
     /**
      * Point the app (and any process it starts) at a fixture site and a tool binary, via a
-     * generated config file selected with EXAMLIB_CONFIG.
+     * generated config file selected with EXAMTOPICS_CONFIG.
      *
      * @param array<string,mixed> $overrides
      */
@@ -82,9 +82,9 @@ abstract class WorkflowTestCase extends DbTestCase
             'worker' => ['autostart' => false],
             'php_cli' => PHP_BINARY,
         ], $overrides);
-        $this->configFile = sys_get_temp_dir() . '/examlib-test-config-' . getmypid() . '.php';
+        $this->configFile = sys_get_temp_dir() . '/examtopics-test-config-' . getmypid() . '.php';
         file_put_contents($this->configFile, '<?php return ' . var_export($cfg, true) . ';');
-        putenv('EXAMLIB_CONFIG=' . $this->configFile);
+        putenv('EXAMTOPICS_CONFIG=' . $this->configFile);
         $this->app = App::boot(Config::load());
         $this->s = new Services($this->app);
     }
@@ -104,7 +104,7 @@ abstract class WorkflowTestCase extends DbTestCase
 
     protected function fakeTool(string $name, string $shellBody): string
     {
-        $path = sys_get_temp_dir() . '/examlib-fake-' . $name . '-' . getmypid();
+        $path = sys_get_temp_dir() . '/examtopics-fake-' . $name . '-' . getmypid();
         file_put_contents($path, "#!/bin/sh\n" . $shellBody . "\n");
         chmod($path, 0755);
         return $path;
@@ -112,6 +112,6 @@ abstract class WorkflowTestCase extends DbTestCase
 
     protected function tearDownConfig(): void
     {
-        putenv('EXAMLIB_CONFIG=' . dirname(__DIR__) . '/config.test.php');
+        putenv('EXAMTOPICS_CONFIG=' . dirname(__DIR__) . '/config.test.php');
     }
 }

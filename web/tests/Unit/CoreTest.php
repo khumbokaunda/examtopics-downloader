@@ -52,7 +52,7 @@ final class CoreTest extends TestCase
 
     public function testResolveInsideRejectsEscapes(): void
     {
-        $root = sys_get_temp_dir() . '/examlib-paths-' . bin2hex(random_bytes(4));
+        $root = sys_get_temp_dir() . '/examtopics-paths-' . bin2hex(random_bytes(4));
         mkdir($root . '/a', 0750, true);
         file_put_contents($root . '/a/doc.pdf', 'x');
         $outside = $root . '-outside';
@@ -71,7 +71,7 @@ final class CoreTest extends TestCase
 
     public function testPathsRefuseInvalidIdentifiers(): void
     {
-        $root = sys_get_temp_dir() . '/examlib-paths-' . bin2hex(random_bytes(4));
+        $root = sys_get_temp_dir() . '/examtopics-paths-' . bin2hex(random_bytes(4));
         mkdir($root);
         $paths = new Paths($root);
         $this->expectException(\RuntimeException::class);
@@ -80,7 +80,7 @@ final class CoreTest extends TestCase
 
     public function testAtomicWriteLeavesNoTempFiles(): void
     {
-        $dir = sys_get_temp_dir() . '/examlib-atomic-' . bin2hex(random_bytes(4));
+        $dir = sys_get_temp_dir() . '/examtopics-atomic-' . bin2hex(random_bytes(4));
         Paths::atomicWrite($dir . '/f.json', '{"a":1}');
         Paths::atomicWrite($dir . '/f.json', '{"a":2}');
         self::assertSame('{"a":2}', file_get_contents($dir . '/f.json'));

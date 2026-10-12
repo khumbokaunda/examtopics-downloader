@@ -1,6 +1,6 @@
 <?php /** @var list<array> $rows @var array{provider:string,q:string,status:string} $filters @var list<array> $providers */ ?>
 <div class="mb-3">
-    <h1 class="h3 mb-0">Exam Library</h1>
+    <h1 class="h3 mb-0">Library</h1>
     <div class="text-muted small">Every exam you have collected. Documents are generated from these cached versions, without contacting the source again.</div>
 </div>
 <form class="row g-2 mb-3" method="get" action="<?= e(url('/library')) ?>">

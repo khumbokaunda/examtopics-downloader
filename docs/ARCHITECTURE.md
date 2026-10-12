@@ -1,4 +1,4 @@
-# Exam Library Architecture
+# Examtopics Architecture
 
 A private web application (`web/`) that drives the existing Go tool to build a personal,
 versioned library of exam questions and to produce documents from it. The current state of

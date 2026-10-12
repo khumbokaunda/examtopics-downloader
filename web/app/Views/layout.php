@@ -3,7 +3,7 @@
 $items = [
     'dashboard' => ['/', 'Dashboard'],
     'collect' => ['/collect', 'Collect Exam'],
-    'library' => ['/library', 'Exam Library'],
+    'library' => ['/library', 'Library'],
     'providers' => ['/providers', 'Providers & Inventory'],
     'jobs' => ['/jobs', 'Jobs & History'],
     'settings' => ['/settings', 'Settings'],
@@ -16,7 +16,7 @@ $items = [
     <meta name="robots" content="noindex, nofollow">
     <meta name="csrf-token" content="<?= e(csrf_token()) ?>">
     <meta name="app-base" content="<?= e(url('')) ?>">
-    <title><?= e($title !== '' ? $title . ' · ' : '') ?>Exam Library</title>
+    <title><?= e($title !== '' ? $title . ' · ' : '') ?>Examtopics</title>
     <link rel="stylesheet" href="<?= e(url('/assets/vendor/bootstrap/bootstrap.min.css')) ?>">
     <link rel="stylesheet" href="<?= e(url('/assets/app.css')) ?>">
 </head>
@@ -24,7 +24,7 @@ $items = [
 <?php if ($user): ?>
 <nav class="navbar navbar-expand-lg app-nav sticky-top" data-bs-theme="dark">
     <div class="container-xxl">
-        <a class="navbar-brand fw-semibold" href="<?= e(url('/')) ?>"><span class="brand-mark">EL</span> Exam Library</a>
+        <a class="navbar-brand fw-semibold" href="<?= e(url('/')) ?>"><span class="brand-mark">EL</span> Examtopics</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>

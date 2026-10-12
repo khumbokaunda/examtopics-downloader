@@ -3,16 +3,16 @@
 declare(strict_types=1);
 
 // Default configuration. Do not put secrets here: copy config.local.php.example to
-// config.local.php (not committed) or use the EXAMLIB_* environment variables.
+// config.local.php (not committed) or use the EXAMTOPICS_* environment variables.
 
 $webRoot = dirname(__DIR__);
 
 return [
-    'app_name' => 'Exam Library',
+    'app_name' => 'Examtopics',
 
     'db' => [
-        'dsn'      => 'mysql:host=127.0.0.1;port=3306;dbname=examlib;charset=utf8mb4',
-        'user'     => 'examlib',
+        'dsn'      => 'mysql:host=127.0.0.1;port=3306;dbname=examtopics;charset=utf8mb4',
+        'user'     => 'examtopics',
         'password' => '',
     ],
 
@@ -39,7 +39,7 @@ return [
     'github_token' => '',
 
     'session' => [
-        'name'         => 'examlib_session',
+        'name'         => 'examtopics_session',
         'secure'       => true,        // set false only for local http testing
         'idle_timeout' => 4 * 3600,
     ],

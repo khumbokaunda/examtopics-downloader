@@ -3,7 +3,7 @@
     <div class="col-sm-9 col-md-6 col-lg-4">
         <div class="text-center mb-4 mt-5">
             <span class="brand-mark brand-mark-lg">EL</span>
-            <h1 class="h4 mt-3 mb-0">Exam Library</h1>
+            <h1 class="h4 mt-3 mb-0">Examtopics</h1>
             <p class="text-muted small">Private study library</p>
         </div>
         <div class="card shadow-sm">

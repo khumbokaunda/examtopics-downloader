@@ -107,7 +107,7 @@ final class WorkerSupervisor
     }
 
     /**
-     * Environment for the PHP worker: a minimal base plus every EXAMLIB_* variable, so a
+     * Environment for the PHP worker: a minimal base plus every EXAMTOPICS_* variable, so a
      * database configured through the web server's environment reaches the worker too.
      *
      * @return array<string,string>
@@ -116,7 +116,7 @@ final class WorkerSupervisor
     {
         $env = self::baseEnv();
         foreach (getenv() as $k => $v) {
-            if (is_string($k) && str_starts_with($k, 'EXAMLIB_') && is_string($v)) {
+            if (is_string($k) && str_starts_with($k, 'EXAMTOPICS_') && is_string($v)) {
                 $env[$k] = $v;
             }
         }

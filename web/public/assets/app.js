@@ -1,4 +1,4 @@
-// Exam Library front-end. No framework; every dynamic value is inserted with textContent or
+// Examtopics front-end. No framework; every dynamic value is inserted with textContent or
 // DOM APIs (never innerHTML), and widths are set through the CSSOM (CSP forbids inline styles).
 (function () {
   'use strict';

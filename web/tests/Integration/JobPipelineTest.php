@@ -195,7 +195,7 @@ SH);
 
     public function testInterruptedJobIsReconciledAndOrphanStopped(): void
     {
-        $sleeper = sys_get_temp_dir() . '/examlib-fake-orphan-' . getmypid();
+        $sleeper = sys_get_temp_dir() . '/examtopics-fake-orphan-' . getmypid();
         copy('/bin/sleep', $sleeper);
         chmod($sleeper, 0755);
         $this->configure($this->startFixture(), $sleeper);
@@ -209,7 +209,7 @@ SH);
         // While a worker holds the lock, a web request must not touch the running job.
         $lock = $this->s->supervisor()->lock();
         self::assertTrue($lock->acquire());
-        $result = tempnam(sys_get_temp_dir(), 'examlib-ensure');
+        $result = tempnam(sys_get_temp_dir(), 'examtopics-ensure');
         $child = pcntl_fork();
         if ($child === 0) {
             $s = new \App\Services\Services(\App\Core\App::boot(\App\Core\Config::load()));

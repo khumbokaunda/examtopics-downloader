@@ -1,4 +1,4 @@
-# Exam Library (web application)
+# Examtopics (web application)
 
 A private, single-user web app for the examtopics-downloader Go tool. It discovers providers
 and their exams, runs collections in the background, keeps a versioned library of the results,

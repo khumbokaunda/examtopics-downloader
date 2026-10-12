@@ -1,5 +1,5 @@
 // Package progress emits machine-readable progress as JSON Lines, one event per line,
-// for callers such as the Exam Library web application. Human-readable output never goes
+// for callers such as the Examtopics web application. Human-readable output never goes
 // to this stream, so it is always valid JSON Lines.
 package progress
 

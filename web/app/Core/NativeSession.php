@@ -14,7 +14,7 @@ final class NativeSession extends Session
         ini_set('session.cookie_httponly', '1');
         ini_set('session.sid_length', '48');
         ini_set('session.sid_bits_per_character', '6');
-        session_name((string) $config->get('session.name', 'examlib_session'));
+        session_name((string) $config->get('session.name', 'examtopics_session'));
         session_set_cookie_params([
             'lifetime' => 0,
             'path'     => '/',

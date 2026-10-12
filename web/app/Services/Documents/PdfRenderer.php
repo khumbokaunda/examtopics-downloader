@@ -47,7 +47,7 @@ final class PdfRenderer
         $title = $meta['provider'] . ' ' . $meta['exam'] . ': ' . $variant->label();
         $dompdf->addInfo('Title', $title);
         $dompdf->addInfo('Subject', 'Collected ' . $meta['collected_at'] . ', version ' . $meta['version']);
-        $dompdf->addInfo('Creator', 'Exam Library');
+        $dompdf->addInfo('Creator', 'Examtopics');
 
         $canvas = $dompdf->getCanvas();
         $font = $dompdf->getFontMetrics()->getFont('DejaVu Sans');

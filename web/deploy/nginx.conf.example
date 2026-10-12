@@ -1,4 +1,4 @@
-# Exam Library behind nginx + php-fpm. Adjust server_name, paths and the php-fpm socket.
+# Examtopics behind nginx + php-fpm. Adjust server_name, paths and the php-fpm socket.
 # Only web/public is exposed; app/, config/, storage/ and vendor/ are outside the root.
 server {
     listen 443 ssl http2;

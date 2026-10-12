@@ -1,6 +1,6 @@
 {
-    "name": "examlib/web",
-    "description": "Private Exam Library web application for the examtopics-downloader Go tool",
+    "name": "examtopics/web",
+    "description": "Private Examtopics web application for the examtopics-downloader Go tool",
     "type": "project",
     "license": "MIT",
     "require": {

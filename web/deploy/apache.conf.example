@@ -1,4 +1,4 @@
-# Exam Library with Apache (mod_php or php-fpm via proxy_fcgi). Enable mod_rewrite and mod_ssl.
+# Examtopics with Apache (mod_php or php-fpm via proxy_fcgi). Enable mod_rewrite and mod_ssl.
 <VirtualHost *:443>
     ServerName exams.example.com
     DocumentRoot /srv/examtopics-downloader/web/public

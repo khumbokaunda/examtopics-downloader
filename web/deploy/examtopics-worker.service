@@ -1,8 +1,8 @@
 # Optional: a permanently running worker instead of on-demand workers.
 # 1. Set 'worker' => ['autostart' => false] in config/config.local.php
-# 2. cp deploy/examlib-worker.service /etc/systemd/system/ && systemctl enable --now examlib-worker
+# 2. cp deploy/examtopics-worker.service /etc/systemd/system/ && systemctl enable --now examtopics-worker
 [Unit]
-Description=Exam Library background worker
+Description=Examtopics background worker
 After=network-online.target mysql.service mariadb.service
 Wants=network-online.target
 

@@ -10,7 +10,7 @@ use App\Core\Migrator;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Integration base: a real MySQL/MariaDB test database (EXAMLIB_TEST_DSN, default examlib_test),
+ * Integration base: a real MySQL/MariaDB test database (EXAMTOPICS_TEST_DSN, default examtopics_test),
  * rebuilt once per run and emptied before each test, plus a fresh storage directory.
  */
 abstract class DbTestCase extends TestCase

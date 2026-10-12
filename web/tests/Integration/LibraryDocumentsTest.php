@@ -222,7 +222,7 @@ final class LibraryDocumentsTest extends HttpTestCase
         $data['questions'][0]['text'] = "# Not a heading\n<script>alert(1)</script> | pipe *bold* [link](javascript:x)\n1. not a list";
         $data['questions'][0]['choices'][0]['text'] = '<img src=x onerror=alert(2)>';
         $data['questions'][0]['question_images'] = ['javascript:alert(3)', 'https://example.com/a.png" onerror="x'];
-        $file = sys_get_temp_dir() . '/examlib-hostile.json';
+        $file = sys_get_temp_dir() . '/examtopics-hostile.json';
         file_put_contents($file, json_encode($data));
         $exam = $this->s->exams()->find((int) $this->s->providers()->findBySlug('huawei')['id'], 'h12-811');
         $pub = $this->s->cache()->publish($this->s->providers()->findBySlug('huawei'), $exam, $file, null, []);
