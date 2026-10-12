@@ -319,10 +319,14 @@ final class JobRunner
         if ($fh === false) {
             return '';
         }
-        fseek($fh, max(0, (int) $size - 16384));
+        $offset = max(0, (int) $size - max(16384, $lines * 400));
+        fseek($fh, $offset);
         $chunk = (string) stream_get_contents($fh);
         fclose($fh);
         $all = preg_split('/\r?\n/', trim($chunk)) ?: [];
+        if ($offset > 0) {
+            array_shift($all); // the read started mid-line
+        }
         return Redactor::clean(implode("\n", array_slice($all, -$lines)));
     }
 }

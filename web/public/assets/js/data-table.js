@@ -70,7 +70,9 @@
     });
 
     var defaults = {
-      q: '', page: 0, hidden: [],
+      q: '', page: 0,
+      // <th data-hidden> starts hidden; Columns can show it.
+      hidden: this.headers.map(function (th, ci) { return th.hasAttribute('data-hidden') ? ci : -1; }).filter(function (ci) { return ci !== -1; }),
       len: parseInt(table.getAttribute('data-page-length') || '25', 10),
       order: (function () { try { return JSON.parse(table.getAttribute('data-order') || '[]'); } catch (e) { return []; } })()
     };
@@ -141,6 +143,7 @@
         var cb = el('input', 'form-check-input');
         cb.type = 'checkbox';
         cb.checked = self.state.hidden.indexOf(ci) === -1;
+        cb.setAttribute('data-col', String(ci));
         cb.addEventListener('change', function () {
           var at = self.state.hidden.indexOf(ci);
           if (cb.checked && at !== -1) self.state.hidden.splice(at, 1);
@@ -188,10 +191,10 @@
     reset.appendChild(document.createTextNode('Reset'));
     reset.addEventListener('click', function () {
       forget(self.key);
-      self.state = { q: '', page: 0, len: self.defaults.len, order: self.defaults.order.slice(), hidden: [] };
+      self.state = { q: '', page: 0, len: self.defaults.len, order: self.defaults.order.slice(), hidden: self.defaults.hidden.slice() };
       self.input.value = '';
       self.lenSelect.value = String(self.state.len);
-      bar.querySelectorAll('.dt-menu-item input').forEach(function (cb) { cb.checked = true; });
+      bar.querySelectorAll('.dt-menu-item input').forEach(function (cb) { cb.checked = self.state.hidden.indexOf(parseInt(cb.getAttribute('data-col'), 10)) === -1; });
       self.draw();
     });
     tools.appendChild(reset);

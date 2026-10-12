@@ -1,7 +1,9 @@
 <?php
 /** @var array $user @var bool $toolInstalled @var string $toolPath @var bool $tokenConfigured @var bool $workerRunning
  *  @var int|null $workerPid @var bool $autostart @var float $rps @var string $storage @var bool $pdfImages @var list<array> $recentLogins
- *  @var array<string,string> $appearance @var array<string,list<string>> $appearanceOptions */
+ *  @var array<string,string> $appearance @var array<string,list<string>> $appearanceOptions
+ *  @var array{idle_timeout:int,absolute_timeout:int,timezone:string} $system @var string $myTimezone @var list<string> $timezones */
+use App\Services\SystemSettings;
 $labels = [
     'theme' => ['system' => ['Match my device', 'Follows the light or dark setting of this device'], 'light' => ['Light', 'Bright surfaces'], 'dark' => ['Dark', 'Dim surfaces for low light']],
     'density' => ['compact' => ['Compact', '13px text, more on screen'], 'comfortable' => ['Comfortable', '14px text, the default'], 'cozy' => ['Cozy', '15px text, more room']],
@@ -48,6 +50,48 @@ $themeIcons = ['system' => 'circle-half', 'light' => 'sun', 'dark' => 'moon-star
                     <div class="mb-3"><label class="form-label" for="np">New password</label><input class="form-control" id="np" name="new_password" type="password" minlength="12" autocomplete="new-password" required><div class="form-text">At least 12 characters.</div></div>
                     <div class="mb-3"><label class="form-label" for="rp">Repeat new password</label><input class="form-control" id="rp" name="repeat_password" type="password" minlength="12" autocomplete="new-password" required></div>
                     <div class="form-actions"><button class="btn btn-primary" type="submit">Change password</button></div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card" id="time">
+            <div class="card-header"><span class="card-title"><?= icon('clock') ?>Time and sign-in</span><span class="text-muted small">Times are stored in UTC and shown in your timezone</span></div>
+            <div class="card-body">
+                <form method="post" action="<?= e(url('/settings/time')) ?>" data-once><?= csrf_field() ?>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="my_timezone">Your timezone</label>
+                            <select class="form-select" id="my_timezone" name="my_timezone">
+                                <option value="">Use the system default (<?= e($system['timezone']) ?>)</option>
+                                <?php foreach ($timezones as $tz): ?><option value="<?= e($tz) ?>" <?= $myTimezone === $tz ? 'selected' : '' ?>><?= e($tz) ?></option><?php endforeach; ?>
+                            </select>
+                            <div class="form-text">For your account. Malawi, for example, is Africa/Blantyre.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="timezone">System default timezone</label>
+                            <select class="form-select" id="timezone" name="timezone">
+                                <?php foreach (array_merge(['UTC'], $timezones) as $tz): ?><option value="<?= e($tz) ?>" <?= $system['timezone'] === $tz ? 'selected' : '' ?>><?= e($tz) ?></option><?php endforeach; ?>
+                            </select>
+                            <div class="form-text">For accounts without their own timezone.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="idle_timeout">Sign out after inactivity</label>
+                            <select class="form-select" id="idle_timeout" name="idle_timeout">
+                                <?php foreach (SystemSettings::IDLE_CHOICES as $s): ?><option value="<?= $s ?>" <?= $system['idle_timeout'] === $s ? 'selected' : '' ?>><?= e(SystemSettings::describe($s)) ?></option><?php endforeach; ?>
+                            </select>
+                            <div class="form-text">How long a sign-in lasts without any page being opened.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="absolute_timeout">Sign out after</label>
+                            <select class="form-select" id="absolute_timeout" name="absolute_timeout">
+                                <?php foreach (SystemSettings::ABSOLUTE_CHOICES as $s): ?><option value="<?= $s ?>" <?= $system['absolute_timeout'] === $s ? 'selected' : '' ?>><?= $s === 0 ? 'Never, only after inactivity' : e(SystemSettings::describe($s)) . ' from signing in' ?></option><?php endforeach; ?>
+                            </select>
+                            <div class="form-text">A limit that applies however active the sign-in is.</div>
+                        </div>
+                    </div>
+                    <div class="form-actions"><button class="btn btn-primary" type="submit"><?= icon('check2') ?>Save time and sign-in</button></div>
                 </form>
             </div>
         </div>

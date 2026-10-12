@@ -73,6 +73,6 @@ final class CollectController extends Controller
             return $this->redirect('/collect', ['provider' => $provider['slug'], 'exam' => $code]);
         }
         $this->flash('success', 'Collection queued. You can close this page; the job keeps running on the server.');
-        return $this->redirect('/jobs/' . $id);
+        return $this->redirect('/jobs/' . (string) $this->s->jobs()->find($id)['uuid']);
     }
 }

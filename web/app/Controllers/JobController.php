@@ -11,6 +11,8 @@ use App\Repositories\JobRepository;
 
 final class JobController extends Controller
 {
+    private const LOG_LINES = 200;
+
     public function index(): Response
     {
         $this->s->supervisor()->ensure();
@@ -38,10 +40,10 @@ final class JobController extends Controller
         ]);
     }
 
-    public function show(string $id): Response
+    public function show(string $uuid): Response
     {
-        $job = $this->job($id);
-        $logTail = $this->s->runner()->logTail($this->app->paths()->jobDir((int) $job['id']) . '/tool.log', 40);
+        $job = $this->job($uuid);
+        $logTail = $this->s->runner()->logTail($this->app->paths()->jobDir((int) $job['id']) . '/tool.log', self::LOG_LINES);
         $version = $job['cache_version_id'] !== null ? $this->s->versions()->find((int) $job['cache_version_id']) : null;
         return $this->render('jobs/show', [
             'title' => 'Job #' . $job['id'],
@@ -53,18 +55,28 @@ final class JobController extends Controller
         ]);
     }
 
-    public function cancel(string $id): Response
+    public function cancel(string $uuid): Response
     {
-        $job = $this->job($id);
+        $job = $this->job($uuid);
         $this->flash('info', $this->s->jobService()->cancel((int) $job['id']));
-        return $this->redirect('/jobs/' . (int) $job['id']);
+        return $this->redirect('/jobs/' . $job['uuid']);
     }
 
     /** Polled by the browser every few seconds while a job is active. */
-    public function statusJson(string $id): Response
+    /** The end of the tool's output, polled by the job page while the job runs. */
+    public function logJson(string $uuid): Response
+    {
+        $job = $this->job($uuid);
+        return Response::json([
+            'log' => $this->s->runner()->logTail($this->app->paths()->jobDir((int) $job['id']) . '/tool.log', self::LOG_LINES),
+            'final' => in_array($job['status'], JobRepository::FINAL, true),
+        ]);
+    }
+
+    public function statusJson(string $uuid): Response
     {
         $this->s->supervisor()->ensure();
-        $job = $this->job($id);
+        $job = $this->job($uuid);
         return Response::json(self::present($job));
     }
 
@@ -90,6 +102,7 @@ final class JobController extends Controller
         $finished = $job['finished_at'] !== null ? strtotime($job['finished_at'] . ' UTC') : null;
         return [
             'id' => (int) $job['id'],
+            'uuid' => (string) $job['uuid'],
             'type' => $job['type'],
             'label' => job_label($job),
             'status' => $job['status'],
@@ -108,11 +121,11 @@ final class JobController extends Controller
     }
 
     /** @return array<string,mixed> */
-    private function job(string $id): array
+    private function job(string $uuid): array
     {
-        if (!ctype_digit($id)) {
+        if (!\App\Core\Ids::isUuid($uuid)) {
             throw HttpException::notFound('Job');
         }
-        return $this->s->jobs()->find((int) $id) ?? throw HttpException::notFound('Job');
+        return $this->s->jobs()->findByUuid($uuid) ?? throw HttpException::notFound('Job');
     }
 }

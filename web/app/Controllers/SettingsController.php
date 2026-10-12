@@ -28,8 +28,37 @@ final class SettingsController extends Controller
             'pdfImages' => (bool) $this->app->config()->get('documents.pdf_images', false),
             'recentLogins' => $this->s->loginAttempts()->recent(200),
             'appearance' => Appearance::forUser($this->auth->user()),
+            'system' => $this->system()->effective(),
+            'myTimezone' => (string) ((json_decode((string) ($this->auth->user()['preferences'] ?? ''), true) ?: [])['timezone'] ?? ''),
+            'timezones' => \DateTimeZone::listIdentifiers(),
             'appearanceOptions' => Appearance::OPTIONS,
         ]);
+    }
+
+    /** Timezones and how long a sign-in lasts. */
+    public function system(): \App\Services\SystemSettings
+    {
+        return $this->app->service(\App\Services\SystemSettings::class, fn() => new \App\Services\SystemSettings($this->app));
+    }
+
+    public function time(): Response
+    {
+        $user = (array) $this->auth->user();
+        $mine = (string) $this->request->input('my_timezone', '');
+        try {
+            $this->s->users()->setPreferences((int) $user['id'], [
+                'timezone' => $mine !== '' && \App\Services\SystemSettings::validTimezone($mine) ? $mine : '',
+            ]);
+            $this->system()->save([
+                'timezone' => (string) $this->request->input('timezone', ''),
+                'idle_timeout' => (string) $this->request->input('idle_timeout', ''),
+                'absolute_timeout' => (string) $this->request->input('absolute_timeout', ''),
+            ]);
+            $this->flash('success', 'Time and sign-in settings saved. New timeouts apply from your next page.');
+        } catch (\PDOException $e) {
+            $this->flash('danger', $this->schemaMessage($e));
+        }
+        return $this->redirect('/settings#time');
     }
 
     /** The appearance form: every preference at once. */

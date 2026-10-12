@@ -438,6 +438,26 @@
     pollActive();
   }
 
+  // --- Live tool output on the job page ------------------------------------------------------
+  document.querySelectorAll('[data-live-log]').forEach(function (box) {
+    var dot = document.querySelector('[data-live-indicator]');
+    box.scrollTop = box.scrollHeight;
+    if (box.getAttribute('data-final') === '1') return;
+    var poll = function () {
+      getJSON(box.getAttribute('data-live-log')).then(function (d) {
+        // Follow the end only when the reader is already there, so scrolling back stays put.
+        var atEnd = box.scrollHeight - box.scrollTop - box.clientHeight < 24;
+        if (d.log && d.log !== box.textContent) {
+          box.textContent = d.log;
+          if (atEnd) box.scrollTop = box.scrollHeight;
+        }
+        if (d.final) { if (dot) dot.classList.add('is-done'); return; }
+        setTimeout(poll, 2000);
+      }).catch(function () { setTimeout(poll, 5000); });
+    };
+    setTimeout(poll, 1000);
+  });
+
   // --- Forms ------------------------------------------------------------------------------
   // Prevent duplicate submissions while a request is being initiated.
   document.querySelectorAll('form[data-once]').forEach(function (form) {

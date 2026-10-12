@@ -45,10 +45,17 @@ final class UserRepository
         }
     }
 
-    /** @param array<string,string> $preferences */
+    /**
+     * Merge preferences into the stored ones (appearance and timezone are saved separately and
+     * must not erase each other).
+     *
+     * @param array<string,string> $preferences
+     */
     public function setPreferences(int $id, array $preferences): void
     {
-        $this->db->run('UPDATE users SET preferences = ? WHERE id = ?', [json_encode($preferences, JSON_UNESCAPED_SLASHES), $id]);
+        $stored = json_decode((string) $this->db->value('SELECT preferences FROM users WHERE id = ?', [$id]), true);
+        $merged = array_merge(is_array($stored) ? $stored : [], $preferences);
+        $this->db->run('UPDATE users SET preferences = ? WHERE id = ?', [json_encode($merged, JSON_UNESCAPED_SLASHES), $id]);
     }
 
     public function hasColumn(string $column): bool

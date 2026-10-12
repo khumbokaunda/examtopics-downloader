@@ -32,10 +32,11 @@ return static function (Router $r): void {
     $r->post('/collect', [CollectController::class, 'start']);
 
     $r->get('/jobs', [JobController::class, 'index']);
-    $r->get('/jobs/{id}', [JobController::class, 'show']);
-    $r->post('/jobs/{id}/cancel', [JobController::class, 'cancel']);
+    $r->get('/jobs/{uuid}', [JobController::class, 'show']);
+    $r->post('/jobs/{uuid}/cancel', [JobController::class, 'cancel']);
     $r->get('/api/jobs/active', [JobController::class, 'activeJson']);
-    $r->get('/api/jobs/{id}', [JobController::class, 'statusJson']);
+    $r->get('/api/jobs/{uuid}', [JobController::class, 'statusJson']);
+    $r->get('/api/jobs/{uuid}/log', [JobController::class, 'logJson']);
 
     $r->get('/library', [LibraryController::class, 'index']);
     $r->get('/api/palette', [LibraryController::class, 'paletteJson']);
@@ -46,12 +47,13 @@ return static function (Router $r): void {
     $r->post('/library/{provider}/{exam}/{version}/documents', [DocumentController::class, 'generate']);
     $r->get('/api/library/{provider}/{exam}/{version}/questions/{number}', [ViewerController::class, 'reveal']);
 
-    $r->get('/documents/{id}/download', [DocumentController::class, 'download']);
-    $r->post('/documents/{id}/delete', [DocumentController::class, 'delete']);
+    $r->get('/documents/{uuid}/download', [DocumentController::class, 'download']);
+    $r->post('/documents/{uuid}/delete', [DocumentController::class, 'delete']);
 
     $r->get('/settings', [SettingsController::class, 'index']);
     $r->post('/settings/password', [SettingsController::class, 'password']);
     $r->post('/settings/reconcile', [SettingsController::class, 'reconcile']);
     $r->post('/settings/appearance', [SettingsController::class, 'appearance']);
+    $r->post('/settings/time', [SettingsController::class, 'time']);
     $r->post('/api/appearance', [SettingsController::class, 'appearanceJson']);
 };

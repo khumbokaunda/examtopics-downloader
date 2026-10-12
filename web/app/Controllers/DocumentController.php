@@ -34,21 +34,21 @@ final class DocumentController extends Controller
         return $this->redirect($back, ['version' => $v['version']]);
     }
 
-    public function download(string $id): Response
+    public function download(string $uuid): Response
     {
-        if (!ctype_digit($id)) {
+        if (!\App\Core\Ids::isUuid($uuid)) {
             throw HttpException::notFound('Document');
         }
-        $doc = $this->s->documentRepo()->find((int) $id) ?? throw HttpException::notFound('Document');
+        $doc = $this->s->documentRepo()->findByUuid($uuid) ?? throw HttpException::notFound('Document');
         return $this->sendDocument($doc);
     }
 
-    public function delete(string $id): Response
+    public function delete(string $uuid): Response
     {
-        if (!ctype_digit($id)) {
+        if (!\App\Core\Ids::isUuid($uuid)) {
             throw HttpException::notFound('Document');
         }
-        $doc = $this->s->documentRepo()->find((int) $id) ?? throw HttpException::notFound('Document');
+        $doc = $this->s->documentRepo()->findByUuid($uuid) ?? throw HttpException::notFound('Document');
         $this->s->documents()->delete($doc);
         $this->flash('success', 'Document deleted. The cached exam data is unchanged and the document can be generated again.');
         return $this->redirect('/library/' . rawurlencode((string) $doc['provider_slug']) . '/' . rawurlencode((string) $doc['exam_code']),

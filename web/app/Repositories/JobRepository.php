@@ -24,14 +24,21 @@ final class JobRepository
     public function createQueued(string $type, string $slot, ?int $providerId, ?string $examCode, array $options): int
     {
         $this->db->run(
-            'INSERT INTO jobs (type, status, active_slot, provider_id, exam_code, options, message, queued_at)
-             VALUES (?, \'queued\', ?, ?, ?, ?, ?, ?)',
-            [$type, $slot, $providerId, $examCode, json_encode($options), 'Waiting for the worker', Database::now()]
+            'INSERT INTO jobs (uuid, type, status, active_slot, provider_id, exam_code, options, message, queued_at)
+             VALUES (?, ?, \'queued\', ?, ?, ?, ?, ?, ?)',
+            [\App\Core\Ids::uuid(), $type, $slot, $providerId, $examCode, json_encode($options), 'Waiting for the worker', Database::now()]
         );
         return $this->db->lastId();
     }
 
     /** @return array<string,mixed>|null */
+    /** @return array<string,mixed>|null */
+    public function findByUuid(string $uuid): ?array
+    {
+        $id = $this->db->value('SELECT id FROM jobs WHERE uuid = ?', [$uuid]);
+        return $id === null ? null : $this->find((int) $id);
+    }
+
     public function find(int $id): ?array
     {
         return $this->db->one(

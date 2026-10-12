@@ -96,8 +96,8 @@ final class CacheVersionRepository
                     (SELECT COUNT(*) FROM cache_versions cv WHERE cv.exam_id = e.id) AS version_count,
                     (SELECT COUNT(*) FROM documents d JOIN cache_versions cv ON cv.id = d.cache_version_id
                         WHERE cv.exam_id = e.id AND d.status = 'ready') AS document_count,
-                    (SELECT j.id FROM jobs j WHERE j.provider_id = e.provider_id AND j.exam_code = e.code
-                        AND j.type = 'collect' AND j.status IN ('queued','running') LIMIT 1) AS active_job_id
+                    (SELECT j.uuid FROM jobs j WHERE j.provider_id = e.provider_id AND j.exam_code = e.code
+                        AND j.type = 'collect' AND j.status IN ('queued','running') LIMIT 1) AS active_job_uuid
              FROM exams e JOIN providers p ON p.id = e.provider_id
              WHERE " . implode(' AND ', $where) . ' ORDER BY p.slug, e.code',
             $params

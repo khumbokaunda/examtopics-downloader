@@ -119,6 +119,11 @@ your usual tool (for example `certbot --nginx -d exams.example.com`).
 Session cookies are marked `Secure`, so the site must be reached over HTTPS. The only
 exception is the SSH-tunnel setup below.
 
+Times are stored in UTC. Set your timezone, the system default timezone and how long a
+sign-in lasts under **Settings > Time and sign-in** after signing in (defaults: UTC, sign out
+after 4 hours without activity). `timezone`, `session.idle_timeout` and
+`session.absolute_timeout` in `config.local.php` set the defaults the page starts from.
+
 ## 9. Restrict who can reach it
 
 The login is mandatory and every page, API call and download requires it. Because the server

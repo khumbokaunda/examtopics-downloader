@@ -44,7 +44,7 @@ final class LibraryDocumentsTest extends HttpTestCase
 
     private function download(array $doc): \App\Core\Http\Response
     {
-        return $this->get('/documents/' . (int) $doc['id'] . '/download');
+        return $this->get('/documents/' . $doc['uuid'] . '/download');
     }
 
     public function testLibraryPagesRender(): void

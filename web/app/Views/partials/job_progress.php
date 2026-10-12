@@ -6,7 +6,7 @@
  */
 $p = \App\Controllers\JobController::present($job);
 ?>
-<div class="job-progress" data-job-progress data-status-url="<?= e(url('/api/jobs/' . (int) $job['id'])) ?>"
+<div class="job-progress" data-job-progress data-status-url="<?= e(url('/api/jobs/' . $job['uuid'])) ?>"
      data-final="<?= $p['final'] ? '1' : '0' ?>" data-reload-on-finish="<?= !empty($reload) ? '1' : '0' ?>">
     <div class="job-progress-head">
         <div>

@@ -17,6 +17,22 @@ final class Ids
     // 20261012T083000Z-3f9a1c
     public const VERSION = '/^\d{8}T\d{6}Z-[0-9a-f]{6}$/';
 
+    /** A random (version 4) UUID, the public identifier of a job or document in URLs. */
+    public static function uuid(): string
+    {
+        $b = random_bytes(16);
+        $b[6] = chr((ord($b[6]) & 0x0f) | 0x40);
+        $b[8] = chr((ord($b[8]) & 0x3f) | 0x80);
+        $h = bin2hex($b);
+        return substr($h, 0, 8) . '-' . substr($h, 8, 4) . '-' . substr($h, 12, 4) . '-' . substr($h, 16, 4) . '-' . substr($h, 20);
+    }
+
+    /** Any lower-case hyphenated UUID (rows migrated with MySQL's UUID() are version 1). */
+    public static function isUuid(mixed $v): bool
+    {
+        return is_string($v) && preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/', $v) === 1;
+    }
+
     public static function isProvider(mixed $v): bool
     {
         return is_string($v) && preg_match(self::PROVIDER, $v) === 1 && !str_contains($v, '--');

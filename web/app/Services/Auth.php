@@ -63,6 +63,7 @@ final class Auth
 
         $this->session->regenerate();
         $this->session->set('user_id', (int) $user['id']);
+        $this->session->set('_started_at', time()); // the sign-in lifetime counts from here
         $this->session->remove('_csrf'); // fresh token for the authenticated session
         $this->users->touchLogin((int) $user['id']);
         $this->users->rehashIfNeeded((int) $user['id'], $password, (string) $user['password_hash']);

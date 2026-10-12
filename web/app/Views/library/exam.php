@@ -64,15 +64,15 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
                     <tbody>
                     <?php foreach ($variants as $key => $v): ?>
                         <tr>
-                            <td class="cell-wrap"><span class="d-inline-flex align-items-center gap-2 fw-medium"><span class="icon-bubble" data-tone="primary"><?= icon($variantIcons[$key] ?? 'file-earmark') ?></span><?= e($v['label']) ?></span></td>
+                            <td><span class="d-inline-flex align-items-center gap-2 fw-medium"><span class="icon-bubble" data-tone="primary"><?= icon($variantIcons[$key] ?? 'file-earmark') ?></span><?= e($v['label']) ?></span></td>
                             <?php foreach (['md', 'pdf'] as $fmt): ?>
                                 <td>
                                     <div class="d-flex flex-column align-items-start gap-1">
                                     <?php foreach ($docIndex[$key][$fmt] ?? [] as $d): ?>
                                         <?php if ($d['status'] === 'ready'): ?>
                                             <span class="d-inline-flex align-items-center gap-1">
-                                                <a class="btn btn-sm btn-success" href="<?= e(url('/documents/' . (int) $d['id'] . '/download')) ?>" title="<?= e($d['filename']) ?>"><?= icon('download') ?>Download<?= !empty(json_decode((string) $d['options'], true)['images']) ? ' (images)' : '' ?> <span class="opacity-75 fw-normal"><?= e(fmt_bytes($d['size_bytes'])) ?></span></a>
-                                                <form method="post" action="<?= e(url('/documents/' . (int) $d['id'] . '/delete')) ?>" data-confirm="The cached exam data is not affected. You can generate it again later." data-confirm-title="Delete this document?" data-confirm-button="Delete" data-confirm-tone="danger"><?= csrf_field() ?>
+                                                <a class="btn btn-sm btn-success" href="<?= e(url('/documents/' . $d['uuid'] . '/download')) ?>" title="<?= e($d['filename']) ?>"><?= icon('download') ?>Download<?= !empty(json_decode((string) $d['options'], true)['images']) ? ' (images)' : '' ?> <span class="opacity-75 fw-normal"><?= e(fmt_bytes($d['size_bytes'])) ?></span></a>
+                                                <form method="post" action="<?= e(url('/documents/' . $d['uuid'] . '/delete')) ?>" data-confirm="The cached exam data is not affected. You can generate it again later." data-confirm-title="Delete this document?" data-confirm-button="Delete" data-confirm-tone="danger"><?= csrf_field() ?>
                                                     <button class="icon-btn btn-link-danger" type="submit" aria-label="Delete document" title="Delete document"><?= icon('trash3') ?></button></form>
                                             </span>
                                         <?php else: ?>
@@ -130,7 +130,7 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
             <ul class="list-rows">
                 <?php foreach ($jobs as $j): ?>
                     <li>
-                        <a class="row-title" href="<?= e(url('/jobs/' . (int) $j['id'])) ?>">#<?= (int) $j['id'] ?></a>
+                        <a class="row-title" href="<?= e(url('/jobs/' . $j['uuid'])) ?>">#<?= (int) $j['id'] ?></a>
                         <span class="row-time me-auto"><?= e(fmt_time($j['queued_at'])) ?></span>
                         <?= status_badge($j['status']) ?>
                     </li>

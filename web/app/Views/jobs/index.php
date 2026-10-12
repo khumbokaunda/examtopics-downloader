@@ -34,11 +34,11 @@
             <tbody>
             <?php foreach ($jobs as $j): ?>
                 <tr>
-                    <td class="stack-title" data-order="<?= (int) $j['id'] ?>" data-export="#<?= (int) $j['id'] ?> <?= e(job_label($j)) ?>"><a class="table-row-link" href="<?= e(url('/jobs/' . (int) $j['id'])) ?>">#<?= (int) $j['id'] ?></a> <span class="ms-1"><?= e(job_label($j)) ?></span></td>
+                    <td class="stack-title" data-order="<?= (int) $j['id'] ?>" data-export="#<?= (int) $j['id'] ?> <?= e(job_label($j)) ?>"><a class="table-row-link" href="<?= e(url('/jobs/' . $j['uuid'])) ?>">#<?= (int) $j['id'] ?></a> <span class="ms-1"><?= e(job_label($j)) ?></span></td>
                     <td data-label="Status"><span class="chip-group"><?= status_badge($j['status']) ?><?= $j['result_status'] === 'partial' ? status_badge('partial') : '' ?></span></td>
                     <td class="small text-muted" data-label="Queued" data-order="<?= e((string) $j['queued_at']) ?>"><?= e(fmt_time($j['queued_at'])) ?></td>
                     <td class="small mono" data-label="Duration" data-order="<?= $j['started_at'] ? max(0, (int) strtotime(($j['finished_at'] ?? gmdate('Y-m-d H:i:s')) . ' UTC') - (int) strtotime($j['started_at'] . ' UTC')) : -1 ?>"><?= e($j['started_at'] ? fmt_duration($j['started_at'], $j['finished_at']) : 'n/a') ?></td>
-                    <td class="small text-muted cell-wrap" data-label="Result"><span class="text-clamp-2"><?= e($j['message'] ?? '') ?></span></td>
+                    <td class="small text-muted" data-label="Result"><span class="truncate" title="<?= e($j['message'] ?? '') ?>"><?= e($j['message'] ?? '') ?></span></td>
                 </tr>
             <?php endforeach; ?>
             </tbody>
