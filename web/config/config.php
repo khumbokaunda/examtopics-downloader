@@ -64,6 +64,15 @@ return [
         'pdf_memory_limit'  => '1024M',
     ],
 
+    'worker' => [
+        // Start a detached worker automatically when jobs are queued. Set false if you run
+        // bin/worker.php --daemon under systemd instead (docs/OPERATIONS.md).
+        'autostart' => true,
+    ],
+
+    // util-linux setsid, used to detach the worker from the web server.
+    'setsid' => '/usr/bin/setsid',
+
     'viewer' => [
         'per_page' => 10,
     ],
