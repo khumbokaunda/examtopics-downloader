@@ -25,13 +25,36 @@ final class DocumentController extends Controller
         }
         $back = '/library/' . rawurlencode($p['slug']) . '/' . rawurlencode($e['code']);
         try {
-            $doc = $this->s->documents()->obtain($v, $format, $variant);
+            $doc = $this->s->documents()->request($v, $format, $variant);
         } catch (RuntimeException $ex) {
             $this->flash('danger', $ex->getMessage() . ' The cached data and other documents are unaffected.');
             return $this->redirect($back, ['version' => $v['version']]);
         }
-        $this->flash('success', $doc['filename'] . ' is ready (' . fmt_bytes($doc['size_bytes']) . '). Use its Download button below.');
+        match ($doc['status']) {
+            'ready' => $this->flash('success', $doc['filename'] . ' is ready (' . fmt_bytes($doc['size_bytes']) . '). Use its Download button below.'),
+            'building' => $this->flash('info', 'Building ' . $doc['filename'] . ' on the server. Its progress shows below, and it keeps going if you leave this page.'),
+            default => $this->flash('danger', 'Document generation failed: ' . $doc['error'] . ' The cached data and other documents are unaffected.'),
+        };
         return $this->redirect($back, ['version' => $v['version']]);
+    }
+
+    /** Progress of a document being built, for the library page. */
+    public function statusJson(string $uuid): Response
+    {
+        if (!\App\Core\Ids::isUuid($uuid)) {
+            throw HttpException::notFound('Document');
+        }
+        $doc = $this->s->documentRepo()->findByUuid($uuid) ?? throw HttpException::notFound('Document');
+        $doc = $this->s->documents()->refresh($doc);
+        $done = $doc['progress_done'] !== null ? (int) $doc['progress_done'] : null;
+        $total = $doc['progress_total'] !== null ? (int) $doc['progress_total'] : null;
+        return Response::json([
+            'status' => $doc['status'],
+            'done' => $done,
+            'total' => $total,
+            'percent' => $done !== null && $total ? (int) floor($done * 100 / $total) : null,
+            'error' => $doc['status'] === 'failed' ? (string) $doc['error'] : null,
+        ]);
     }
 
     public function download(string $uuid): Response

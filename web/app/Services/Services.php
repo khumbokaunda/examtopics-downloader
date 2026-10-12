@@ -104,6 +104,7 @@ final class Services
     public function documents(): DocumentStore
     {
         return $this->app->service(DocumentStore::class, fn() => new DocumentStore(
-            $this->app->config(), $this->app->paths(), $this->app->logger(), $this->documentRepo(), $this->cache(), $this->media()));
+            $this->app->config(), $this->app->paths(), $this->app->logger(), $this->documentRepo(), $this->cache(), $this->media(),
+            fn(string $uuid): bool => $this->supervisor()->launchScript('build-document.php', [$uuid], 'documents-build.log')));
     }
 }

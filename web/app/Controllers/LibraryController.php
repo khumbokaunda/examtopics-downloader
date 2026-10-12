@@ -80,7 +80,7 @@ final class LibraryController extends Controller
             'exam' => $e,
             'versions' => $versions,
             'selected' => $selected,
-            'documents' => $this->s->documentRepo()->forVersion((int) $selected['id']),
+            'documents' => array_map([$this->s->documents(), 'refresh'], $this->s->documentRepo()->forVersion((int) $selected['id'])),
             'variants' => Variant::ALL,
             'images' => $images,
             'jobs' => $this->s->jobs()->list(['provider_id' => (int) $p['id'], 'exam_code' => (string) $e['code']], 20),

@@ -93,17 +93,23 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
                                                 <form method="post" action="<?= e(url('/documents/' . $d['uuid'] . '/delete')) ?>" data-confirm="The cached exam data is not affected. You can generate it again later." data-confirm-title="Delete this document?" data-confirm-button="Delete" data-confirm-tone="danger"><?= csrf_field() ?>
                                                     <button class="icon-btn btn-link-danger" type="submit" aria-label="Delete document" title="Delete document"><?= icon('trash3') ?></button></form>
                                             </span>
+                                        <?php elseif ($d['status'] === 'building'): ?>
+                                            <span class="doc-building" data-doc-status="<?= e(url('/api/documents/' . $d['uuid'])) ?>">
+                                                <?= chip('building', 'info', 'arrow-repeat') ?>
+                                                <span class="small text-muted" data-field="progress"><?= $d['progress_total'] ? (int) floor((int) $d['progress_done'] * 100 / (int) $d['progress_total']) . '% (' . (int) $d['progress_done'] . ' of ' . (int) $d['progress_total'] . ' questions)' : 'starting' ?></span>
+                                            </span>
                                         <?php else: ?>
-                                            <?= chip('generation failed', 'danger', 'x-circle') ?>
+                                            <span title="<?= e((string) $d['error']) ?>"><?= chip('generation failed', 'danger', 'x-circle') ?></span>
                                         <?php endif; ?>
                                     <?php endforeach; ?>
                                     <?php
                                     $ready = array_filter($docIndex[$key][$fmt] ?? [], static fn($d) => $d['status'] === 'ready');
+                                    $building = array_filter($docIndex[$key][$fmt] ?? [], static fn($d) => $d['status'] === 'building') !== [];
                                     // A PDF built before more images were saved can be rebuilt with them.
                                     $stale = $fmt === 'pdf' && $ready !== [] && $images !== null
                                         && max(array_map(static fn($d) => (int) (json_decode((string) $d['options'], true)['images'] ?? 0), $ready)) < $images['saved'];
                                     ?>
-                                    <?php if ($ready === [] || $stale): ?>
+                                    <?php if (!$building && ($ready === [] || $stale)): ?>
                                     <form class="d-inline-flex align-items-center gap-2" method="post" action="<?= e(url($vBase . '/documents')) ?>" data-once data-busy="Generating…"><?= csrf_field() ?>
                                         <input type="hidden" name="variant" value="<?= e($key) ?>"><input type="hidden" name="format" value="<?= $fmt ?>">
                                         <button class="btn btn-sm btn-outline-primary" type="submit"><?= icon($stale ? 'arrow-repeat' : 'plus-lg') ?><?= $stale ? 'Rebuild with new images' : (empty($docIndex[$key][$fmt]) ? 'Generate' : 'Retry') ?></button>
@@ -117,7 +123,7 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
                     </tbody>
                 </table>
             </div>
-            <div class="card-footer small text-muted">Existing documents are reused when nothing has changed. PDFs include the images saved on this server; Markdown files link to them on ExamTopics. PDFs of large exams can take a minute to build.</div>
+            <div class="card-footer small text-muted">Existing documents are reused when nothing has changed. PDFs include the images saved on this server; Markdown files link to them on ExamTopics. PDFs are built in the background: large exams take a few minutes, and the progress shows here.</div>
         </div>
     </div>
 

@@ -24,7 +24,7 @@ final class HttpSecurityTest extends HttpTestCase
             ['GET', '/jobs/1'], ['GET', '/library'], ['GET', '/library/huawei/h12-811'], ['GET', '/library/huawei/h12-811/view'],
             ['GET', '/library/huawei/h12-811/20261012T083000Z-abcdef/json'], ['GET', '/documents/1/download'], ['GET', '/settings'],
             ['GET', '/api/jobs/1'], ['GET', '/api/jobs/active'], ['GET', '/api/providers/huawei/exams'],
-            ['GET', '/api/library/huawei/h12-811/20261012T083000Z-abcdef/questions/1'], ['GET', '/api/palette'], ['GET', '/api/jobs/1/log'],
+            ['GET', '/api/library/huawei/h12-811/20261012T083000Z-abcdef/questions/1'], ['GET', '/api/palette'], ['GET', '/api/jobs/1/log'], ['GET', '/api/documents/1'],
             ['POST', '/collect'], ['POST', '/providers/discover'], ['POST', '/providers/add'], ['POST', '/providers/huawei/refresh'],
             ['POST', '/jobs/1/cancel'], ['POST', '/documents/1/delete'], ['POST', '/library/huawei/h12-811/20261012T083000Z-abcdef/documents'],
             ['POST', '/library/huawei/h12-811/20261012T083000Z-abcdef/delete'], ['POST', '/settings/password'], ['POST', '/settings/reconcile'],

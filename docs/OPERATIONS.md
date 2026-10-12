@@ -95,10 +95,13 @@ Only pages that fail that second pass are reported. If you still see them, use t
 
 ### PDF generation fails or times out
 
-Generation failures never affect the cached data or other documents. For very large exams,
-raise `documents.pdf_time_limit` / `documents.pdf_memory_limit` in `config.local.php` and
-the FastCGI timeout in the web server (`fastcgi_read_timeout` / `ProxyTimeout`). Markdown is
-always fast.
+Generation failures never affect the cached data or other documents. PDFs are built by a
+detached process (`bin/build-document.php`, output in `storage/logs/documents-build.log`), so
+no web request waits on them and a proxy such as Cloudflare cannot time them out; the exam
+page shows how many questions are laid out. A build whose process died (a restart, or a
+time or memory limit) shows as failed and can be started again. For very large exams, raise
+`documents.pdf_time_limit` (seconds, default 1800) or `documents.pdf_memory_limit` in
+`config.local.php`. Markdown is always fast and is made in the request.
 
 ### A document download says "missing or failed its integrity check"
 

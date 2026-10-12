@@ -79,27 +79,36 @@ final class WorkerSupervisor
     /** Start a detached worker that drains the queue and exits. */
     public function launch(): bool
     {
+        return $this->launchScript('worker.php', ['--drain'], 'worker.log');
+    }
+
+    /**
+     * Start a detached PHP script from bin/ with fixed arguments (validated by the caller).
+     * @param list<string> $args
+     */
+    public function launchScript(string $script, array $args, string $logName): bool
+    {
         $setsid = (string) $this->config->get('setsid', '/usr/bin/setsid');
         $php = (string) $this->config->get('php_cli', PHP_BINDIR . '/php');
-        $script = dirname(__DIR__, 2) . '/bin/worker.php';
+        $script = dirname(__DIR__, 2) . '/bin/' . basename($script);
         if (!is_executable($setsid) || !is_executable($php)) {
-            $this->log->error('jobs', 'Cannot launch worker: setsid or PHP CLI not executable', ['setsid' => $setsid, 'php' => $php]);
+            $this->log->error('jobs', 'Cannot launch ' . basename($script) . ': setsid or PHP CLI not executable', ['setsid' => $setsid, 'php' => $php]);
             return false;
         }
         // setsid -f forks into a new session and returns at once: the worker is detached
         // from the web server (a php-fpm restart does not touch it) and is reparented to
         // init, which reaps it, so no zombie processes accumulate.
         $proc = proc_open(
-            array_merge([$setsid, '-f'], Process::withClosedFds([$php, $script, '--drain'])),
+            array_merge([$setsid, '-f'], Process::withClosedFds(array_merge([$php, $script], $args))),
             [0 => ['file', '/dev/null', 'r'],
-             1 => ['file', $this->paths->logsRoot() . '/worker.log', 'a'],
-             2 => ['file', $this->paths->logsRoot() . '/worker.log', 'a']],
+             1 => ['file', $this->paths->logsRoot() . '/' . $logName, 'a'],
+             2 => ['file', $this->paths->logsRoot() . '/' . $logName, 'a']],
             $pipes,
             dirname(__DIR__, 2),
             self::workerEnv()
         );
         if (!is_resource($proc)) {
-            $this->log->error('jobs', 'proc_open failed launching worker');
+            $this->log->error('jobs', 'proc_open failed launching ' . basename($script));
             return false;
         }
         proc_close($proc);
@@ -138,7 +147,7 @@ final class WorkerSupervisor
             $env['EXAMTOPICS_GITHUB_TOKEN'] = $token;
         }
         foreach ((array) $config->get('tool.extra_env', []) as $k => $v) {
-            if (is_string($k) && preg_match('/^EXAMTOPICS_(BASE_URL|GITHUB_API)$/', $k) === 1 && is_string($v)) {
+            if (is_string($k) && preg_match('/^EXAMTOPICS_(BASE_URL|GITHUB_API|RETRY_COOLDOWN)$/', $k) === 1 && is_string($v)) {
                 $env[$k] = $v;
             }
         }

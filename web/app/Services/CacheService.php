@@ -142,6 +142,13 @@ final class CacheService
     }
 
     /** @param array<string,mixed> $versionRow row from CacheVersionRepository::find */
+    /** @return array<string,mixed>|null a cache_versions row with its exam and provider */
+    public function versionRow(int $id): ?array
+    {
+        return $this->versions->find($id);
+    }
+
+    /** @param array<string,mixed> $versionRow */
     public function datasetPath(array $versionRow): string
     {
         return $this->paths->versionFile((string) $versionRow['provider_slug'], (string) $versionRow['exam_code'], (string) $versionRow['version']);
