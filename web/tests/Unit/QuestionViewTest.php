@@ -29,6 +29,31 @@ final class QuestionViewTest extends TestCase
         self::assertSame(["Para one<br>\nline", 'Para two'], QuestionView::paragraphs("Para one\nline\n\nPara two"));
     }
 
+    /** Options that are pictures: older collections kept them with the question's images. */
+    public function testPictureChoicesGetTheirImages(): void
+    {
+        $q = QuestionView::normalize([
+            'text' => "Which JSON script is properly formatted?\n\nA.\n\nB.\n\nC.\n\nD.",
+            'choices' => [], 'question_images' => ['exhibit.png', 'a.png', 'b.png', 'c.png', 'd.png'],
+        ]);
+        self::assertSame('Which JSON script is properly formatted?', $q['text']);
+        self::assertSame(['exhibit.png'], $q['question_images']);
+        self::assertSame([['a.png'], ['b.png'], ['c.png'], ['d.png']], array_column($q['choices'], 'images'));
+        // Choices with text keep the images where they are.
+        $text = QuestionView::normalize(['text' => "Q\nA. one\nB. two", 'choices' => [], 'question_images' => ['x.png', 'y.png']]);
+        self::assertSame(['x.png', 'y.png'], $text['question_images']);
+    }
+
+    public function testDragAndDropQuestionsAreRecognised(): void
+    {
+        $dd = ['text' => "DRAG DROP -\nDrag and drop the descriptions from the left onto the protocols on the right.\nSelect and Place:", 'answer' => ''];
+        self::assertSame('drag-drop', QuestionView::kind($dd));
+        self::assertStringStartsWith('Drag and drop question: the answer is a picture', (string) QuestionView::pictureAnswerNote($dd));
+        self::assertSame('hotspot', QuestionView::kind(['text' => "HOTSPOT -\nRefer to the exhibit.\nHot Area:"]));
+        self::assertNull(QuestionView::kind(['text' => 'Which protocol is described?']));
+        self::assertNull(QuestionView::pictureAnswerNote($dd + ['answer_images' => ['answer.png']]), 'an answer picture is shown instead');
+    }
+
     /** Old collections kept the discussion as one text block: it is read back into comments. */
     public function testOldCommentTextBecomesCommentsAndAVote(): void
     {

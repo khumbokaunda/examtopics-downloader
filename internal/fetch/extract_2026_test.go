@@ -110,3 +110,37 @@ func TestSplitInlineChoicesLeavesOrdinaryTextAlone(t *testing.T) {
 		t.Errorf("letters must run in order: %+v", choices)
 	}
 }
+
+// Options that are pictures: each image after a letter belongs to that choice, not the stem.
+func TestPictureChoicesKeepTheirImages(t *testing.T) {
+	page := `<html><body><div class="question-discussion-header"><div>Question #: 1054<br>Topic #: 1</div></div>
+<div class="question-body"><p class="card-text">Which JSON script is properly formatted?<br><img src="/m/exhibit.png"><br>
+<br>A.<br><img src="/m/a.png"><br>
+<br>B.<br><img src="/m/b.png"><br>
+<br>C. Some text too<br><img src="/m/c.png"><br>
+<br>D.<br><img src="/m/d.png"><br></p></div>
+<div class="modal"><div class="card-text">Forgot my password</div></div></body></html>`
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(page))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, q, _ := parseQuestionPage(doc, "https://www.examtopics.com/discussions/cisco/view/1-exam-350-401-topic-1-question-1054-discussion/")
+	if q.Text != "Which JSON script is properly formatted?" {
+		t.Errorf("stem %q", q.Text)
+	}
+	if want := []string{absoluteURL("/m/exhibit.png")}; !reflect.DeepEqual(q.QuestionImages, want) {
+		t.Errorf("question images %v, want only the exhibit", q.QuestionImages)
+	}
+	if len(q.Choices) != 4 {
+		t.Fatalf("choices %+v", q.Choices)
+	}
+	for i, letter := range []string{"a", "b", "c", "d"} {
+		c := q.Choices[i]
+		if want := []string{absoluteURL("/m/" + letter + ".png")}; !reflect.DeepEqual(c.Images, want) {
+			t.Errorf("choice %s images %v, want %v", c.Letter, c.Images, want)
+		}
+	}
+	if q.Choices[0].Text != "" || q.Choices[2].Text != "Some text too" {
+		t.Errorf("choice texts %q, %q", q.Choices[0].Text, q.Choices[2].Text)
+	}
+}

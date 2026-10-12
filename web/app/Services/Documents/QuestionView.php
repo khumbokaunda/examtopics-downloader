@@ -32,6 +32,7 @@ final class QuestionView
             }
         }
         $q['text'] = $text;
+        $q = self::pictureChoices($q);
         // No answer and no vote tally (older collections of the 2026 pages): count the
         // community vote from the comments' selected answers, as the collection tool now does.
         if (trim((string) ($q['answer'] ?? '')) === '' && array_filter((array) ($q['community_votes'] ?? []), 'is_array') === []) {
@@ -43,6 +44,36 @@ final class QuestionView
                 $q['answer_source'] = 'community';
             }
         }
+        return $q;
+    }
+
+    /**
+     * Options that are pictures, from collections that kept every image in one list: when
+     * every choice is empty and there are at least as many question images as choices, the
+     * last images are the choices' pictures, in order.
+     *
+     * @param array<string,mixed> $q
+     * @return array<string,mixed>
+     */
+    private static function pictureChoices(array $q): array
+    {
+        $choices = array_values(array_filter((array) ($q['choices'] ?? []), 'is_array'));
+        $images = array_values(array_filter((array) ($q['question_images'] ?? []), 'is_string'));
+        $n = count($choices);
+        if ($n < 2 || count($images) < $n) {
+            return $q;
+        }
+        foreach ($choices as $c) {
+            if (trim((string) ($c['text'] ?? '')) !== '' || ((array) ($c['images'] ?? [])) !== []) {
+                return $q;
+            }
+        }
+        $own = array_slice($images, count($images) - $n);
+        foreach ($choices as $i => $c) {
+            $choices[$i]['images'] = [$own[$i]];
+        }
+        $q['choices'] = $choices;
+        $q['question_images'] = array_slice($images, 0, count($images) - $n);
         return $q;
     }
 
@@ -101,6 +132,33 @@ final class QuestionView
             }
         }
         return $out;
+    }
+
+    /**
+     * Questions answered by placing items on a picture rather than picking letters:
+     * "drag-drop" (Select and Place) or "hotspot" (Hot Area). Null for ordinary questions.
+     *
+     * @param array<string,mixed> $q
+     */
+    public static function kind(array $q): ?string
+    {
+        $text = (string) ($q['text'] ?? '');
+        return match (true) {
+            preg_match('/^\s*DRAG\s+DROP\b|Select and Place:/i', $text) === 1 => 'drag-drop',
+            preg_match('/^\s*HOTSPOT\b|Hot Area:/i', $text) === 1 => 'hotspot',
+            default => null,
+        };
+    }
+
+    /** What to say when such a question has no answer: the answer is a picture. */
+    public static function pictureAnswerNote(array $q): ?string
+    {
+        $kind = self::kind($q);
+        if ($kind === null || trim((string) ($q['answer'] ?? '')) !== '' || ($q['answer_images'] ?? []) !== []) {
+            return null;
+        }
+        return ($kind === 'drag-drop' ? 'Drag and drop' : 'Hot area') . ' question: the answer is a picture that ExamTopics does not show on'
+            . ' discussion pages. The discussion usually says how people placed the items.';
     }
 
     /** @param array<string,mixed> $q */

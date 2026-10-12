@@ -69,6 +69,8 @@ func (c Counts) Failures() int {
 type Choice struct {
 	Letter string `json:"letter"`
 	Text   string `json:"text"`
+	// Images shown as (part of) this choice, for questions whose options are pictures.
+	Images []string `json:"images,omitempty"`
 }
 
 type Vote struct {
