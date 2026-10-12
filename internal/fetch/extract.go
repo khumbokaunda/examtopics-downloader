@@ -71,6 +71,15 @@ func CleanMultiline(s string) string {
 // question_text) to plain text with line breaks, returning any <img> sources separately.
 // Fragments without markup are returned unchanged apart from whitespace normalisation.
 func HTMLToText(fragment string) (string, []string) {
+	return htmlToText(fragment, false)
+}
+
+// imageMarkerRE matches the placeholder htmlToText leaves where an image was, when asked to.
+var imageMarkerRE = regexp.MustCompile(`⟦img:(\d+)⟧`)
+
+// htmlToText is HTMLToText; with mark set, each image also leaves a line "⟦img:N⟧" (N is
+// its index in the returned list), so callers can tell which text an image belongs to.
+func htmlToText(fragment string, mark bool) (string, []string) {
 	if !strings.ContainsAny(fragment, "<&") {
 		return CleanMultiline(fragment), nil
 	}
@@ -84,6 +93,10 @@ func HTMLToText(fragment string) (string, []string) {
 	root.Find("img").Each(func(_ int, s *goquery.Selection) {
 		if src, ok := s.Attr("src"); ok && strings.TrimSpace(src) != "" {
 			images = append(images, absoluteURL(src))
+			if mark {
+				s.ReplaceWithHtml(fmt.Sprintf("<br>⟦img:%d⟧<br>", len(images)-1))
+				return
+			}
 		}
 		s.Remove()
 	})
@@ -94,6 +107,27 @@ func HTMLToText(fragment string) (string, []string) {
 		s.AppendHtml("\n")
 	})
 	return CleanMultiline(root.Text()), images
+}
+
+// takeImageMarkers removes the image placeholder lines from text and returns the images
+// they stood for, in order.
+func takeImageMarkers(text string, images []string) (string, []string) {
+	var found []string
+	for _, m := range imageMarkerRE.FindAllStringSubmatch(text, -1) {
+		if i, err := strconv.Atoi(m[1]); err == nil && i < len(images) {
+			found = appendUnique(found, images[i])
+		}
+	}
+	return CleanMultiline(imageMarkerRE.ReplaceAllString(text, "")), found
+}
+
+func contains(list []string, s string) bool {
+	for _, v := range list {
+		if v == s {
+			return true
+		}
+	}
+	return false
 }
 
 func absoluteURL(src string) string {
@@ -390,11 +424,18 @@ func parseQuestionPage(doc *goquery.Document, link string) (models.QuestionData,
 		cardText = cardText[:i]
 	}
 	text := CleanMultiline(cardText)
+	var choiceImages []string
 	if len(choices) == 0 {
-		// 2026 layout: the choices are lines of the question text, after <br> breaks.
+		// 2026 layout: the choices are lines of the question text, after <br> breaks. Images
+		// between one letter and the next belong to that choice (options that are pictures).
 		html, _ := card.First().Html()
-		full, _ := HTMLToText(html)
+		full, marked := htmlToText(html, true)
 		if stem, inline := splitInlineChoices(full); len(inline) > 0 {
+			for i := range inline {
+				inline[i].Text, inline[i].Images = takeImageMarkers(inline[i].Text, marked)
+				choiceImages = append(choiceImages, inline[i].Images...)
+			}
+			stem, _ = takeImageMarkers(stem, marked)
 			text, choices = stem, inline
 			for _, c := range inline {
 				choiceLines = append(choiceLines, c.Letter+". "+strings.ReplaceAll(c.Text, "\n", " "))
@@ -461,7 +502,7 @@ func parseQuestionPage(doc *goquery.Document, link string) (models.QuestionData,
 	}
 	var images []string
 	card.Find("img").Each(func(_ int, s *goquery.Selection) {
-		if src, ok := s.Attr("src"); ok && strings.TrimSpace(src) != "" {
+		if src, ok := s.Attr("src"); ok && strings.TrimSpace(src) != "" && !contains(choiceImages, absoluteURL(src)) {
 			images = appendUnique(images, absoluteURL(src))
 		}
 	})

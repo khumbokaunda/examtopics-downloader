@@ -39,8 +39,12 @@ final class MediaStore
     {
         $urls = [];
         foreach ((array) ($dataset['questions'] ?? []) as $q) {
-            foreach (['question_images', 'answer_images'] as $field) {
-                foreach ((array) ($q[$field] ?? []) as $u) {
+            $lists = [(array) ($q['question_images'] ?? []), (array) ($q['answer_images'] ?? [])];
+            foreach ((array) ($q['choices'] ?? []) as $c) {
+                $lists[] = is_array($c) ? (array) ($c['images'] ?? []) : [];
+            }
+            foreach ($lists as $list) {
+                foreach ($list as $u) {
                     if (is_string($u) && $u !== '') {
                         $urls[$u] = true;
                     }

@@ -78,6 +78,9 @@ final class MarkdownRenderer
             foreach ((array) ($q['choices'] ?? []) as $c) {
                 if (is_array($c)) {
                     $out[] = '- **' . self::inline((string) ($c['letter'] ?? '')) . '.** ' . self::inline((string) ($c['text'] ?? ''));
+                    foreach ((array) ($c['images'] ?? []) as $img) {
+                        $out[] = '  ' . self::image((string) $img, 'Choice ' . (string) ($c['letter'] ?? ''));
+                    }
                 }
             }
             if (($q['choices'] ?? []) !== []) {

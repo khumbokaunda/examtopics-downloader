@@ -56,7 +56,7 @@ $img = static function (string $url, string $alt) use ($localImages): string {
     <article class="card question-card" id="question-<?= $n ?>">
         <div class="card-body">
             <div class="q-head">
-                <h2 class="q-number"><span class="num">Question <?= $n ?></span></h2>
+                <h2 class="q-number"><span class="num">Question <?= $n ?></span><?php $kind = QuestionView::kind($item); if ($kind !== null): ?><?= chip($kind === 'drag-drop' ? 'Drag and drop' : 'Hot area', 'info', $kind === 'drag-drop' ? 'arrows-move' : 'cursor') ?><?php endif; ?></h2>
                 <span class="q-meta"><?= e(QuestionView::meta($item)) ?></span>
             </div>
             <div class="q-text"><?php foreach (QuestionView::paragraphs((string) ($item['text'] ?? '')) as $para): ?><p><?= $para ?></p><?php endforeach; ?></div>
@@ -64,7 +64,7 @@ $img = static function (string $url, string $alt) use ($localImages): string {
             <?php if (($item['choices'] ?? []) !== []): ?>
                 <ul class="list-unstyled choices">
                     <?php foreach ((array) $item['choices'] as $c): $letter = (string) ($c['letter'] ?? ''); ?>
-                        <li class="choice<?= $letter !== '' && in_array($letter, $answerLetters, true) ? ' is-answer' : '' ?>"><span class="choice-letter"><?= e($letter) ?>.</span> <span class="choice-text"><?= nl2br(e((string) ($c['text'] ?? '')), false) ?></span></li>
+                        <li class="choice<?= $letter !== '' && in_array($letter, $answerLetters, true) ? ' is-answer' : '' ?>"><span class="choice-letter"><?= e($letter) ?>.</span> <span class="choice-text"><?= nl2br(e((string) ($c['text'] ?? '')), false) ?><?php foreach ((array) ($c['images'] ?? []) as $u): ?><?= $img((string) $u, 'Choice ' . $letter) ?><?php endforeach; ?></span></li>
                     <?php endforeach; ?>
                 </ul>
             <?php endif; ?>
@@ -79,7 +79,8 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                 <div class="answer-box">
                     <?= icon('check-circle-fill') ?>
                     <div>
-                        <div class="answer-text"><strong>Answer:</strong> <?= $answer !== null ? e($answer) : '<span class="text-muted">not available</span>' ?></div>
+                        <?php $note = QuestionView::pictureAnswerNote($item); ?>
+                        <div class="answer-text"><strong>Answer:</strong> <?= $answer !== null ? e($answer) : '<span class="text-muted">' . e($note ?? 'not available') . '</span>' ?></div>
                         <?php if ($votes !== null): ?><div class="answer-votes">Community votes: <?= e($votes) ?></div><?php endif; ?>
                     </div>
                 </div>

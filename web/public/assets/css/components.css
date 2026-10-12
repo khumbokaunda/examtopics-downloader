@@ -273,6 +273,8 @@ body.dialog-open { overflow: hidden; }
   background: var(--color-surface); line-height: 1.55; overflow-wrap: anywhere;
 }
 .choice-letter { flex-shrink: 0; min-width: 1.6em; font-weight: var(--weight-semibold); color: var(--color-text-muted); }
+.choice-text { min-width: 0; }
+.choice-text .q-image { margin: 4px 0 2px; }
 .choice.is-answer { border-color: var(--color-success); background: var(--color-success-soft); }
 .choice.is-answer .choice-letter { color: var(--color-success-ink); }
 .answer-box {

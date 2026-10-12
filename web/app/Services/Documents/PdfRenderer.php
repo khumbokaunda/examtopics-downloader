@@ -224,11 +224,16 @@ final class PdfRenderer
         foreach ($questions as $i => $q) {
             $qImages = $this->embed((array) ($q['question_images'] ?? []));
             $aImages = $showAnswers ? $this->embed((array) ($q['answer_images'] ?? [])) : [];
-            $missing = array_filter(array_merge($qImages, $aImages), static fn(array $im) => $im['uri'] === null) !== [];
+            $cImages = [];
+            foreach ((array) ($q['choices'] ?? []) as $c) {
+                $cImages[(string) ($c['letter'] ?? '')] = is_array($c) ? $this->embed((array) ($c['images'] ?? [])) : [];
+            }
+            $all = array_merge($qImages, $aImages, ...array_values($cImages));
+            $missing = array_filter($all, static fn(array $im) => $im['uri'] === null) !== [];
             $cards[$i] = [
-                'q' => $q, 'qImages' => $qImages, 'aImages' => $aImages,
+                'q' => $q, 'qImages' => $qImages, 'aImages' => $aImages, 'cImages' => $cImages,
                 'figureMissing' => $missing,
-                'figures' => count($qImages) + count($aImages),
+                'figures' => count($all),
                 'keyVaries' => self::keyVaries($q),
             ];
         }
@@ -375,7 +380,7 @@ final class PdfRenderer
     }
 
     /**
-     * @param array{q:array<string,mixed>,qImages:list<array{url:string,uri:?string}>,aImages:list<array{url:string,uri:?string}>,figureMissing:bool,figures:int,keyVaries:bool} $card
+     * @param array{q:array<string,mixed>,qImages:list<array{url:string,uri:?string}>,aImages:list<array{url:string,uri:?string}>,cImages:array<string,list<array{url:string,uri:?string}>>,figureMissing:bool,figures:int,keyVaries:bool} $card
      */
     private function card(array $card, Variant $variant, bool $last, callable $h, callable $t, callable $text, int $position): string
     {
@@ -413,7 +418,8 @@ final class PdfRenderer
             foreach ($choices as $c) {
                 $letter = (string) ($c['letter'] ?? '');
                 $hit = $showAnswers && $letter !== '' && str_contains($answer, $letter);
-                $b[] = '<tr><td class="opt-l' . ($hit ? ' hit' : '') . '">' . $h($letter) . '</td><td class="opt-t">' . $text((string) ($c['text'] ?? '')) . '</td></tr>';
+                $b[] = '<tr><td class="opt-l' . ($hit ? ' hit' : '') . '">' . $h($letter) . '</td><td class="opt-t">' . $text((string) ($c['text'] ?? ''))
+                    . $this->figures($card['cImages'][$letter] ?? [], 'Choice ' . $letter, $h) . '</td></tr>';
             }
             $b[] = '</table>';
         }
@@ -432,7 +438,8 @@ final class PdfRenderer
                     $b[] = '<div class="ans-warn">Cannot be confirmed without the figure.</div>';
                 }
             } else {
-                $b[] = '<div class="ans-line"><span class="ans-label">Answer</span> <span class="ans-warn">Not available for this question.</span></div>';
+                $note = QuestionView::pictureAnswerNote($q);
+                $b[] = '<div class="ans-line"><span class="ans-label">Answer</span> <span class="ans-warn">' . $h($note ?? 'Not available for this question.') . '</span></div>';
             }
             $votes = QuestionView::votesLine($q);
             if ($votes !== null) {

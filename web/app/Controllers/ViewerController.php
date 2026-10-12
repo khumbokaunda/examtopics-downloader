@@ -98,6 +98,7 @@ final class ViewerController extends Controller
         return Response::json([
             'number' => (int) $q['number'],
             'answer' => QuestionView::answerLine($q),
+            'answer_note' => QuestionView::pictureAnswerNote($q),
             'votes' => QuestionView::votesLine($q),
             'explanation' => (string) ($q['explanation'] ?? ''),
             'answer_images' => $this->imageSources((array) ($q['answer_images'] ?? [])),

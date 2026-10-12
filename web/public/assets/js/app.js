@@ -538,7 +538,7 @@
         var body = el('div');
         var line = el('div', 'answer-text');
         line.appendChild(el('strong', null, 'Answer: '));
-        line.appendChild(document.createTextNode(d.answer || 'not available'));
+        line.appendChild(document.createTextNode(d.answer || d.answer_note || 'not available'));
         body.appendChild(line);
         if (d.votes) body.appendChild(el('div', 'answer-votes', 'Community votes: ' + d.votes));
         box.appendChild(body);
