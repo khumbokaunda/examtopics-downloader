@@ -1,6 +1,6 @@
 <?php
 /** @var array $user @var bool $toolInstalled @var string $toolPath @var bool $tokenConfigured @var bool $workerRunning
- *  @var int|null $workerPid @var bool $autostart @var float $rps @var string $storage @var bool $imagesDownload @var array{files:int,bytes:int} $imageTotals @var list<array> $recentLogins
+ *  @var int|null $workerPid @var bool $autostart @var float $rps @var string $storage @var bool $imagesDownload @var list<string> $toolMissing @var array{files:int,bytes:int} $imageTotals @var list<array> $recentLogins
  *  @var array<string,string> $appearance @var array<string,list<string>> $appearanceOptions
  *  @var array{idle_timeout:int,absolute_timeout:int,timezone:string} $system @var string $myTimezone @var list<string> $timezones */
 use App\Services\SystemSettings;
@@ -26,8 +26,9 @@ $themeIcons = ['system' => 'circle-half', 'light' => 'sun', 'dark' => 'moon-star
             <div class="card-body">
                 <dl class="meta-list is-wide mb-4">
                     <dt>Collection tool</dt>
-                    <dd><?= $toolInstalled ? chip('installed', 'success', 'check2-circle') : chip('missing', 'danger', 'x-circle') ?><div class="mt-1"><code><?= e($toolPath) ?></code></div>
-                        <?php if (!$toolInstalled): ?><div class="form-text">Build it on the server with <code>go build -o bin/examtopics-downloader ./cmd</code>.</div><?php endif; ?></dd>
+                    <dd><?= !$toolInstalled ? chip('missing', 'danger', 'x-circle') : ($toolMissing !== [] ? chip('out of date', 'warning', 'exclamation-triangle') : chip('installed', 'success', 'check2-circle')) ?><div class="mt-1"><code><?= e($toolPath) ?></code></div>
+                        <?php if (!$toolInstalled): ?><div class="form-text">Build it on the server with <code>go build -o bin/examtopics-downloader ./cmd</code>.</div><?php endif; ?>
+                        <?php if ($toolInstalled && $toolMissing !== []): ?><div class="form-text">It was built before the web app was updated and does not know <?= e(implode(', ', $toolMissing)) ?>. Rebuild it in the project folder with <code>go build -o bin/examtopics-downloader ./cmd</code>.</div><?php endif; ?></dd>
                     <dt>GitHub token</dt><dd><?= $tokenConfigured ? chip('configured', 'success', 'key') . ' <span class="text-muted">(not shown)</span>' : chip('not configured', 'neutral', 'key') ?></dd>
                     <dt>Worker</dt><dd><?= $workerRunning ? chip('running' . ($workerPid ? ', pid ' . (int) $workerPid : ''), 'success', 'cpu') : chip('idle', 'neutral', 'cpu') ?> <span class="text-muted"><?= $autostart ? 'started on demand' : 'systemd daemon mode' ?></span></dd>
                     <dt>Default pacing</dt><dd><?= e((string) $rps) ?> request<?= $rps === 1.0 ? '' : 's' ?> per second</dd>

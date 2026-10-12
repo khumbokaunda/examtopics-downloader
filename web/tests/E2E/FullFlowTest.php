@@ -174,7 +174,7 @@ final class FullFlowTest extends WorkflowTestCase
             '/collect?provider=huawei&exam=h19-301'));
         $second = $c->post('/collect', ['provider' => 'huawei', 'exam' => 'h12-811-v2-0', 'source_mode' => 'live'], '/collect?provider=huawei&exam=h12-811-v2-0');
         self::assertStringContainsString('exam=h12-811-v2-0', $second['headers']['location']);
-        self::assertStringContainsString('Only one collection runs at a time', $c->get($second['headers']['location'])['body']);
+        self::assertStringContainsString('A collection is in progress: <strong>Collect huawei / h19-301</strong>. Only one collection or image download runs at a time', $c->get($second['headers']['location'])['body']);
 
         // 3-4. "Close the browser": forget the session entirely, come back later, sign in again.
         $c->forgetCookies();

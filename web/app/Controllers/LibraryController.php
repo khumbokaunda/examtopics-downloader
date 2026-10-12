@@ -10,6 +10,7 @@ use App\Core\Ids;
 use App\Services\ActiveJobException;
 use App\Services\Documents\Variant;
 use App\Services\MediaStore;
+use App\Services\ToolCheck;
 use RuntimeException;
 
 final class LibraryController extends Controller
@@ -106,6 +107,11 @@ final class LibraryController extends Controller
         $p = $this->findProvider($provider);
         $e = $this->findExam($p, $exam);
         $v = $this->findVersion($e, $version);
+        if (in_array('-images-from', ToolCheck::missingOptions((string) $this->app->config()->get('tool.binary')), true)) {
+            $this->flash('danger', 'The collection tool on the server is older than the web app, so it cannot download images. '
+                . ToolCheck::rebuildHint() . ' Then try again.');
+            return $this->redirect('/library/' . rawurlencode($p['slug']) . '/' . rawurlencode($e['code']), ['version' => $v['version']]);
+        }
         try {
             $id = $this->s->jobService()->enqueueImages($v);
         } catch (ActiveJobException $ex) {

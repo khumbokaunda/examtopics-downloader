@@ -14,7 +14,7 @@ $examUrl = static fn(array $p, array $e): string => url('/library/' . rawurlenco
 <?php if ($activeCollect): ?>
     <div class="alert alert-primary">
         <?= icon('arrow-repeat', 'spin') ?>
-        <div class="alert-body">A collection is in progress: <strong><?= e(job_label($activeCollect)) ?></strong>. Only one collection runs at a time.</div>
+        <div class="alert-body"><?= ($activeCollect['type'] ?? '') === 'images' ? 'An image download is in progress' : 'A collection is in progress' ?>: <strong><?= e(job_label($activeCollect)) ?></strong>. Only one collection or image download runs at a time.</div>
         <a class="btn btn-sm btn-primary" href="<?= e(url('/jobs/' . $activeCollect['uuid'])) ?>">View progress</a>
     </div>
 <?php endif; ?>

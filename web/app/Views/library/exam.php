@@ -32,7 +32,9 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
 
 <?php if ($activeJob): ?>
 <div class="card mb-4"><div class="card-body">
-    <div class="job-item-title">A refresh is running (job #<?= (int) $activeJob['id'] ?>). This version stays available until the new one passes validation.</div>
+    <div class="job-item-title"><?= ($activeJob['type'] ?? '') === 'images'
+        ? 'Images for this exam are being downloaded. They are added when the download finishes.'
+        : 'A refresh is running. This version stays available until the new one passes validation.' ?></div>
     <?= \App\Core\View::current()->partial('partials/job_progress', ['job' => $activeJob, 'reload' => true]) ?>
 </div></div>
 <?php endif; ?>

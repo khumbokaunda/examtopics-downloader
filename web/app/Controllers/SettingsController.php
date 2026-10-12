@@ -18,6 +18,7 @@ final class SettingsController extends Controller
             'nav' => 'settings',
             'user' => $this->auth->user(),
             'toolInstalled' => is_file($binary) && is_executable($binary),
+            'toolMissing' => \App\Services\ToolCheck::missingOptions($binary),
             'toolPath' => $binary,
             'tokenConfigured' => (string) $this->app->config()->get('github_token', '') !== '',
             'workerRunning' => $lock->isHeld(),

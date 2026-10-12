@@ -355,7 +355,7 @@ fieldset legend { font-size: var(--text-sm); font-weight: var(--weight-semibold)
 .alert-info    { --bs-alert-bg: var(--color-info-soft);    --bs-alert-color: var(--color-info-ink);    --bs-alert-border-color: var(--color-info); }
 .alert-primary { --bs-alert-bg: var(--color-primary-soft); --bs-alert-color: var(--color-text);        --bs-alert-border-color: var(--color-primary); }
 .alert-secondary, .alert-light, .alert-dark { --bs-alert-bg: var(--color-surface-alt); --bs-alert-color: var(--color-text); --bs-alert-border-color: var(--color-border); }
-.alert a, .alert .alert-link { color: inherit; text-decoration: underline; font-weight: var(--weight-medium); }
+.alert a:not(.btn), .alert .alert-link { color: inherit; text-decoration: underline; font-weight: var(--weight-medium); }
 .alert code { background: transparent; color: inherit; padding: 0; }
 .alert-close {
   margin-left: auto; flex-shrink: 0; border: 0; background: transparent; color: inherit; opacity: .7;
