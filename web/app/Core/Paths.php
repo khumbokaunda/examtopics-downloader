@@ -48,6 +48,20 @@ final class Paths
         return $this->storage . '/logs';
     }
 
+    public function mediaRoot(): string
+    {
+        return $this->storage . '/media';
+    }
+
+    /** A saved image: media/<first two hex digits>/<sha256>.<ext>. */
+    public function mediaFile(string $sha256, string $ext): string
+    {
+        if (!preg_match('/^[0-9a-f]{64}$/', $sha256) || !in_array($ext, ['png', 'jpg', 'gif', 'webp'], true)) {
+            throw new RuntimeException('Invalid media identifier');
+        }
+        return $this->mediaRoot() . '/' . substr($sha256, 0, 2) . '/' . $sha256 . '.' . $ext;
+    }
+
     public function examCacheDir(string $provider, string $exam): string
     {
         self::assertIds($provider, $exam);

@@ -8,7 +8,6 @@ use App\Core\Config;
 use App\Core\Logger;
 use App\Core\Paths;
 use App\Repositories\DocumentRepository;
-use App\Services\Documents\ImageFetcher;
 use App\Services\Documents\MarkdownRenderer;
 use App\Services\Documents\PdfRenderer;
 use App\Services\Documents\Variant;
@@ -24,7 +23,7 @@ use Throwable;
 final class DocumentStore
 {
     /** Bump when rendering output changes, so stale documents are regenerated. */
-    public const RENDERER_VERSION = 1;
+    public const RENDERER_VERSION = 2;
     public const FORMATS = ['md' => 'text/markdown; charset=utf-8', 'pdf' => 'application/pdf'];
 
     public function __construct(
@@ -33,12 +32,8 @@ final class DocumentStore
         private Logger $log,
         private DocumentRepository $docs,
         private CacheService $cache,
+        private MediaStore $media,
     ) {
-    }
-
-    public function imagesAvailable(): bool
-    {
-        return (bool) $this->config->get('documents.pdf_images', false);
     }
 
     /**
@@ -47,13 +42,20 @@ final class DocumentStore
      * @param array<string,mixed> $version row from CacheVersionRepository::find
      * @return array<string,mixed> documents row
      */
-    public function obtain(array $version, string $format, string $variantKey, bool $images = false): array
+    public function obtain(array $version, string $format, string $variantKey): array
     {
         if (!isset(self::FORMATS[$format])) {
             throw new \InvalidArgumentException('Unsupported format.');
         }
-        $variant = Variant::get($variantKey, $format === 'pdf' && $images && $this->imagesAvailable());
+        $variant = Variant::get($variantKey);
         $options = $variant->options() + ['format' => $format, 'renderer' => self::RENDERER_VERSION];
+        $imageUrls = [];
+        if ($format === 'pdf') {
+            // PDFs embed the images saved on this server. Saving more of them (a later image
+            // download) changes the options, so the PDF is generated again with them.
+            $imageUrls = MediaStore::urlsOf($this->cache->load($version));
+            $options['images'] = count($this->media->savedHashes($imageUrls));
+        }
         $hash = hash('sha256', (string) json_encode($options));
 
         $existing = $this->docs->findByKey((int) $version['id'], $format, $variant->key, $hash);
@@ -62,7 +64,7 @@ final class DocumentStore
         }
 
         $dir = $this->paths->documentDir((string) $version['provider_slug'], (string) $version['exam_code'], (string) $version['version']);
-        $file = $variant->key . ($variant->images ? '-images' : '') . '.' . $format;
+        $file = $variant->key . '.' . $format;
         $rel = substr($dir . '/' . $file, strlen($this->paths->documentsRoot()) + 1);
         $record = [
             'cache_version_id' => (int) $version['id'], 'format' => $format, 'variant' => $variant->key,
@@ -87,11 +89,12 @@ final class DocumentStore
             $meta = $this->meta($version, $dataset);
             $content = $format === 'md'
                 ? (new MarkdownRenderer())->render($dataset, $meta, $variant)
-                : $this->pdfRenderer($variant)->render($dataset, $meta, $variant);
+                : $this->pdfRenderer($imageUrls)->render($dataset, $meta, $variant);
             Paths::atomicWrite($dir . '/' . $file, $content);
             $id = $this->docs->save($record + [
                 'status' => 'ready', 'size_bytes' => strlen($content), 'checksum' => hash('sha256', $content), 'error' => null,
             ]);
+            $this->docs->deleteSuperseded((int) $version['id'], $format, $variant->key, $hash);
             $this->log->info('documents', 'Document generated', [
                 'document_id' => $id, 'version' => $version['version'], 'exam' => $version['exam_code'],
                 'variant' => $variant->key, 'format' => $format, 'bytes' => strlen($content),
@@ -181,17 +184,12 @@ final class DocumentStore
         ];
     }
 
-    private function pdfRenderer(Variant $variant): PdfRenderer
+    /** @param list<string> $imageUrls */
+    private function pdfRenderer(array $imageUrls): PdfRenderer
     {
-        $fetcher = $variant->images ? new ImageFetcher(
-            array_map('strtolower', (array) $this->config->get('documents.image_hosts', [])),
-            (int) $this->config->get('documents.image_max_bytes', 2097152),
-            (int) $this->config->get('documents.image_max_count', 300),
-            (int) $this->config->get('documents.image_total_bytes', 52428800),
-            (int) $this->config->get('documents.image_timeout', 10),
-        ) : null;
+        $images = $this->media->imageSource($imageUrls, (int) $this->config->get('documents.image_total_bytes', 100 * 1024 * 1024));
         $tmp = $this->paths->storage() . '/tmp/dompdf';
         Paths::ensureDir($tmp);
-        return new PdfRenderer($fetcher, $tmp);
+        return new PdfRenderer($images, $tmp);
     }
 }

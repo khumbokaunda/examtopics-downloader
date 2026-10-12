@@ -33,7 +33,12 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
    rebuilt from the manifests.
 4. **Document generation**: Markdown and PDF built from one validated version, recorded in
    `documents` with options, size and checksum, and reused when unchanged.
-5. **Web interface**: server-rendered PHP templates in an application shell (sidebar, top bar,
+5. **Saved images**: after a collection, the tool downloads the questions' images (only from
+   ExamTopics, paced like page requests). The worker checks each file again and keeps it once
+   in `storage/media`, named by its content hash (`media` table). The reader serves them from
+   `/media/<hash>` and PDFs embed them, so neither depends on ExamTopics serving images to a
+   browser, which it often refuses.
+6. **Web interface**: server-rendered PHP templates in an application shell (sidebar, top bar,
    command palette), styled by a token-based theme over Bootstrap 5's CSS. See
    [The interface](#the-interface).
 
@@ -123,8 +128,9 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
   must match their checksum.
 - **Output**: all scraped text is untrusted. Templates escape everything; the practice-mode
   reveal inserts text with `textContent`; Markdown escapes structural characters; the PDF HTML
-  is fully escaped; dompdf runs with remote access and PHP disabled. Images in the browser are
-  limited to `https:` URLs.
+  is fully escaped; dompdf runs with remote access and PHP disabled. Images in the browser come
+  from the saved copies, else from `https:` addresses. Saved images are PNG, JPEG, GIF or WebP
+  only (never SVG), checked with `getimagesize`, and served with `nosniff` and a sandboxing CSP.
 - **Practice mode**: answers, explanations, votes and comments are removed from the question
   data before the template sees it. Each is fetched on demand for one question from an
   authenticated endpoint.
@@ -142,6 +148,7 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
 | A UNIQUE `active_slot` column | Duplicate-submission prevention is atomic in the database, not a racy check-then-insert. |
 | Exact exam matching in the Go tool | Matching must happen where links are parsed. Filtering a substring search in the UI could not stop `h12-811` collecting `h12-811-v2-0`. |
 | Comments always collected | Including or excluding discussions is a document option, so it never needs a new collection. |
+| Images downloaded by the tool, not by PHP | The tool already paces requests, retries rate limiting and keeps to ExamTopics hosts, so images get the same care as pages. An image step shares the collection slot, so it never runs alongside a collection. |
 
 ## Known limitations
 

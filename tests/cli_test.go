@@ -7,6 +7,8 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net/http/httptest"
@@ -54,15 +56,21 @@ func runTool(t *testing.T, site *fixturesite.Site, stdin *os.File, args ...strin
 	t.Helper()
 	srv := httptest.NewServer(site)
 	t.Cleanup(srv.Close)
-	dir := t.TempDir()
+	return runToolAt(t, srv.URL, t.TempDir(), stdin, args...)
+}
+
+// runToolAt runs the tool in dir against a fixture server that is already running, so
+// several runs can share one site and folder.
+func runToolAt(t *testing.T, base, dir string, stdin *os.File, args ...string) toolRun {
+	t.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, toolBinary, append([]string{"-rps", "1000"}, args...)...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(),
-		"EXAMTOPICS_BASE_URL="+srv.URL,
-		"EXAMTOPICS_GITHUB_API="+srv.URL+"/gh",
+		"EXAMTOPICS_BASE_URL="+base,
+		"EXAMTOPICS_GITHUB_API="+base+"/gh",
 		"EXAMTOPICS_GITHUB_TOKEN=",
 		"EXAMTOPICS_RETRY_COOLDOWN=0",
 	)
@@ -370,6 +378,103 @@ func TestModernPageLayoutIsParsed(t *testing.T) {
 	}
 	if !strings.Contains(string(md), "\nA. OSPF\n") || !strings.Contains(string(md), "most voted in the comments") {
 		t.Errorf("legacy Markdown lacks the choices or the answer note:\n%s", md)
+	}
+}
+
+func readImages(t *testing.T, path string) dataset.Images {
+	t.Helper()
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reading images document: %v", err)
+	}
+	var doc dataset.Images
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&doc); err != nil {
+		t.Fatalf("images document is not of the documented shape: %v", err)
+	}
+	if doc.Kind != "images" || doc.SchemaVersion != 1 {
+		t.Fatalf("images document kind %q schema %d", doc.Kind, doc.SchemaVersion)
+	}
+	return doc
+}
+
+func TestImagesOfACollectedDatasetAreSavedByContent(t *testing.T) {
+	site := fixturesite.Default(fixturesite.Options{FlakyPaths: map[string]bool{"/assets/media/exam-media/fixture-h12-811.png": true}})
+	srv := httptest.NewServer(site)
+	t.Cleanup(srv.Close)
+	dir := t.TempDir()
+	r := runToolAt(t, srv.URL, dir, nil, "-batch", "-no-cache", "-p", "huawei", "-exam", "h12-811", "-out-json", "ds.json")
+	if r.exit != 0 {
+		t.Fatalf("collect exit %d\n%s", r.exit, r.stderr)
+	}
+	r = runToolAt(t, srv.URL, dir, nil, "-batch", "-images-from", "ds.json", "-images-dir", "media", "-out-json", "images.json", "-events", "events.jsonl")
+	if r.exit != 0 {
+		t.Fatalf("images exit %d\n%s", r.exit, r.stderr)
+	}
+	doc := readImages(t, r.file("images.json"))
+	if len(doc.Images) != 1 || doc.Saved != 1 || doc.Status != dataset.StatusComplete {
+		t.Fatalf("images %+v", doc)
+	}
+	img := doc.Images[0]
+	if img.URL != srv.URL+"/assets/media/exam-media/fixture-h12-811.png" || img.ContentType != "image/png" || img.File != img.SHA256+".png" {
+		t.Fatalf("image %+v", img)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "media", img.File))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sum := sha256.Sum256(data); hex.EncodeToString(sum[:]) != img.SHA256 || len(data) != img.Bytes {
+		t.Errorf("file does not match its recorded hash or size")
+	}
+	if site.Hits("/assets/media/exam-media/fixture-h12-811.png") != 2 {
+		t.Errorf("a rate-limited image must be retried once, got %d requests", site.Hits("/assets/media/exam-media/fixture-h12-811.png"))
+	}
+	if e := last(readEvents(t, r.file("events.jsonl"))); e.Event != "completed" || e.Status != "complete" {
+		t.Errorf("last event %+v", e)
+	}
+}
+
+func TestImageListReportsEachOutcome(t *testing.T) {
+	site := fixturesite.Default(fixturesite.Options{})
+	srv := httptest.NewServer(site)
+	t.Cleanup(srv.Close)
+	dir := t.TempDir()
+	list := "# images\n/assets/media/a.png\n/assets/media/a.png\n" + srv.URL + "/img/b.png\n/assets/media/missing.png\n" +
+		"https://elsewhere.example/c.png\n/assets/media/page.html\n\n"
+	if err := os.WriteFile(filepath.Join(dir, "list.txt"), []byte(list), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	r := runToolAt(t, srv.URL, dir, nil, "-batch", "-images-from", "list.txt", "-images-dir", "media")
+	if r.exit != 2 {
+		t.Fatalf("a failed image must make the run partial (exit 2), got %d\n%s", r.exit, r.stderr)
+	}
+	doc := readImages(t, filepath.Join(dir, "media", "images.json"))
+	got := map[string]string{}
+	for _, it := range doc.Images {
+		got[strings.TrimPrefix(it.URL, srv.URL)] = it.Status
+	}
+	want := map[string]string{
+		"/assets/media/a.png": "saved", "/img/b.png": "saved", "/assets/media/missing.png": "failed",
+		"https://elsewhere.example/c.png": "skipped", "/assets/media/page.html": "skipped",
+	}
+	if len(doc.Images) != len(want) {
+		t.Errorf("duplicates must be listed once: %d entries", len(doc.Images))
+	}
+	for u, st := range want {
+		if got[u] != st {
+			t.Errorf("%s: status %q, want %q", u, got[u], st)
+		}
+	}
+	if doc.Saved != 2 || doc.Failed != 1 || doc.Skipped != 2 || doc.Status != dataset.StatusPartial {
+		t.Errorf("summary %+v", doc)
+	}
+	if site.Hits("/assets/media/missing.png") != 1 {
+		t.Errorf("a 404 must not be retried, got %d requests", site.Hits("/assets/media/missing.png"))
+	}
+	entries, _ := os.ReadDir(filepath.Join(dir, "media"))
+	if len(entries) != 3 { // two images and images.json, no temporary files
+		t.Errorf("media folder has %d entries", len(entries))
 	}
 }
 

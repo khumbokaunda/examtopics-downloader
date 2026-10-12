@@ -1,13 +1,14 @@
 <?php
 /** @var array $provider @var array $exam @var array $version @var list<array> $questions @var string $mode
- *  @var string $q @var int $page @var int $pages @var int $total @var int $all */
+ *  @var string $q @var int $page @var int $pages @var int $total @var int $all @var array<string,string> $localImages */
 use App\Services\Documents\QuestionView;
 
 $base = '/library/' . rawurlencode($provider['slug']) . '/' . rawurlencode($exam['code']);
 $params = ['version' => $version['version'], 'mode' => $mode === 'practice' ? 'practice' : '', 'q' => $q];
 $practice = $mode === 'practice';
-$img = static function (string $url, string $alt): string {
-    $safe = QuestionView::safeImageUrl($url);
+$img = static function (string $url, string $alt) use ($localImages): string {
+    // The copy saved on this server when there is one, else the original address.
+    $safe = $localImages[$url] ?? QuestionView::safeImageUrl($url);
     return $safe === null
         ? '<div class="small text-muted">[' . e($alt) . ': ' . e($url) . ']</div>'
         : '<img class="q-image" src="' . e($safe) . '" alt="' . e($alt) . '" loading="lazy" referrerpolicy="no-referrer">';

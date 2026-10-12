@@ -9,6 +9,7 @@ use App\Core\Ids;
 use App\Core\Logger;
 use App\Core\Paths;
 use App\Core\Redactor;
+use App\Repositories\CacheVersionRepository;
 use App\Repositories\ExamRepository;
 use App\Repositories\InventoryRefreshRepository;
 use App\Repositories\JobRepository;
@@ -24,6 +25,9 @@ final class JobRunner
     /** Set by the worker's SIGTERM handler: stop the current job and exit. */
     public bool $shutdownRequested = false;
 
+    /** When the current job started; the runtime limit covers all of its steps. */
+    private int $startedAt = 0;
+
     public function __construct(
         private Config $config,
         private Paths $paths,
@@ -33,6 +37,8 @@ final class JobRunner
         private ExamRepository $exams,
         private InventoryRefreshRepository $refreshes,
         private CacheService $cache,
+        private CacheVersionRepository $versions,
+        private MediaStore $media,
     ) {
     }
 
@@ -55,6 +61,7 @@ final class JobRunner
         $type = (string) $job['type'];
         $options = json_decode((string) $job['options'], true) ?: [];
         $provider = $job['provider_id'] !== null ? $this->providers->find((int) $job['provider_id']) : null;
+        $this->startedAt = time();
 
         $dir = $this->paths->jobDir($id);
         Paths::ensureDir($dir);
@@ -70,11 +77,14 @@ final class JobRunner
             return;
         }
 
+        if ($type === 'images') {
+            $this->runImagesJob($id, $options);
+            return;
+        }
+
         // The argument list is built only from validated values held in the database; no
         // request data reaches it directly. There is no shell involved.
-        $rps = (float) ($options['rps'] ?? $this->config->get('tool.default_rps', 1.0));
-        $argv = [$binary, '-batch', '-rps', rtrim(rtrim(sprintf('%.3f', max(0.05, min(5.0, $rps))), '0'), '.'),
-                 '-out-json', $out, '-events', $events];
+        $argv = [$binary, '-batch', '-rps', $this->rpsArg($options), '-out-json', $out, '-events', $events];
         switch ($type) {
             case 'providers':
                 $argv[] = '-providers';
@@ -102,12 +112,44 @@ final class JobRunner
         }
 
         $this->log->info('jobs', 'Starting tool', ['job_id' => $id, 'type' => $type, 'exam' => $job['exam_code']]);
-        $process = new Process($argv, $dir, WorkerSupervisor::toolEnv($this->config), $log);
+        $run = $this->runTool($id, $argv, $events, $log);
+        if ($run['stop'] !== null) {
+            $this->finishStopped($id, $run['stop'], $run['exit']);
+            return;
+        }
+
+        $exit = (int) $run['exit'];
+        $terminal = $run['terminal'];
+        $failure = is_array($terminal) && ($terminal['event'] ?? '') === 'failed' ? (string) ($terminal['message'] ?? '') : '';
+        match ($type) {
+            'providers' => $this->finishProviders($id, $exit, $out, $failure, $log),
+            'inventory' => $this->finishInventory($id, $exit, $out, $failure, $log, $provider),
+            'collect' => $this->finishCollect($id, $exit, $out, $failure, $log, $provider, $job, $options),
+        };
+    }
+
+    /** @param array<string,mixed> $options */
+    private function rpsArg(array $options): string
+    {
+        $rps = (float) ($options['rps'] ?? $this->config->get('tool.default_rps', 1.0));
+        return rtrim(rtrim(sprintf('%.3f', max(0.05, min(5.0, $rps))), '0'), '.');
+    }
+
+    /**
+     * Run the tool to completion, mirroring its progress events into the job row and
+     * stopping it on cancellation, the runtime limit or a worker shutdown.
+     *
+     * @param list<string> $argv
+     * @return array{exit:int|null,terminal:array<string,mixed>|null,stop:string|null}
+     */
+    private function runTool(int $id, array $argv, string $events, string $log): array
+    {
+        @unlink($events);
+        $process = new Process($argv, dirname($events), WorkerSupervisor::toolEnv($this->config), $log);
         $this->jobs->setChildPid($id, $process->pid());
 
         $tail = new EventTail($events);
         $terminal = null;
-        $started = time();
         $maxRuntime = (int) $this->config->get('tool.max_runtime', 21600);
         $grace = (int) $this->config->get('tool.kill_grace', 10);
         $stopReason = null;
@@ -123,7 +165,7 @@ final class JobRunner
             if ($stopReason === null) {
                 if ($this->jobs->cancelRequested($id)) {
                     $stopReason = 'cancelled';
-                } elseif (time() - $started > $maxRuntime) {
+                } elseif (time() - $this->startedAt > $maxRuntime) {
                     $stopReason = 'timeout';
                 } elseif ($this->shutdownRequested) {
                     $stopReason = 'shutdown';
@@ -139,26 +181,21 @@ final class JobRunner
             }
             usleep(500_000);
         }
+        $this->jobs->setChildPid($id, null);
+        return ['exit' => $exit, 'terminal' => $terminal, 'stop' => $stopReason];
+    }
 
-        if ($stopReason === 'cancelled') {
+    private function finishStopped(int $id, string $reason, ?int $exit): void
+    {
+        if ($reason === 'cancelled') {
             $this->jobs->finish($id, 'cancelled', 'Cancelled', 'Cancelled by the user. Previously cached data is unchanged.', $exit);
             $this->log->info('jobs', 'Job cancelled', ['job_id' => $id]);
             return;
         }
-        if ($stopReason !== null) {
-            $msg = $stopReason === 'timeout'
-                ? 'Stopped after exceeding the maximum runtime of ' . intdiv($maxRuntime, 60) . ' minutes.'
-                : 'Stopped because the worker was shut down.';
-            $this->jobs->finish($id, 'failed', 'Stopped', $msg . ' Previously cached data is unchanged.', $exit);
-            return;
-        }
-
-        $failure = is_array($terminal) && ($terminal['event'] ?? '') === 'failed' ? (string) ($terminal['message'] ?? '') : '';
-        match ($type) {
-            'providers' => $this->finishProviders($id, (int) $exit, $out, $failure, $log),
-            'inventory' => $this->finishInventory($id, (int) $exit, $out, $failure, $log, $provider),
-            'collect' => $this->finishCollect($id, (int) $exit, $out, $failure, $log, $provider, $job, $options),
-        };
+        $msg = $reason === 'timeout'
+            ? 'Stopped after exceeding the maximum runtime of ' . intdiv((int) $this->config->get('tool.max_runtime', 21600), 60) . ' minutes.'
+            : 'Stopped because the worker was shut down.';
+        $this->jobs->finish($id, 'failed', 'Stopped', $msg . ' Previously cached data is unchanged.', $exit);
     }
 
     /**
@@ -276,9 +313,132 @@ final class JobRunner
         $msg = $partial
             ? 'Partial: ' . $published['collected'] . ' questions saved as a partial version (the latest complete version, if any, is unchanged)'
             : $published['collected'] . ' questions saved';
-        $this->jobs->finish($id, 'completed', $msg,
-            $published['warnings'] === [] ? null : implode("\n", $published['warnings']),
+        $warnings = $published['warnings'];
+
+        // The questions are published; their images are a second step. Stopping it, or its
+        // failure, leaves the version in place and the missing images for a later run.
+        $version = $this->versions->find((int) $published['version_id']);
+        if ($version !== null && (bool) $this->config->get('media.download', true)) {
+            $images = $this->saveImages($id, $version, $options);
+            if ($images['note'] !== null) {
+                $msg .= '; ' . $images['note'];
+            }
+            if ($images['warning'] !== null) {
+                $warnings[] = $images['warning'];
+            }
+        }
+        $this->jobs->finish($id, 'completed', $msg, $warnings === [] ? null : implode("\n", $warnings),
             $exit, $published['status'], $published['version_id']);
+    }
+
+    /**
+     * The "images" job: download the missing images of one published version.
+     *
+     * @param array<string,mixed> $options
+     */
+    private function runImagesJob(int $id, array $options): void
+    {
+        $version = $this->versions->find((int) ($options['version_id'] ?? 0));
+        if ($version === null) {
+            $this->jobs->finish($id, 'failed', 'Version not found', 'The version whose images were requested no longer exists.');
+            return;
+        }
+        $images = $this->saveImages($id, $version, $options);
+        if ($images['stop'] === 'cancelled') {
+            $this->jobs->finish($id, 'cancelled', 'Cancelled', 'Cancelled by the user. Images saved before that are kept.', null, null, (int) $version['id']);
+            return;
+        }
+        if ($images['stop'] !== null) {
+            $this->finishStopped($id, $images['stop'], null);
+            return;
+        }
+        $failed = $images['saved'] === 0 && $images['failed'] > 0;
+        $this->jobs->finish($id, $failed ? 'failed' : 'completed', ucfirst((string) ($images['note'] ?? 'no images to download')),
+            $images['warning'], $images['exit'], null, (int) $version['id']);
+    }
+
+    /**
+     * Download the version's images that are not saved yet, with the tool, and keep them.
+     *
+     * @param array<string,mixed> $version cache_versions row
+     * @param array<string,mixed> $options job options (rps)
+     * @return array{note:?string,warning:?string,stop:?string,saved:int,failed:int,exit:?int}
+     */
+    private function saveImages(int $id, array $version, array $options): array
+    {
+        $result = ['note' => null, 'warning' => null, 'stop' => null, 'saved' => 0, 'failed' => 0, 'exit' => null];
+        try {
+            $urls = MediaStore::urlsOf($this->cache->load($version));
+        } catch (Throwable $e) {
+            $result['warning'] = 'Images were not downloaded: ' . Redactor::clean($e->getMessage());
+            return $result;
+        }
+        $missing = $this->media->missing($urls);
+        if ($urls === []) {
+            return $result;
+        }
+        if ($missing === []) {
+            $result['note'] = 'all ' . count($urls) . ' images already saved';
+            return $result;
+        }
+
+        $dir = $this->paths->jobDir($id);
+        $imagesDir = $dir . '/images';
+        $list = $dir . '/images.txt';
+        $out = $dir . '/images.json';
+        Paths::ensureDir($imagesDir);
+        Paths::atomicWrite($list, implode("\n", $missing) . "\n");
+        @unlink($out);
+
+        $this->jobs->updateProgress($id, 'images', 0, count($missing), 'Downloading ' . count($missing) . ' images');
+        $argv = [(string) $this->config->get('tool.binary'), '-batch', '-rps', $this->rpsArg($options),
+                 '-images-from', $list, '-images-dir', $imagesDir, '-out-json', $out, '-events', $dir . '/images-events.jsonl'];
+        $this->log->info('jobs', 'Downloading images', ['job_id' => $id, 'exam' => $version['exam_code'], 'images' => count($missing)]);
+        $run = $this->runTool($id, $argv, $dir . '/images-events.jsonl', $dir . '/tool.log');
+        $result['exit'] = $run['exit'];
+        $result['stop'] = $run['stop'];
+
+        // Whatever finished before a stop is kept.
+        $doc = is_file($out) ? $this->readDoc($out, 'images') : null;
+        $counts = $doc !== null ? $this->media->import($imagesDir, $doc, $missing) : ['saved' => 0, 'failed' => 0, 'skipped' => 0];
+        $this->removeTree($imagesDir);
+        @unlink($list);
+        @unlink($out);
+
+        $result['saved'] = $counts['saved'];
+        $result['failed'] = $counts['failed'];
+        $already = count($urls) - count($missing);
+        $note = ($counts['saved'] + $already) . ' of ' . count($urls) . ' images saved';
+        if ($run['stop'] === 'cancelled') {
+            $note .= ' (image download cancelled)';
+        }
+        $result['note'] = $note;
+        if ($doc === null && $run['stop'] === null) {
+            $result['warning'] = 'The image download did not finish: ' . $this->failureText((int) $run['exit'], '', $dir . '/tool.log');
+            $result['failed'] = count($missing);
+        } elseif ($counts['failed'] > 0 || $counts['skipped'] > 0) {
+            $parts = [];
+            if ($counts['failed'] > 0) {
+                $parts[] = $counts['failed'] . ' could not be downloaded (Download missing images on the exam page tries them again)';
+            }
+            if ($counts['skipped'] > 0) {
+                $parts[] = $counts['skipped'] . ' were not ExamTopics images or were too large';
+            }
+            $result['warning'] = 'Images: ' . implode('; ', $parts) . '.';
+        }
+        $this->log->info('jobs', 'Images saved', ['job_id' => $id, 'saved' => $counts['saved'], 'failed' => $counts['failed'], 'skipped' => $counts['skipped']]);
+        return $result;
+    }
+
+    /** Remove a job's scratch folder of downloaded images (plain files only). */
+    private function removeTree(string $dir): void
+    {
+        foreach (glob($dir . '/{,.}[!.]*', GLOB_BRACE) ?: [] as $f) {
+            if (is_file($f) || is_link($f)) {
+                @unlink($f);
+            }
+        }
+        @rmdir($dir);
     }
 
     /** @return array<string,mixed>|null */

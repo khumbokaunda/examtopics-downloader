@@ -11,6 +11,7 @@ use App\Repositories\ExamRepository;
 use App\Repositories\InventoryRefreshRepository;
 use App\Repositories\JobRepository;
 use App\Repositories\LoginAttemptRepository;
+use App\Repositories\MediaRepository;
 use App\Repositories\ProviderRepository;
 use App\Repositories\SettingsRepository;
 use App\Repositories\UserRepository;
@@ -90,12 +91,19 @@ final class Services
     {
         return $this->app->service(JobRunner::class, fn() => new JobRunner(
             $this->app->config(), $this->app->paths(), $this->app->logger(), $this->jobs(), $this->providers(),
-            $this->exams(), $this->refreshes(), $this->cache()));
+            $this->exams(), $this->refreshes(), $this->cache(), $this->versions(), $this->media()));
+    }
+
+    public function media(): MediaStore
+    {
+        return $this->app->service(MediaStore::class, fn() => new MediaStore(
+            $this->app->paths(), new MediaRepository($this->app->db()), $this->app->logger(),
+            (int) $this->app->config()->get('media.max_bytes', 5 * 1024 * 1024)));
     }
 
     public function documents(): DocumentStore
     {
         return $this->app->service(DocumentStore::class, fn() => new DocumentStore(
-            $this->app->config(), $this->app->paths(), $this->app->logger(), $this->documentRepo(), $this->cache()));
+            $this->app->config(), $this->app->paths(), $this->app->logger(), $this->documentRepo(), $this->cache(), $this->media()));
     }
 }

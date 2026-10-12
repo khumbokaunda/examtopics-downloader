@@ -147,6 +147,22 @@ func retryAfter(resp *http.Response) (time.Duration, bool) {
 // *StatusError, and an exhausted API quota as a *RateLimitError, so callers can
 // see what actually went wrong instead of receiving a bare nil body.
 func (f *Fetcher) Get(url string) ([]byte, error) {
+	return f.get(url, 0)
+}
+
+// TooLargeError reports a response body over the caller's size limit. It is not
+// transient: the same file will be just as large on the next attempt.
+type TooLargeError struct {
+	URL   string
+	Limit int64
+}
+
+func (e *TooLargeError) Error() string {
+	return fmt.Sprintf("%s is larger than %d bytes", e.URL, e.Limit)
+}
+
+// get is Get with an optional body size limit (0 means none).
+func (f *Fetcher) get(url string, limit int64) ([]byte, error) {
 	backoff := constants.InitalBackoff
 	var lastErr error
 
@@ -171,10 +187,17 @@ func (f *Fetcher) Get(url string) ([]byte, error) {
 		}
 
 		if resp.StatusCode == http.StatusOK {
-			body, err := io.ReadAll(resp.Body)
+			var reader io.Reader = resp.Body
+			if limit > 0 {
+				reader = io.LimitReader(resp.Body, limit+1)
+			}
+			body, err := io.ReadAll(reader)
 			resp.Body.Close()
 			if err != nil {
 				return nil, fmt.Errorf("reading response body from %q: %w", url, err)
+			}
+			if limit > 0 && int64(len(body)) > limit {
+				return nil, &TooLargeError{URL: url, Limit: limit}
 			}
 			return body, nil
 		}

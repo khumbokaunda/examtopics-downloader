@@ -10,7 +10,11 @@ package fixturesite
 import (
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"html"
+	"image"
+	"image/color"
+	"image/png"
 	"net/http"
 	"strconv"
 	"strings"
@@ -173,6 +177,8 @@ func (s *Site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.listing(w, n)
+	case strings.HasPrefix(path, "/assets/media/") || strings.HasPrefix(path, "/img/"):
+		s.image(w, r, path)
 	case strings.HasPrefix(path, "/gh/"):
 		s.github(w, r, strings.TrimPrefix(path, "/gh"))
 	case strings.HasPrefix(path, "/raw/"):
@@ -180,6 +186,31 @@ func (s *Site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.NotFound(w, r)
 	}
+}
+
+// image serves a small PNG whose colour depends on the path, so different paths have
+// different content. Paths containing "missing" are 404s; ".html" paths are not images.
+func (s *Site) image(w http.ResponseWriter, r *http.Request, path string) {
+	switch {
+	case strings.Contains(path, "missing"):
+		http.NotFound(w, r)
+		return
+	case strings.HasSuffix(path, ".html"):
+		page(w, "not an image", "<p>This is a page.</p>")
+		return
+	}
+	h := fnv.New32a()
+	h.Write([]byte(path))
+	sum := h.Sum32()
+	img := image.NewRGBA(image.Rect(0, 0, 24, 12))
+	fill := color.RGBA{R: uint8(sum), G: uint8(sum >> 8), B: uint8(sum >> 16), A: 255}
+	for y := 0; y < 12; y++ {
+		for x := 0; x < 24; x++ {
+			img.Set(x, y, fill)
+		}
+	}
+	w.Header().Set("Content-Type", "image/png")
+	png.Encode(w, img)
 }
 
 func page(w http.ResponseWriter, title, body string) {

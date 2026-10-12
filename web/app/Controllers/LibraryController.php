@@ -7,7 +7,9 @@ namespace App\Controllers;
 use App\Core\Http\HttpException;
 use App\Core\Http\Response;
 use App\Core\Ids;
+use App\Services\ActiveJobException;
 use App\Services\Documents\Variant;
+use App\Services\MediaStore;
 use RuntimeException;
 
 final class LibraryController extends Controller
@@ -65,6 +67,11 @@ final class LibraryController extends Controller
             throw HttpException::notFound('Cached data for this exam');
         }
         $selected = $this->findVersion($e, $this->request->query('version'));
+        try {
+            $images = $this->s->media()->summary(MediaStore::urlsOf($this->s->cache()->load($selected)));
+        } catch (RuntimeException) {
+            $images = null; // the data file is missing or damaged; the page says so elsewhere
+        }
         return $this->render('library/exam', [
             'title' => strtoupper((string) $e['code']),
             'nav' => 'library',
@@ -74,7 +81,7 @@ final class LibraryController extends Controller
             'selected' => $selected,
             'documents' => $this->s->documentRepo()->forVersion((int) $selected['id']),
             'variants' => Variant::ALL,
-            'imagesAvailable' => $this->s->documents()->imagesAvailable(),
+            'images' => $images,
             'jobs' => $this->s->jobs()->list(['provider_id' => (int) $p['id'], 'exam_code' => (string) $e['code']], 20),
             'activeJob' => $this->activeCollectFor($p, $e),
         ]);
@@ -91,6 +98,22 @@ final class LibraryController extends Controller
             throw new HttpException(409, 'The cached data file failed its integrity check and cannot be downloaded.');
         }
         return Response::download($path, $this->s->documents()->downloadName($v, (string) $v['version'], 'json'), 'application/json');
+    }
+
+    /** Queue a download of the version's images that are not saved yet. */
+    public function downloadImages(string $provider, string $exam, string $version): Response
+    {
+        $p = $this->findProvider($provider);
+        $e = $this->findExam($p, $exam);
+        $v = $this->findVersion($e, $version);
+        try {
+            $id = $this->s->jobService()->enqueueImages($v);
+        } catch (ActiveJobException $ex) {
+            $this->flash('warning', $ex->getMessage());
+            return $this->redirect('/library/' . rawurlencode($p['slug']) . '/' . rawurlencode($e['code']), ['version' => $v['version']]);
+        }
+        $this->flash('success', 'Image download queued. You can close this page; the job keeps running on the server.');
+        return $this->redirect('/jobs/' . (string) $this->s->jobs()->find($id)['uuid']);
     }
 
     public function deleteVersion(string $provider, string $exam, string $version): Response

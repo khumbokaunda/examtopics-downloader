@@ -285,6 +285,14 @@ func transient(err error) bool {
 	if errors.As(err, &rl) {
 		return false
 	}
+	var tl *TooLargeError
+	if errors.As(err, &tl) {
+		return false
+	}
+	var ni *notImageError
+	if errors.As(err, &ni) {
+		return false
+	}
 	var se *StatusError
 	if errors.As(err, &se) {
 		return retryable(se.StatusCode)

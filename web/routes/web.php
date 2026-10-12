@@ -8,6 +8,7 @@ use App\Controllers\DashboardController;
 use App\Controllers\DocumentController;
 use App\Controllers\JobController;
 use App\Controllers\LibraryController;
+use App\Controllers\MediaController;
 use App\Controllers\ProviderController;
 use App\Controllers\SettingsController;
 use App\Controllers\ViewerController;
@@ -45,7 +46,9 @@ return static function (Router $r): void {
     $r->get('/library/{provider}/{exam}/{version}/json', [LibraryController::class, 'downloadJson']);
     $r->post('/library/{provider}/{exam}/{version}/delete', [LibraryController::class, 'deleteVersion']);
     $r->post('/library/{provider}/{exam}/{version}/documents', [DocumentController::class, 'generate']);
+    $r->post('/library/{provider}/{exam}/{version}/images', [LibraryController::class, 'downloadImages']);
     $r->get('/api/library/{provider}/{exam}/{version}/questions/{number}', [ViewerController::class, 'reveal']);
+    $r->get('/media/{hash}', [MediaController::class, 'show']);
 
     $r->get('/documents/{uuid}/download', [DocumentController::class, 'download']);
     $r->post('/documents/{uuid}/delete', [DocumentController::class, 'delete']);

@@ -103,6 +103,33 @@ Built from listing pages only; no question pages are fetched.
 ("Huawei (52 exams)"); the name is stored without it. It counts exams, not discussions, and is
 left out when the index shows no count.
 
+## 3a. Images (`-images-from <file> -images-dir <dir>`)
+
+Downloads the images a dataset refers to. `-images-from` takes a dataset document (its
+`question_images` and `answer_images`) or a text file with one address per line (`#` starts a
+comment; a path such as `/assets/media/x.png` is taken as an ExamTopics address). Each image
+is saved in the `-images-dir` folder as `<sha256 of its content>.<png|jpg|gif|webp>`, and the
+document below goes to `-out-json`, or to `<dir>/images.json` without it.
+
+```json
+{ "schema_version": 1, "kind": "images", "generated_at": "…", "status": "partial",
+  "saved": 1, "failed": 1, "skipped": 1,
+  "images": [
+    { "url": "https://www.examtopics.com/assets/media/exam-media/04312/0001.png", "status": "saved",
+      "file": "3f2a…9c.png", "sha256": "3f2a…9c", "content_type": "image/png", "bytes": 48213 },
+    { "url": "https://www.examtopics.com/assets/media/exam-media/04312/0002.png", "status": "failed",
+      "error": "…returned HTTP 404 (Not Found)" },
+    { "url": "https://elsewhere.example/x.png", "status": "skipped", "error": "not an ExamTopics address" }
+  ] }
+```
+
+- Only `https` addresses on `examtopics.com` and its subdomains are fetched, and redirects
+  may not leave them. Requests are paced by `-rps` and retried like page requests (with the
+  second pass after a pause).
+- `failed` may succeed on a later run (rate limiting, a 404 that comes back); `skipped` will
+  not (another host, not a PNG, JPEG, GIF or WebP image, or over 5 MB). SVG is never kept.
+- `status` is `partial` when any image failed, and the exit code is then 2.
+
 ## 4. Progress events (`-events <path>`, JSON Lines)
 
 One JSON object per line, flushed as it happens.
@@ -118,7 +145,7 @@ One JSON object per line, flushed as it happens.
 
 - `total` is omitted when unknown. Consumers must show an indeterminate indicator.
 - Phases emitted by the real implementation: `providers`, `cache_lookup`, `cache_files`,
-  `listing_pages`, `question_pages`, `writing`.
+  `listing_pages`, `question_pages`, `images`, `writing`.
 - Exactly one terminal event (`completed` or `failed`) is written when the process exits normally.
   If the process is killed, there is none, and the web app relies on the exit status.
 
@@ -176,3 +203,20 @@ web/storage/documents/<provider>/<exam>/<version>/<variant>.<md|pdf>
 ```
 
 They're tied to the source version forever. A refresh creates a new version and never relabels old documents.
+
+PDFs embed the images saved on the server (section 8) and record how many in their options,
+so a PDF built before more images were saved is offered for a rebuild. Markdown files keep
+the original image addresses, since a standalone file cannot reach the server's copies.
+
+## 8. Saved images (web application)
+
+```
+web/storage/media/<first two hex digits of the sha256>/<sha256>.<png|jpg|gif|webp>
+```
+
+After a collection publishes a version, the worker runs the tool's image mode for the
+version's images that are not saved yet, checks each file again (name, size, checksum, image
+type) and moves it here. The `media` table has one row per image address: `saved` (with the
+content hash), `failed` (tried again by the next collection or "Download missing images"), or
+`skipped` (never tried again). Identical images share one file. The reader loads saved copies
+from `/media/<sha256>`, which requires signing in.

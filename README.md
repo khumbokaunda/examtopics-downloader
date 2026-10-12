@@ -78,6 +78,10 @@ Each command line argument you can provide when running the program:
     	Exact exam code to collect, e.g. h12-811 (never matches h12-811-v2-0)
   -exams
     	Optionally show all the possible exams for your selected provider and exit
+  -images-dir string
+    	Folder for -images-from; files are named by the SHA-256 of their content
+  -images-from string
+    	Download the images listed in this file (a dataset JSON from -out-json, or one address per line) and exit
   -inventory
     	List the provider's exams with discussion counts (JSON) and exit
   -no-cache
@@ -279,6 +283,9 @@ go run ./cmd/main.go -inventory -p huawei -out-json huawei-inventory.json
 
 # Collect exactly one exam as canonical JSON, with progress events, never prompting
 go run ./cmd/main.go -batch -p huawei -exam h12-811 -out-json h12-811.json -events progress.jsonl
+
+# Download that exam's question and answer images into a folder
+go run ./cmd/main.go -images-from h12-811.json -images-dir h12-811-images
 ```
 
 - `-out-json` writes a versioned document atomically. A collection includes `status`

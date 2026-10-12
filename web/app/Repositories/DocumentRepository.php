@@ -59,6 +59,16 @@ final class DocumentRepository
         );
     }
 
+    /**
+     * Forget older records of a document that was just generated with other options. They
+     * named the same file, which now holds the new document, so only the rows are removed.
+     */
+    public function deleteSuperseded(int $versionId, string $format, string $variant, string $keepHash): void
+    {
+        $this->db->run('DELETE FROM documents WHERE cache_version_id = ? AND format = ? AND variant = ? AND options_hash <> ?',
+            [$versionId, $format, $variant, $keepHash]);
+    }
+
     /** @return list<array<string,mixed>> */
     public function forVersion(int $versionId): array
     {
