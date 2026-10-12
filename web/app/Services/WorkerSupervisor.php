@@ -90,7 +90,7 @@ final class WorkerSupervisor
         // from the web server (a php-fpm restart does not touch it) and is reparented to
         // init, which reaps it, so no zombie processes accumulate.
         $proc = proc_open(
-            [$setsid, '-f', $php, $script, '--drain'],
+            array_merge([$setsid, '-f'], Process::withClosedFds([$php, $script, '--drain'])),
             [0 => ['file', '/dev/null', 'r'],
              1 => ['file', $this->paths->logsRoot() . '/worker.log', 'a'],
              2 => ['file', $this->paths->logsRoot() . '/worker.log', 'a']],

@@ -12,6 +12,29 @@ use RuntimeException;
  */
 final class Process
 {
+    /**
+     * proc_open() passes every open descriptor of the parent to the child. Without this,
+     * a worker launched from the web server would hold the server's listening sockets
+     * (blocking a restart of Apache/php-fpm), and the tool would hold the worker's lock file
+     * (keeping the single-worker lock "held" after the worker died). This fixed preamble
+     * closes descriptors above 2 and then execs the real program; arguments are passed
+     * positionally, never interpolated.
+     */
+    private const CLOSE_FDS = 'for fd in /proc/self/fd/*; do n=${fd##*/}; '
+        . 'if [ "$n" -gt 2 ] 2>/dev/null; then eval "exec $n>&-"; fi; done; exec "$0" "$@"';
+
+    /**
+     * @param list<string> $argv
+     * @return list<string>
+     */
+    public static function withClosedFds(array $argv, string $bash = '/bin/bash'): array
+    {
+        if (!is_executable($bash) || !is_dir('/proc/self/fd')) {
+            return $argv;
+        }
+        return array_merge([$bash, '-c', self::CLOSE_FDS], $argv);
+    }
+
     /** @var resource */
     private $proc;
     private int $pid;
@@ -24,7 +47,7 @@ final class Process
     public function __construct(array $argv, string $cwd, array $env, string $logFile)
     {
         $proc = proc_open(
-            $argv,
+            self::withClosedFds($argv),
             [0 => ['file', '/dev/null', 'r'], 1 => ['file', $logFile, 'a'], 2 => ['file', $logFile, 'a']],
             $pipes,
             $cwd,
