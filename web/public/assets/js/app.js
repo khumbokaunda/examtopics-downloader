@@ -513,11 +513,12 @@
           det.appendChild(sum);
           var list = el('div', 'discussion-body');
           d.comments.forEach(function (c) {
-            var cm = el('div', 'comment');
-            var parts = [c.timestamp, c.upvotes === null ? null : c.upvotes + ' upvotes'].filter(Boolean);
-            if (c.author || parts.length) {
+            var cm = el('div', 'comment' + (c.reply ? ' is-reply' : ''));
+            var parts = [c.timestamp, c.upvotes === null ? null : c.upvotes + (c.upvotes === 1 ? ' upvote' : ' upvotes')].filter(Boolean);
+            if (c.author || parts.length || c.selected) {
               var head = el('div', 'comment-head');
               if (c.author) head.appendChild(el('strong', null, c.author));
+              if (c.selected) head.appendChild(el('span', 'chip chip--primary', 'selected ' + c.selected));
               parts.forEach(function (p) { head.appendChild(el('span', null, p)); });
               cm.appendChild(head);
             }

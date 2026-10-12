@@ -112,13 +112,15 @@ final class MarkdownRenderer
                             $head = array_filter([
                                 $c['author'] !== '' ? '**' . self::inline($c['author']) . '**' : null,
                                 $c['timestamp'] !== '' ? self::inline($c['timestamp']) : null,
+                                $c['selected'] !== '' ? 'selected ' . $c['selected'] : null,
                                 $c['upvotes'] !== null ? $c['upvotes'] . ' upvote' . ($c['upvotes'] === 1 ? '' : 's') : null,
                             ]);
+                            $quote = $c['reply'] ? '> > ' : '> ';
                             if ($head !== []) {
-                                $out[] = '> ' . implode(' · ', $head) . '  ';
+                                $out[] = $quote . implode(' · ', $head) . '  ';
                             }
                             foreach (explode("\n", self::block($c['content'])) as $line) {
-                                $out[] = rtrim('> ' . $line);
+                                $out[] = rtrim($quote . $line);
                             }
                             $out[] = '';
                         }

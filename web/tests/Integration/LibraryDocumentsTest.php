@@ -89,6 +89,33 @@ final class LibraryDocumentsTest extends HttpTestCase
         self::assertSame(404, $this->get('/api/library/huawei/h12-811/' . $this->version['version'] . '/questions/99')->status);
     }
 
+    /** H19-301 is served in the 2026 page layout (inline choices, no suggested answer). */
+    public function testTheNewPageLayoutReachesTheReaderAndDocuments(): void
+    {
+        $id = $this->s->jobService()->enqueueCollect($this->provider('huawei'), 'h19-301', ['source_mode' => 'live', 'rps' => 50.0]);
+        $this->drain();
+        $job = $this->s->jobs()->find($id);
+        self::assertSame('completed', $job['status'], (string) $job['error_summary']);
+        $version = $this->s->versions()->find((int) $job['cache_version_id']);
+        $data = $this->s->cache()->load($version);
+        self::assertCount(5, $data['questions'][0]['choices']);
+        self::assertTrue($data['questions'][0]['votes_from_comments']);
+
+        $study = $this->get('/library/huawei/h19-301/view', ['version' => $version['version']])->body;
+        self::assertStringContainsString('EIGRP', $study, 'inline choices become real choices');
+        self::assertStringContainsString('most-voted community answer', $study);
+        self::assertStringContainsString('(counted from the comments)', $study);
+        self::assertStringContainsString('selected BE', $study);
+        self::assertStringContainsString('comment is-reply', $study);
+
+        $r = $this->post('/library/huawei/h19-301/' . $version['version'] . '/documents', ['variant' => 'discussions', 'format' => 'md']);
+        self::assertSame(303, $r->status);
+        $doc = $this->app->db()->one("SELECT * FROM documents WHERE cache_version_id = ? AND variant = 'discussions' AND format = 'md'", [(int) $version['id']]);
+        $md = (string) file_get_contents($this->download($doc)->file);
+        self::assertStringContainsString('selected BE', $md);
+        self::assertStringContainsString('> > **bob**', $md, 'a reply is quoted inside its comment');
+    }
+
     public function testPaletteListsCachedExamsAndProviders(): void
     {
         $r = $this->get('/api/palette');
