@@ -25,7 +25,7 @@ final class DocumentController extends Controller
         }
         $back = '/library/' . rawurlencode($p['slug']) . '/' . rawurlencode($e['code']);
         try {
-            $doc = $this->s->documents()->obtain($v, $format, $variant, $this->request->input('images') === '1');
+            $doc = $this->s->documents()->obtain($v, $format, $variant);
         } catch (RuntimeException $ex) {
             $this->flash('danger', $ex->getMessage() . ' The cached data and other documents are unaffected.');
             return $this->redirect($back, ['version' => $v['version']]);

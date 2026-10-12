@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"examtopics-downloader/internal/constants"
@@ -38,6 +39,7 @@ func main() {
 
 type options struct {
 	provider, grepStr, exam, outputPath, fileType, token, outJSON, events string
+	imagesFrom, imagesDir                                                 string
 	commentBool, examsFlag, saveUrls, noCache, inventory, providers       bool
 	batch, version                                                        bool
 	rps                                                                   float64
@@ -62,6 +64,8 @@ func parseFlags(args []string) (*options, error) {
 	fs.BoolVar(&o.providers, "providers", false, "List providers found on ExamTopics (JSON) and exit")
 	fs.StringVar(&o.outJSON, "out-json", "", "Write the canonical JSON document to this path (\"-\" for stdout)")
 	fs.StringVar(&o.events, "events", "", "Write JSON Lines progress events to this path (\"-\" for stdout)")
+	fs.StringVar(&o.imagesFrom, "images-from", "", "Download the images listed in this file (a dataset JSON from -out-json, or one address per line) and exit")
+	fs.StringVar(&o.imagesDir, "images-dir", "", "Folder for -images-from; files are named by the SHA-256 of their content")
 	fs.BoolVar(&o.batch, "batch", false, "Unattended mode: never prompt, no progress bars, status text on stderr")
 	fs.BoolVar(&o.version, "version", false, "Print the tool version and exit")
 	if err := fs.Parse(args); err != nil {
@@ -87,17 +91,20 @@ func (o *options) validate() error {
 	if o.exam != "" && o.grepStr != "" {
 		return errors.New("use either -exam (exact) or -s (substring), not both")
 	}
+	if (o.imagesFrom == "") != (o.imagesDir == "") {
+		return errors.New("-images-from and -images-dir are used together")
+	}
 	modes := 0
-	for _, m := range []bool{o.inventory, o.providers, o.examsFlag} {
+	for _, m := range []bool{o.inventory, o.providers, o.examsFlag, o.imagesFrom != ""} {
 		if m {
 			modes++
 		}
 	}
 	if modes > 1 {
-		return errors.New("-inventory, -providers and -exams cannot be combined")
+		return errors.New("-inventory, -providers, -exams and -images-from cannot be combined")
 	}
 	if modes == 1 && (o.exam != "" || o.grepStr != "") {
-		return errors.New("-exam/-s cannot be combined with -inventory, -providers or -exams")
+		return errors.New("-exam/-s cannot be combined with -inventory, -providers, -exams or -images-from")
 	}
 	if o.events == "-" && o.outJSON == "-" {
 		return errors.New("-events and -out-json cannot both write to stdout")
@@ -108,7 +115,7 @@ func (o *options) validate() error {
 // machine reports whether output must stay parseable: no prompts, no bars, status text
 // on stderr.
 func (o *options) machine() bool {
-	return o.batch || o.events != "" || o.outJSON == "-" || o.inventory || o.providers
+	return o.batch || o.events != "" || o.outJSON == "-" || o.inventory || o.providers || o.imagesFrom != ""
 }
 
 func run(args []string) int {
@@ -163,6 +170,8 @@ func run(args []string) int {
 		return runProviders(o, reporter)
 	case o.inventory:
 		return runInventory(o, reporter)
+	case o.imagesFrom != "":
+		return runImages(o, reporter)
 	default:
 		return runCollect(o, reporter)
 	}
@@ -223,6 +232,46 @@ func runInventory(o *options, reporter progress.Reporter) int {
 	if inv.Status == dataset.StatusPartial {
 		fmt.Fprintf(os.Stderr, "WARNING: %d of %d listing pages failed; counts may be low.\n",
 			inv.FailedListingPages, inv.ListingPages)
+		return exitPartial
+	}
+	return exitOK
+}
+
+// runImages downloads the images a dataset (or a list) refers to. Images that cannot be
+// fetched are reported in the document and make the run partial; only a run that cannot
+// read its list or write its output fails.
+func runImages(o *options, reporter progress.Reporter) int {
+	urls, err := fetch.ReadImageList(o.imagesFrom)
+	if err != nil {
+		reporter.Failed("reading the image list: " + err.Error())
+		fmt.Fprintln(os.Stderr, "error:", err)
+		return exitFailed
+	}
+	if len(urls) == 0 {
+		reporter.Failed("no image addresses in " + o.imagesFrom)
+		fmt.Fprintln(os.Stderr, "No image addresses found.")
+		return exitNoMatch
+	}
+	doc, err := fetch.DownloadImages(urls, o.imagesDir, o.rps)
+	if err != nil {
+		reporter.Failed(err.Error())
+		fmt.Fprintln(os.Stderr, "error:", err)
+		return exitFailed
+	}
+	if o.outJSON == "" {
+		o.outJSON = filepath.Join(o.imagesDir, "images.json")
+	}
+	if !writeDocument(o, reporter, doc) {
+		return exitFailed
+	}
+	msg := fmt.Sprintf("%d of %d images saved", doc.Saved, len(urls))
+	if doc.Skipped > 0 {
+		msg += fmt.Sprintf(", %d skipped", doc.Skipped)
+	}
+	fmt.Fprintln(os.Stderr, msg+".")
+	reporter.Completed(doc.Status, 0, msg)
+	if doc.Failed > 0 {
+		fmt.Fprintf(os.Stderr, "WARNING: %d images could not be downloaded; run again later to retry them.\n", doc.Failed)
 		return exitPartial
 	}
 	return exitOK

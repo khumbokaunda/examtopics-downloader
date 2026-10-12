@@ -207,6 +207,7 @@ if (!function_exists('e')) {
             'collect' => 'Collect ' . ($job['provider_slug'] ?? '?') . ' / ' . ($job['exam_code'] ?? '?'),
             'inventory' => 'Inventory ' . ($job['provider_slug'] ?? '?'),
             'providers' => 'Discover providers',
+            'images' => 'Images ' . ($job['provider_slug'] ?? '?') . ' / ' . ($job['exam_code'] ?? '?'),
             default => (string) ($job['type'] ?? 'job'),
         };
     }

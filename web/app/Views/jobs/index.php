@@ -12,7 +12,7 @@
             <?= icon('funnel', 'text-subtle') ?>
             <select class="form-select form-select-sm" name="type" aria-label="Type" data-autosubmit>
                 <option value="">All types</option>
-                <?php foreach (['collect' => 'Collections', 'inventory' => 'Inventory refreshes', 'providers' => 'Provider discovery'] as $k => $v): ?>
+                <?php foreach (['collect' => 'Collections', 'images' => 'Image downloads', 'inventory' => 'Inventory refreshes', 'providers' => 'Provider discovery'] as $k => $v): ?>
                     <option value="<?= $k ?>" <?= $type === $k ? 'selected' : '' ?>><?= $v ?></option>
                 <?php endforeach; ?>
             </select>

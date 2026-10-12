@@ -30,7 +30,7 @@ final class CacheVersionRepository
     public function find(int $id): ?array
     {
         return $this->db->one(
-            'SELECT v.*, e.code AS exam_code, e.name AS exam_name, p.slug AS provider_slug, p.name AS provider_name
+            'SELECT v.*, e.code AS exam_code, e.name AS exam_name, e.provider_id, p.slug AS provider_slug, p.name AS provider_name
              FROM cache_versions v JOIN exams e ON e.id = v.exam_id JOIN providers p ON p.id = e.provider_id WHERE v.id = ?',
             [$id]
         );

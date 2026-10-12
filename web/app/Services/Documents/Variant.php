@@ -36,16 +36,16 @@ final class Variant
     ];
 
     /** @param array{label:string,file:string,answers:bool,comments:bool,answer_key:bool} $def */
-    private function __construct(public readonly string $key, private array $def, public readonly bool $images)
+    private function __construct(public readonly string $key, private array $def)
     {
     }
 
-    public static function get(string $key, bool $images = false): self
+    public static function get(string $key): self
     {
         if (!isset(self::ALL[$key])) {
             throw new \InvalidArgumentException('Unknown document variant.');
         }
-        return new self($key, self::ALL[$key], $images);
+        return new self($key, self::ALL[$key]);
     }
 
     public function label(): string
@@ -77,6 +77,6 @@ final class Variant
     public function options(): array
     {
         return ['variant' => $this->key, 'answers' => $this->showAnswers(), 'comments' => $this->showComments(),
-                'answer_key' => $this->answerKey(), 'images' => $this->images];
+                'answer_key' => $this->answerKey()];
     }
 }

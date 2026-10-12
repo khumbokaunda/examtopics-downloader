@@ -90,27 +90,27 @@ type Comment struct {
 }
 
 type Question struct {
-	Number          int       `json:"number"`
-	ID              string    `json:"id"`
-	Topic           int       `json:"topic,omitempty"`
-	QuestionNumber  int       `json:"question_number,omitempty"`
-	Text            string    `json:"text"`
-	Choices         []Choice  `json:"choices"`
-	Answer          string    `json:"answer"`
-	AnswerSource    string    `json:"answer_source"`
-	SuggestedAnswer string    `json:"suggested_answer"`
-	AnswerET        string    `json:"answer_et,omitempty"`
-	CommunityVotes  []Vote    `json:"community_votes"`
+	Number          int      `json:"number"`
+	ID              string   `json:"id"`
+	Topic           int      `json:"topic,omitempty"`
+	QuestionNumber  int      `json:"question_number,omitempty"`
+	Text            string   `json:"text"`
+	Choices         []Choice `json:"choices"`
+	Answer          string   `json:"answer"`
+	AnswerSource    string   `json:"answer_source"`
+	SuggestedAnswer string   `json:"suggested_answer"`
+	AnswerET        string   `json:"answer_et,omitempty"`
+	CommunityVotes  []Vote   `json:"community_votes"`
 	// VotesFromComments marks community votes counted from the comments' selected answers
 	// (each voting comment counts once plus once per upvote), because the page showed no tally.
-	VotesFromComments bool `json:"votes_from_comments,omitempty"`
-	Explanation     string    `json:"explanation"`
-	QuestionImages  []string  `json:"question_images"`
-	AnswerImages    []string  `json:"answer_images"`
-	Comments        []Comment `json:"comments"`
-	CommentsText    string    `json:"comments_text"`
-	SourceURL       string    `json:"source_url"`
-	Timestamp       string    `json:"timestamp"`
+	VotesFromComments bool      `json:"votes_from_comments,omitempty"`
+	Explanation       string    `json:"explanation"`
+	QuestionImages    []string  `json:"question_images"`
+	AnswerImages      []string  `json:"answer_images"`
+	Comments          []Comment `json:"comments"`
+	CommentsText      string    `json:"comments_text"`
+	SourceURL         string    `json:"source_url"`
+	Timestamp         string    `json:"timestamp"`
 }
 
 // ResolveAnswer fills Answer and AnswerSource: ExamTopics' suggested answer when present,
@@ -232,6 +232,66 @@ type Providers struct {
 	GeneratedAt   string     `json:"generated_at"`
 	Status        string     `json:"status"`
 	Providers     []Provider `json:"providers"`
+}
+
+// Image outcomes in an Images document.
+const (
+	ImageSaved   = "saved"
+	ImageFailed  = "failed"
+	ImageSkipped = "skipped"
+)
+
+// Image is the outcome for one image address. A saved image is in the images directory as
+// File, named by the SHA-256 of its content. A failed one may succeed on a later run; a
+// skipped one will not (not an ExamTopics address, not an image, or too large).
+type Image struct {
+	URL         string `json:"url"`
+	Status      string `json:"status"`
+	File        string `json:"file,omitempty"`
+	SHA256      string `json:"sha256,omitempty"`
+	ContentType string `json:"content_type,omitempty"`
+	Bytes       int    `json:"bytes,omitempty"`
+	Error       string `json:"error,omitempty"`
+}
+
+// Images is the document written by -images-from: one entry per requested address.
+type Images struct {
+	SchemaVersion int     `json:"schema_version"`
+	Kind          string  `json:"kind"`
+	GeneratedAt   string  `json:"generated_at"`
+	Status        string  `json:"status"`
+	Saved         int     `json:"saved"`
+	Failed        int     `json:"failed"`
+	Skipped       int     `json:"skipped"`
+	Images        []Image `json:"images"`
+}
+
+// NewImages summarises image outcomes. The status is complete unless an image failed.
+func NewImages(items []Image) Images {
+	doc := Images{
+		SchemaVersion: SchemaVersion,
+		Kind:          "images",
+		GeneratedAt:   time.Now().UTC().Format(time.RFC3339),
+		Status:        StatusComplete,
+		Images:        items,
+	}
+	if doc.Images == nil {
+		doc.Images = []Image{}
+	}
+	for _, it := range items {
+		switch it.Status {
+		case ImageSaved:
+			doc.Saved++
+		case ImageFailed:
+			doc.Failed++
+		default:
+			doc.Skipped++
+		}
+	}
+	if doc.Failed > 0 {
+		doc.Status = StatusPartial
+	}
+	return doc
 }
 
 func CapErrors(errs []string) []string {

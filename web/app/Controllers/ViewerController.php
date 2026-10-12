@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Core\Http\HttpException;
 use App\Core\Http\Response;
 use App\Services\Documents\QuestionView;
+use App\Services\MediaStore;
 use RuntimeException;
 
 /**
@@ -53,6 +54,7 @@ final class ViewerController extends Controller
             $slice = array_map([self::class, 'practiceView'], $slice);
         }
         return $this->render('viewer/show', [
+            'localImages' => $this->localImages(MediaStore::urlsOf(['questions' => $slice])),
             'title' => strtoupper((string) $e['code']) . ($mode === 'practice' ? ' practice' : ' study'),
             'nav' => 'library',
             'provider' => $p,
@@ -97,11 +99,35 @@ final class ViewerController extends Controller
             'answer' => QuestionView::answerLine($q),
             'votes' => QuestionView::votesLine($q),
             'explanation' => (string) ($q['explanation'] ?? ''),
-            'answer_images' => array_values(array_filter(array_map(
-                static fn($u) => QuestionView::safeImageUrl((string) $u), (array) ($q['answer_images'] ?? []))
-            )),
+            'answer_images' => $this->imageSources((array) ($q['answer_images'] ?? [])),
             'comments' => QuestionView::comments($q),
         ]);
+    }
+
+    /**
+     * Addresses of the saved copies (/media/<hash>), keyed by the original image address.
+     *
+     * @param list<string> $urls
+     * @return array<string,string>
+     */
+    private function localImages(array $urls): array
+    {
+        $base = (string) $this->app->config()->get('base_path', '');
+        return array_map(static fn(string $sha) => \App\Core\View::buildUrl($base, '/media/' . $sha), $this->s->media()->savedHashes($urls));
+    }
+
+    /**
+     * Where the browser loads each image from: the saved copy, else the original https address.
+     *
+     * @param list<mixed> $urls
+     * @return list<string>
+     */
+    private function imageSources(array $urls): array
+    {
+        $urls = array_values(array_filter(array_map('strval', $urls), static fn(string $u) => $u !== ''));
+        $local = $this->localImages($urls);
+        return array_values(array_filter(array_map(
+            static fn(string $u) => $local[$u] ?? QuestionView::safeImageUrl($u), $urls)));
     }
 
     /**

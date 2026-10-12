@@ -57,14 +57,17 @@ return [
         'hsts'                => true,
     ],
 
+    'media' => [
+        // After each collection, the tool downloads the question and answer images (only
+        // from ExamTopics, paced like page requests) and they are kept in storage/media.
+        // The reader and PDFs then use the saved copies.
+        'download'  => true,
+        'max_bytes' => 5 * 1024 * 1024,   // per image, the tool's own limit
+    ],
+
     'documents' => [
-        // Fetch question images into PDFs. Bounded and host-restricted. Off by default.
-        'pdf_images'        => false,
-        'image_hosts'       => ['examtopics.com', 'www.examtopics.com', 'img.examtopics.com'],
-        'image_max_bytes'   => 2 * 1024 * 1024,
-        'image_max_count'   => 300,
-        'image_total_bytes' => 50 * 1024 * 1024,
-        'image_timeout'     => 10,
+        // PDFs embed the saved images up to this total; the rest are listed by address.
+        'image_total_bytes' => 100 * 1024 * 1024,
         'pdf_time_limit'    => 600,
         'pdf_memory_limit'  => '1024M',
     ],

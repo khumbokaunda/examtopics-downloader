@@ -29,6 +29,7 @@ final class HttpSecurityTest extends HttpTestCase
             ['POST', '/jobs/1/cancel'], ['POST', '/documents/1/delete'], ['POST', '/library/huawei/h12-811/20261012T083000Z-abcdef/documents'],
             ['POST', '/library/huawei/h12-811/20261012T083000Z-abcdef/delete'], ['POST', '/settings/password'], ['POST', '/settings/reconcile'],
             ['POST', '/settings/appearance'], ['POST', '/settings/time'], ['POST', '/api/appearance'], ['POST', '/logout'],
+            ['GET', '/media/' . str_repeat('ab', 32)], ['POST', '/library/huawei/h12-811/20261012T083000Z-abcdef/images'],
         ];
         foreach ($paths as [$method, $path]) {
             $r = $method === 'GET' ? $this->get($path) : $this->post($path, []);

@@ -22,7 +22,7 @@ final class JobController extends Controller
         if (in_array($status, array_merge(JobRepository::ACTIVE, JobRepository::FINAL), true)) {
             $filters['status'] = $status;
         }
-        if (in_array($type, ['collect', 'inventory', 'providers'], true)) {
+        if (in_array($type, ['collect', 'images', 'inventory', 'providers'], true)) {
             $filters['type'] = $type;
         }
         // The table pages, sorts and searches in the browser; the list is capped and says so.

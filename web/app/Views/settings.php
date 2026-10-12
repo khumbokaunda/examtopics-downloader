@@ -1,6 +1,6 @@
 <?php
 /** @var array $user @var bool $toolInstalled @var string $toolPath @var bool $tokenConfigured @var bool $workerRunning
- *  @var int|null $workerPid @var bool $autostart @var float $rps @var string $storage @var bool $pdfImages @var list<array> $recentLogins
+ *  @var int|null $workerPid @var bool $autostart @var float $rps @var string $storage @var bool $imagesDownload @var array{files:int,bytes:int} $imageTotals @var list<array> $recentLogins
  *  @var array<string,string> $appearance @var array<string,list<string>> $appearanceOptions
  *  @var array{idle_timeout:int,absolute_timeout:int,timezone:string} $system @var string $myTimezone @var list<string> $timezones */
 use App\Services\SystemSettings;
@@ -31,7 +31,7 @@ $themeIcons = ['system' => 'circle-half', 'light' => 'sun', 'dark' => 'moon-star
                     <dt>GitHub token</dt><dd><?= $tokenConfigured ? chip('configured', 'success', 'key') . ' <span class="text-muted">(not shown)</span>' : chip('not configured', 'neutral', 'key') ?></dd>
                     <dt>Worker</dt><dd><?= $workerRunning ? chip('running' . ($workerPid ? ', pid ' . (int) $workerPid : ''), 'success', 'cpu') : chip('idle', 'neutral', 'cpu') ?> <span class="text-muted"><?= $autostart ? 'started on demand' : 'systemd daemon mode' ?></span></dd>
                     <dt>Default pacing</dt><dd><?= e((string) $rps) ?> request<?= $rps === 1.0 ? '' : 's' ?> per second</dd>
-                    <dt>Images in PDFs</dt><dd><?= $pdfImages ? 'enabled' : 'disabled' ?></dd>
+                    <dt>Question images</dt><dd><?= $imagesDownload ? chip('saved', 'success', 'images') : chip('off', 'neutral', 'images') ?> <span class="text-muted"><?= number_format($imageTotals['files']) ?> files, <?= e(fmt_bytes($imageTotals['bytes'])) ?></span></dd>
                     <dt>Storage</dt><dd><code><?= e($storage) ?></code></dd>
                 </dl>
                 <p class="small text-muted">These values come from <code>config/config.local.php</code> on the server. Secrets are never shown here.</p>

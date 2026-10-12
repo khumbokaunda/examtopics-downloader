@@ -1,6 +1,7 @@
 <?php
 /** @var array $provider @var array $exam @var list<array> $versions @var array $selected @var list<array> $documents
- *  @var array<string,array> $variants @var bool $imagesAvailable @var list<array> $jobs @var array|null $activeJob */
+ *  @var array<string,array> $variants @var array{total:int,saved:int,failed:int,skipped:int,pending:int}|null $images
+ *  @var list<array> $jobs @var array|null $activeJob */
 $base = '/library/' . rawurlencode($provider['slug']) . '/' . rawurlencode($exam['code']);
 $vBase = $base . '/' . rawurlencode($selected['version']);
 $isLatest = (int) $exam['latest_version_id'] === (int) $selected['id'];
@@ -50,6 +51,21 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
                     <dt>Source</dt><dd><?= e($selected['source'] === 'github-cache' ? 'Public cached dataset' : 'Live scrape') ?></dd>
                     <dt>Size and checksum</dt><dd><?= e(fmt_bytes($selected['size_bytes'])) ?> · <code><?= e(substr($selected['checksum'], 0, 16)) ?>…</code></dd>
                     <dt>Tool revision</dt><dd><code><?= e($selected['tool_revision'] ?: 'n/a') ?></code></dd>
+                    <?php if ($images !== null): ?>
+                    <dt>Images</dt>
+                    <dd>
+                        <?php if ($images['total'] === 0): ?>
+                            <span class="text-muted">None in these questions</span>
+                        <?php else: $toFetch = $images['failed'] + $images['pending']; ?>
+                            <?= number_format($images['saved']) ?> of <?= number_format($images['total']) ?> saved on this server
+                            <?php if ($images['skipped'] > 0): ?><span class="text-muted">(<?= (int) $images['skipped'] ?> cannot be saved: not ExamTopics images or too large)</span><?php endif; ?>
+                            <?php if ($toFetch > 0 && !$activeJob): ?>
+                                <form class="d-inline" method="post" action="<?= e(url($vBase . '/images')) ?>" data-once data-busy="Queuing…"><?= csrf_field() ?>
+                                    <button class="btn btn-sm btn-outline-primary ms-2" type="submit"><?= icon('images') ?>Download <?= $toFetch ?> missing</button></form>
+                            <?php endif; ?>
+                        <?php endif; ?>
+                    </dd>
+                    <?php endif; ?>
                 </dl>
                 <?php foreach ($warnings as $w): ?><div class="alert alert-warning small mt-3 mb-0"><?= icon('exclamation-triangle') ?><div class="alert-body"><?= e((string) $w) ?></div></div><?php endforeach; ?>
                 <div class="mt-4"><a class="btn btn-sm btn-outline-secondary" href="<?= e(url($vBase . '/json')) ?>"><?= icon('braces') ?>Download JSON</a></div>
@@ -59,19 +75,19 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
         <div class="card mb-4">
             <div class="card-header"><span class="card-title"><?= icon('file-earmark-text') ?>Documents for this version</span></div>
             <div class="table-responsive">
-                <table class="table align-middle mb-0">
+                <table class="table align-middle mb-0 table-stack">
                     <thead><tr><th>Variant</th><th><?= icon('filetype-md') ?> Markdown</th><th><?= icon('filetype-pdf') ?> PDF</th></tr></thead>
                     <tbody>
                     <?php foreach ($variants as $key => $v): ?>
                         <tr>
-                            <td><span class="d-inline-flex align-items-center gap-2 fw-medium"><span class="icon-bubble" data-tone="primary"><?= icon($variantIcons[$key] ?? 'file-earmark') ?></span><?= e($v['label']) ?></span></td>
+                            <td class="text-wrap stack-title"><span class="d-inline-flex align-items-center gap-2 fw-medium"><span class="icon-bubble" data-tone="primary"><?= icon($variantIcons[$key] ?? 'file-earmark') ?></span><?= e($v['label']) ?></span></td>
                             <?php foreach (['md', 'pdf'] as $fmt): ?>
-                                <td>
+                                <td data-label="<?= $fmt === 'md' ? 'Markdown' : 'PDF' ?>">
                                     <div class="d-flex flex-column align-items-start gap-1">
                                     <?php foreach ($docIndex[$key][$fmt] ?? [] as $d): ?>
                                         <?php if ($d['status'] === 'ready'): ?>
                                             <span class="d-inline-flex align-items-center gap-1">
-                                                <a class="btn btn-sm btn-success" href="<?= e(url('/documents/' . $d['uuid'] . '/download')) ?>" title="<?= e($d['filename']) ?>"><?= icon('download') ?>Download<?= !empty(json_decode((string) $d['options'], true)['images']) ? ' (images)' : '' ?> <span class="opacity-75 fw-normal"><?= e(fmt_bytes($d['size_bytes'])) ?></span></a>
+                                                <a class="btn btn-sm btn-success" href="<?= e(url('/documents/' . $d['uuid'] . '/download')) ?>" title="<?= e($d['filename']) ?>"><?= icon('download') ?>Download <span class="opacity-75 fw-normal"><?= e(fmt_bytes($d['size_bytes'])) ?></span></a>
                                                 <form method="post" action="<?= e(url('/documents/' . $d['uuid'] . '/delete')) ?>" data-confirm="The cached exam data is not affected. You can generate it again later." data-confirm-title="Delete this document?" data-confirm-button="Delete" data-confirm-tone="danger"><?= csrf_field() ?>
                                                     <button class="icon-btn btn-link-danger" type="submit" aria-label="Delete document" title="Delete document"><?= icon('trash3') ?></button></form>
                                             </span>
@@ -79,14 +95,16 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
                                             <?= chip('generation failed', 'danger', 'x-circle') ?>
                                         <?php endif; ?>
                                     <?php endforeach; ?>
-                                    <?php $ready = array_filter($docIndex[$key][$fmt] ?? [], static fn($d) => $d['status'] === 'ready'); ?>
-                                    <?php if ($ready === [] || ($fmt === 'pdf' && $imagesAvailable)): ?>
+                                    <?php
+                                    $ready = array_filter($docIndex[$key][$fmt] ?? [], static fn($d) => $d['status'] === 'ready');
+                                    // A PDF built before more images were saved can be rebuilt with them.
+                                    $stale = $fmt === 'pdf' && $ready !== [] && $images !== null
+                                        && max(array_map(static fn($d) => (int) (json_decode((string) $d['options'], true)['images'] ?? 0), $ready)) < $images['saved'];
+                                    ?>
+                                    <?php if ($ready === [] || $stale): ?>
                                     <form class="d-inline-flex align-items-center gap-2" method="post" action="<?= e(url($vBase . '/documents')) ?>" data-once data-busy="Generating…"><?= csrf_field() ?>
                                         <input type="hidden" name="variant" value="<?= e($key) ?>"><input type="hidden" name="format" value="<?= $fmt ?>">
-                                        <?php if ($fmt === 'pdf' && $imagesAvailable): ?>
-                                            <label class="form-check small mb-0"><input class="form-check-input" type="checkbox" name="images" value="1"> <span class="form-check-label">images</span></label>
-                                        <?php endif; ?>
-                                        <button class="btn btn-sm btn-outline-primary" type="submit"><?= icon('plus-lg') ?><?= empty($docIndex[$key][$fmt]) ? 'Generate' : ($ready === [] ? 'Retry' : 'Generate') ?></button>
+                                        <button class="btn btn-sm btn-outline-primary" type="submit"><?= icon($stale ? 'arrow-repeat' : 'plus-lg') ?><?= $stale ? 'Rebuild with new images' : (empty($docIndex[$key][$fmt]) ? 'Generate' : 'Retry') ?></button>
                                     </form>
                                     <?php endif; ?>
                                     </div>
@@ -97,7 +115,7 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
                     </tbody>
                 </table>
             </div>
-            <div class="card-footer small text-muted">Existing documents are reused when nothing has changed. PDFs of large exams can take a minute to build.</div>
+            <div class="card-footer small text-muted">Existing documents are reused when nothing has changed. PDFs include the images saved on this server; Markdown files link to them on ExamTopics. PDFs of large exams can take a minute to build.</div>
         </div>
     </div>
 

@@ -14,7 +14,7 @@ use App\Repositories\JobRepository;
  * Creates and cancels jobs on behalf of the web UI. Every job that runs the collection
  * engine goes through the single worker, so the engine never runs twice at once:
  *
- *  slot "collect"            one collection in the whole application
+ *  slot "collect"            one collection (or image download) in the whole application
  *  slot "inventory:<slug>"   one inventory refresh per provider
  *  slot "providers"          one provider discovery
  *
@@ -42,6 +42,19 @@ final class JobService
             throw new \InvalidArgumentException('Invalid exam code.');
         }
         return $this->enqueue('collect', 'collect', (int) $provider['id'], $examCode, $options);
+    }
+
+    /**
+     * Download the missing images of a published version. It shares the collection slot:
+     * both talk to ExamTopics, so they never run at the same time.
+     *
+     * @param array<string,mixed> $version cache_versions row
+     * @throws ActiveJobException
+     */
+    public function enqueueImages(array $version): int
+    {
+        return $this->enqueue('images', 'collect', (int) $version['provider_id'], (string) $version['exam_code'],
+            ['version_id' => (int) $version['id'], 'rps' => (float) $this->config->get('tool.default_rps', 1.0)]);
     }
 
     /** @param array<string,mixed> $provider */

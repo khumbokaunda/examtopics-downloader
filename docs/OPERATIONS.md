@@ -113,8 +113,9 @@ cached data.
 | `web/config/config.local.php` | Your configuration and secrets |
 | The MySQL database (`mysqldump examtopics`) | Users, job history, inventories, document records |
 
-`storage/documents/` can be skipped: documents are regenerated on demand. `storage/jobs/` and
-`storage/logs/` are diagnostic only.
+`storage/documents/` can be skipped: documents are regenerated on demand. `storage/media/`
+(saved question images) is worth keeping but can be downloaded again with "Download missing
+images" on each exam page. `storage/jobs/` and `storage/logs/` are diagnostic only.
 
 ### Restoring after losing the database
 
@@ -136,6 +137,9 @@ Refresh the inventories from the Providers page.
 - **Generated documents** can be deleted per document; the cached data is not affected.
 - **Job working files**: `php bin/cleanup.php --days=30` (scheduled by `deploy/examtopics.cron`).
   Job history rows are kept.
+- **Saved images** stay when a version is deleted, because other versions usually share them.
+  `php bin/cleanup.php --media` deletes the ones no cached version refers to any more (add
+  `--dry-run` to see what it would remove).
 
 ## Upgrades
 

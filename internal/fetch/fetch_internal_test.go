@@ -116,3 +116,22 @@ func TestScrapeQuestionPagesCountsFailures(t *testing.T) {
 		t.Errorf("expected order /q/1/, /q/3/; got %q, %q", items[0].legacy.Title, items[1].legacy.Title)
 	}
 }
+
+func TestImageURLAllowed(t *testing.T) {
+	for u, want := range map[string]bool{
+		"https://www.examtopics.com/assets/media/exam-media/04312/0001.png": true,
+		"https://img.examtopics.com/h12-811/image1.png":                     true,
+		"https://examtopics.com/x.png":                                      true,
+		"http://www.examtopics.com/x.png":                                   false,
+		"https://www.examtopics.com:8443/x.png":                             false,
+		"https://examtopics.com.evil.example/x.png":                         false,
+		"https://notexamtopics.com/x.png":                                   false,
+		"https://user@www.examtopics.com/x.png":                             false,
+		"/assets/media/x.png":                                               false,
+		"data:image/png;base64,AAAA":                                        false,
+	} {
+		if got := ImageURLAllowed(u); got != want {
+			t.Errorf("ImageURLAllowed(%q) = %v, want %v", u, got, want)
+		}
+	}
+}

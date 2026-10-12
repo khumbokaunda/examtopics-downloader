@@ -17,7 +17,7 @@ use Dompdf\Options;
  */
 final class PdfRenderer
 {
-    public function __construct(private ?ImageFetcher $images = null, private string $tempDir = '')
+    public function __construct(private ?ImageSource $images = null, private string $tempDir = '')
     {
     }
 
@@ -174,7 +174,7 @@ final class PdfRenderer
             if ($data !== null) {
                 $out[] = '<div class="img"><img src="' . $h($data) . '" alt="' . $h($label . ' ' . ($i + 1)) . '"></div>';
             } else {
-                // Not embedded (images disabled, not allowed, or unavailable): keep the reference.
+                // Not saved on this server (yet): keep the reference.
                 $out[] = '<div class="img-missing">[' . $h($label . ' ' . ($i + 1)) . ': ' . $h($url) . ']</div>';
             }
         }
