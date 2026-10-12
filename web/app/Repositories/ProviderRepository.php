@@ -19,7 +19,8 @@ final class ProviderRepository
             'SELECT p.*,
                     (SELECT COUNT(*) FROM exams e WHERE e.provider_id = p.id AND e.in_inventory = 1) AS exam_count,
                     (SELECT COUNT(*) FROM exams e WHERE e.provider_id = p.id AND e.latest_version_id IS NOT NULL) AS cached_count,
-                    r.status AS refresh_status, r.finished_at AS refresh_at, r.error AS refresh_error
+                    r.status AS refresh_status, r.finished_at AS refresh_at, r.error AS refresh_error,
+                    (SELECT j.uuid FROM jobs j WHERE j.id = r.job_id) AS refresh_job_uuid
              FROM providers p
              LEFT JOIN inventory_refreshes r ON r.id = (
                  SELECT MAX(id) FROM inventory_refreshes WHERE provider_id = p.id)

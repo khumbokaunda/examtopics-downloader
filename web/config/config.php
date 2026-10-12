@@ -41,8 +41,13 @@ return [
     'session' => [
         'name'         => 'examtopics_session',
         'secure'       => true,        // set false only for local http testing
-        'idle_timeout' => 4 * 3600,
+        'idle_timeout' => 4 * 3600,  // sign out after this many seconds without activity
+        'absolute_timeout' => 0,      // sign out this long after signing in (0 = never)
+        // Settings > Time and sign-in overrides both, and the timezone below.
     ],
+    // Default timezone for showing times (they are stored in UTC). Each user can choose their
+    // own under Settings > Time and sign-in. Any PHP timezone name, such as Africa/Blantyre.
+    'timezone' => 'UTC',
 
     'security' => [
         'login_max_attempts' => 5,     // failed attempts per IP within the window

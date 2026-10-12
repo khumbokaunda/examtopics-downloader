@@ -28,8 +28,9 @@ header_remove('X-Powered-By');
 $app = App::boot();
 $request = Request::fromGlobals((string) $app->config()->get('base_path', ''));
 
+$settings = $app->service(\App\Services\SystemSettings::class, fn() => new \App\Services\SystemSettings($app));
 $session = new NativeSession();
-$session->start($app->config(), $request->isHttps());
+$session->start($app->config(), $request->isHttps(), $settings->effective(), $app->paths()->storage() . '/sessions');
 
 $router = new Router();
 (require dirname(__DIR__) . '/routes/web.php')($router);

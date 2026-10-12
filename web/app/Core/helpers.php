@@ -29,14 +29,16 @@ if (!function_exists('e')) {
         return View::current()->csrf();
     }
 
-    /** "2026-10-12 08:30 UTC" from a UTC DATETIME, or "n/a". The caller escapes the result. */
+    /**
+     * "2026-10-12 10:30 CAT" from a UTC DATETIME, in the reader's timezone (see Clock), or
+     * "n/a". The caller escapes the result.
+     */
     function fmt_time(?string $utc): string
     {
         if ($utc === null || $utc === '') {
             return 'n/a';
         }
-        $t = strtotime($utc . ' UTC');
-        return $t === false ? $utc : gmdate('Y-m-d H:i', $t) . ' UTC';
+        return \App\Core\Clock::format($utc) ?? $utc;
     }
 
     function fmt_ago(?string $utc): string

@@ -15,7 +15,7 @@ $examUrl = static fn(array $p, array $e): string => url('/library/' . rawurlenco
     <div class="alert alert-primary">
         <?= icon('arrow-repeat', 'spin') ?>
         <div class="alert-body">A collection is in progress: <strong><?= e(job_label($activeCollect)) ?></strong>. Only one collection runs at a time.</div>
-        <a class="btn btn-sm btn-primary" href="<?= e(url('/jobs/' . (int) $activeCollect['id'])) ?>">View progress</a>
+        <a class="btn btn-sm btn-primary" href="<?= e(url('/jobs/' . $activeCollect['uuid'])) ?>">View progress</a>
     </div>
 <?php endif; ?>
 
@@ -52,8 +52,8 @@ $examUrl = static fn(array $p, array $e): string => url('/library/' . rawurlenco
                         <tbody>
                         <?php foreach ($exams as $ex): $sel = $exam && $exam['code'] === $ex['code']; ?>
                             <tr class="<?= $sel ? 'is-selected' : '' ?>">
-                                <td class="cell-wrap" data-order="<?= e($ex['code']) ?>" data-export="<?= e(strtoupper($ex['code'])) ?>"><a class="table-row-link" href="<?= e(url('/collect', ['provider' => $provider['slug'], 'exam' => $ex['code'], 'q' => $q])) ?>"<?= $sel ? ' aria-current="true"' : '' ?>><?= e(strtoupper($ex['code'])) ?></a>
-                                    <?php if ($ex['name'] && strtolower($ex['name']) !== $ex['code']): ?><div class="small text-muted"><?= e($ex['name']) ?></div><?php endif; ?></td>
+                                <?php $exName = $ex['name'] && strtolower($ex['name']) !== $ex['code'] ? (string) $ex['name'] : ''; ?>
+                                <td data-order="<?= e($ex['code']) ?>" data-export="<?= e(strtoupper($ex['code'])) ?>" data-search="<?= e($exName) ?>"><a class="table-row-link" href="<?= e(url('/collect', ['provider' => $provider['slug'], 'exam' => $ex['code'], 'q' => $q])) ?>"<?= $sel ? ' aria-current="true"' : '' ?>><?= e(strtoupper($ex['code'])) ?></a><?php if ($exName !== ''): ?><span class="cell-sub truncate is-narrow" title="<?= e($exName) ?>"><?= e($exName) ?></span><?php endif; ?></td>
                                 <td class="text-end" data-order="<?= $ex['reported_count'] === null ? -1 : (int) $ex['reported_count'] ?>"><?= $ex['reported_count'] === null ? '<span class="text-muted">n/a</span>' : number_format((int) $ex['reported_count']) ?></td>
                                 <td data-order="<?= $ex['latest_version'] ? 1 : 0 ?>"><?= $ex['latest_version'] ? chip('cached', 'success', 'check2-circle') : '<span class="small text-muted">not cached</span>' ?></td>
                             </tr>

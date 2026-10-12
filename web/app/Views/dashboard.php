@@ -41,7 +41,7 @@ usort($recent, static fn($a, $b) => (int) $b['id'] <=> (int) $a['id']);
             <?= empty_state('cup-hot', 'Nothing is running', 'Collections and inventory refreshes show here while they run. They keep running if you close the page.', null, true) ?>
         <?php else: foreach ($active as $job): ?>
             <div class="job-item">
-                <div class="job-item-title"><a href="<?= e(url('/jobs/' . (int) $job['id'])) ?>">#<?= (int) $job['id'] ?> · <?= e(job_label($job)) ?></a></div>
+                <div class="job-item-title"><a href="<?= e(url('/jobs/' . $job['uuid'])) ?>">#<?= (int) $job['id'] ?> · <?= e(job_label($job)) ?></a></div>
                 <?= \App\Core\View::current()->partial('partials/job_progress', ['job' => $job, 'reload' => true]) ?>
             </div>
         <?php endforeach; endif; ?>
@@ -90,7 +90,7 @@ usort($recent, static fn($a, $b) => (int) $b['id'] <=> (int) $a['id']);
                         <div class="row-main">
                             <span class="icon-bubble" data-tone="<?= e($tone) ?>"><?= icon($iconName) ?></span>
                             <div class="row-text">
-                                <a class="row-title" href="<?= e(url('/jobs/' . (int) $j['id'])) ?>">#<?= (int) $j['id'] ?> <?= e(job_label($j)) ?></a>
+                                <a class="row-title" href="<?= e(url('/jobs/' . $j['uuid'])) ?>">#<?= (int) $j['id'] ?> <?= e(job_label($j)) ?></a>
                                 <div class="row-meta text-clamp-2"><?= e($j['message'] ?? '') ?></div>
                             </div>
                         </div>
@@ -117,7 +117,7 @@ usort($recent, static fn($a, $b) => (int) $b['id'] <=> (int) $a['id']);
                                 <div class="row-meta"><?= e(strtoupper($d['format'])) ?> · <?= e(fmt_bytes($d['size_bytes'])) ?></div>
                             </div>
                         </div>
-                        <a class="btn btn-sm btn-outline-secondary" href="<?= e(url('/documents/' . (int) $d['id'] . '/download')) ?>"><?= icon('download') ?>Download</a>
+                        <a class="btn btn-sm btn-outline-secondary" href="<?= e(url('/documents/' . $d['uuid'] . '/download')) ?>"><?= icon('download') ?>Download</a>
                     </li>
                 <?php endforeach; ?>
             </ul>

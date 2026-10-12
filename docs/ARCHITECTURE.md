@@ -105,6 +105,12 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
   kernel; the API answers 401. Passwords use `password_hash`. Logins are throttled per IP,
   respond the same for unknown users, regenerate the session ID, and only redirect to
   same-site paths.
+- **Sessions** end after a period without activity (4 hours by default) and, if set, a fixed
+  time after signing in; both are chosen under Settings > Time and sign-in. Session files are
+  kept in `storage/sessions`, so the system's own session cleanup (on Debian, every 24 idle
+  minutes) cannot sign anyone out early.
+- **Identifiers in URLs**: jobs and documents are addressed by a random UUID, not their row
+  number; exams, providers and versions by their validated codes.
 - **CSRF** tokens on every POST, including login.
 - **Headers**: CSP `default-src 'self'` with no inline scripts or styles, frame denial,
   `no-referrer`, `Cache-Control: no-store`, HSTS on HTTPS.

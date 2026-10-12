@@ -16,7 +16,7 @@ $active = in_array($job['status'], ['queued', 'running'], true);
             <a class="btn btn-primary" href="<?= e(url('/library/' . rawurlencode($version['provider_slug']) . '/' . rawurlencode($version['exam_code']), ['version' => $version['version']])) ?>"><?= icon('journal-bookmark') ?>Open the collected version</a>
         <?php endif; ?>
         <?php if ($active): ?>
-            <form method="post" action="<?= e(url('/jobs/' . (int) $job['id'] . '/cancel')) ?>" data-confirm="Previously cached data is not affected." data-confirm-title="Cancel this job?" data-confirm-button="Cancel job" data-confirm-tone="danger"><?= csrf_field() ?>
+            <form method="post" action="<?= e(url('/jobs/' . $job['uuid'] . '/cancel')) ?>" data-confirm="Previously cached data is not affected." data-confirm-title="Cancel this job?" data-confirm-button="Cancel job" data-confirm-tone="danger"><?= csrf_field() ?>
                 <button class="btn btn-outline-danger" type="submit" <?= $job['cancel_requested'] ? 'disabled' : '' ?>><?= icon('stop-circle') ?><?= $job['cancel_requested'] ? 'Cancelling…' : 'Cancel job' ?></button>
             </form>
         <?php endif; ?>
@@ -66,11 +66,14 @@ $active = in_array($job['status'], ['queued', 'running'], true);
             </div>
         </div>
     </div>
-    <?php if ($logTail !== ''): ?>
+    <?php if ($logTail !== '' || $active): ?>
     <div class="col-12">
         <div class="card">
-            <div class="card-header"><span class="card-title"><?= icon('terminal') ?>Tool output</span><span class="small text-muted">Last 40 lines, credentials redacted</span></div>
-            <div class="card-body"><pre class="log-box"><?= e($logTail) ?></pre></div>
+            <div class="card-header">
+                <span class="card-title"><?= icon('terminal') ?>Tool output</span>
+                <span class="small text-muted"><?php if ($active): ?><span class="live-dot" data-live-indicator></span> Live, <?php endif; ?>last 200 lines, credentials redacted</span>
+            </div>
+            <div class="card-body"><pre class="log-box log-live" data-live-log="<?= e(url('/api/jobs/' . $job['uuid'] . '/log')) ?>" data-final="<?= $active ? '0' : '1' ?>"><?= $logTail !== '' ? e($logTail) : 'Waiting for output…' ?></pre></div>
         </div>
     </div>
     <?php endif; ?>

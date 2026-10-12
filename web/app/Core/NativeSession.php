@@ -6,9 +6,24 @@ namespace App\Core;
 
 final class NativeSession extends Session
 {
-    public function start(Config $config, bool $https): void
+    /**
+     * @param array{idle_timeout:int,absolute_timeout:int} $timeouts
+     * @param string $savePath a private directory for session files (see below), or '' for PHP's
+     */
+    public function start(Config $config, bool $https, array $timeouts = ['idle_timeout' => 14400, 'absolute_timeout' => 0], string $savePath = ''): void
     {
         $secure = (bool) $config->get('session.secure', true);
+        $idle = max(300, $timeouts['idle_timeout']);
+        $absolute = max(0, $timeouts['absolute_timeout']);
+        // Session files live in the app's own directory, cleaned on this app's schedule: in PHP's
+        // shared directory, Debian's cleanup job deletes them after 24 idle minutes, whatever the
+        // timeout here says.
+        if ($savePath !== '' && (is_dir($savePath) || @mkdir($savePath, 0700, true))) {
+            ini_set('session.save_path', $savePath);
+            ini_set('session.gc_probability', '1');
+            ini_set('session.gc_divisor', '100');
+        }
+        ini_set('session.gc_maxlifetime', (string) max($idle, $absolute));
         ini_set('session.use_strict_mode', '1');
         ini_set('session.use_only_cookies', '1');
         ini_set('session.cookie_httponly', '1');
@@ -25,14 +40,15 @@ final class NativeSession extends Session
         session_start();
         $this->data = &$_SESSION;
 
-        $idle = (int) $config->get('session.idle_timeout', 14400);
         $last = (int) ($this->data['_last_activity'] ?? 0);
-        if ($last > 0 && time() - $last > $idle) {
+        $started = (int) ($this->data['_started_at'] ?? 0);
+        if (($last > 0 && time() - $last > $idle) || ($absolute > 0 && $started > 0 && time() - $started > $absolute)) {
             $this->destroy();
             session_start();
             $this->data = &$_SESSION;
         }
         $this->data['_last_activity'] = time();
+        $this->data['_started_at'] ??= time();
     }
 
     public function regenerate(): void

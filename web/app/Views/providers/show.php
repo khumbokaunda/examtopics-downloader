@@ -51,6 +51,7 @@ $name = provider_name($provider);
         <table class="table table-hover align-middle mb-0 table-stack" id="exam-table" data-table="exams" data-order='[[0,"asc"]]'>
             <thead><tr>
                 <th>Exam</th>
+                <th>Name</th>
                 <th class="text-end" data-type="num">Questions (reported)</th>
                 <th data-type="num">Library</th>
                 <th class="text-end" data-nosort data-novis data-nosearch data-export="false"><span class="visually-hidden">Actions</span></th>
@@ -58,7 +59,8 @@ $name = provider_name($provider);
             <tbody>
             <?php foreach ($exams as $ex): $hasName = $ex['name'] && strtolower($ex['name']) !== $ex['code']; ?>
                 <tr>
-                    <td class="cell-wrap stack-title" data-order="<?= e($ex['code']) ?>" data-export="<?= e(strtoupper($ex['code']) . ($hasName ? ' ' . $ex['name'] : '')) ?>"><span class="fw-semibold"><?= e(strtoupper($ex['code'])) ?></span><?php if ($hasName): ?><div class="text-muted small"><?= e($ex['name']) ?></div><?php endif; ?></td>
+                    <td class="stack-title" data-order="<?= e($ex['code']) ?>" data-export="<?= e(strtoupper($ex['code'])) ?>"><span class="fw-semibold"><?= e(strtoupper($ex['code'])) ?></span></td>
+                    <td data-label="Name"><span class="truncate text-muted" title="<?= e($hasName ? $ex['name'] : '') ?>"><?= e($hasName ? $ex['name'] : '') ?></span></td>
                     <td class="text-end" data-label="Questions" data-order="<?= $ex['reported_count'] === null ? -1 : (int) $ex['reported_count'] ?>"><?= $ex['reported_count'] === null ? '<span class="text-muted">n/a</span>' : number_format((int) $ex['reported_count']) ?></td>
                     <td data-label="Library" data-order="<?= $ex['latest_version'] ? (int) $ex['latest_collected_count'] : -1 ?>" data-export="<?= $ex['latest_version'] ? 'cached (' . (int) $ex['latest_collected_count'] . ')' : 'not collected' ?>"><span><?php if ($ex['latest_version']): ?><?= chip('cached', 'success', 'check2-circle') ?> <span class="small text-muted"><?= (int) $ex['latest_collected_count'] ?> · <?= e(fmt_ago($ex['latest_collected_at'])) ?></span><?php else: ?><span class="text-muted small">not collected</span><?php endif; ?></span></td>
                     <td class="text-end stack-actions"><a class="btn btn-sm btn-outline-primary" href="<?= e(url('/collect', ['provider' => $provider['slug'], 'exam' => $ex['code']])) ?>">Select<?= icon('arrow-right') ?></a></td>

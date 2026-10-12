@@ -375,3 +375,7 @@ body.dialog-open { overflow: hidden; }
 .error-details[open] > summary::after { content: " Hide"; }
 .error-details .log-box { max-height: 12rem; white-space: pre-wrap; }
 .comment.is-reply { margin-left: var(--space-5); padding-left: var(--space-3); border-left: 2px solid var(--color-border); }
+.log-box.log-live { max-height: 28rem; }
+.live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--color-success); box-shadow: 0 0 0 3px var(--color-success-soft); vertical-align: middle; animation: livePulse 1.6s ease-in-out infinite; }
+.live-dot.is-done { background: var(--color-border-strong); box-shadow: none; animation: none; }
+@keyframes livePulse { 50% { opacity: .35; } }

@@ -24,11 +24,11 @@ final class HttpSecurityTest extends HttpTestCase
             ['GET', '/jobs/1'], ['GET', '/library'], ['GET', '/library/huawei/h12-811'], ['GET', '/library/huawei/h12-811/view'],
             ['GET', '/library/huawei/h12-811/20261012T083000Z-abcdef/json'], ['GET', '/documents/1/download'], ['GET', '/settings'],
             ['GET', '/api/jobs/1'], ['GET', '/api/jobs/active'], ['GET', '/api/providers/huawei/exams'],
-            ['GET', '/api/library/huawei/h12-811/20261012T083000Z-abcdef/questions/1'], ['GET', '/api/palette'],
+            ['GET', '/api/library/huawei/h12-811/20261012T083000Z-abcdef/questions/1'], ['GET', '/api/palette'], ['GET', '/api/jobs/1/log'],
             ['POST', '/collect'], ['POST', '/providers/discover'], ['POST', '/providers/add'], ['POST', '/providers/huawei/refresh'],
             ['POST', '/jobs/1/cancel'], ['POST', '/documents/1/delete'], ['POST', '/library/huawei/h12-811/20261012T083000Z-abcdef/documents'],
             ['POST', '/library/huawei/h12-811/20261012T083000Z-abcdef/delete'], ['POST', '/settings/password'], ['POST', '/settings/reconcile'],
-            ['POST', '/settings/appearance'], ['POST', '/api/appearance'], ['POST', '/logout'],
+            ['POST', '/settings/appearance'], ['POST', '/settings/time'], ['POST', '/api/appearance'], ['POST', '/logout'],
         ];
         foreach ($paths as [$method, $path]) {
             $r = $method === 'GET' ? $this->get($path) : $this->post($path, []);
@@ -100,7 +100,10 @@ final class HttpSecurityTest extends HttpTestCase
         $this->login();
         $this->provider('huawei');
         foreach (['/providers/..%2Fetc', '/providers/HUAWEI', '/library/huawei/..', '/library/huawei/h12-811/view',
-                  '/library/huawei/h12--811', '/jobs/1%20OR%201=1', '/documents/abc/download'] as $path) {
+                  '/library/huawei/h12--811', '/jobs/1%20OR%201=1', '/documents/abc/download',
+                  // Row numbers no longer address anything: jobs and documents are found by UUID.
+                  '/jobs/1', '/api/jobs/1', '/documents/1/download',
+                  '/jobs/00000000-0000-4000-8000-000000000000', '/jobs/AAAAAAAA-0000-4000-8000-000000000000'] as $path) {
             self::assertSame(404, $this->get(rawurldecode($path))->status, $path);
         }
         $r = $this->post('/collect', ['provider' => 'huawei', 'exam' => 'h12-811;rm -rf /']);
@@ -122,7 +125,7 @@ final class HttpSecurityTest extends HttpTestCase
 
         $r = $this->post('/collect', ['provider' => 'huawei', 'exam' => 'h12-811', 'source_mode' => 'live', 'rps' => '50']);
         self::assertSame(303, $r->status);
-        self::assertMatchesRegularExpression('#^/jobs/\d+$#', $r->headers['Location']);
+        self::assertMatchesRegularExpression('#^/jobs/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$#', $r->headers['Location'], 'job URLs use UUIDs');
         // Duplicate submission while it is queued: rejected, still one job.
         $this->post('/collect', ['provider' => 'huawei', 'exam' => 'h19-301', 'source_mode' => 'live']);
         self::assertSame('warning', $this->flashes()[1]['type'] ?? $this->flashes()[0]['type'] ?? null);
@@ -152,12 +155,12 @@ final class HttpSecurityTest extends HttpTestCase
         $this->login();
         $id = $this->s->jobService()->enqueueProviders();
         $this->app->db()->run("UPDATE jobs SET status='running', phase='listing_pages', progress_done=3, progress_total=NULL WHERE id=?", [$id]);
-        $json = json_decode($this->get('/api/jobs/' . $id)->body, true);
+        $json = json_decode($this->get('/api/jobs/' . $this->s->jobs()->find($id)['uuid'])->body, true);
         self::assertSame(3, $json['done']);
         self::assertNull($json['total']);
         self::assertNull($json['percent'], 'no percentage may be invented without a total');
         $this->app->db()->run('UPDATE jobs SET progress_total = 12 WHERE id = ?', [$id]);
-        self::assertSame(25, json_decode($this->get('/api/jobs/' . $id)->body, true)['percent']);
+        self::assertSame(25, json_decode($this->get('/api/jobs/' . $this->s->jobs()->find($id)['uuid'])->body, true)['percent']);
     }
 
     public function testRouterRejectsWrongMethod(): void

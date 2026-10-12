@@ -99,7 +99,7 @@ final class FullFlowTest extends WorkflowTestCase
     {
         $deadline = time() + $timeout;
         do {
-            $j = $c->json('/api/jobs/' . $id);
+            $j = $c->json('/api/jobs/' . $this->uuidOf($id));
             if ($onPoll) {
                 $onPoll($j);
             }
@@ -114,8 +114,13 @@ final class FullFlowTest extends WorkflowTestCase
     private function jobIdFrom(array $r): int
     {
         self::assertSame(303, $r['status']);
-        self::assertMatchesRegularExpression('#^/jobs/(\d+)$#', $r['headers']['location']);
-        return (int) basename($r['headers']['location']);
+        self::assertMatchesRegularExpression('#^/jobs/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$#', $r['headers']['location'], 'job URLs use UUIDs');
+        return (int) $this->app->db()->value('SELECT id FROM jobs WHERE uuid = ?', [basename($r['headers']['location'])]);
+    }
+
+    private function uuidOf(int $id): string
+    {
+        return (string) $this->app->db()->value('SELECT uuid FROM jobs WHERE id = ?', [$id]);
     }
 
     private function setUpApp(array $fixtureArgs = []): HttpClient
@@ -140,7 +145,7 @@ final class FullFlowTest extends WorkflowTestCase
         $this->login($c);
 
         // Discover providers and load the Huawei inventory through the UI.
-        $jobId = $this->jobIdFrom(['status' => 303, 'headers' => ['location' => '/jobs/' . $this->enqueueVia($c, '/providers/discover', [], '/providers')]]);
+        $jobId = $this->jobIdFrom(['status' => 303, 'headers' => ['location' => '/jobs/' . $this->uuidOf($this->enqueueVia($c, '/providers/discover', [], '/providers'))]]);
         self::assertSame('completed', $this->waitForJob($c, $jobId)['status']);
         $inv = $this->enqueueVia($c, '/providers/huawei/refresh', [], '/providers/huawei');
         self::assertSame('completed', $this->waitForJob($c, $inv)['status']);
@@ -192,7 +197,7 @@ final class FullFlowTest extends WorkflowTestCase
             self::assertSame(303, $r['status']);
         }
         $examPage = $c->get('/library/huawei/h12-811?version=' . $version)['body'];
-        preg_match_all('#/documents/(\d+)/download#', $examPage, $docs);
+        preg_match_all('#/documents/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/download#', $examPage, $docs);
         self::assertCount(4, array_unique($docs[1]));
         foreach (array_unique($docs[1]) as $docId) {
             $d = $c->get('/documents/' . $docId . '/download');
@@ -224,7 +229,7 @@ final class FullFlowTest extends WorkflowTestCase
         $this->waitForJob($c, $inv);
         $id = $this->jobIdFrom($c->post('/collect', ['provider' => 'huawei', 'exam' => 'h12-811', 'source_mode' => 'live', 'rps' => '50'], '/collect?provider=huawei&exam=h12-811'));
         $this->waitForJob($c, $id);
-        $c->get('/jobs/' . $id); // consume the one-time "queued" flash message
+        $c->get('/jobs/' . $this->uuidOf($id)); // consume the one-time "queued" flash message
         $questions = static fn(string $html): string => (string) preg_replace('#^.*?(<article)#s', '$1', $html);
         $before = $questions($c->get('/library/huawei/h12-811/view')['body']);
         self::assertStringContainsString('Question 5', $before);
@@ -234,8 +239,8 @@ final class FullFlowTest extends WorkflowTestCase
         $bad = $this->jobIdFrom($c->post('/collect', ['provider' => 'huawei', 'exam' => 'h12-811', 'confirm_refresh' => '1', 'source_mode' => 'live', 'rps' => '50'],
             '/collect?provider=huawei&exam=h12-811'));
         self::assertSame('failed', $this->waitForJob($c, $bad)['status']);
-        self::assertStringContainsString('Previously cached data is unchanged', $c->get('/jobs/' . $bad)['body'] . 'Previously cached data is unchanged');
-        $c->get('/jobs/' . $bad);
+        self::assertStringContainsString('Previously cached data is unchanged', $c->get('/jobs/' . $this->uuidOf($bad))['body'] . 'Previously cached data is unchanged');
+        $c->get('/jobs/' . $this->uuidOf($bad));
         self::assertSame($before, $questions($c->get('/library/huawei/h12-811/view')['body']));
     }
 
@@ -249,7 +254,7 @@ final class FullFlowTest extends WorkflowTestCase
 
         // 13a. Restart the web application while a collection runs: the job is unaffected.
         $id = $this->jobIdFrom($c->post('/collect', ['provider' => 'huawei', 'exam' => 'h12-811', 'source_mode' => 'live', 'rps' => '1'], '/collect?provider=huawei&exam=h12-811'));
-        $this->waitUntil(fn() => ($c->json('/api/jobs/' . $id)['status'] ?? '') === 'running');
+        $this->waitUntil(fn() => ($c->json('/api/jobs/' . $this->uuidOf($id))['status'] ?? '') === 'running');
         $this->stopWeb();
         sleep(1);
         $this->startWeb();
@@ -261,7 +266,7 @@ final class FullFlowTest extends WorkflowTestCase
         // 13b. The worker dies mid-job (e.g. server crash): the next status poll reconciles it
         // as interrupted, stops the orphaned tool process, and new jobs work again.
         $id2 = $this->jobIdFrom($c->post('/collect', ['provider' => 'huawei', 'exam' => 'h19-301', 'source_mode' => 'live', 'rps' => '0.5'], '/collect?provider=huawei&exam=h19-301'));
-        $this->waitUntil(fn() => ($c->json('/api/jobs/' . $id2)['status'] ?? '') === 'running' && $this->app->db()->value('SELECT child_pid FROM jobs WHERE id = ?', [$id2]) !== null);
+        $this->waitUntil(fn() => ($c->json('/api/jobs/' . $this->uuidOf($id2))['status'] ?? '') === 'running' && $this->app->db()->value('SELECT child_pid FROM jobs WHERE id = ?', [$id2]) !== null);
         $childPid = (int) $this->app->db()->value('SELECT child_pid FROM jobs WHERE id = ?', [$id2]);
         exec('pkill -9 -f ' . escapeshellarg(dirname(__DIR__, 2) . '/bin/worker.php'));
         $final = $this->waitForJob($c, $id2, 30);
