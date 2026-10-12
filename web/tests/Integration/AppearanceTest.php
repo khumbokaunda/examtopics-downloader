@@ -72,6 +72,33 @@ final class AppearanceTest extends HttpTestCase
         self::assertStringContainsString('data-theme-choice="dark"', $this->html());
     }
 
+    public function testAMissingMigrationIsReportedInsteadOfFailingSilently(): void
+    {
+        $db = $this->app->db();
+        $db->pdo()->exec('ALTER TABLE users DROP COLUMN preferences');
+        $db->run("DELETE FROM schema_migrations WHERE version = '002_user_preferences'");
+        try {
+            $this->newSession();
+            $this->login();
+            $page = $this->get('/')->body;
+            self::assertStringContainsString('The database needs an update', $page);
+            self::assertStringContainsString('002_user_preferences', $page);
+
+            $r = $this->post('/api/appearance', ['theme' => 'dark']);
+            self::assertSame(503, $r->status);
+            self::assertStringContainsString('php bin/migrate.php', json_decode($r->body, true)['error']);
+
+            self::assertSame(303, $this->post('/settings/appearance', ['theme' => 'dark'])->status);
+            $flash = $this->flashes();
+            self::assertSame('danger', $flash[0]['type'] ?? null);
+            self::assertStringContainsString('php bin/migrate.php', $flash[0]['message']);
+        } finally {
+            (new \App\Core\Migrator($db, dirname(__DIR__, 2) . '/database/migrations'))->migrate();
+        }
+        self::assertTrue($this->s->users()->hasColumn('preferences'));
+        self::assertStringNotContainsString('The database needs an update', $this->get('/')->body);
+    }
+
     public function testPreferencesArePerUser(): void
     {
         $this->post('/settings/appearance', ['theme' => 'dark']);

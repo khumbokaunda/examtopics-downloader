@@ -69,6 +69,21 @@ final class View
         return $render($file, $vars);
     }
 
+    /**
+     * Migrations the database is missing, so the layout can say so: new code against an old
+     * schema fails in confusing ways (a setting that does not save, for example).
+     *
+     * @return list<string>
+     */
+    public function pendingMigrations(): array
+    {
+        try {
+            return (new Migrator($this->app->db(), dirname(__DIR__, 2) . '/database/migrations'))->pending();
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
     public function csrf(): string
     {
         return $this->session->csrfToken();

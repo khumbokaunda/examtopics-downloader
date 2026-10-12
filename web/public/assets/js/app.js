@@ -26,6 +26,25 @@
       .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
   }
 
+  // A message in the flash area, like the server's flash messages.
+  function showFlash(type, text) {
+    var stack = document.querySelector('.flash-stack');
+    if (!stack) return;
+    var icons = { success: 'check-circle', info: 'info-circle', warning: 'exclamation-triangle', danger: 'exclamation-octagon' };
+    var alert = el('div', 'alert alert-' + type);
+    alert.setAttribute('role', type === 'danger' ? 'alert' : 'status');
+    alert.appendChild(icon(icons[type] || 'info-circle'));
+    alert.appendChild(el('div', 'alert-body', text));
+    var close = el('button', 'alert-close');
+    close.type = 'button';
+    close.setAttribute('data-dismiss', 'alert');
+    close.setAttribute('aria-label', 'Dismiss');
+    close.appendChild(icon('x-lg'));
+    alert.appendChild(close);
+    stack.appendChild(alert);
+    stack.hidden = false;
+  }
+
   function store(key, value) {
     try { localStorage.setItem(key, value); } catch (e) { /* storage unavailable */ }
   }
@@ -56,11 +75,19 @@
     mirror('theme', next);
     var url = btn.getAttribute('data-save-url');
     if (url) {
+      // keepalive: the save still completes if the user navigates away straight after.
       fetch(url, {
-        method: 'POST', credentials: 'same-origin',
+        method: 'POST', credentials: 'same-origin', keepalive: true,
         headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrf, Accept: 'application/json' },
         body: new URLSearchParams({ theme: next })
-      }).catch(function () { /* the local copy still applies */ });
+      }).then(function (r) {
+        if (r.ok) return;
+        return r.json().catch(function () { return {}; }).then(function (d) {
+          showFlash('danger', (d && d.error) || 'Your theme could not be saved, so it will reset on the next page.');
+        });
+      }).catch(function () {
+        showFlash('warning', 'Your theme could not be saved because the server did not respond. It may reset on the next page.');
+      });
     }
   });
 

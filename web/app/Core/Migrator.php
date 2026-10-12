@@ -14,6 +14,31 @@ final class Migrator
     {
     }
 
+    /**
+     * Migrations on disk that the database has not applied yet (all of them on an empty
+     * database). Read-only: nothing is created or changed.
+     *
+     * @return list<string>
+     */
+    public function pending(): array
+    {
+        try {
+            $applied = array_column($this->db->all('SELECT version FROM schema_migrations'), 'version');
+        } catch (\PDOException) {
+            $applied = [];
+        }
+        $files = glob($this->dir . '/*.sql') ?: [];
+        sort($files, SORT_STRING);
+        $pending = [];
+        foreach ($files as $file) {
+            $version = basename($file, '.sql');
+            if (!in_array($version, $applied, true)) {
+                $pending[] = $version;
+            }
+        }
+        return $pending;
+    }
+
     /** @return list<string> names of migrations applied by this call */
     public function migrate(): array
     {

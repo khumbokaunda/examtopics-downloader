@@ -112,8 +112,13 @@ $flashIcons = ['success' => 'check-circle', 'info' => 'info-circle', 'warning' =
         </header>
 
         <main class="app-content">
-            <?php if ($flashes !== []): ?>
-            <div class="flash-stack">
+            <?php $pending = \App\Core\View::current()->pendingMigrations(); if ($pending !== []): ?>
+                <div class="alert alert-warning" role="alert">
+                    <?= icon('database-exclamation') ?>
+                    <div class="alert-body"><strong>The database needs an update.</strong> On the server, run <code>php bin/migrate.php</code> in the <code>web</code> folder. Until then some settings, such as your theme, cannot be saved. Missing: <?= e(implode(', ', $pending)) ?>.</div>
+                </div>
+            <?php endif; ?>
+            <div class="flash-stack"<?= $flashes === [] ? ' hidden' : '' ?>>
                 <?php foreach ($flashes as $f): $type = in_array($f['type'], ['success', 'info', 'warning', 'danger'], true) ? $f['type'] : 'info'; ?>
                     <div class="alert alert-<?= e($type) ?>" role="<?= $type === 'danger' ? 'alert' : 'status' ?>">
                         <?= icon($flashIcons[$type]) ?><div class="alert-body"><?= e($f['message']) ?></div>
@@ -121,7 +126,6 @@ $flashIcons = ['success' => 'check-circle', 'info' => 'info-circle', 'warning' =
                     </div>
                 <?php endforeach; ?>
             </div>
-            <?php endif; ?>
             <div id="page-body" tabindex="-1">
                 <?= $content ?>
             </div>

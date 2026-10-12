@@ -35,15 +35,32 @@ final class SettingsController extends Controller
     /** The appearance form: every preference at once. */
     public function appearance(): Response
     {
-        $this->saveAppearance();
-        $this->flash('success', 'Appearance saved.');
+        try {
+            $this->saveAppearance();
+            $this->flash('success', 'Appearance saved.');
+        } catch (\PDOException $e) {
+            $this->flash('danger', $this->schemaMessage($e));
+        }
         return $this->redirect('/settings#appearance');
     }
 
     /** The top bar's theme toggle (and any other single preference) from JavaScript. */
     public function appearanceJson(): Response
     {
-        return Response::json(['appearance' => $this->saveAppearance()]);
+        try {
+            return Response::json(['appearance' => $this->saveAppearance()]);
+        } catch (\PDOException $e) {
+            return Response::json(['error' => $this->schemaMessage($e)], 503);
+        }
+    }
+
+    /** Saving fails like this when the code was updated but the database was not migrated. */
+    private function schemaMessage(\PDOException $e): string
+    {
+        $this->app->logger()->error('app', 'Saving appearance failed', ['error' => $e->getMessage()]);
+        return $this->s->users()->hasColumn('preferences')
+            ? 'Your appearance could not be saved. See storage/logs/app.log on the server.'
+            : 'Your appearance could not be saved because the database needs an update. On the server, run php bin/migrate.php in the web folder.';
     }
 
     /** @return array<string,string> */
