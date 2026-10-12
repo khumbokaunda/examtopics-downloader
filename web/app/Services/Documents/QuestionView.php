@@ -32,6 +32,17 @@ final class QuestionView
             }
         }
         $q['text'] = $text;
+        // No answer and no vote tally (older collections of the 2026 pages): count the
+        // community vote from the comments' selected answers, as the collection tool now does.
+        if (trim((string) ($q['answer'] ?? '')) === '' && array_filter((array) ($q['community_votes'] ?? []), 'is_array') === []) {
+            $votes = self::votesFrom(self::comments($q));
+            if ($votes !== []) {
+                $q['community_votes'] = $votes;
+                $q['votes_from_comments'] = true;
+                $q['answer'] = $votes[0]['answer'];
+                $q['answer_source'] = 'community';
+            }
+        }
         return $q;
     }
 
@@ -144,7 +155,7 @@ final class QuestionView
      * holding the unstructured comment text.
      *
      * @param array<string,mixed> $q
-     * @return list<array{author:string,timestamp:string,upvotes:?int,content:string,selected:string,reply:bool}>
+     * @return list<array{author:string,timestamp:string,upvotes:?int,content:string,selected:string,reply:bool,badge:string}>
      */
     public static function comments(array $q): array
     {
@@ -164,9 +175,94 @@ final class QuestionView
         }
         $text = trim((string) ($q['comments_text'] ?? ''));
         if ($out === [] && $text !== '') {
-            $out[] = ['author' => '', 'timestamp' => '', 'upvotes' => null, 'content' => $text, 'selected' => '', 'reply' => false];
+            $out = self::legacyComments($text)
+                ?? [['author' => '', 'timestamp' => '', 'upvotes' => null, 'content' => $text, 'selected' => '', 'reply' => false, 'badge' => '']];
         }
-        return $out;
+        return array_map(static fn(array $c) => $c + ['badge' => ''], $out);
+    }
+
+    /**
+     * Comment text kept as one block by the older parser, in the page's own order:
+     *   author / ["Highly Voted" | "Most Recent"] 1 year, 2 months ago / text, which may start
+     *   with "Selected Answer: C" / "upvoted 3 times" / "Submit Cancel" (the reply form) / "..."
+     * Null when the text does not follow that pattern, so it is shown as it is.
+     *
+     * @return list<array{author:string,timestamp:string,upvotes:?int,content:string,selected:string,reply:bool,badge:string}>|null
+     */
+    private static function legacyComments(string $text): ?array
+    {
+        $blocks = preg_split('/^\s*Submit\s+Cancel\s*$/mi', $text) ?: [];
+        $out = [];
+        $unread = 0;
+        foreach ($blocks as $block) {
+            $lines = array_values(array_filter(array_map('trim', preg_split('/\R/', $block) ?: []),
+                static fn(string $l) => $l !== '' && !in_array($l, ['...', '…', 'Reply', 'Report', 'Comment'], true)));
+            if ($lines === []) {
+                continue;
+            }
+            $at = null;
+            foreach (array_slice($lines, 0, 4, true) as $i => $l) {
+                if (preg_match('/\bago$/i', $l) === 1) {
+                    $at = $i;
+                    break;
+                }
+            }
+            if ($at === null || $at === 0) {
+                // A stray line or two (page furniture) is skipped; a real comment that does
+                // not fit means the text is not in this format.
+                $unread += count($lines) > 2 ? 1 : 0;
+                continue;
+            }
+            $badge = '';
+            $stamp = (string) preg_replace_callback('/^(Highly Voted|Most Recent)\s*/i', static function (array $m) use (&$badge): string {
+                $badge = ucwords(strtolower($m[1]));
+                return '';
+            }, $lines[$at]);
+            $upvotes = null;
+            $body = [];
+            foreach (array_slice($lines, $at + 1) as $l) {
+                if (preg_match('/^upvoted (\d+) times?$/i', $l, $m) === 1) {
+                    $upvotes = (int) $m[1];
+                } elseif (!in_array(strtolower($l), ['highly voted', 'most recent'], true)) {
+                    $body[] = $l;
+                }
+            }
+            $content = implode("\n", $body);
+            $selected = '';
+            if (preg_match('/^Selected Answer:\s*([A-Z]{1,10})\b\s*/', $content, $m) === 1) {
+                $selected = $m[1];
+                $content = trim(substr($content, strlen($m[0])));
+            }
+            if ($content === '' && $selected === '') {
+                continue;
+            }
+            $out[] = ['author' => $lines[$at - 1], 'timestamp' => trim($stamp), 'upvotes' => $upvotes ?? 0,
+                'content' => $content, 'selected' => $selected, 'reply' => false, 'badge' => $badge];
+        }
+        return $out === [] || $unread > 0 ? null : $out;
+    }
+
+    /**
+     * The community vote counted from the comments, as ExamTopics counts it: each comment's
+     * selected answer once, plus once per upvote. Most votes first.
+     *
+     * @param list<array{selected:string,upvotes:?int}> $comments
+     * @return list<array{answer:string,count:int,most_voted:bool}>
+     */
+    private static function votesFrom(array $comments): array
+    {
+        $tally = [];
+        foreach ($comments as $c) {
+            if ($c['selected'] !== '') {
+                $tally[$c['selected']] = ($tally[$c['selected']] ?? 0) + 1 + max(0, (int) $c['upvotes']);
+            }
+        }
+        arsort($tally);
+        $votes = [];
+        foreach ($tally as $answer => $count) {
+            $votes[] = ['answer' => (string) $answer, 'count' => $count, 'most_voted' => $votes === []];
+        }
+        return $votes;
     }
 
     /** Only https URLs are rendered as images; anything else is shown as text. */

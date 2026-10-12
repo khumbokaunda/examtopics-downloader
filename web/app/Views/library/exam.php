@@ -99,7 +99,8 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
                                                 <span class="small text-muted" data-field="progress"><?= $d['progress_total'] ? (int) floor((int) $d['progress_done'] * 100 / (int) $d['progress_total']) . '% (' . (int) $d['progress_done'] . ' of ' . (int) $d['progress_total'] . ' questions)' : 'starting' ?></span>
                                             </span>
                                         <?php else: ?>
-                                            <span title="<?= e((string) $d['error']) ?>"><?= chip('generation failed', 'danger', 'x-circle') ?></span>
+                                            <?= chip('generation failed', 'danger', 'x-circle') ?>
+                                            <?php if (trim((string) $d['error']) !== ''): ?><span class="small text-muted doc-error" title="<?= e((string) $d['error']) ?>"><?= e(mb_strimwidth((string) $d['error'], 0, 140, '…')) ?></span><?php endif; ?>
                                         <?php endif; ?>
                                     <?php endforeach; ?>
                                     <?php

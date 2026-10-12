@@ -21,6 +21,13 @@
     return i;
   }
 
+  // Two letters for an avatar, like the server's initials().
+  function initials(name) {
+    var parts = String(name).split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+    var s = parts.length > 1 ? parts[0].charAt(0) + parts[1].charAt(0) : (parts[0] || String(name)).slice(0, 2);
+    return s.toUpperCase();
+  }
+
   function getJSON(url) {
     return fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
       .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
@@ -545,19 +552,48 @@
           sum.appendChild(document.createTextNode('Discussion (' + d.comments.length + ')'));
           det.appendChild(sum);
           var list = el('div', 'discussion-body');
+          var top = Math.max.apply(null, d.comments.map(function (c) { return c.upvotes || 0; }));
           d.comments.forEach(function (c) {
-            var cm = el('div', 'comment' + (c.reply ? ' is-reply' : ''));
-            var parts = [c.timestamp, c.upvotes === null ? null : c.upvotes + (c.upvotes === 1 ? ' upvote' : ' upvotes')].filter(Boolean);
-            if (c.author || parts.length || c.selected) {
-              var head = el('div', 'comment-head');
-              if (c.author) head.appendChild(el('strong', null, c.author));
-              if (c.selected) head.appendChild(el('span', 'chip chip--primary', 'selected ' + c.selected));
-              parts.forEach(function (p) { head.appendChild(el('span', null, p)); });
-              cm.appendChild(head);
+            var cm = el('div', 'comment' + (c.reply ? ' is-reply' : '') + (top > 0 && c.upvotes === top ? ' is-top' : ''));
+            if (c.author) {
+              var av = el('span', 'comment-avatar', initials(c.author));
+              av.setAttribute('aria-hidden', 'true');
+              cm.appendChild(av);
             }
-            var text = el('div');
+            var main = el('div', 'comment-main');
+            if (c.author || c.timestamp) {
+              var head = el('div', 'comment-head');
+              if (c.author) head.appendChild(el('span', 'comment-author', c.author));
+              if (c.badge === 'Highly Voted') {
+                var hv = el('span', 'chip chip--warning');
+                hv.appendChild(icon('star-fill'));
+                hv.appendChild(document.createTextNode('highly voted'));
+                head.appendChild(hv);
+              }
+              if (c.timestamp) head.appendChild(el('span', 'comment-time', c.timestamp));
+              main.appendChild(head);
+            }
+            var text = el('div', 'comment-body');
             multiline(text, c.content);
-            cm.appendChild(text);
+            main.appendChild(text);
+            if (c.selected || c.upvotes !== null) {
+              var foot = el('div', 'comment-foot');
+              if (c.selected) {
+                var sel = el('span', 'chip chip--primary');
+                sel.appendChild(icon('check2'));
+                sel.appendChild(document.createTextNode('selected ' + c.selected));
+                foot.appendChild(sel);
+              }
+              if (c.upvotes !== null) {
+                var up = el('span', 'comment-votes');
+                up.title = 'Upvotes';
+                up.appendChild(icon('hand-thumbs-up'));
+                up.appendChild(document.createTextNode(String(c.upvotes)));
+                foot.appendChild(up);
+              }
+              main.appendChild(foot);
+            }
+            cm.appendChild(main);
             list.appendChild(cm);
           });
           det.appendChild(list);

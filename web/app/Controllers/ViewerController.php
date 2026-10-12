@@ -94,6 +94,7 @@ final class ViewerController extends Controller
         if ($q === null) {
             throw HttpException::notFound('Question');
         }
+        $q = QuestionView::normalize($q);
         return Response::json([
             'number' => (int) $q['number'],
             'answer' => QuestionView::answerLine($q),

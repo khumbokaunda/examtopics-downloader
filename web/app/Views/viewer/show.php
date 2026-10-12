@@ -91,12 +91,26 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                     <details class="discussion">
                         <summary><?= icon('chevron-right') ?><?= icon('chat-left-text') ?>Discussion (<?= count($comments) ?>)</summary>
                         <div class="discussion-body">
-                            <?php foreach ($comments as $c): ?>
-                                <div class="comment<?= $c['reply'] ? ' is-reply' : '' ?>">
-                                    <?php if ($c['author'] !== '' || $c['timestamp'] !== '' || $c['upvotes'] !== null || $c['selected'] !== ''): ?>
-                                        <div class="comment-head"><?= $c['author'] !== '' ? '<strong>' . e($c['author']) . '</strong>' : '' ?><?= $c['selected'] !== '' ? chip('selected ' . $c['selected'], 'primary') : '' ?><?= $c['timestamp'] !== '' ? '<span>' . e($c['timestamp']) . '</span>' : '' ?><?= $c['upvotes'] !== null ? '<span>' . (int) $c['upvotes'] . ' upvote' . ((int) $c['upvotes'] === 1 ? '' : 's') . '</span>' : '' ?></div>
-                                    <?php endif; ?>
-                                    <div><?= nl2br(e($c['content']), false) ?></div>
+                            <?php $top = max(array_map(static fn($c) => (int) $c['upvotes'], $comments)); ?>
+                            <?php foreach ($comments as $c): $isTop = $top > 0 && (int) $c['upvotes'] === $top; ?>
+                                <div class="comment<?= $c['reply'] ? ' is-reply' : '' ?><?= $isTop ? ' is-top' : '' ?>">
+                                    <?php if ($c['author'] !== ''): ?><span class="comment-avatar" aria-hidden="true"><?= e(initials($c['author'])) ?></span><?php endif; ?>
+                                    <div class="comment-main">
+                                        <?php if ($c['author'] !== '' || $c['timestamp'] !== ''): ?>
+                                            <div class="comment-head">
+                                                <?php if ($c['author'] !== ''): ?><span class="comment-author"><?= e($c['author']) ?></span><?php endif; ?>
+                                                <?php if ($c['badge'] === 'Highly Voted'): ?><?= chip('highly voted', 'warning', 'star-fill') ?><?php endif; ?>
+                                                <?php if ($c['timestamp'] !== ''): ?><span class="comment-time"><?= e($c['timestamp']) ?></span><?php endif; ?>
+                                            </div>
+                                        <?php endif; ?>
+                                        <div class="comment-body"><?= nl2br(e($c['content']), false) ?></div>
+                                        <?php if ($c['selected'] !== '' || $c['upvotes'] !== null): ?>
+                                            <div class="comment-foot">
+                                                <?php if ($c['selected'] !== ''): ?><?= chip('selected ' . $c['selected'], 'primary', 'check2') ?><?php endif; ?>
+                                                <?php if ($c['upvotes'] !== null): ?><span class="comment-votes" title="Upvotes"><?= icon('hand-thumbs-up') ?><?= (int) $c['upvotes'] ?></span><?php endif; ?>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
                             <?php endforeach; ?>
                         </div>
