@@ -49,7 +49,7 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
             <div class="card-body">
                 <dl class="meta-list">
                     <dt>Collected</dt><dd><?= e(fmt_time($selected['collected_at'])) ?></dd>
-                    <dt>Questions</dt><dd><?= number_format((int) $selected['collected_count']) ?><?= $selected['reported_count'] !== null ? ' <span class="text-muted">(inventory reported ' . (int) $selected['reported_count'] . ')</span>' : '' ?></dd>
+                    <dt>Questions</dt><dd><?= number_format((int) $selected['collected_count']) ?><?php if ($selected['reported_count'] !== null && (int) $selected['reported_count'] !== (int) $selected['collected_count']): ?> <span class="text-muted">(the provider inventory counted <?= number_format((int) $selected['reported_count']) ?><?= (int) $selected['reported_count'] < (int) $selected['collected_count'] ? '; that count is low, refresh the provider to update it' : '' ?>)</span><?php endif; ?></dd>
                     <dt>Source</dt><dd><?= e($selected['source'] === 'github-cache' ? 'Public cached dataset' : 'Live scrape') ?></dd>
                     <dt>Size and checksum</dt><dd><?= e(fmt_bytes($selected['size_bytes'])) ?> · <code><?= e(substr($selected['checksum'], 0, 16)) ?>…</code></dd>
                     <dt>Tool revision</dt><dd><code><?= e($selected['tool_revision'] ?: 'n/a') ?></code></dd>
@@ -76,7 +76,7 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
 
         <div class="card mb-4">
             <div class="card-header"><span class="card-title"><?= icon('file-earmark-text') ?>Documents for this version</span></div>
-            <div class="table-responsive">
+            <div class="table-responsive overflow-visible">
                 <table class="table align-middle mb-0 table-stack">
                     <thead><tr><th>Variant</th><th><?= icon('filetype-md') ?> Markdown</th><th><?= icon('filetype-pdf') ?> PDF</th></tr></thead>
                     <tbody>
@@ -98,23 +98,34 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
                                                 <?= chip('building', 'info', 'arrow-repeat') ?>
                                                 <span class="small text-muted" data-field="progress"><?= $d['progress_total'] ? (int) floor((int) $d['progress_done'] * 100 / (int) $d['progress_total']) . '% (' . (int) $d['progress_done'] . ' of ' . (int) $d['progress_total'] . ' questions)' : 'starting' ?></span>
                                             </span>
-                                        <?php else: ?>
-                                            <?= chip('generation failed', 'danger', 'x-circle') ?>
-                                            <?php if (trim((string) $d['error']) !== ''): ?><span class="small text-muted doc-error" title="<?= e((string) $d['error']) ?>"><?= e(mb_strimwidth((string) $d['error'], 0, 140, '…')) ?></span><?php endif; ?>
                                         <?php endif; ?>
                                     <?php endforeach; ?>
                                     <?php
+                                    // Only the latest failure is shown, as a small marker whose reason opens on hover or click.
+                                    $failures = array_filter($docIndex[$key][$fmt] ?? [], static fn($d) => $d['status'] === 'failed');
+                                    usort($failures, static fn($a, $b) => strcmp((string) $b['generated_at'], (string) $a['generated_at']));
+                                    $failed = $failures[0] ?? null;
                                     $ready = array_filter($docIndex[$key][$fmt] ?? [], static fn($d) => $d['status'] === 'ready');
                                     $building = array_filter($docIndex[$key][$fmt] ?? [], static fn($d) => $d['status'] === 'building') !== [];
                                     // A PDF built before more images were saved can be rebuilt with them.
                                     $stale = $fmt === 'pdf' && $ready !== [] && $images !== null
                                         && max(array_map(static fn($d) => (int) (json_decode((string) $d['options'], true)['images'] ?? 0), $ready)) < $images['saved'];
                                     ?>
-                                    <?php if (!$building && ($ready === [] || $stale)): ?>
-                                    <form class="d-inline-flex align-items-center gap-2" method="post" action="<?= e(url($vBase . '/documents')) ?>" data-once data-busy="Generating…"><?= csrf_field() ?>
-                                        <input type="hidden" name="variant" value="<?= e($key) ?>"><input type="hidden" name="format" value="<?= $fmt ?>">
-                                        <button class="btn btn-sm btn-outline-primary" type="submit"><?= icon($stale ? 'arrow-repeat' : 'plus-lg') ?><?= $stale ? 'Rebuild with new images' : (empty($docIndex[$key][$fmt]) ? 'Generate' : 'Retry') ?></button>
-                                    </form>
+                                    <?php if (!$building && ($ready === [] || $stale || $failed !== null)): ?>
+                                    <span class="d-inline-flex align-items-center gap-2">
+                                        <?php if ($ready === [] || $stale): ?>
+                                        <form method="post" action="<?= e(url($vBase . '/documents')) ?>" data-once data-busy="Generating…"><?= csrf_field() ?>
+                                            <input type="hidden" name="variant" value="<?= e($key) ?>"><input type="hidden" name="format" value="<?= $fmt ?>">
+                                            <button class="btn btn-sm btn-outline-primary" type="submit"><?= icon($stale ? 'arrow-repeat' : ($failed !== null ? 'arrow-clockwise' : 'plus-lg')) ?><?= $stale ? 'Rebuild with new images' : ($failed !== null ? 'Retry' : 'Generate') ?></button>
+                                        </form>
+                                        <?php endif; ?>
+                                        <?php if ($failed !== null): $why = trim((string) $failed['error']) ?: 'No reason was recorded.'; ?>
+                                        <details class="error-pop" title="<?= e($why) ?>">
+                                            <summary class="error-pop-trigger" aria-label="The last attempt failed. Show why."><?= icon('exclamation-circle-fill') ?></summary>
+                                            <div class="error-pop-body" role="note"><strong>Last attempt failed</strong><span class="d-block"><?= e($why) ?></span></div>
+                                        </details>
+                                        <?php endif; ?>
+                                    </span>
                                     <?php endif; ?>
                                     </div>
                                 </td>

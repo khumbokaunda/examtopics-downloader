@@ -465,6 +465,16 @@
     setTimeout(poll, 1000);
   });
 
+  // --- Error markers: one open at a time, closed by a click elsewhere or Escape ----------------
+  document.addEventListener('click', function (ev) {
+    document.querySelectorAll('details.error-pop[open]').forEach(function (d) {
+      if (!d.contains(ev.target)) d.open = false;
+    });
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape') document.querySelectorAll('details.error-pop[open]').forEach(function (d) { d.open = false; });
+  });
+
   // --- Documents being built in the background -----------------------------------------------
   document.querySelectorAll('[data-doc-status]').forEach(function (el) {
     var label = el.querySelector('[data-field="progress"]');
