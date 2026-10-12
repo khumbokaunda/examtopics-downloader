@@ -1,0 +1,162 @@
+/*
+ * Design tokens. Every colour, size, radius, shadow and timing in the app reads one of these.
+ * A theme, accent or density change is an attribute change on <html>, never a new stylesheet.
+ * Load before Bootstrap so base.css can point Bootstrap's variables at these.
+ */
+:root {
+  /* neutrals */
+  --color-bg:            #F7F8FA;
+  --color-surface:       #FFFFFF;
+  --color-surface-alt:   #F1F3F6;
+  --color-border:        #E3E7EC;
+  --color-border-strong: #C9D0D8;
+  --color-text:          #1A2028;
+  --color-text-muted:    #5C6B75;
+  --color-text-subtle:   #68737F;
+
+  /* brand */
+  --color-primary:        #1C7293;
+  --color-primary-hover:  #185E7A;
+  --color-primary-soft:   #E4F1F6;
+  --color-accent:         #2E9CB8;
+
+  /* status: fill, soft, ink */
+  --color-success:       #2F855A;
+  --color-warning:       #E8A33D;
+  --color-danger:        #C0392B;
+  --color-info:          #2E86AB;
+  --color-success-soft:  #E6F4EC;
+  --color-warning-soft:  #FBEFD8;
+  --color-danger-soft:   #F8E3E0;
+  --color-info-soft:     #E1EEFB;
+  --color-success-ink:   #1E6B45;
+  --color-warning-ink:   #7A4E00;
+  --color-danger-ink:    #A32B20;
+  --color-info-ink:      #1A5F7E;
+
+  --color-focus-ring:    #2E9CB833;
+
+  /* spacing / radius / shadow */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px;
+  --space-4: 16px; --space-5: 20px; --space-6: 24px;
+  --space-8: 32px; --space-10: 40px; --space-12: 48px;
+
+  --radius-xs: 4px;  --radius-sm: 6px;
+  --radius-md: 10px; --radius-lg: 14px; --radius-xl: 20px;
+
+  --shadow-xs:  0 1px 2px  rgba(15,23,32,.05);
+  --shadow-sm:  0 1px 3px  rgba(15,23,32,.06), 0 1px 2px rgba(15,23,32,.04);
+  --shadow-md:  0 4px 10px rgba(15,23,32,.07), 0 2px 4px rgba(15,23,32,.05);
+  --shadow-lg:  0 12px 30px rgba(15,23,32,.10);
+
+  /* typography */
+  --font-sans: "Poppins", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --text-xs:   12px;  --lh-xs:  16px;
+  --text-sm:   13px;  --lh-sm:  18px;
+  --text-md:   14px;  --lh-md:  20px;
+  --text-lg:   16px;  --lh-lg:  24px;
+  --text-xl:   18px;  --lh-xl:  26px;
+  --text-2xl:  22px;  --lh-2xl: 30px;
+  --text-3xl:  28px;  --lh-3xl: 36px;
+
+  --weight-regular: 400;
+  --weight-medium:  500;
+  --weight-semibold:600;
+  --weight-bold:    700;
+
+  /* motion */
+  --ease-out:      cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out:   cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring:   cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-xs: 90ms;  --dur-sm: 140ms; --dur-md: 220ms;
+  --dur-lg: 320ms; --dur-xl: 500ms;
+
+  /* shell */
+  --sidebar-w:            260px;
+  --sidebar-w-collapsed:  72px;
+  --topbar-h:             56px;
+}
+
+/* Density */
+:root { font-size: 14px; }
+:root[data-density="compact"]     { font-size: 13px; }
+:root[data-density="comfortable"] { font-size: 14px; }
+:root[data-density="cozy"]        { font-size: 15px; }
+
+/* Ink on a filled surface flips with the theme. */
+:root                    { --color-on-accent: #FFFFFF; color-scheme: light; }
+:root[data-theme="dark"] { --color-on-accent: #0B1220; color-scheme: dark; }
+
+/* Dark palette */
+[data-theme="dark"] {
+  --color-bg:            #0E1319;
+  --color-surface:       #161C24;
+  --color-surface-alt:   #1D242D;
+  --color-border:        #262E38;
+  --color-border-strong: #384250;
+  --color-text:          #E4E8ED;
+  --color-text-muted:    #9AA5B1;
+  --color-text-subtle:   #8A94A3;
+
+  --color-primary:        #4FB3D0;
+  --color-primary-hover:  #6BC1DA;
+  --color-primary-soft:   #12303B;
+  --color-accent:         #56C3DE;
+
+  --color-success:       #4ADE80;
+  --color-warning:       #F5B454;
+  --color-danger:        #F27167;
+  --color-info:          #63B3ED;
+  --color-success-soft:  #14322A;
+  --color-warning-soft:  #3A2C15;
+  --color-danger-soft:   #3A1E1A;
+  --color-info-soft:     #14283D;
+  --color-success-ink:   var(--color-success);
+  --color-warning-ink:   var(--color-warning);
+  --color-danger-ink:    var(--color-danger);
+  --color-info-ink:      var(--color-info);
+
+  --color-focus-ring:    #4FB3D055;
+
+  --shadow-xs: 0 1px 2px rgba(0,0,0,.35);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.4);
+  --shadow-md: 0 6px 14px rgba(0,0,0,.45);
+  --shadow-lg: 0 16px 40px rgba(0,0,0,.55);
+}
+
+/* Accent presets */
+:root[data-accent="teal"]    { --color-primary: #1C7293; --color-primary-hover: #185E7A; --color-accent: #2E9CB8; --color-primary-soft: #E4F1F6; }
+:root[data-accent="indigo"]  { --color-primary: #4F46E5; --color-primary-hover: #4338CA; --color-accent: #6366F1; --color-primary-soft: #EAE9FE; }
+:root[data-accent="violet"]  { --color-primary: #7C3AED; --color-primary-hover: #6D28D9; --color-accent: #8B5CF6; --color-primary-soft: #F0EAFE; }
+:root[data-accent="amber"]   { --color-primary: #B45309; --color-primary-hover: #92400E; --color-accent: #D97706; --color-primary-soft: #FCEFD8; }
+:root[data-accent="rose"]    { --color-primary: #BE185D; --color-primary-hover: #9D174D; --color-accent: #E11D48; --color-primary-soft: #FCE7EF; }
+:root[data-accent="emerald"] { --color-primary: #047857; --color-primary-hover: #065F46; --color-accent: #059669; --color-primary-soft: #DDF3E7; }
+
+[data-theme="dark"][data-accent="teal"]    { --color-primary: #4FB3D0; --color-primary-hover: #6BC1DA; --color-accent: #56C3DE; --color-primary-soft: #12303B; }
+[data-theme="dark"][data-accent="indigo"]  { --color-primary: #818CF8; --color-primary-hover: #A5B4FC; --color-accent: #A5B4FC; --color-primary-soft: #1E1B4B; }
+[data-theme="dark"][data-accent="violet"]  { --color-primary: #A78BFA; --color-primary-hover: #C4B5FD; --color-accent: #C4B5FD; --color-primary-soft: #2E1065; }
+[data-theme="dark"][data-accent="amber"]   { --color-primary: #F5B454; --color-primary-hover: #FBBF24; --color-accent: #FBBF24; --color-primary-soft: #3A2C15; }
+[data-theme="dark"][data-accent="rose"]    { --color-primary: #FB7185; --color-primary-hover: #FDA4AF; --color-accent: #FDA4AF; --color-primary-soft: #4C1233; }
+[data-theme="dark"][data-accent="emerald"] { --color-primary: #34D399; --color-primary-hover: #6EE7B7; --color-accent: #6EE7B7; --color-primary-soft: #052E20; }
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-xs: 0ms; --dur-sm: 0ms; --dur-md: 0ms; --dur-lg: 0ms; --dur-xl: 0ms; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+:root[data-motion="reduced"] { --dur-xs: 0ms; --dur-sm: 0ms; --dur-md: 0ms; --dur-lg: 0ms; --dur-xl: 0ms; }
+:root[data-motion="reduced"] *, :root[data-motion="reduced"] *::before, :root[data-motion="reduced"] *::after {
+  animation: none !important; transition: none !important;
+}
+
+/* Soft light surface */
+html[data-surface="soft"]:not([data-theme="dark"]) {
+  --color-bg:            #EDF0F4;
+  --color-surface-alt:   #E8ECF1;
+  --color-border:        #D3D9E0;
+  --color-border-strong: #B4BDC7;
+}
+html[data-surface="soft"]:not([data-theme="dark"]) .card,
+html[data-surface="soft"]:not([data-theme="dark"]) .widget { box-shadow: 0 1px 2px rgba(16, 24, 40, .05); }

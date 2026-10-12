@@ -34,7 +34,7 @@ final class CollectController extends Controller
             }
         }
         return $this->render('collect/index', [
-            'title' => 'Collect Exam',
+            'title' => 'Collect exam',
             'nav' => 'collect',
             'providers' => $providers,
             'provider' => $provider,

@@ -58,7 +58,7 @@ final class LibraryDocumentsTest extends HttpTestCase
         self::assertStringContainsString('latest complete', $exam->body);
         $dash = $this->get('/');
         self::assertStringContainsString('Cached questions', $dash->body);
-        self::assertMatchesRegularExpression('#stat-value">5<#', $dash->body, 'dashboard totals come from stored data');
+        self::assertMatchesRegularExpression('#kpi-value d-block">5<#', $dash->body, 'dashboard totals come from stored data');
     }
 
     public function testPracticeModeDoesNotExposeAnswersInPageSource(): void
@@ -71,12 +71,14 @@ final class LibraryDocumentsTest extends HttpTestCase
         self::assertStringContainsString('suggested by ExamTopics', $study->body);
         self::assertStringContainsString('I think it is', $study->body);
         self::assertStringContainsString('Community votes', $study->body);
+        self::assertStringContainsString('class="choice is-answer"', $study->body, 'study mode marks the answer choices');
 
         $practice = $this->get($this->base() . '/view', ['version' => $this->version['version'], 'mode' => 'practice']);
         self::assertSame(200, $practice->status);
         foreach (['suggested by ExamTopics', 'most-voted', 'Community votes', 'I think it is', 'Agreed.', 'Answer:', 'BE ('] as $leak) {
             self::assertStringNotContainsString($leak, $practice->body, "practice page leaks: $leak");
         }
+        self::assertStringNotContainsString('is-answer', $practice->body, 'practice mode must not mark the answer choices');
         self::assertStringContainsString('Reveal answer', $practice->body);
         self::assertStringContainsString('OSPF', $practice->body, 'choices are still shown');
 
@@ -85,6 +87,18 @@ final class LibraryDocumentsTest extends HttpTestCase
         self::assertStringStartsWith('BE', $json['answer']);
         self::assertNotEmpty($json['comments']);
         self::assertSame(404, $this->get('/api/library/huawei/h12-811/' . $this->version['version'] . '/questions/99')->status);
+    }
+
+    public function testPaletteListsCachedExamsAndProviders(): void
+    {
+        $r = $this->get('/api/palette');
+        self::assertSame(200, $r->status);
+        $paths = array_column(json_decode($r->body, true)['items'], 'path');
+        self::assertContains('/library/huawei/h12-811/view', $paths);
+        self::assertContains('/library/huawei/h12-811/view?mode=practice', $paths);
+        self::assertContains('/library/huawei/h12-811', $paths);
+        self::assertContains('/providers/huawei', $paths);
+        self::assertNotContains('/library/huawei/h19-301/view', $paths, 'exams that were never collected are not listed');
     }
 
     public function testViewerPaginatesAndSearches(): void

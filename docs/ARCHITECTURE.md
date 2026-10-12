@@ -33,8 +33,35 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
    rebuilt from the manifests.
 4. **Document generation**: Markdown and PDF built from one validated version, recorded in
    `documents` with options, size and checksum, and reused when unchanged.
-5. **Web interface**: server-rendered PHP templates with Bootstrap 5 and one small JavaScript
-   file.
+5. **Web interface**: server-rendered PHP templates in an application shell (sidebar, top bar,
+   command palette), styled by a token-based theme over Bootstrap 5's CSS. See
+   [The interface](#the-interface).
+
+## The interface
+
+- **Tokens first.** Every colour, size, radius, shadow and timing is a CSS custom property in
+  `public/assets/css/tokens.css`. A theme, accent, density or motion change is an attribute on
+  `<html>` (`data-theme`, `data-accent`, `data-density`, `data-surface`, `data-motion`), never a
+  second stylesheet. Bootstrap's own variables are pointed at the tokens in `base.css`, so its
+  components follow both themes; Bootstrap's dark mode and its JavaScript are not used.
+- **Load order**: `fonts.css`, `tokens.css`, Bootstrap, Bootstrap Icons, `base.css`
+  (Bootstrap mapping and base components), `layout.css` (the shell and breakpoints),
+  `components.css` (chips, KPI tiles, empty states, palette, dialogs, the question reader).
+- **Preferences** (theme, accent, density, surface, motion) are stored per user in
+  `users.preferences` and rendered into the `<html>` attributes by the server.
+  `js/theme-init.js` runs in `<head>` before first paint to resolve a "match my device" theme
+  and keeps a local copy so the sign-in page matches. It is an external file because the CSP
+  allows no inline script. The sidebar's collapsed state is kept in the browser only.
+- **Self-hosted**: Poppins and JetBrains Mono (SIL Open Font License, latin and latin-ext
+  subsets), Bootstrap Icons (MIT) and Bootstrap's CSS are served from `public/assets/vendor`.
+  A unit test fails if a template or stylesheet names another host or a referenced asset is
+  missing. Asset URLs carry the file's modification time, so a deploy is never served stale.
+- **Behaviour** lives in `js/app.js`: sidebar collapse and the phone drawer, the user menu,
+  the Ctrl K command palette (pages, plus cached exams and providers from `/api/palette`), the
+  confirmation dialog that replaces `window.confirm`, live job progress and practice-mode
+  reveals. Every dynamic value is inserted with DOM APIs, never `innerHTML`.
+- **PDFs** keep DejaVu Sans for its glyph coverage and use one print colour (the teal print
+  shade `#0f766e`); screen colours are never used on paper.
 
 ## Collection lifecycle
 

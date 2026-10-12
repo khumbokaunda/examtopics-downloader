@@ -7,6 +7,7 @@ This repo aims to make it possible for you to obtain all the exam questions from
 `web/` contains a private, self-hosted web interface for this tool: browse providers and
 exams with question counts, run collections in the background, keep a versioned library,
 read exams in the browser (with a practice mode), and generate Markdown or PDF documents.
+It has light and dark themes, six accent colours and a Ctrl K command palette.
 See [web/README.md](web/README.md) and [docs/INSTALL.md](docs/INSTALL.md).
 
 ## Setting it Up

@@ -15,6 +15,9 @@ practice mode.
 | Path | Contents |
 |---|---|
 | `public/` | The only web-served directory: `index.php` and static assets |
+| `public/assets/css` | `tokens.css` (the theme), `base.css`, `layout.css`, `components.css`, `fonts.css` |
+| `public/assets/js` | `theme-init.js` (in `<head>`, before first paint) and `app.js` |
+| `public/assets/vendor` | Bootstrap CSS, Bootstrap Icons, Poppins and JetBrains Mono, each with its licence |
 | `app/Core` | Kernel, router, sessions, config, database, paths, logging |
 | `app/Controllers` | One controller per area (collect, library, jobs, …) |
 | `app/Services` | Jobs and worker, cache publication and validation, documents |

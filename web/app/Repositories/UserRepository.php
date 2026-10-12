@@ -45,6 +45,12 @@ final class UserRepository
         }
     }
 
+    /** @param array<string,string> $preferences */
+    public function setPreferences(int $id, array $preferences): void
+    {
+        $this->db->run('UPDATE users SET preferences = ? WHERE id = ?', [json_encode($preferences, JSON_UNESCAPED_SLASHES), $id]);
+    }
+
     public function touchLogin(int $id): void
     {
         $this->db->run('UPDATE users SET last_login_at = ? WHERE id = ?', [Database::now(), $id]);

@@ -14,7 +14,7 @@ final class ProviderController extends Controller
     {
         $this->s->supervisor()->ensure();
         return $this->render('providers/index', [
-            'title' => 'Providers & Inventory',
+            'title' => 'Providers & inventory',
             'nav' => 'providers',
             'providers' => $this->s->providers()->allWithStats(),
             'activeJobs' => $this->activeInventoryJobs(),

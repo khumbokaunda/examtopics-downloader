@@ -33,6 +33,14 @@ bin/examtopics-downloader -version
 Build the package (`./cmd`), not the file (`./cmd/main.go`): only a package build records the
 Git revision, which the library shows on every collected version.
 
+If the build stops with `error obtaining VCS status: exit status 128`, Git refused to read the
+checkout, usually because you are building as root in a directory another user owns. Mark it
+as safe once, then build again:
+
+```bash
+git config --global --add safe.directory /srv/examtopics-downloader
+```
+
 ## 3. Install the PHP dependencies
 
 ```bash

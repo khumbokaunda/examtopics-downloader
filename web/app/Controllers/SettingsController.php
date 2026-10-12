@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Core\Http\Response;
+use App\Services\Appearance;
 
 final class SettingsController extends Controller
 {
@@ -26,7 +27,39 @@ final class SettingsController extends Controller
             'storage' => $this->app->paths()->storage(),
             'pdfImages' => (bool) $this->app->config()->get('documents.pdf_images', false),
             'recentLogins' => $this->s->loginAttempts()->recent(10),
+            'appearance' => Appearance::forUser($this->auth->user()),
+            'appearanceOptions' => Appearance::OPTIONS,
         ]);
+    }
+
+    /** The appearance form: every preference at once. */
+    public function appearance(): Response
+    {
+        $this->saveAppearance();
+        $this->flash('success', 'Appearance saved.');
+        return $this->redirect('/settings#appearance');
+    }
+
+    /** The top bar's theme toggle (and any other single preference) from JavaScript. */
+    public function appearanceJson(): Response
+    {
+        return Response::json(['appearance' => $this->saveAppearance()]);
+    }
+
+    /** @return array<string,string> */
+    private function saveAppearance(): array
+    {
+        $user = (array) $this->auth->user();
+        $input = [];
+        foreach (array_keys(Appearance::OPTIONS) as $key) {
+            $value = $this->request->input($key);
+            if ($value !== null) {
+                $input[$key] = $value;
+            }
+        }
+        $prefs = Appearance::merge(Appearance::forUser($user), $input);
+        $this->s->users()->setPreferences((int) $user['id'], $prefs);
+        return $prefs;
     }
 
     public function password(): Response

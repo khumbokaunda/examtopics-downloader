@@ -146,7 +146,7 @@ final class FullFlowTest extends WorkflowTestCase
         self::assertSame('completed', $this->waitForJob($c, $inv)['status']);
         $page = $c->get('/collect?provider=huawei&exam=h12-811')['body'];
         self::assertStringContainsString('Start collection', $page);
-        self::assertMatchesRegularExpression('#Reported questions</dt><dd class="col-6">5#', $page);
+        self::assertMatchesRegularExpression('#Reported questions</dt><dd>5#', $page);
 
         // 1-2. Collect an uncached exam and watch its progress.
         $id = $this->jobIdFrom($c->post('/collect', ['provider' => 'huawei', 'exam' => 'h12-811', 'source_mode' => 'live', 'rps' => '1'],

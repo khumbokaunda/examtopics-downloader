@@ -31,6 +31,31 @@ final class LibraryController extends Controller
         ]);
     }
 
+    /** Destinations for the command palette: cached exams and providers. */
+    public function paletteJson(): Response
+    {
+        $items = [];
+        foreach ($this->s->versions()->library(['provider' => '', 'q' => '', 'status' => '']) as $r) {
+            $base = '/library/' . rawurlencode((string) $r['provider_slug']) . '/' . rawurlencode((string) $r['code']);
+            $name = (string) ($r['name'] ?? '');
+            $label = strtoupper((string) $r['code']) . ($name !== '' && strtolower($name) !== $r['code'] ? ' ' . $name : '');
+            $items[] = ['label' => $label, 'section' => 'Read', 'icon' => 'book', 'path' => $this->path($base . '/view')];
+            $items[] = ['label' => $label, 'section' => 'Practice', 'icon' => 'patch-question', 'path' => $this->path($base . '/view', ['mode' => 'practice'])];
+            $items[] = ['label' => $label, 'section' => 'Documents', 'icon' => 'file-earmark-text', 'path' => $this->path($base)];
+        }
+        foreach ($this->s->providers()->allWithStats() as $p) {
+            $items[] = ['label' => (string) ($p['name'] ?: $p['slug']), 'section' => 'Provider', 'icon' => 'buildings',
+                'path' => $this->path('/providers/' . rawurlencode((string) $p['slug']))];
+        }
+        return Response::json(['items' => $items]);
+    }
+
+    /** @param array<string,string> $query */
+    private function path(string $path, array $query = []): string
+    {
+        return \App\Core\View::buildUrl((string) $this->app->config()->get('base_path', ''), $path, $query);
+    }
+
     public function exam(string $provider, string $exam): Response
     {
         $p = $this->findProvider($provider);
