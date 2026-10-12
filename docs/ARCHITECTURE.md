@@ -72,8 +72,19 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
   the Ctrl K command palette (pages, plus cached exams and providers from `/api/palette`), the
   confirmation dialog that replaces `window.confirm`, live job progress and practice-mode
   reveals. Every dynamic value is inserted with DOM APIs, never `innerHTML`.
-- **PDFs** keep DejaVu Sans for its glyph coverage and use one print colour (the teal print
-  shade `#0f766e`); screen colours are never used on paper.
+- **PDFs** are laid out as study guides in the app's own type and colours: Poppins and
+  JetBrains Mono (TrueType copies in `web/resources/fonts`, embedded as subsets), the teal
+  accent with a deep teal-navy for titles and answers, and amber only for warnings.
+  - Page 1 has the title, an "About this guide" box and a contents list whose rows link to
+    their sections. Its page numbers and dotted leaders are drawn after layout, from where
+    each section actually landed.
+  - Each section (a topic, or 50 questions when there is one topic) starts on a new page and
+    is a PDF bookmark (`Pdf/OutlineCpdf` adds the outline entries dompdf's writer lacks).
+  - Question cards are kept on one page and flag a missing figure or an answer the community
+    vote disagrees with. Appendices list the answer key (four per row) and every question's
+    source.
+  - dompdf uses one font per run of text, so characters Poppins cannot draw are wrapped for
+    DejaVu Sans (`Pdf/FontCoverage` reads Poppins' character map).
 
 ## Collection lifecycle
 
@@ -143,7 +154,7 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
 |---|---|
 | MySQL instead of SQLite | The VPS already runs MySQL; SQLite was not guaranteed to be installed. The schema avoids engine-specific features beyond InnoDB and works on MySQL 5.7+ and MariaDB 10.3+. |
 | JSON files as the source of truth | Question content is large and immutable per version; files are easy to back up, checksum and rebuild the index from. The database never duplicates question content. |
-| dompdf instead of the tool's `-type pdf` | The existing path (mdtopdf with gofpdf core fonts) cannot render text outside Latin-1, has no images, and only converts its own legacy Markdown. dompdf ships DejaVu Sans and supports print CSS, so every variant has one pipeline. |
+| dompdf instead of the tool's `-type pdf` | The existing path (mdtopdf with gofpdf core fonts) cannot render text outside Latin-1, has no images, and only converts its own legacy Markdown. dompdf embeds TrueType fonts (the app's Poppins, with DejaVu Sans for wider coverage) and supports print CSS, so every variant has one pipeline. |
 | A detached worker plus `flock`, not a queue server | One collection at a time is a requirement, not a limitation. `flock` gives crash-safe mutual exclusion with no extra infrastructure. |
 | A UNIQUE `active_slot` column | Duplicate-submission prevention is atomic in the database, not a racy check-then-insert. |
 | Exact exam matching in the Go tool | Matching must happen where links are parsed. Filtering a substring search in the UI could not stop `h12-811` collecting `h12-811-v2-0`. |

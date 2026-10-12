@@ -23,7 +23,7 @@ use Throwable;
 final class DocumentStore
 {
     /** Bump when rendering output changes, so stale documents are regenerated. */
-    public const RENDERER_VERSION = 2;
+    public const RENDERER_VERSION = 3;
     public const FORMATS = ['md' => 'text/markdown; charset=utf-8', 'pdf' => 'application/pdf'];
 
     public function __construct(
