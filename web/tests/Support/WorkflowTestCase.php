@@ -28,7 +28,7 @@ abstract class WorkflowTestCase extends DbTestCase
             self::$binDir = sys_get_temp_dir() . '/examlib-test-bin';
             @mkdir(self::$binDir, 0755, true);
             $repo = dirname(__DIR__, 3);
-            foreach (['examtopics-downloader' => './cmd/main.go', 'fixtureserver' => './tests/fixtureserver'] as $out => $pkg) {
+            foreach (['examtopics-downloader' => './cmd', 'fixtureserver' => './tests/fixtureserver'] as $out => $pkg) {
                 $cmd = sprintf('cd %s && go build -o %s %s 2>&1', escapeshellarg($repo), escapeshellarg(self::$binDir . '/' . $out), escapeshellarg($pkg));
                 exec($cmd, $output, $code);
                 if ($code !== 0) {

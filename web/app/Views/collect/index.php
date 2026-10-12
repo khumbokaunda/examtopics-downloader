@@ -54,7 +54,7 @@ $examUrl = static fn(array $p, array $e): string => url('/library/' . rawurlenco
                                 <td><a class="stretched-link-row fw-semibold" href="<?= e(url('/collect', ['provider' => $provider['slug'], 'exam' => $ex['code'], 'q' => $q])) ?>"><?= e(strtoupper($ex['code'])) ?></a>
                                     <?php if ($ex['name'] && strtolower($ex['name']) !== $ex['code']): ?><div class="small text-muted"><?= e($ex['name']) ?></div><?php endif; ?></td>
                                 <td class="text-end"><?= $ex['reported_count'] === null ? 'n/a' : (int) $ex['reported_count'] ?></td>
-                                <td><?= $ex['latest_version'] ? '<span class="badge text-bg-success">cached</span>' : '<span class="small text-muted">n/a</span>' ?></td>
+                                <td><?= $ex['latest_version'] ? '<span class="badge text-bg-success">cached</span>' : '<span class="small text-muted">not cached</span>' ?></td>
                             </tr>
                         <?php endforeach; ?>
                         </tbody>

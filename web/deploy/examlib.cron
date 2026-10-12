@@ -1,0 +1,5 @@
+# crontab -u www-data deploy/examlib.cron   (adjust the path)
+# Reconcile stale jobs and restart the worker if needed (safe to run often).
+*/5 * * * * /usr/bin/php /srv/examtopics-downloader/web/bin/reconcile.php > /dev/null 2>&1
+# Remove working files of jobs that finished more than 30 days ago.
+17 3 * * * /usr/bin/php /srv/examtopics-downloader/web/bin/cleanup.php --days=30 > /dev/null 2>&1

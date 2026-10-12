@@ -66,7 +66,7 @@ final class JobRunner
         $binary = (string) $this->config->get('tool.binary');
         if (!is_file($binary) || !is_executable($binary)) {
             $this->jobs->finish($id, 'failed', 'Collection tool not found',
-                'The collection tool is not installed at the configured path. Build it with: go build -o bin/examtopics-downloader ./cmd/main.go');
+                'The collection tool is not installed at the configured path. Build it with: go build -o bin/examtopics-downloader ./cmd');
             return;
         }
 

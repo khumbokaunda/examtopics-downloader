@@ -75,13 +75,16 @@ $warnings = json_decode((string) $selected['warnings'], true) ?: [];
                                             <span class="badge text-bg-danger mb-1" title="<?= e($d['error'] ?? '') ?>">generation failed</span><br>
                                         <?php endif; ?>
                                     <?php endforeach; ?>
+                                    <?php $ready = array_filter($docIndex[$key][$fmt] ?? [], static fn($d) => $d['status'] === 'ready'); ?>
+                                    <?php if ($ready === [] || ($fmt === 'pdf' && $imagesAvailable)): ?>
                                     <form class="d-inline" method="post" action="<?= e(url($vBase . '/documents')) ?>" data-once data-busy="Generating…"><?= csrf_field() ?>
                                         <input type="hidden" name="variant" value="<?= e($key) ?>"><input type="hidden" name="format" value="<?= $fmt ?>">
                                         <?php if ($fmt === 'pdf' && $imagesAvailable): ?>
                                             <label class="small me-1"><input type="checkbox" name="images" value="1"> images</label>
                                         <?php endif; ?>
-                                        <button class="btn btn-sm btn-outline-primary" type="submit"><?= empty($docIndex[$key][$fmt]) ? 'Generate' : 'Get' ?></button>
+                                        <button class="btn btn-sm btn-outline-primary" type="submit"><?= empty($docIndex[$key][$fmt]) ? 'Generate' : ($ready === [] ? 'Retry' : 'Generate') ?></button>
                                     </form>
+                                    <?php endif; ?>
                                 </td>
                             <?php endforeach; ?>
                         </tr>

@@ -8,7 +8,7 @@ $active = in_array($job['status'], ['queued', 'running'], true);
 <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
     <div>
         <h1 class="h3 mb-1">Job #<?= (int) $job['id'] ?> · <?= e(job_label($job)) ?></h1>
-        <div><?= status_badge($job['status']) ?><?= $job['result_status'] === 'partial' ? ' ' . status_badge('partial') : '' ?></div>
+        <?php if (!$active): ?><div><?= status_badge($job['status']) ?><?= $job['result_status'] === 'partial' ? ' ' . status_badge('partial') : '' ?></div><?php endif; ?>
     </div>
     <?php if ($active): ?>
         <form method="post" action="<?= e(url('/jobs/' . (int) $job['id'] . '/cancel')) ?>" data-confirm="Cancel this job? Previously cached data is not affected."><?= csrf_field() ?>
@@ -30,12 +30,14 @@ $active = in_array($job['status'], ['queued', 'running'], true);
             <h2 class="h6">Details</h2>
             <dl class="row small mb-0">
                 <dt class="col-5">Queued</dt><dd class="col-7"><?= e(fmt_time($job['queued_at'])) ?></dd>
+                <?php if (!$active): /* while active, the live widget above shows timing and phase */ ?>
                 <dt class="col-5">Started</dt><dd class="col-7"><?= e(fmt_time($job['started_at'])) ?></dd>
                 <dt class="col-5">Finished</dt><dd class="col-7"><?= e(fmt_time($job['finished_at'])) ?></dd>
                 <dt class="col-5">Duration</dt><dd class="col-7"><?= e($job['started_at'] ? fmt_duration($job['started_at'], $job['finished_at']) : 'n/a') ?></dd>
                 <dt class="col-5">Last update</dt><dd class="col-7"><?= e(fmt_time($job['heartbeat_at'])) ?></dd>
                 <dt class="col-5">Phase</dt><dd class="col-7"><?= e($job['phase'] ?? 'n/a') ?></dd>
                 <dt class="col-5">Exit code</dt><dd class="col-7"><?= $job['exit_code'] === null ? 'n/a' : (int) $job['exit_code'] ?></dd>
+                <?php endif; ?>
                 <?php foreach ($options as $k => $v): if (!is_scalar($v)) { continue; } ?>
                     <dt class="col-5"><?= e(str_replace('_', ' ', (string) $k)) ?></dt><dd class="col-7"><?= e((string) $v) ?></dd>
                 <?php endforeach; ?>
@@ -45,6 +47,7 @@ $active = in_array($job['status'], ['queued', 'running'], true);
             <?php endif; ?>
         </div></div>
     </div>
+    <?php if (!$active): ?>
     <div class="col-lg-7">
         <div class="card shadow-sm h-100"><div class="card-body">
             <h2 class="h6">Result</h2>
@@ -54,6 +57,7 @@ $active = in_array($job['status'], ['queued', 'running'], true);
             <?php endif; ?>
         </div></div>
     </div>
+    <?php endif; ?>
     <?php if ($logTail !== ''): ?>
     <div class="col-12">
         <div class="card shadow-sm"><div class="card-body">

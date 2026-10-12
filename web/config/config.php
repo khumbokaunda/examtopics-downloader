@@ -22,7 +22,7 @@ return [
 
     'tool' => [
         // Fixed path to the compiled Go tool. The web app never accepts an executable path
-        // from a request. Build with: go build -o bin/examtopics-downloader ./cmd/main.go
+        // from a request. Build with: go build -o bin/examtopics-downloader ./cmd
         'binary'       => dirname($webRoot) . '/bin/examtopics-downloader',
         'default_rps'  => 1.0,
         'allowed_rps'  => [0.25, 0.5, 1.0],

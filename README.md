@@ -2,6 +2,13 @@
 
 This repo aims to make it possible for you to obtain all the exam questions from the examtopics website (which is paywalled).
 
+## Exam Library web app
+
+`web/` contains a private, self-hosted web interface for this tool: browse providers and
+exams with question counts, run collections in the background, keep a versioned library,
+read exams in the browser (with a practice mode), and generate Markdown or PDF documents.
+See [web/README.md](web/README.md) and [docs/INSTALL.md](docs/INSTALL.md).
+
 ## Setting it Up
 
 ### Using docker
