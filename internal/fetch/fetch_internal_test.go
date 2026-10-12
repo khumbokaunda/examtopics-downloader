@@ -104,15 +104,15 @@ func TestScrapeQuestionPagesCountsFailures(t *testing.T) {
 	defer srv.Close()
 
 	links := []string{srv.URL + "/q/1/", srv.URL + "/q/2/", srv.URL + "/q/3/"}
-	questions, failed := scrapeQuestionPages(links)
+	items, failed, errs := scrapeQuestionPages(links)
 
-	if failed != 1 {
-		t.Errorf("expected 1 failed question page, got %d", failed)
+	if failed != 1 || len(errs) != 1 {
+		t.Errorf("expected 1 failed question page with 1 error summary, got %d and %d", failed, len(errs))
 	}
-	if len(questions) != 2 {
-		t.Fatalf("expected 2 questions, got %d", len(questions))
+	if len(items) != 2 {
+		t.Fatalf("expected 2 questions, got %d", len(items))
 	}
-	if questions[0].Title != "/q/1/" || questions[1].Title != "/q/3/" {
-		t.Errorf("expected order /q/1/, /q/3/; got %q, %q", questions[0].Title, questions[1].Title)
+	if items[0].legacy.Title != "/q/1/" || items[1].legacy.Title != "/q/3/" {
+		t.Errorf("expected order /q/1/, /q/3/; got %q, %q", items[0].legacy.Title, items[1].legacy.Title)
 	}
 }

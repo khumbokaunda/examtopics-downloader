@@ -136,6 +136,15 @@ func GrepStringFromCache(baseString, searchString string) bool {
 	)
 }
 
+// BaseURL is the ExamTopics origin. EXAMTOPICS_BASE_URL overrides it so the tool can be
+// exercised against a local fixture server in tests; it has no other use.
+var BaseURL = func() string {
+	if v := os.Getenv("EXAMTOPICS_BASE_URL"); v != "" {
+		return strings.TrimRight(v, "/")
+	}
+	return "https://www.examtopics.com"
+}()
+
 // AddToBaseUrl makes a scraped href absolute. ExamTopics serves some hrefs
 // already absolute, so prefixing unconditionally produced doubled URLs like
 // "https://www.examtopics.comhttps://www.examtopics.com/exams/...".
@@ -143,7 +152,7 @@ func AddToBaseUrl(addString string) string {
 	if strings.HasPrefix(addString, "http://") || strings.HasPrefix(addString, "https://") {
 		return addString
 	}
-	return fmt.Sprintf("https://www.examtopics.com%s", addString)
+	return BaseURL + addString
 }
 
 func CreateRateLimiter(rps float64) *time.Ticker {

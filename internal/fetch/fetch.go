@@ -8,12 +8,17 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"examtopics-downloader/internal/constants"
+	"examtopics-downloader/internal/dataset"
 	"examtopics-downloader/internal/models"
 	"examtopics-downloader/internal/utils"
 
@@ -218,11 +223,12 @@ func (f *Fetcher) Document(url string) (*goquery.Document, error) {
 	return doc, nil
 }
 
-// Fetches total number of pages
-func getMaxNumPages(url string) int {
+// getMaxNumPages reads the listing's page count. It returns an error rather than panicking
+// so machine modes can report the failure.
+func getMaxNumPages(url string) (int, error) {
 	doc, err := scrapeFetcher.Document(url)
 	if err != nil {
-		log.Panicf("Failed parsing HTML for number of pages: %v", err)
+		return 0, fmt.Errorf("reading the listing page count: %w", err)
 	}
 
 	var pageCount int
@@ -237,11 +243,11 @@ func getMaxNumPages(url string) int {
 		pageCount = 1
 	}
 
-	return pageCount
+	return pageCount, nil
 }
 
 func GetProviderExams(providerName string) []string {
-	baseURL := fmt.Sprintf("https://www.examtopics.com/exams/%s/", providerName)
+	baseURL := fmt.Sprintf("%s/exams/%s/", utils.BaseURL, providerName)
 	doc, err := scrapeFetcher.Document(baseURL)
 	if err != nil {
 		log.Fatalf("Failed to parse HTML for provider exams: %v", err)
@@ -258,27 +264,41 @@ func GetProviderExams(providerName string) []string {
 	return allExams
 }
 
-// Extracts matching links from a single page
-func getLinksFromPage(url string, grepStr string) ([]string, error) {
+// listingLink is an anchor found on a listing page.
+type listingLink struct {
+	Href string
+	Text string
+}
+
+// getLinksFromPage returns the anchors on one listing page that keep accepts.
+func getLinksFromPage(url string, keep func(href string) bool) ([]listingLink, error) {
 	doc, err := scrapeFetcher.Document(url)
 	if err != nil {
 		return nil, err
 	}
 
-	var matchingLinks []string
+	var links []listingLink
 	doc.Find("a").Each(func(i int, s *goquery.Selection) {
 		href, exists := s.Attr("href")
-		if exists && utils.GrepString(href, "/discussions") && utils.GrepString(href, grepStr) {
-			matchingLinks = append(matchingLinks, href)
+		if exists && keep(href) {
+			links = append(links, listingLink{Href: href, Text: utils.CleanText(s.Text())})
 		}
 	})
 
-	return matchingLinks, nil
+	return links, nil
 }
 
-func FetchCachedLinks(providerName string, grepStr string, cacheFetcher *Fetcher) []string {
+// githubAPIBase is the GitHub API origin; EXAMTOPICS_GITHUB_API overrides it for tests.
+var githubAPIBase = func() string {
+	if v := os.Getenv("EXAMTOPICS_GITHUB_API"); v != "" {
+		return strings.TrimRight(v, "/")
+	}
+	return "https://api.github.com"
+}()
+
+func FetchCachedLinks(providerName string, sel Selector, cacheFetcher *Fetcher) []string {
 	parsedProviderName := utils.CapitalizeFirstLetter(strings.ToLower(providerName))
-	baseURL := fmt.Sprintf("https://api.github.com/repos/thatonecodes/examtopics-data/contents/%s", parsedProviderName)
+	baseURL := fmt.Sprintf("%s/repos/thatonecodes/examtopics-data/contents/%s", githubAPIBase, parsedProviderName)
 	resp, err := cacheFetcher.Get(baseURL)
 	if err != nil {
 		// A cache miss is expected for providers the upstream dataset does not
@@ -300,13 +320,11 @@ func FetchCachedLinks(providerName string, grepStr string, cacheFetcher *Fetcher
 
 	var linksWithNumbers []models.FileInfo
 	for _, item := range content {
-		link := item.URL
-		number := utils.ExtractNumberFromPath(item.Name)
-		if utils.GrepStringFromCache(link, grepStr) {
+		if sel.MatchCachedFile(item.Name, item.URL) {
 			linksWithNumbers = append(linksWithNumbers, models.FileInfo{
-				URL:    link,
+				URL:    item.URL,
 				Name:   item.Name,
-				Number: number,
+				Number: utils.ExtractNumberFromPath(item.Name),
 			})
 		}
 	}
@@ -319,12 +337,14 @@ func FetchCachedLinks(providerName string, grepStr string, cacheFetcher *Fetcher
 // from a partial one instead of silently writing a fraction of the exam.
 type CacheResult struct {
 	Questions   []models.QuestionData
+	Normalized  []dataset.Question
 	Files       int
 	Failed      int
 	RateLimited bool
+	Errors      []string
 }
 
-func GetCachedPages(providerName string, grepStr string, token string) CacheResult {
+func GetCachedPages(providerName string, sel Selector, token string) CacheResult {
 	apiClient := utils.NewHTTPClient()
 	if token != "" {
 		apiClient = utils.NewGitHubClient(token)
@@ -338,10 +358,12 @@ func GetCachedPages(providerName string, grepStr string, token string) CacheResu
 	downloadFetcher := NewFetcher(utils.NewHTTPClient(), constants.CacheRequestsPerSecond)
 	defer downloadFetcher.Stop()
 
-	links := FetchCachedLinks(providerName, grepStr, apiFetcher)
+	reporter.Phase("cache_lookup", "Looking for the exam in the public cached dataset")
+	links := FetchCachedLinks(providerName, sel, apiFetcher)
 	if len(links) == 0 {
 		return CacheResult{}
 	}
+	reporter.Phase("cache_files", fmt.Sprintf("Downloading %d cached files", len(links)))
 	return collectCachedQuestions(links, apiFetcher, downloadFetcher)
 }
 
@@ -349,14 +371,16 @@ func GetCachedPages(providerName string, grepStr string, token string) CacheResu
 // questions in file order, numbered sequentially. links must already be in file
 // order, as FetchCachedLinks returns them. Each download writes only its own
 // slot in perFile, so the output order no longer depends on which download
-// finishes first.
+// finishes first. Questions repeated across files (same source ID) are kept once.
 func collectCachedQuestions(links []string, apiFetcher, downloadFetcher *Fetcher) CacheResult {
 	var (
 		wg      sync.WaitGroup
 		mu      sync.Mutex
 		failed  int
+		done    int32
 		limited bool
-		perFile = make([][]models.QuestionData, len(links))
+		errs    []string
+		perFile = make([][]cachedItem, len(links))
 	)
 
 	// Previously this launched one unbounded goroutine per file, firing hundreds
@@ -370,7 +394,7 @@ func collectCachedQuestions(links []string, apiFetcher, downloadFetcher *Fetcher
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			questions, err := getJSONFromLink(link, apiFetcher, downloadFetcher)
+			items, err := getJSONFromLink(link, apiFetcher, downloadFetcher)
 			if err != nil {
 				var rateErr *RateLimitError
 				mu.Lock()
@@ -378,28 +402,150 @@ func collectCachedQuestions(links []string, apiFetcher, downloadFetcher *Fetcher
 				if errors.As(err, &rateErr) {
 					limited = true
 				}
+				errs = append(errs, err.Error())
 				mu.Unlock()
 				log.Printf("skipping %s: %v", link, err)
-				return
+				reporter.Warning("cache_files", err.Error())
+			} else {
+				perFile[i] = items
 			}
-			perFile[i] = questions
+			reporter.Progress("cache_files", int(atomic.AddInt32(&done, 1)), len(links))
 		}(i, link)
 	}
 	wg.Wait()
 
-	var all []models.QuestionData
+	var (
+		all  []models.QuestionData
+		norm []dataset.Question
+		seen = make(map[string]struct{})
+	)
 	for i, link := range links {
 		name := strings.ReplaceAll(utils.GetNameFromLink(link), ".json?ref=main", "")
-		for _, q := range perFile[i] {
+		for _, it := range perFile[i] {
+			if it.norm.ID != "" {
+				if _, dup := seen[it.norm.ID]; dup {
+					continue
+				}
+				seen[it.norm.ID] = struct{}{}
+			}
+			q := it.legacy
 			q.Title = fmt.Sprintf("Examtopics %s question #%d", name, len(all)+1)
 			all = append(all, q)
+			norm = append(norm, it.norm)
 		}
 	}
 
 	return CacheResult{
 		Questions:   all,
+		Normalized:  norm,
 		Files:       len(links),
 		Failed:      failed,
 		RateLimited: limited,
+		Errors:      errs,
 	}
+}
+
+// providerLinkRE matches provider pages such as "/exams/huawei/".
+var providerLinkRE = regexp.MustCompile(`^/exams/([a-z0-9-]+)/?$`)
+
+// GetProviders lists providers from the ExamTopics exams index. Only the href pattern is
+// relied on, not the page layout (docs/AUDIT.md, uncertainty 3).
+func GetProviders() (dataset.Providers, error) {
+	reporter.Phase("providers", "Reading the provider list")
+	doc, err := scrapeFetcher.Document(utils.BaseURL + "/exams/")
+	if err != nil {
+		return dataset.Providers{}, fmt.Errorf("reading the provider list: %w", err)
+	}
+	seen := make(map[string]int)
+	var providers []dataset.Provider
+	doc.Find("a").Each(func(_ int, s *goquery.Selection) {
+		href, _ := s.Attr("href")
+		path, ok := relativePath(href)
+		if !ok {
+			return
+		}
+		m := providerLinkRE.FindStringSubmatch(strings.ToLower(path))
+		if m == nil || !ValidProviderSlug(m[1]) {
+			return
+		}
+		name := utils.CleanText(s.Text())
+		if i, dup := seen[m[1]]; dup {
+			if providers[i].Name == m[1] && name != "" {
+				providers[i].Name = name
+			}
+			return
+		}
+		if name == "" {
+			name = m[1]
+		}
+		seen[m[1]] = len(providers)
+		providers = append(providers, dataset.Provider{Slug: m[1], Name: name})
+	})
+	sort.Slice(providers, func(i, j int) bool { return providers[i].Slug < providers[j].Slug })
+	if providers == nil {
+		providers = []dataset.Provider{}
+	}
+	return dataset.Providers{
+		SchemaVersion: dataset.SchemaVersion,
+		Kind:          "providers",
+		GeneratedAt:   time.Now().UTC().Format(time.RFC3339),
+		Status:        dataset.StatusComplete,
+		Providers:     providers,
+	}, nil
+}
+
+// GetInventory lists the exams a provider has discussions for, with the number of unique
+// discussions per exact exam code. Only listing pages are fetched.
+func GetInventory(provider string) (dataset.Inventory, error) {
+	numPages, err := getMaxNumPages(fmt.Sprintf("%s/discussions/%s/", utils.BaseURL, provider))
+	if err != nil {
+		return dataset.Inventory{}, err
+	}
+	reporter.Phase("listing_pages", fmt.Sprintf("Scanning %d listing pages", numPages))
+	fmt.Fprintf(out, "Scanning %d listing pages for provider '%s'\n", numPages, provider)
+
+	links, failedPages, errs := collectListingLinks(provider, numPages, func(href string) bool {
+		_, ok := ParseDiscussionLink(href, provider)
+		return ok
+	})
+
+	type agg struct {
+		ids  map[string]struct{}
+		name string
+	}
+	byCode := make(map[string]*agg)
+	for _, l := range links {
+		ref, _ := ParseDiscussionLink(l.Href, provider)
+		a := byCode[ref.Code]
+		if a == nil {
+			a = &agg{ids: make(map[string]struct{})}
+			byCode[ref.Code] = a
+		}
+		a.ids[ref.ID] = struct{}{}
+		if a.name == "" {
+			a.name = ExamNameFromTitle(l.Text)
+		}
+	}
+
+	exams := make([]dataset.InventoryExam, 0, len(byCode))
+	for code, a := range byCode {
+		exams = append(exams, dataset.InventoryExam{Code: code, Name: a.name, QuestionCount: len(a.ids)})
+	}
+	sort.Slice(exams, func(i, j int) bool { return exams[i].Code < exams[j].Code })
+
+	status := dataset.StatusComplete
+	if failedPages > 0 {
+		status = dataset.StatusPartial
+	}
+	return dataset.Inventory{
+		SchemaVersion:      dataset.SchemaVersion,
+		Kind:               "inventory",
+		Provider:           provider,
+		GeneratedAt:        time.Now().UTC().Format(time.RFC3339),
+		Status:             status,
+		ListingPages:       numPages,
+		FailedListingPages: failedPages,
+		Errors:             dataset.CapErrors(errs),
+		Exams:              exams,
+	}, nil
 }

@@ -61,23 +61,39 @@ docker rm examtopics-downloader
 ```
 Each command line argument you can provide when running the program:
 
+  -batch
+    	Unattended mode: never prompt, no progress bars, status text on stderr
   -c	Optionally include all the comment/discussion text
+  -events string
+    	Write JSON Lines progress events to this path ("-" for stdout)
+  -exam string
+    	Exact exam code to collect, e.g. h12-811 (never matches h12-811-v2-0)
   -exams
     	Optionally show all the possible exams for your selected provider and exit
+  -inventory
+    	List the provider's exams with discussion counts (JSON) and exit
   -no-cache
     	Optional argument, set to disable looking through cached data on github
   -o string
     	Optional path of the file where the data will be outputted (default "examtopics_output.md")
+  -out-json string
+    	Write the canonical JSON document to this path ("-" for stdout)
   -p string
     	Name of the exam provider (default -> google) (default "google")
+  -providers
+    	List providers found on ExamTopics (JSON) and exit
+  -rps float
+    	Requests per second when scraping; lower this if ExamTopics returns 429 (default 1)
   -s string
-    	String to grep for in discussion links (required)
+    	String to grep for in discussion links (substring match)
   -save-links
     	Optional argument to save unique links to questions
   -t string
-    	Optional argument to make cached requests faster to gh api
+    	GitHub PAT to raise the API rate limit; if omitted, read from $EXAMTOPICS_GITHUB_TOKEN
   -type string
     	Optionally include file type (default -> .md) (default "md")
+  -version
+    	Print the tool version and exit
 ```
 
 ## Possible Arguments List
@@ -105,20 +121,22 @@ Each command line argument you can provide when running the program:
 > [!NOTE]  
 > The more the amount of exams/discussion the provider has, the longer it will take to scrape through the exams.
 
-### `-save-links` && `-output-save-links`
+### `-save-links`
 
-This is a bool flag, so the default is that it's set to `false`, deactivated. If `-save-links` is false `-output-save-links` will do nothing.
-`-output-save-links` is a `string` which includes the output path for the saved links, default is `saved-links.txt`.
+This is a bool flag, so the default is that it's set to `false`, deactivated. When set, the unique question links are written to `saved-links.txt`.
 
 ### Grep String, `-s`
 
 The `-s` argument can take an exam ID (ex. 200-301) or a word, such as "devops". for example:
 
 ```bash
-go run . -p google -s devops
+go run ./cmd/main.go -p google -s devops
 ```
 
 would get all exams from the `google` provider containing the string `devops`.
+
+`-s` is a **substring** match: `-s h12-811` also collects `h12-811-v2-0`. To collect exactly one
+exam, use `-exam` instead (`-exam h12-811`). The two cannot be combined.
 
 ### Comments and output, `-c` && `-o`
 
@@ -175,7 +193,7 @@ When you use the `-type` argument, it tells the program to convert the default f
 Currently we have these types supported:  
 - `html` -> generates `examtopics_output.html`
 - `pdf` -> generates `examtopics_output.pdf`
-- `txt` -> generates `examtopics_output.txt`
+- `text` -> generates `examtopics_output.txt`
 - `json` -> generates `examtopics_output.json`
 
 > [!NOTE]  
@@ -193,7 +211,7 @@ So, you have installed `go` on your system, and you're inside of the working dir
 Open your terminal and run:
 
 ```bash
-go run . -p cisco -s 200-301
+go run ./cmd/main.go -p cisco -s 200-301
 ```
 
 Note that you can put the id as the string to look for, as the program is compatible this way also.
@@ -241,3 +259,26 @@ D. 172.23.104.4
 
 ----------------------------------------
 ```
+
+## Machine-readable mode
+
+These flags let other programs (such as the [Exam Library web app](web/README.md)) drive the
+tool unattended. The formats are specified in [docs/DATA_MODEL.md](docs/DATA_MODEL.md).
+
+```bash
+# Every exam a provider has discussions for, with question counts (listing pages only)
+go run ./cmd/main.go -inventory -p huawei -out-json huawei-inventory.json
+
+# Collect exactly one exam as canonical JSON, with progress events, never prompting
+go run ./cmd/main.go -batch -p huawei -exam h12-811 -out-json h12-811.json -events progress.jsonl
+```
+
+- `-out-json` writes a versioned document atomically. A collection includes `status`
+  (`complete` or `partial`), per-phase counts, error summaries, and per question: choices, suggested
+  and community answers (multi-letter answers intact), explanation, images, and comments.
+- `-events` writes one JSON object per line (`phase`, `progress`, `warning`, then exactly one
+  `completed` or `failed`).
+- Exit codes: `0` complete, `1` failed, `2` partial (output written and labelled partial),
+  `3` nothing matched, `64` usage error.
+- The "delete Markdown file?" prompt after `-type` conversions only appears when stdin is a
+  terminal and `-batch` is not set, so scripts never block.

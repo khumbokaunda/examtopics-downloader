@@ -161,3 +161,28 @@ func TestAddToBaseUrlDoesNotDoublePrefix(t *testing.T) {
 		}
 	}
 }
+
+// A dropped connection is a transport error: it must be retried, and recover when the
+// next attempt succeeds.
+func TestFetcherRetriesDroppedConnection(t *testing.T) {
+	var attempts int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if atomic.AddInt32(&attempts, 1) == 1 {
+			conn, _, err := w.(http.Hijacker).Hijack()
+			if err == nil {
+				conn.Close()
+			}
+			return
+		}
+		w.Write([]byte("ok"))
+	}))
+	defer srv.Close()
+
+	body, err := fetch.NewFetcher(srv.Client(), 1000).Get(srv.URL)
+	if err != nil || string(body) != "ok" {
+		t.Fatalf("expected recovery after a dropped connection, got %q, %v", body, err)
+	}
+	if got := atomic.LoadInt32(&attempts); got != 2 {
+		t.Errorf("expected 2 attempts, got %d", got)
+	}
+}
