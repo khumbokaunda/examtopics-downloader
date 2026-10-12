@@ -333,6 +333,46 @@ func TestSecondPassRecoversPagesThatRanOutOfRetries(t *testing.T) {
 	}
 }
 
+// H19-301 is served in the 2026 page layout: the choices are inline, there is no suggested
+// answer, and the community vote is counted from the comments.
+func TestModernPageLayoutIsParsed(t *testing.T) {
+	site := fixturesite.Default(fixturesite.Options{})
+	r := runTool(t, site, nil, "-batch", "-no-cache", "-p", "huawei", "-exam", "h19-301", "-out-json", "ds.json", "-o", "out.md", "-c")
+	if r.exit != 0 {
+		t.Fatalf("exit %d\n%s", r.exit, r.stderr)
+	}
+	ds := readDataset(t, r.file("ds.json"))
+	if len(ds.Questions) != 3 {
+		t.Fatalf("%d questions", len(ds.Questions))
+	}
+	for _, q := range ds.Questions {
+		if len(q.Choices) != 5 || q.Choices[4].Letter != "E" || q.Choices[4].Text != "EIGRP" {
+			t.Errorf("Q%d choices %+v", q.QuestionNumber, q.Choices)
+		}
+		if strings.Contains(q.Text, "OSPF") || !strings.Contains(q.Text, "Second line of the question.") {
+			t.Errorf("Q%d stem %q", q.QuestionNumber, q.Text)
+		}
+		if q.SuggestedAnswer != "" || q.AnswerSource != "community" || !q.VotesFromComments || q.Answer == "" {
+			t.Errorf("Q%d answer %q from %q (votes from comments %v)", q.QuestionNumber, q.Answer, q.AnswerSource, q.VotesFromComments)
+		}
+		if len(q.Comments) < 2 || q.Comments[1].ParentID == "" || q.Comments[0].SelectedAnswer == "" {
+			t.Errorf("Q%d comments %+v", q.QuestionNumber, q.Comments)
+		}
+	}
+	// Q3 (n%3 == 0): votes BE 12, B 3 come back exactly from the comments.
+	q3 := ds.Questions[2]
+	if q3.Answer != "BE" || q3.CommunityVotes[0].Count != 12 || q3.CommunityVotes[1].Count != 3 {
+		t.Errorf("Q3 answer %q votes %+v", q3.Answer, q3.CommunityVotes)
+	}
+	md, err := os.ReadFile(r.file("out.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(md), "\nA. OSPF\n") || !strings.Contains(string(md), "most voted in the comments") {
+		t.Errorf("legacy Markdown lacks the choices or the answer note:\n%s", md)
+	}
+}
+
 func TestNoMatchExitsThreeWithoutOutput(t *testing.T) {
 	site := fixturesite.Default(fixturesite.Options{})
 	r := runTool(t, site, nil, "-batch", "-no-cache", "-p", "huawei", "-exam", "h19-101",

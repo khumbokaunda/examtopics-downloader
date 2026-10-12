@@ -139,11 +139,15 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
 
 ## Known limitations
 
-- The live scraper's per-comment structure (author, date, upvotes) is not parsed, because no
-  sample of the comment markup was available; comments are kept as text with their line
-  breaks. The public cached dataset provides structured comments. See AUDIT.md, uncertainty 1.
-- Explanations and answer images are only available from the cached dataset path.
-- New parsing was verified against a fixture site built from observed output, not against the
-  live site (the development environment cannot reach it).
+- ExamTopics' discussion pages (as of October 2026) carry no suggested answer: only a "Show
+  Suggested Answer" link to the paid exam page. Live collections therefore use the most-voted
+  community answer, counted from the comments' selected answers and upvotes, and label it so.
+  The public cached dataset still has ExamTopics' answers for the exams it covers.
+- Explanations and answer images are only available from the cached dataset path; discussion
+  pages have neither.
+- Parsing was verified against a fixture site and a page saved by the user in October 2026
+  (`internal/fetch/testdata/discussion-2026.html` keeps its markup with invented text), not
+  against the live site, which the development environment cannot reach. Pages in the older
+  layout (choices as list items, a vote tally, comments as text) are still parsed.
 - One collection runs at a time by design, so a large provider inventory or exam can occupy
   the worker for a long time.

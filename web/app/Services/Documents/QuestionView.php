@@ -39,7 +39,9 @@ final class QuestionView
             $pct = $total > 0 ? ' (' . round($n * 100 / $total) . '%)' : '';
             $parts[] = (string) ($v['answer'] ?? '?') . ': ' . $n . $pct . (!empty($v['most_voted']) ? ' – most voted' : '');
         }
-        return implode(', ', $parts);
+        // On the 2026 pages ExamTopics shows no tally: the tool counts the comments' selected
+        // answers (once each, plus once per upvote), which is how ExamTopics counts votes.
+        return implode(', ', $parts) . (!empty($q['votes_from_comments']) ? ' (counted from the comments)' : '');
     }
 
     /** @param array<string,mixed> $q */
@@ -60,24 +62,27 @@ final class QuestionView
      * holding the unstructured comment text.
      *
      * @param array<string,mixed> $q
-     * @return list<array{author:string,timestamp:string,upvotes:?int,content:string}>
+     * @return list<array{author:string,timestamp:string,upvotes:?int,content:string,selected:string,reply:bool}>
      */
     public static function comments(array $q): array
     {
         $out = [];
         foreach ((array) ($q['comments'] ?? []) as $c) {
             if (is_array($c) && trim((string) ($c['content'] ?? '')) !== '') {
+                $selected = (string) ($c['selected_answer'] ?? '');
                 $out[] = [
                     'author' => (string) ($c['author'] ?? ''),
                     'timestamp' => (string) ($c['timestamp'] ?? ''),
                     'upvotes' => isset($c['upvotes']) ? (int) $c['upvotes'] : null,
                     'content' => (string) $c['content'],
+                    'selected' => preg_match('/^[A-Z]{1,10}$/', $selected) === 1 ? $selected : '',
+                    'reply' => (string) ($c['parent_id'] ?? '') !== '',
                 ];
             }
         }
         $text = trim((string) ($q['comments_text'] ?? ''));
         if ($out === [] && $text !== '') {
-            $out[] = ['author' => '', 'timestamp' => '', 'upvotes' => null, 'content' => $text];
+            $out[] = ['author' => '', 'timestamp' => '', 'upvotes' => null, 'content' => $text, 'selected' => '', 'reply' => false];
         }
         return $out;
     }

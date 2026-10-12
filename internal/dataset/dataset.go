@@ -82,6 +82,11 @@ type Comment struct {
 	Timestamp string `json:"timestamp"`
 	Upvotes   int    `json:"upvotes"`
 	Content   string `json:"content"`
+	// SelectedAnswer is the answer a voting comment chose ("Selected Answer: AD").
+	SelectedAnswer string `json:"selected_answer,omitempty"`
+	// ID and ParentID identify the comment and, for a reply, the comment it answers.
+	ID       string `json:"id,omitempty"`
+	ParentID string `json:"parent_id,omitempty"`
 }
 
 type Question struct {
@@ -96,6 +101,9 @@ type Question struct {
 	SuggestedAnswer string    `json:"suggested_answer"`
 	AnswerET        string    `json:"answer_et,omitempty"`
 	CommunityVotes  []Vote    `json:"community_votes"`
+	// VotesFromComments marks community votes counted from the comments' selected answers
+	// (each voting comment counts once plus once per upvote), because the page showed no tally.
+	VotesFromComments bool `json:"votes_from_comments,omitempty"`
 	Explanation     string    `json:"explanation"`
 	QuestionImages  []string  `json:"question_images"`
 	AnswerImages    []string  `json:"answer_images"`

@@ -134,9 +134,10 @@ final class PdfRenderer
                             $head = array_filter([
                                 $c['author'] !== '' ? '<strong>' . $h($c['author']) . '</strong>' : null,
                                 $c['timestamp'] !== '' ? $h($c['timestamp']) : null,
+                                $c['selected'] !== '' ? 'selected ' . $h($c['selected']) : null,
                                 $c['upvotes'] !== null ? $c['upvotes'] . ' upvote' . ($c['upvotes'] === 1 ? '' : 's') : null,
                             ]);
-                            $b[] = '<div class="comment">' . ($head ? '<div class="c-head">' . implode(' · ', $head) . '</div>' : '')
+                            $b[] = '<div class="comment' . ($c['reply'] ? ' reply' : '') . '">' . ($head ? '<div class="c-head">' . implode(' · ', $head) . '</div>' : '')
                                 . '<div>' . $text($c['content']) . '</div></div>';
                         }
                         $b[] = '</div>';
@@ -214,6 +215,7 @@ table.choices td.letter { width: 16pt; font-weight: bold; }
 .discussion { margin-top: 4pt; }
 .comment { border-left: 2pt solid #d4dade; padding: 1pt 6pt; margin: 3pt 0; font-size: 8.5pt; page-break-inside: avoid; }
 .c-head { color: #5b6770; }
+.comment.reply { margin-left: 14pt; }
 .img img { max-width: 100%; max-height: 120mm; margin: 3pt 0; }
 .img-missing { color: #5b6770; font-size: 8pt; word-wrap: break-word; }
 .key { page-break-before: always; }

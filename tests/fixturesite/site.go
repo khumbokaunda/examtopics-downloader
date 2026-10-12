@@ -32,6 +32,9 @@ type Question struct {
 	Image     string   // optional image path inside .card-text
 	Suffix    bool     // link ends with "-discussion"
 	Absolute  bool     // href is absolute
+	// Modern renders the 2026 page layout: inline choices, no suggested answer or vote
+	// tally, and structured comments whose selected answers and upvotes add up to Votes.
+	Modern bool
 }
 
 type Vote struct {
@@ -103,6 +106,7 @@ func Default(opts Options) *Site {
 	}
 	for n := 1; n <= 3; n++ {
 		add("h19-301", "H19-301", 2, n, false, false)
+		s.questions[len(s.questions)-1].Modern = true
 	}
 	return s
 }
@@ -215,6 +219,10 @@ func (s *Site) listing(w http.ResponseWriter, n int) {
 func (s *Site) question(w http.ResponseWriter, r *http.Request, path string) {
 	for _, q := range s.questions {
 		if q.Path() == path || strings.TrimSuffix(q.Path(), "/") == path {
+			if q.Modern {
+				page(w, "Question", modernQuestion(q))
+				return
+			}
 			var b strings.Builder
 			fmt.Fprintf(&b, "<h1>Exam %s topic %d question %d discussion</h1>\n", html.EscapeString(q.ExamName), q.Topic, q.Number)
 			fmt.Fprintf(&b, "<div class=\"question-discussion-header\">\n\tActual exam question from\n\n\tHuawei's\n\t%s\n\n\tQuestion #: %d\n\tTopic #: %d\n\n\t[All %s Questions]\n</div>\n",
@@ -247,6 +255,49 @@ func (s *Site) question(w http.ResponseWriter, r *http.Request, path string) {
 		}
 	}
 	http.NotFound(w, r)
+}
+
+// modernQuestion renders the 2026 discussion layout (see internal/fetch/extract.go).
+func modernQuestion(q Question) string {
+	var b strings.Builder
+	esc := html.EscapeString
+	fmt.Fprintf(&b, "<h1><i class=\"fa fa-file-text-o\"></i>Exam %s topic %d question %d discussion</h1>\n", esc(q.ExamName), q.Topic, q.Number)
+	b.WriteString("<div class=\"discussion-header-container\">\n<div>\n Actual exam question from Huawei's\n")
+	fmt.Fprintf(&b, " <a class=\"discussion-link\" href=\"/exams/huawei/%s/view/\">%s</a>\n <div>\n Question #: %d<br>\n Topic #: %d\n </div>\n", esc(q.Exam), esc(q.ExamName), q.Number, q.Topic)
+	fmt.Fprintf(&b, " <a class=\"all-questions-link\" href=\"/exams/huawei/%s/view/\">[All %s Questions]</a>\n</div>\n", esc(q.Exam), esc(q.ExamName))
+	b.WriteString("<div class=\"question-body\">\n<p class=\"card-text\">\n" + strings.ReplaceAll(esc(q.Text), "\n", "<br>\n") + "<br>\n")
+	if q.Image != "" {
+		fmt.Fprintf(&b, "<img src=\"%s\"><br>\n", esc(q.Image))
+	}
+	for _, c := range q.Choices {
+		letter, text, _ := strings.Cut(c, ". ")
+		fmt.Fprintf(&b, "  <br>%s.\n      %s<br>\n", esc(letter), esc(text))
+	}
+	fmt.Fprintf(&b, "</p>\n<a class=\"btn btn-primary\" href=\"/exams/huawei/%s/view/\">Show Suggested Answer</a>\n</div>\n", esc(q.Exam))
+	b.WriteString("<div class=\"mt-3 pt-1 border-top\">\n by <i class=\"fa fa-user-o\"></i> poster at <i> October 01, 2026 10:00 am</i>\n</div>\n</div>\n")
+	b.WriteString("<div class=\"discussion-container\">\n")
+	comment := func(id, user, answer, text string, upvotes int, replies string) string {
+		badge := ""
+		if answer != "" {
+			badge = fmt.Sprintf("<div class=\"badge badge-warning\">Selected Answer: <span><strong>%s</strong></span></div>", esc(answer))
+		}
+		return fmt.Sprintf(`<div class="media comment-container" data-comment-id="%s"><div class="media-body">
+<div><h5 class="comment-username">%s</h5> <span class="comment-date" title="October 0%s, 2026 09:00 am">some days ago</span></div>
+<div class="comment-body">%s<div class="comment-content">%s</div>
+<div class="comment-control"><span class="upvote-text">upvoted <span class="upvote-count">%d times</span></span></div>
+<div class="comment-replies">%s</div></div></div></div>
+`, esc(id), esc(user), esc(id[len(id)-1:]), badge, esc(text), upvotes, replies)
+	}
+	for i, v := range q.Votes {
+		replies := ""
+		if i == 0 {
+			replies = comment(fmt.Sprintf("%d9", q.ID), "bob", "", "Agreed.", 0, "")
+		}
+		b.WriteString(comment(fmt.Sprintf("%d%d", q.ID, i+1), fmt.Sprintf("voter%d", i+1), v.Answers,
+			fmt.Sprintf("I think it is %s.\nBecause of the RFC.", v.Answers), v.Count-1, replies))
+	}
+	b.WriteString("</div>\n")
+	return b.String()
 }
 
 // --- GitHub cached-data imitation (EXAMTOPICS_GITHUB_API=<server>/gh) ---

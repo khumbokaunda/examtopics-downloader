@@ -59,7 +59,8 @@ Written atomically by `examtopics-downloader -exam <code> -out-json <path>`.
   "explanation": "",
   "question_images": ["https://www.examtopics.com/assets/media/exam-media/…png"],
   "answer_images": [],
-  "comments": [ { "author": "user1", "timestamp": "…", "upvotes": 12, "content": "Line one\nLine two" } ],
+  "comments": [ { "author": "user1", "timestamp": "…", "upvotes": 12, "content": "Line one\nLine two",
+                  "selected_answer": "AD", "id": "1802619", "parent_id": "" } ],
   "comments_text": "",
   "source_url": "https://www.examtopics.com/discussions/google/view/54119-exam-…/",
   "timestamp": "June 1, 2021, 8:11 p.m."
@@ -71,8 +72,9 @@ Written atomically by `examtopics-downloader -exam <code> -out-json <path>`.
 | `number` | 1…n in dataset order (topic, then question number; for cached files, file then in-file order). |
 | `id` | Discussion ID (live) or source question ID (cache). Unique within a dataset. |
 | `answer` / `answer_source` | Best available answer: `suggested` (ExamTopics' suggested answer) if present, otherwise `community` (most-voted), otherwise empty. Multi-letter answers (`BE`) are never truncated. |
-| `comments` | Structured comments. Populated from the cached dataset, which provides them structured. |
-| `comments_text` | Unstructured comment text with line breaks preserved. Used by the live scraper until the ExamTopics comment markup is confirmed (see AUDIT.md, uncertainty 1). |
+| `comments` | Structured comments, from the cached dataset and from live pages in the 2026 layout. `selected_answer` is the answer a voting comment chose; `id` and `parent_id` link a reply to its comment (both optional). |
+| `comments_text` | Unstructured comment text with line breaks preserved, for pages in the older layout whose comments are not structured. Empty when `comments` is filled from the page. |
+| `votes_from_comments` | Optional, `true` when `community_votes` was counted from the comments because the page showed no tally: each voting comment counts once for its selected answer, plus once per upvote, as ExamTopics describes its vote count. |
 | `answer_et` | Cached-source field `answer_ET`, kept verbatim; meaning unverified. |
 | Text fields | Plain text with `\n` line breaks. HTML fragments from the source are converted to text and their `<img>` sources moved into the image arrays. Consumers must still escape text when rendering. |
 

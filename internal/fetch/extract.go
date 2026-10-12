@@ -2,6 +2,7 @@ package fetch
 
 import (
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"sort"
 	"strconv"
@@ -17,6 +18,16 @@ import (
 // Parsing rules below are based on evidence recorded in docs/AUDIT.md: the
 // question-discussion header lines, "Suggested Answer: BE 🗳️" inside .card-text, and
 // "A. text" choices, all observed in examples/.
+//
+// ExamTopics changed the discussion page by 2026 (a page saved in October 2026):
+//   - the header is .discussion-header-container (its first div) instead of
+//     .question-discussion-header;
+//   - the choices are lines inside p.card-text ("<br>A. text") instead of li.multi-choice-item;
+//   - there is no suggested answer, only a "Show Suggested Answer" link to the paywalled exam
+//     page, and no vote tally;
+//   - comments are .comment-container blocks with a username, a dated span, an optional
+//     "Selected Answer: X" badge, the text, an upvote count and nested replies.
+// Both layouts are parsed; for the new one the community votes are counted from the comments.
 
 var (
 	suggestedAnswerRE = regexp.MustCompile(`Suggested Answer:\s*([A-Z]+)`)
@@ -27,6 +38,9 @@ var (
 	lettersOnlyRE     = regexp.MustCompile(`^[A-Z]+$`)
 	horizontalSpaceRE = regexp.MustCompile(`[ \t\x{00A0}\x{200B}]+`)
 	examTitleRE       = regexp.MustCompile(`(?i)^exam\s+(.+?)\s+topic\s+\d+\s+question\s+\d+(?:\s+discussion)?$`)
+	choiceLineRE      = regexp.MustCompile(`^([A-Z])\.\s*(.*)$`)
+	selectedAnswerRE  = regexp.MustCompile(`Selected Answer:\s*([A-Z]+)`)
+	upvotesRE         = regexp.MustCompile(`(\d+)`)
 )
 
 // CleanMultiline normalises whitespace while keeping line structure: runs of spaces collapse,
@@ -164,6 +178,176 @@ func parseVoteTally(doc *goquery.Document) []tallyVote {
 	return votes
 }
 
+// questionHeader returns the header text in either page layout.
+func questionHeader(doc *goquery.Document) string {
+	if h := doc.Find(".question-discussion-header"); h.Length() > 0 {
+		return strings.TrimSpace(h.First().Text())
+	}
+	return strings.TrimSpace(doc.Find(".discussion-header-container").ChildrenFiltered("div").First().Text())
+}
+
+// posterTimestamp reads "by <user> at <i>April 18, 2026 06:42 pm</i>" under the question in
+// the 2026 layout.
+func posterTimestamp(doc *goquery.Document) string {
+	ts := ""
+	doc.Find(".discussion-header-container").ChildrenFiltered("div").Each(func(_ int, d *goquery.Selection) {
+		if ts != "" || !strings.HasPrefix(strings.TrimSpace(d.Text()), "by") {
+			return
+		}
+		d.Find("i").Each(func(_ int, i *goquery.Selection) {
+			if t := strings.TrimSpace(i.Text()); t != "" {
+				ts = t
+			}
+		})
+	})
+	return ts
+}
+
+// splitInlineChoices separates "stem / A. one / B. two" text (the 2026 layout puts the choices
+// inside the question text) into the stem and the choices. Letters must run A, B, C... from
+// the first "A." line, and there must be at least two, or the text is left whole: a stem that
+// merely contains "A." stays intact.
+func splitInlineChoices(text string) (string, []dataset.Choice) {
+	lines := strings.Split(text, "\n")
+	start := -1
+	for i, l := range lines {
+		if m := choiceLineRE.FindStringSubmatch(strings.TrimSpace(l)); m != nil && m[1] == "A" {
+			start = i
+			break
+		}
+	}
+	if start == -1 {
+		return text, nil
+	}
+	var choices []dataset.Choice
+	next := 'A'
+	for _, l := range lines[start:] {
+		l = strings.TrimSpace(l)
+		if m := choiceLineRE.FindStringSubmatch(l); m != nil && rune(m[1][0]) == next {
+			choices = append(choices, dataset.Choice{Letter: m[1], Text: m[2]})
+			next++
+			continue
+		}
+		if l == "" || len(choices) == 0 {
+			continue
+		}
+		c := &choices[len(choices)-1]
+		if c.Text == "" {
+			c.Text = l
+		} else {
+			c.Text += "\n" + l
+		}
+	}
+	if len(choices) < 2 {
+		return text, nil
+	}
+	return strings.TrimSpace(strings.Join(lines[:start], "\n")), choices
+}
+
+// parseComments reads the 2026 .comment-container blocks, replies included, in page order.
+// It returns nil when the page has none (older layouts keep their comments as text).
+func parseComments(doc *goquery.Document) []dataset.Comment {
+	var out []dataset.Comment
+	doc.Find(".discussion-container .comment-container").Each(func(_ int, c *goquery.Selection) {
+		body := c.ChildrenFiltered(".media-body").First()
+		head := body.ChildrenFiltered("div").First()
+		main := body.ChildrenFiltered(".comment-body").First()
+
+		ts := ""
+		if d := head.Find(".comment-date").First(); d.Length() > 0 {
+			ts = strings.TrimSpace(d.AttrOr("title", ""))
+			if ts == "" {
+				ts = strings.TrimSpace(d.Text())
+			}
+		}
+		selected := ""
+		main.ChildrenFiltered(".badge").Each(func(_ int, b *goquery.Selection) {
+			if m := selectedAnswerRE.FindStringSubmatch(strings.Join(strings.Fields(b.Text()), " ")); m != nil {
+				selected = m[1]
+			}
+		})
+		upvotes := 0
+		if m := upvotesRE.FindStringSubmatch(main.ChildrenFiltered(".comment-control").Find(".upvote-count").First().Text()); m != nil {
+			upvotes, _ = strconv.Atoi(m[1])
+		}
+		contentNode := main.ChildrenFiltered(".comment-content").First()
+		html, _ := contentNode.Html()
+		content, imgs := HTMLToText(html)
+		for _, img := range imgs {
+			content += "\n[image: " + img + "]"
+		}
+		parent := ""
+		if p := c.Parent().Closest(".comment-container"); p.Length() > 0 {
+			parent = p.AttrOr("data-comment-id", "")
+		}
+		out = append(out, dataset.Comment{
+			ID:             strings.TrimSpace(c.AttrOr("data-comment-id", "")),
+			ParentID:       strings.TrimSpace(parent),
+			Author:         strings.TrimSpace(head.Find(".comment-username").First().Text()),
+			Timestamp:      ts,
+			Upvotes:        upvotes,
+			SelectedAnswer: selected,
+			Content:        strings.TrimSpace(content),
+		})
+	})
+	return out
+}
+
+// votesFromComments counts the community vote the way ExamTopics describes it: a voting
+// comment counts once for its selected answer, and every upvote of it counts once more.
+func votesFromComments(comments []dataset.Comment) []dataset.Vote {
+	counts := map[string]int{}
+	for _, c := range comments {
+		if c.SelectedAnswer != "" {
+			counts[c.SelectedAnswer] += 1 + c.Upvotes
+		}
+	}
+	votes := make([]dataset.Vote, 0, len(counts))
+	for a, n := range counts {
+		votes = append(votes, dataset.Vote{Answer: a, Count: n})
+	}
+	sort.Slice(votes, func(i, j int) bool {
+		if votes[i].Count != votes[j].Count {
+			return votes[i].Count > votes[j].Count
+		}
+		return votes[i].Answer < votes[j].Answer
+	})
+	if len(votes) > 0 {
+		votes[0].MostVoted = true
+	}
+	return votes
+}
+
+// legacyComments renders structured comments for the legacy record, one per paragraph.
+func legacyComments(comments []dataset.Comment) string {
+	var b strings.Builder
+	for i, c := range comments {
+		if i > 0 {
+			b.WriteString("\n\n")
+		}
+		meta := []string{}
+		if c.Timestamp != "" {
+			meta = append(meta, c.Timestamp)
+		}
+		if c.SelectedAnswer != "" {
+			meta = append(meta, "selected "+c.SelectedAnswer)
+		}
+		if c.Upvotes > 0 {
+			meta = append(meta, fmt.Sprintf("%d upvotes", c.Upvotes))
+		}
+		who := c.Author
+		if c.ParentID != "" {
+			who = "↳ " + who
+		}
+		b.WriteString(who)
+		if len(meta) > 0 {
+			b.WriteString(" (" + strings.Join(meta, ", ") + ")")
+		}
+		b.WriteString(": " + c.Content)
+	}
+	return b.String()
+}
+
 // parseQuestionPage extracts both the legacy record (unchanged CLI output) and the
 // normalised dataset record from one discussion page, plus the exam display name.
 func parseQuestionPage(doc *goquery.Document, link string) (models.QuestionData, dataset.Question, string) {
@@ -185,38 +369,9 @@ func parseQuestionPage(doc *goquery.Document, link string) (models.QuestionData,
 	})
 
 	votes := parseVoteTally(doc)
+	comments := parseComments(doc)
 
-	// Legacy answer: most-voted community answer, else the legacy .correct-answer
-	// selector. The fallback previously kept only the first character, truncating
-	// multi-answer questions ("BE" became "B").
-	legacyAnswer := ""
-	for _, v := range votes {
-		if v.IsMostVoted {
-			legacyAnswer = v.VotedAnswers
-			break
-		}
-	}
-	if legacyAnswer == "" && len(votes) > 0 {
-		legacyAnswer = votes[0].VotedAnswers
-	}
-	correctText := strings.Join(strings.Fields(doc.Find(".correct-answer").Text()), "")
-	if legacyAnswer == "" && correctText != "" {
-		legacyAnswer = correctText
-	}
-
-	headerText := strings.TrimSpace(doc.Find(".question-discussion-header").Text())
-	legacy := models.QuestionData{
-		Title:        utils.CleanText(doc.Find("h1").Text()),
-		Header:       strings.ReplaceAll(headerText, "\t", ""),
-		Content:      utils.CleanText(doc.Find(".card-text").Text()),
-		Questions:    choiceLines,
-		Answer:       legacyAnswer,
-		Timestamp:    utils.CleanText(doc.Find(".discussion-meta-data > i").Text()),
-		QuestionLink: link,
-		Comments:     utils.CleanText(doc.Find(".discussion-container").Text()),
-	}
-
-	// Normalised record.
+	headerText := questionHeader(doc)
 	topic, qnum, examName := parseHeader(headerText)
 	card := doc.Find(".card-text")
 	cardText := card.Text()
@@ -227,6 +382,73 @@ func parseQuestionPage(doc *goquery.Document, link string) (models.QuestionData,
 	if i := strings.Index(cardText, "Suggested Answer:"); i >= 0 {
 		cardText = cardText[:i]
 	}
+	text := CleanMultiline(cardText)
+	if len(choices) == 0 {
+		// 2026 layout: the choices are lines of the question text, after <br> breaks.
+		html, _ := card.First().Html()
+		full, _ := HTMLToText(html)
+		if stem, inline := splitInlineChoices(full); len(inline) > 0 {
+			text, choices = stem, inline
+			for _, c := range inline {
+				choiceLines = append(choiceLines, c.Letter+". "+strings.ReplaceAll(c.Text, "\n", " "))
+			}
+		}
+	}
+
+	var dsVotes []dataset.Vote
+	for _, v := range votes {
+		dsVotes = append(dsVotes, dataset.Vote{Answer: v.VotedAnswers, Count: v.VoteCount, MostVoted: v.IsMostVoted})
+	}
+	fromComments := false
+	if len(dsVotes) == 0 && len(comments) > 0 {
+		dsVotes = votesFromComments(comments)
+		fromComments = len(dsVotes) > 0
+	}
+
+	// Legacy answer: most-voted community answer, else the legacy .correct-answer
+	// selector. The fallback previously kept only the first character, truncating
+	// multi-answer questions ("BE" became "B").
+	legacyAnswer := ""
+	for _, v := range dsVotes {
+		if v.MostVoted {
+			legacyAnswer = v.Answer
+			break
+		}
+	}
+	if legacyAnswer == "" && len(dsVotes) > 0 {
+		legacyAnswer = dsVotes[0].Answer
+	}
+	correctText := strings.Join(strings.Fields(doc.Find(".correct-answer").Text()), "")
+	if legacyAnswer == "" && correctText != "" {
+		legacyAnswer = correctText
+	}
+	if fromComments && legacyAnswer != "" {
+		legacyAnswer += " (most voted in the comments; ExamTopics shows no suggested answer on this page)"
+	}
+
+	timestamp := utils.CleanText(doc.Find(".discussion-meta-data > i").Text())
+	if timestamp == "" {
+		timestamp = posterTimestamp(doc)
+	}
+	legacyContent := utils.CleanText(doc.Find(".card-text").Text())
+	commentsText := CleanMultiline(doc.Find(".discussion-container").Text())
+	legacyCommentText := utils.CleanText(doc.Find(".discussion-container").Text())
+	if len(comments) > 0 {
+		legacyContent = utils.CleanText(text)
+		commentsText = ""
+		legacyCommentText = legacyComments(comments)
+	}
+	legacy := models.QuestionData{
+		Title:        utils.CleanText(doc.Find("h1").Text()),
+		Header:       strings.ReplaceAll(headerText, "\t", ""),
+		Content:      legacyContent,
+		Questions:    choiceLines,
+		Answer:       legacyAnswer,
+		Timestamp:    timestamp,
+		QuestionLink: link,
+		Comments:     legacyCommentText,
+	}
+
 	if suggested == "" && lettersOnlyRE.MatchString(correctText) {
 		suggested = correctText
 	}
@@ -238,20 +460,18 @@ func parseQuestionPage(doc *goquery.Document, link string) (models.QuestionData,
 	})
 
 	q := dataset.Question{
-		Topic:           topic,
-		QuestionNumber:  qnum,
-		Text:            CleanMultiline(cardText),
-		Choices:         choices,
-		SuggestedAnswer: suggested,
-		QuestionImages:  images,
-		// Comment markup is unverified (docs/AUDIT.md, uncertainty 1): keep the text with its
-		// line structure instead of guessing per-comment selectors.
-		CommentsText: CleanMultiline(doc.Find(".discussion-container").Text()),
-		SourceURL:    link,
-		Timestamp:    legacy.Timestamp,
-	}
-	for _, v := range votes {
-		q.CommunityVotes = append(q.CommunityVotes, dataset.Vote{Answer: v.VotedAnswers, Count: v.VoteCount, MostVoted: v.IsMostVoted})
+		Topic:             topic,
+		QuestionNumber:    qnum,
+		Text:              text,
+		Choices:           choices,
+		SuggestedAnswer:   suggested,
+		QuestionImages:    images,
+		Comments:          comments,
+		CommentsText:      commentsText,
+		CommunityVotes:    dsVotes,
+		VotesFromComments: fromComments,
+		SourceURL:         link,
+		Timestamp:         timestamp,
 	}
 	if ref, ok := parseDiscussionPath(link); ok {
 		q.ID = ref.ID
