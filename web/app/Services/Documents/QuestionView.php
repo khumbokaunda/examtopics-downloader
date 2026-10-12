@@ -10,6 +10,88 @@ namespace App\Services\Documents;
  */
 final class QuestionView
 {
+    /**
+     * A question as every renderer should see it. Collections made before the 2026 page
+     * layout was understood kept the choices inside the question text ("A." on one line,
+     * its text on the next) and picked up the page's sign-in box ("Forgot my password").
+     * The choices are split back out and that line is dropped, so old data shows properly.
+     *
+     * @param array<string,mixed> $q
+     * @return array<string,mixed>
+     */
+    public static function normalize(array $q): array
+    {
+        $lines = preg_split('/\R/', (string) ($q['text'] ?? '')) ?: [];
+        $lines = array_filter($lines, static fn(string $l) => strcasecmp(trim($l), 'Forgot my password') !== 0);
+        $text = trim(implode("\n", $lines));
+        if (array_filter((array) ($q['choices'] ?? []), 'is_array') === []) {
+            [$stem, $choices] = self::splitChoices($text);
+            if ($choices !== []) {
+                $q['choices'] = $choices;
+                $text = $stem;
+            }
+        }
+        $q['text'] = $text;
+        return $q;
+    }
+
+    /**
+     * Lines "A." to "Z." (in order, with the text on the same or following lines) after the
+     * stem become choices; at least two are needed. Mirrors the collection tool's parser.
+     *
+     * @return array{0:string,1:list<array{letter:string,text:string}>}
+     */
+    private static function splitChoices(string $text): array
+    {
+        $lines = explode("\n", $text);
+        $start = null;
+        foreach ($lines as $i => $l) {
+            if (preg_match('/^A\.(\s|$)/', trim($l)) === 1) {
+                $start = $i;
+                break;
+            }
+        }
+        if ($start === null) {
+            return [$text, []];
+        }
+        $choices = [];
+        $next = 'A';
+        foreach (array_slice($lines, $start) as $l) {
+            $l = trim($l);
+            if (preg_match('/^([A-Z])\.\s*(.*)$/', $l, $m) === 1 && $m[1] === $next) {
+                $choices[] = ['letter' => $m[1], 'text' => $m[2]];
+                $next = chr(ord($next) + 1);
+                continue;
+            }
+            if ($l === '' || $choices === []) {
+                continue;
+            }
+            $last = count($choices) - 1;
+            $choices[$last]['text'] = $choices[$last]['text'] === '' ? $l : $choices[$last]['text'] . "\n" . $l;
+        }
+        if (count($choices) < 2) {
+            return [$text, []];
+        }
+        return [trim(implode("\n", array_slice($lines, 0, $start))), $choices];
+    }
+
+    /**
+     * Question text as paragraphs: blank lines separate them, single line breaks (exhibit
+     * output, configuration) are kept inside a paragraph.
+     *
+     * @return list<string> escaped HTML, one entry per paragraph
+     */
+    public static function paragraphs(string $text): array
+    {
+        $out = [];
+        foreach (preg_split('/\n\s*\n/', trim($text)) ?: [] as $para) {
+            if (trim($para) !== '') {
+                $out[] = nl2br(htmlspecialchars(trim($para), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'), false);
+            }
+        }
+        return $out;
+    }
+
     /** @param array<string,mixed> $q */
     public static function answerLine(array $q): ?string
     {

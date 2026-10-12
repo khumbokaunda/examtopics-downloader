@@ -23,7 +23,7 @@ use Throwable;
 final class DocumentStore
 {
     /** Bump when rendering output changes, so stale documents are regenerated. */
-    public const RENDERER_VERSION = 3;
+    public const RENDERER_VERSION = 4;
     public const FORMATS = ['md' => 'text/markdown; charset=utf-8', 'pdf' => 'application/pdf'];
 
     public function __construct(
@@ -189,6 +189,8 @@ final class DocumentStore
                 @ini_set('memory_limit', (string) $this->config->get('documents.pdf_memory_limit', '1024M'));
             }
             $dataset = $this->cache->load($version, true);
+            $dataset['questions'] = array_map([\App\Services\Documents\QuestionView::class, 'normalize'],
+                array_values(array_filter((array) ($dataset['questions'] ?? []), 'is_array')));
             $meta = $this->meta($version, $dataset);
             $content = $format === 'md'
                 ? (new MarkdownRenderer())->render($dataset, $meta, $variant)

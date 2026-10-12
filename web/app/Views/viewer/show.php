@@ -59,14 +59,14 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                 <h2 class="q-number"><span class="num">Question <?= $n ?></span></h2>
                 <span class="q-meta"><?= e(QuestionView::meta($item)) ?></span>
             </div>
-            <div class="q-text"><?= nl2br(e(trim((string) ($item['text'] ?? ''))), false) ?></div>
+            <div class="q-text"><?php foreach (QuestionView::paragraphs((string) ($item['text'] ?? '')) as $para): ?><p><?= $para ?></p><?php endforeach; ?></div>
             <?php foreach ((array) ($item['question_images'] ?? []) as $i => $u): ?><?= $img((string) $u, 'Question image ' . ($i + 1)) ?><?php endforeach; ?>
             <?php if (($item['choices'] ?? []) !== []): ?>
-                <ol class="choices">
+                <ul class="list-unstyled choices">
                     <?php foreach ((array) $item['choices'] as $c): $letter = (string) ($c['letter'] ?? ''); ?>
-                        <li class="choice<?= $letter !== '' && in_array($letter, $answerLetters, true) ? ' is-answer' : '' ?>"><span class="choice-letter"><?= e($letter) ?></span><span><?= nl2br(e((string) ($c['text'] ?? '')), false) ?></span></li>
+                        <li class="choice<?= $letter !== '' && in_array($letter, $answerLetters, true) ? ' is-answer' : '' ?>"><span class="choice-letter"><?= e($letter) ?>.</span> <span class="choice-text"><?= nl2br(e((string) ($c['text'] ?? '')), false) ?></span></li>
                     <?php endforeach; ?>
-                </ol>
+                </ul>
             <?php endif; ?>
 
             <?php if ($practice): ?>
