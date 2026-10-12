@@ -51,6 +51,14 @@ final class UserRepository
         $this->db->run('UPDATE users SET preferences = ? WHERE id = ?', [json_encode($preferences, JSON_UNESCAPED_SLASHES), $id]);
     }
 
+    public function hasColumn(string $column): bool
+    {
+        return (int) $this->db->value(
+            'SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?',
+            ['users', $column]
+        ) > 0;
+    }
+
     public function touchLogin(int $id): void
     {
         $this->db->run('UPDATE users SET last_login_at = ? WHERE id = ?', [Database::now(), $id]);
