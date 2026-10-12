@@ -86,8 +86,12 @@ The job page shows the tool's own failure message and its exit code:
 rejected file stays in `storage/jobs/<id>/output.json` for inspection. Nothing is published
 and the previous version stays current.
 
-Repeated HTTP 429 means ExamTopics is rate-limiting you. Use the 0.5 or 0.25 requests/second
-pacing on the Collect page.
+Repeated HTTP 429 means ExamTopics is rate-limiting you. Each page is tried six times with
+increasing waits; pages that still fail with a temporary error (429, 502, 503, 504 or a
+dropped connection) get one more try after a 60-second pause, after every other page is done.
+Only pages that fail that second pass are reported. If you still see them, use the 0.5 or
+0.25 requests/second pacing on the Collect page, or refresh again later. Hover or open
+**Details** under an error in the providers table to see every failed page.
 
 ### PDF generation fails or times out
 

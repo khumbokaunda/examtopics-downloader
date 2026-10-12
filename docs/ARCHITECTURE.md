@@ -56,6 +56,13 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
   subsets), Bootstrap Icons (MIT) and Bootstrap's CSS are served from `public/assets/vendor`.
   A unit test fails if a template or stylesheet names another host or a referenced asset is
   missing. Asset URLs carry the file's modification time, so a deploy is never served stale.
+- **Data tables**: every list (providers, a provider's exams, the collect picker, the
+  library, jobs, sign-in attempts) is a `table[data-table]` enhanced by `js/data-table.js`:
+  search, sorting (Shift+click adds a second column), page sizes, a pager, a status line,
+  column visibility, CSV export and copy. Each table's state is saved in the browser per page
+  and table, and restored on the next visit. Without JavaScript the table is a complete list.
+  Server-side filters (provider, status, job type) stay as links and selects; the jobs page
+  loads the latest 1,000 jobs and says so when there are more.
 - **Behaviour** lives in `js/app.js`: sidebar collapse and the phone drawer, the user menu,
   the Ctrl K command palette (pages, plus cached exams and providers from `/api/palette`), the
   confirmation dialog that replaces `window.confirm`, live job progress and practice-mode

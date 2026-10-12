@@ -2,13 +2,16 @@ package fetch
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"examtopics-downloader/internal/constants"
 	"examtopics-downloader/internal/dataset"
@@ -158,19 +161,23 @@ func joinLines(lines []string) string {
 }
 
 // collectListingLinks walks every listing page and returns the anchors keep accepts, the
-// number of pages that could not be fetched, and their error summaries.
+// number of pages that could not be fetched, and their error summaries. Pages that fail with
+// a transient error get one more chance after a cooldown (see retryFailed).
 func collectListingLinks(providerName string, numPages int, keep func(href string) bool) ([]listingLink, int, []string) {
 	var (
-		failedPages int32
-		done        int32
-		wg          sync.WaitGroup
-		mu          sync.Mutex
-		errs        []string
+		done   int32
+		wg     sync.WaitGroup
+		mu     sync.Mutex
+		failed = map[int]error{}
+		all    = make([]listingLink, 0, numPages*10) // about 10 questions per listing page
 	)
 	sem := make(chan struct{}, constants.MaxConcurrentRequests)
-	results := make(chan []listingLink, numPages)
 	bar := newBar(numPages)
 	startTime := utils.StartTime()
+	pageURL := func(i int) string {
+		// The trailing slash is required; without it ExamTopics returns 404.
+		return fmt.Sprintf("%s/discussions/%s/%d/", utils.BaseURL, providerName, i)
+	}
 
 	for i := 1; i <= numPages; i++ {
 		wg.Add(1)
@@ -179,38 +186,110 @@ func collectListingLinks(providerName string, numPages int, keep func(href strin
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			// The trailing slash is required; without it ExamTopics returns 404.
-			url := fmt.Sprintf("%s/discussions/%s/%d/", utils.BaseURL, providerName, i)
-			links, err := getLinksFromPage(url, keep)
+			links, err := getLinksFromPage(pageURL(i), keep)
+			mu.Lock()
 			if err != nil {
-				atomic.AddInt32(&failedPages, 1)
-				msg := fmt.Sprintf("listing page %d: %v", i, err)
-				log.Print(msg)
-				reporter.Warning("listing_pages", msg)
-				mu.Lock()
-				errs = append(errs, msg)
-				mu.Unlock()
+				failed[i] = err
+				log.Printf("listing page %d: %v", i, err)
+			} else {
+				all = append(all, links...)
 			}
-			results <- links
+			mu.Unlock()
 			bar.Increment()
 			reporter.Progress("listing_pages", int(atomic.AddInt32(&done, 1)), numPages)
 		}(i)
 	}
-
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
-
-	// about 10 questions per examtopics page, we can preallocate
-	all := make([]listingLink, 0, numPages*10)
-	for res := range results {
-		all = append(all, res...)
-	}
-
+	wg.Wait()
 	bar.Finish()
+
+	pages := make([]int, 0, len(failed))
+	for i := range failed {
+		pages = append(pages, i)
+	}
+	sort.Ints(pages)
+	retryFailed("listing_pages", "listing page", pages, failed, func(i int) error {
+		links, err := getLinksFromPage(pageURL(i), keep)
+		if err == nil {
+			all = append(all, links...)
+		}
+		return err
+	})
+
+	var errs []string
+	for _, i := range pages {
+		if err, ok := failed[i]; ok {
+			msg := fmt.Sprintf("listing page %d: %v", i, err)
+			reporter.Warning("listing_pages", msg)
+			errs = append(errs, msg)
+		}
+	}
 	fmt.Fprintf(out, "Scraping completed in %s.\n", utils.TimeSince(startTime))
-	return all, int(atomic.LoadInt32(&failedPages)), errs
+	return all, len(errs), errs
+}
+
+// RetryCooldown is how long to wait before giving pages that failed with a transient error
+// (rate limiting, an overloaded server, a dropped connection) one more chance. It runs
+// after the first pass, so the site has had a pause from this client.
+// EXAMTOPICS_RETRY_COOLDOWN (seconds) overrides it, for tests.
+var RetryCooldown = retryCooldownFromEnv(60 * time.Second)
+
+func retryCooldownFromEnv(def time.Duration) time.Duration {
+	if v := os.Getenv("EXAMTOPICS_RETRY_COOLDOWN"); v != "" {
+		if secs, err := strconv.Atoi(v); err == nil && secs >= 0 {
+			return time.Duration(secs) * time.Second
+		}
+	}
+	return def
+}
+
+// retryFailed retries, one at a time, the failed items whose error was transient, after
+// RetryCooldown. A success removes the item from failed; a second failure replaces its error.
+func retryFailed[K comparable](phase, what string, keys []K, failed map[K]error, fetch func(K) error) {
+	var retry []K
+	for _, k := range keys {
+		if transient(failed[k]) {
+			retry = append(retry, k)
+		}
+	}
+	if len(retry) == 0 {
+		return
+	}
+	reporter.Phase(phase, fmt.Sprintf("Retrying %d %ss that failed, after a %s pause", len(retry), what, RetryCooldown))
+	fmt.Fprintf(out, "%d %ss failed; retrying them after a %s pause.\n", len(retry), what, RetryCooldown)
+	utils.Sleep(RetryCooldown)
+	for n, k := range retry {
+		if err := fetch(k); err != nil {
+			failed[k] = err
+		} else {
+			delete(failed, k)
+		}
+		reporter.Progress(phase, n+1, len(retry))
+	}
+	recovered := 0
+	for _, k := range retry {
+		if _, still := failed[k]; !still {
+			recovered++
+		}
+	}
+	fmt.Fprintf(out, "Second pass recovered %d of %d %ss.\n", recovered, len(retry), what)
+}
+
+// transient reports whether an error might go away on a later attempt: retries ran out on a
+// retryable status or a transport error. A definite refusal (404, 403) or an exhausted API
+// quota will not.
+func transient(err error) bool {
+	if err == nil {
+		return false
+	}
+	var rl *RateLimitError
+	if errors.As(err, &rl) {
+		return false
+	}
+	var se *StatusError
+	if errors.As(err, &se) {
+		return retryable(se.StatusCode)
+	}
+	return true
 }
 
 // ScrapeResult reports what the live scrape retrieved. The scrape has two
@@ -319,15 +398,14 @@ func uniqueDiscussionLinks(links []listingLink, provider string) []string {
 // that lost questions to rate limiting still reported success.
 func scrapeQuestionPages(links []string) ([]scrapedItem, int, []string) {
 	var (
-		wg              sync.WaitGroup
-		mu              sync.Mutex
-		failedQuestions int32
-		done            int32
-		errs            []string
-		results         = make([]*scrapedItem, len(links))
-		sem             = make(chan struct{}, constants.MaxConcurrentRequests)
-		bar             = newBar(len(links))
-		startTime       = utils.StartTime()
+		wg        sync.WaitGroup
+		mu        sync.Mutex
+		done      int32
+		failed    = map[int]error{}
+		results   = make([]*scrapedItem, len(links))
+		sem       = make(chan struct{}, constants.MaxConcurrentRequests)
+		bar       = newBar(len(links))
+		startTime = utils.StartTime()
 	)
 
 	for i, link := range links {
@@ -338,17 +416,14 @@ func scrapeQuestionPages(links []string) ([]scrapedItem, int, []string) {
 			defer func() { <-sem }()
 
 			item, err := getDataFromLink(url)
+			mu.Lock()
 			if err != nil {
-				atomic.AddInt32(&failedQuestions, 1)
-				msg := fmt.Sprintf("question page %s: %v", url, err)
-				log.Print(msg)
-				reporter.Warning("question_pages", msg)
-				mu.Lock()
-				errs = append(errs, msg)
-				mu.Unlock()
+				failed[i] = err
+				log.Printf("question page %s: %v", url, err)
 			} else {
 				results[i] = &item
 			}
+			mu.Unlock()
 			bar.Increment()
 			reporter.Progress("question_pages", int(atomic.AddInt32(&done, 1)), len(links))
 		}(i, utils.AddToBaseUrl(link))
@@ -356,6 +431,28 @@ func scrapeQuestionPages(links []string) ([]scrapedItem, int, []string) {
 
 	wg.Wait()
 	bar.Finish()
+
+	order := make([]int, 0, len(failed))
+	for i := range failed {
+		order = append(order, i)
+	}
+	sort.Ints(order)
+	retryFailed("question_pages", "question page", order, failed, func(i int) error {
+		item, err := getDataFromLink(utils.AddToBaseUrl(links[i]))
+		if err == nil {
+			results[i] = &item
+		}
+		return err
+	})
+
+	var errs []string
+	for _, i := range order {
+		if err, ok := failed[i]; ok {
+			msg := fmt.Sprintf("question page %s: %v", utils.AddToBaseUrl(links[i]), err)
+			reporter.Warning("question_pages", msg)
+			errs = append(errs, msg)
+		}
+	}
 	fmt.Fprintf(out, "Scraping completed in %s.\n", utils.TimeSince(startTime))
 
 	items := make([]scrapedItem, 0, len(links))
@@ -364,5 +461,5 @@ func scrapeQuestionPages(links []string) ([]scrapedItem, int, []string) {
 			items = append(items, *r)
 		}
 	}
-	return items, int(atomic.LoadInt32(&failedQuestions)), errs
+	return items, len(errs), errs
 }

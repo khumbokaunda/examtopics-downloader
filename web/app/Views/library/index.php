@@ -14,7 +14,7 @@ $filtered = $filters['provider'] !== '' || $filters['q'] !== '' || $filters['sta
             <select class="form-select" name="provider" aria-label="Provider" data-autosubmit>
                 <option value="">All providers</option>
                 <?php foreach ($providers as $p): ?>
-                    <option value="<?= e($p['slug']) ?>" <?= $filters['provider'] === $p['slug'] ? 'selected' : '' ?>><?= e($p['name'] ?: $p['slug']) ?></option>
+                    <option value="<?= e($p['slug']) ?>" <?= $filters['provider'] === $p['slug'] ? 'selected' : '' ?>><?= e(provider_name($p)) ?></option>
                 <?php endforeach; ?>
             </select>
             <select class="form-select" name="status" aria-label="Cache status" data-autosubmit>
@@ -22,8 +22,7 @@ $filtered = $filters['provider'] !== '' || $filters['q'] !== '' || $filters['sta
                 <option value="complete" <?= $filters['status'] === 'complete' ? 'selected' : '' ?>>Complete</option>
                 <option value="partial-only" <?= $filters['status'] === 'partial-only' ? 'selected' : '' ?>>Partial only</option>
             </select>
-            <div class="search-field"><?= icon('search') ?><input class="form-control" type="search" name="q" value="<?= e($filters['q']) ?>" placeholder="Search exam code or name" data-filter-table="#library-table" aria-label="Search"></div>
-            <button class="btn btn-outline-secondary" type="submit">Filter</button>
+            <?php if ($filtered): ?><a class="btn btn-sm btn-link" href="<?= e(url('/library')) ?>">Clear filters</a><?php endif; ?>
         </form>
     </div>
     <?php if ($rows === []): ?>
@@ -32,16 +31,16 @@ $filtered = $filters['provider'] !== '' || $filters['q'] !== '' || $filters['sta
             : empty_state('journal-bookmark', 'Your library is empty', 'Collect an exam to start your library. It is stored on this server and read from here.', ['Collect an exam', url('/collect')]) ?></div>
     <?php else: ?>
     <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0 table-stack" id="library-table">
-            <thead><tr><th>Exam</th><th>Provider</th><th>Collected</th><th class="text-end">Questions</th><th>Status</th><th class="text-end">Documents</th><th class="text-end"><span class="visually-hidden">Actions</span></th></tr></thead>
+        <table class="table table-hover align-middle mb-0 table-stack" id="library-table" data-table="library" data-order='[[0,"asc"]]'>
+            <thead><tr><th>Exam</th><th>Provider</th><th>Collected</th><th class="text-end" data-type="num">Questions</th><th>Status</th><th class="text-end" data-type="num">Documents</th><th class="text-end" data-nosort data-novis data-nosearch data-export="false"><span class="visually-hidden">Actions</span></th></tr></thead>
             <tbody>
             <?php foreach ($rows as $r): $b = $r['best']; $href = url('/library/' . rawurlencode($r['provider_slug']) . '/' . rawurlencode($r['code'])); ?>
-                <tr data-filter-text="<?= e($r['code'] . ' ' . ($r['name'] ?? '')) ?>">
-                    <td class="cell-wrap stack-title"><a class="table-row-link" href="<?= e($href) ?>"><?= e(strtoupper($r['code'])) ?></a>
+                <tr>
+                    <td class="cell-wrap stack-title" data-order="<?= e($r['code']) ?>" data-export="<?= e(strtoupper($r['code'])) ?>"><a class="table-row-link" href="<?= e($href) ?>"><?= e(strtoupper($r['code'])) ?></a>
                         <?php if ($r['name'] && strtolower($r['name']) !== $r['code']): ?><div class="small text-muted"><?= e($r['name']) ?></div><?php endif; ?></td>
-                    <td class="small" data-label="Provider"><?= e($r['provider_name'] ?: $r['provider_slug']) ?></td>
-                    <td class="small" data-label="Collected"><span><?= e(fmt_time($b['collected_at'] ?? null)) ?><span class="d-block text-muted"><?= (int) $r['version_count'] ?> version<?= (int) $r['version_count'] === 1 ? '' : 's' ?></span></span></td>
-                    <td class="text-end" data-label="Questions"><span><?= number_format((int) ($b['collected_count'] ?? 0)) ?><?php if ($r['reported_count'] !== null && (int) $r['reported_count'] !== (int) ($b['collected_count'] ?? 0)): ?><span class="d-block small text-warning" title="Reported by the latest inventory">of <?= number_format((int) $r['reported_count']) ?></span><?php endif; ?></span></td>
+                    <td class="small" data-label="Provider"><?= e(provider_name($r, 'provider_name', 'provider_slug')) ?></td>
+                    <td class="small" data-label="Collected" data-order="<?= e((string) ($b['collected_at'] ?? '')) ?>" data-export="<?= e(fmt_time($b['collected_at'] ?? null)) ?>"><span><?= e(fmt_time($b['collected_at'] ?? null)) ?><span class="d-block text-muted"><?= (int) $r['version_count'] ?> version<?= (int) $r['version_count'] === 1 ? '' : 's' ?></span></span></td>
+                    <td class="text-end" data-label="Questions" data-order="<?= (int) ($b['collected_count'] ?? 0) ?>" data-export="<?= (int) ($b['collected_count'] ?? 0) ?>"><span><?= number_format((int) ($b['collected_count'] ?? 0)) ?><?php if ($r['reported_count'] !== null && (int) $r['reported_count'] !== (int) ($b['collected_count'] ?? 0)): ?><span class="d-block small text-warning" title="Reported by the latest inventory">of <?= number_format((int) $r['reported_count']) ?></span><?php endif; ?></span></td>
                     <td data-label="Status"><span class="chip-group"><?= status_badge($r['cache_status'] === 'complete' ? 'complete' : 'partial') ?><?php if ($r['active_job_id']): ?><a class="chip chip--primary" href="<?= e(url('/jobs/' . (int) $r['active_job_id'])) ?>"><?= icon('arrow-repeat', 'spin') ?>refreshing</a><?php endif; ?></span></td>
                     <td class="text-end" data-label="Documents"><?= (int) $r['document_count'] ?></td>
                     <td class="text-end stack-actions">

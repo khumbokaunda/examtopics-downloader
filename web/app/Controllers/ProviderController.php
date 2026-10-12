@@ -26,7 +26,7 @@ final class ProviderController extends Controller
         $provider = $this->findProvider($slug);
         $q = trim((string) $this->request->query('q', ''));
         return $this->render('providers/show', [
-            'title' => (string) ($provider['name'] ?: $provider['slug']),
+            'title' => (string) (provider_name($provider)),
             'nav' => 'providers',
             'provider' => $provider,
             'q' => mb_substr($q, 0, 100),

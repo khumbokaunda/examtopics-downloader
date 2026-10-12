@@ -44,8 +44,11 @@ final class JobPipelineTest extends WorkflowTestCase
         $job = $this->s->jobs()->find($jobId);
         self::assertSame('completed', $job['status'], (string) $job['error_summary']);
         self::assertNull($job['active_slot']);
+        // The index shows "Huawei (3 exams)": the name is stored clean, the count separately.
         self::assertSame('Huawei', $this->s->providers()->findBySlug('huawei')['name']);
+        self::assertSame(3, (int) $this->s->providers()->findBySlug('huawei')['listed_exam_count']);
         self::assertNotNull($this->s->providers()->findBySlug('cisco'));
+        self::assertNull($this->s->providers()->findBySlug('cisco')['listed_exam_count']);
 
         $this->inventory();
         $p = $this->s->providers()->findBySlug('huawei');

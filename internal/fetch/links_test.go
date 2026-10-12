@@ -73,3 +73,24 @@ func TestTextHelpers(t *testing.T) {
 		t.Errorf("parseHeader: %d %d %q", topic, q, name)
 	}
 }
+
+func TestSplitProviderName(t *testing.T) {
+	for _, c := range []struct {
+		in   string
+		name string
+		n    int
+	}{
+		{"Certinia (1 exams)", "Certinia", 1},
+		{"Checkpoint (22 exams)", "Checkpoint", 22},
+		{"Cisco (1 exam)", "Cisco", 1},
+		{"Cisco", "Cisco", 0},
+		{"Palo Alto Networks  (31 exams)", "Palo Alto Networks", 31},
+		{"(ISC)2 (9 exams)", "(ISC)2", 9},
+		{"Odd (name)", "Odd (name)", 0},
+	} {
+		name, n := SplitProviderName(c.in)
+		if name != c.name || n != c.n {
+			t.Errorf("SplitProviderName(%q) = %q, %d; want %q, %d", c.in, name, n, c.name, c.n)
+		}
+	}
+}

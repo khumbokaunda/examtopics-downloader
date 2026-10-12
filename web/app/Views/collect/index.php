@@ -28,11 +28,9 @@ $examUrl = static fn(array $p, array $e): string => url('/library/' . rawurlenco
                     <select class="form-select" id="provider-select" name="provider" data-autosubmit>
                         <option value="">Choose a provider…</option>
                         <?php foreach ($providers as $p): ?>
-                            <option value="<?= e($p['slug']) ?>" <?= $provider && $provider['slug'] === $p['slug'] ? 'selected' : '' ?>><?= e(($p['name'] ?: $p['slug']) . ' (' . (int) $p['exam_count'] . ' exams)') ?></option>
+                            <option value="<?= e($p['slug']) ?>" <?= $provider && $provider['slug'] === $p['slug'] ? 'selected' : '' ?>><?= e((provider_name($p)) . ' (' . (int) $p['exam_count'] . ' exams)') ?></option>
                         <?php endforeach; ?>
                     </select>
-                    <div class="search-field"><?= icon('search') ?><input class="form-control" type="search" name="q" value="<?= e($q) ?>" placeholder="Search exams" data-filter-table="#collect-exams" aria-label="Search exams" <?= $provider ? '' : 'disabled' ?>></div>
-                    <button class="btn btn-outline-secondary" type="submit">Go</button>
                 </form>
             </div>
             <?php if (!$provider): ?>
@@ -48,16 +46,16 @@ $examUrl = static fn(array $p, array $e): string => url('/library/' . rawurlenco
                 <?php if ($exams === [] && $lastRefresh !== null): ?>
                     <div class="card-body"><?= empty_state('search', 'No exams match', 'Try a shorter code, or clear the search.', null, true) ?></div>
                 <?php elseif ($exams !== []): ?>
-                <div class="table-responsive exam-picker">
-                    <table class="table table-hover align-middle mb-0" id="collect-exams">
-                        <thead><tr><th>Exam</th><th class="text-end">Reported</th><th>Library</th></tr></thead>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" id="collect-exams" data-table="collect-exams" data-page-length="10" data-order='[[0,"asc"]]'>
+                        <thead><tr><th>Exam</th><th class="text-end" data-type="num">Reported</th><th data-type="num">Library</th></tr></thead>
                         <tbody>
                         <?php foreach ($exams as $ex): $sel = $exam && $exam['code'] === $ex['code']; ?>
-                            <tr class="<?= $sel ? 'is-selected' : '' ?>" data-filter-text="<?= e($ex['code'] . ' ' . ($ex['name'] ?? '')) ?>">
-                                <td class="cell-wrap"><a class="table-row-link" href="<?= e(url('/collect', ['provider' => $provider['slug'], 'exam' => $ex['code'], 'q' => $q])) ?>"<?= $sel ? ' aria-current="true"' : '' ?>><?= e(strtoupper($ex['code'])) ?></a>
+                            <tr class="<?= $sel ? 'is-selected' : '' ?>">
+                                <td class="cell-wrap" data-order="<?= e($ex['code']) ?>" data-export="<?= e(strtoupper($ex['code'])) ?>"><a class="table-row-link" href="<?= e(url('/collect', ['provider' => $provider['slug'], 'exam' => $ex['code'], 'q' => $q])) ?>"<?= $sel ? ' aria-current="true"' : '' ?>><?= e(strtoupper($ex['code'])) ?></a>
                                     <?php if ($ex['name'] && strtolower($ex['name']) !== $ex['code']): ?><div class="small text-muted"><?= e($ex['name']) ?></div><?php endif; ?></td>
-                                <td class="text-end"><?= $ex['reported_count'] === null ? '<span class="text-muted">n/a</span>' : number_format((int) $ex['reported_count']) ?></td>
-                                <td><?= $ex['latest_version'] ? chip('cached', 'success', 'check2-circle') : '<span class="small text-muted">not cached</span>' ?></td>
+                                <td class="text-end" data-order="<?= $ex['reported_count'] === null ? -1 : (int) $ex['reported_count'] ?>"><?= $ex['reported_count'] === null ? '<span class="text-muted">n/a</span>' : number_format((int) $ex['reported_count']) ?></td>
+                                <td data-order="<?= $ex['latest_version'] ? 1 : 0 ?>"><?= $ex['latest_version'] ? chip('cached', 'success', 'check2-circle') : '<span class="small text-muted">not cached</span>' ?></td>
                             </tr>
                         <?php endforeach; ?>
                         </tbody>
@@ -74,7 +72,7 @@ $examUrl = static fn(array $p, array $e): string => url('/library/' . rawurlenco
         <?php else: ?>
             <div class="card exam-panel">
                 <div class="card-body">
-                    <div class="eyebrow"><?= e($provider['name'] ?: $provider['slug']) ?></div>
+                    <div class="eyebrow"><?= e(provider_name($provider)) ?></div>
                     <h2 class="exam-code"><?= e(strtoupper($exam['code'])) ?></h2>
                     <?php if ($exam['name'] && strtolower($exam['name']) !== $exam['code']): ?><div class="exam-name"><?= e($exam['name']) ?></div><?php endif; ?>
                     <dl class="meta-list mt-3 mb-2">

@@ -111,11 +111,11 @@ $themeIcons = ['system' => 'circle-half', 'light' => 'sun', 'dark' => 'moon-star
                 <div class="card-body"><?= empty_state('person-check', 'No sign-in attempts recorded', '', null, true) ?></div>
             <?php else: ?>
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+                <table class="table table-hover align-middle mb-0 table-stack" data-table="sign-ins" data-page-length="10" data-order='[[0,"desc"]]'>
                     <thead><tr><th>Time</th><th>IP address</th><th>Username</th><th>Result</th></tr></thead>
                     <tbody>
                     <?php foreach ($recentLogins as $l): ?>
-                        <tr><td class="small"><?= e(fmt_time($l['attempted_at'])) ?></td><td><code><?= e($l['ip']) ?></code></td><td class="small"><?= e($l['username'] ?? '') ?></td><td><?= $l['succeeded'] ? chip('signed in', 'success', 'check2') : chip('failed', 'danger', 'x') ?></td></tr>
+                        <tr><td class="small stack-title" data-order="<?= e((string) $l['attempted_at']) ?>"><?= e(fmt_time($l['attempted_at'])) ?></td><td data-label="IP address"><code><?= e($l['ip']) ?></code></td><td class="small" data-label="Username"><?= e($l['username'] ?? '') ?></td><td data-label="Result"><?= $l['succeeded'] ? chip('signed in', 'success', 'check2') : chip('failed', 'danger', 'x') ?></td></tr>
                     <?php endforeach; ?>
                     </tbody>
                 </table>

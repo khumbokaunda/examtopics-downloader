@@ -1,5 +1,5 @@
 <?php /** @var array $provider @var string $q @var list<array> $exams @var array|null $lastRefresh @var array|null $lastSuccess @var array|null $activeJob */
-$name = $provider['name'] ?: $provider['slug'];
+$name = provider_name($provider);
 ?>
 <nav aria-label="breadcrumb"><ol class="breadcrumb">
     <li class="breadcrumb-item"><a href="<?= e(url('/providers')) ?>">Providers</a></li>
@@ -30,7 +30,7 @@ $name = $provider['name'] ?: $provider['slug'];
     <div class="kpi" data-tone="<?= $lastRefresh ? status_style($lastRefresh['status'])[0] : 'neutral' ?>">
         <span class="kpi-icon"><?= icon('activity') ?></span>
         <span class="kpi-text"><span class="kpi-value is-small d-block"><?= $lastRefresh ? status_badge($lastRefresh['status']) : '<span class="text-muted">n/a</span>' ?></span><span class="kpi-label d-block">Latest refresh</span>
-            <?php if ($lastRefresh && $lastRefresh['error']): ?><span class="kpi-note d-block text-danger text-clamp-2" title="<?= e($lastRefresh['error']) ?>"><?= e($lastRefresh['error']) ?></span><?php endif; ?></span>
+            <?php if ($lastRefresh && $lastRefresh['error']): ?><details class="error-details kpi-note"><summary class="text-danger"><?= e(error_summary((string) $lastRefresh['error'])) ?></summary><pre class="log-box mt-1"><?= e($lastRefresh['error']) ?></pre></details><?php endif; ?></span>
     </div>
 </div>
 
@@ -42,26 +42,25 @@ $name = $provider['name'] ?: $provider['slug'];
 <?php endif; ?>
 
 <div class="card">
-    <div class="card-header">
-        <form class="toolbar w-100" method="get" action="<?= e(url('/providers/' . rawurlencode($provider['slug']))) ?>">
-            <div class="search-field"><?= icon('search') ?><input class="form-control" type="search" name="q" value="<?= e($q) ?>" placeholder="Filter exams by code or name" data-filter-table="#exam-table" aria-label="Filter exams"></div>
-            <button class="btn btn-outline-secondary" type="submit">Search</button>
-        </form>
-    </div>
     <?php if ($exams === []): ?>
         <div class="card-body"><?= $q !== ''
-            ? empty_state('search', 'No exams match this filter', 'Try a shorter code, or clear the filter.', null, true)
+            ? empty_state('search', 'No exams match this filter', '<a href="' . e(url('/providers/' . rawurlencode($provider['slug']))) . '">Show every exam</a>.', null, true)
             : empty_state('collection', 'No exams yet', 'Refresh the inventory to load this provider\'s exams.', null, true) ?></div>
     <?php else: ?>
     <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0 table-stack" id="exam-table">
-            <thead><tr><th>Exam</th><th class="text-end">Questions (reported)</th><th>Library</th><th class="text-end"><span class="visually-hidden">Actions</span></th></tr></thead>
+        <table class="table table-hover align-middle mb-0 table-stack" id="exam-table" data-table="exams" data-order='[[0,"asc"]]'>
+            <thead><tr>
+                <th>Exam</th>
+                <th class="text-end" data-type="num">Questions (reported)</th>
+                <th data-type="num">Library</th>
+                <th class="text-end" data-nosort data-novis data-nosearch data-export="false"><span class="visually-hidden">Actions</span></th>
+            </tr></thead>
             <tbody>
-            <?php foreach ($exams as $ex): ?>
-                <tr data-filter-text="<?= e($ex['code'] . ' ' . ($ex['name'] ?? '')) ?>">
-                    <td class="cell-wrap stack-title"><span class="fw-semibold"><?= e(strtoupper($ex['code'])) ?></span><?php if ($ex['name'] && strtolower($ex['name']) !== $ex['code']): ?><div class="text-muted small"><?= e($ex['name']) ?></div><?php endif; ?></td>
-                    <td class="text-end" data-label="Questions"><?= $ex['reported_count'] === null ? '<span class="text-muted">n/a</span>' : number_format((int) $ex['reported_count']) ?></td>
-                    <td data-label="Library"><span><?php if ($ex['latest_version']): ?><?= chip('cached', 'success', 'check2-circle') ?> <span class="small text-muted"><?= (int) $ex['latest_collected_count'] ?> · <?= e(fmt_ago($ex['latest_collected_at'])) ?></span><?php else: ?><span class="text-muted small">not collected</span><?php endif; ?></span></td>
+            <?php foreach ($exams as $ex): $hasName = $ex['name'] && strtolower($ex['name']) !== $ex['code']; ?>
+                <tr>
+                    <td class="cell-wrap stack-title" data-order="<?= e($ex['code']) ?>" data-export="<?= e(strtoupper($ex['code']) . ($hasName ? ' ' . $ex['name'] : '')) ?>"><span class="fw-semibold"><?= e(strtoupper($ex['code'])) ?></span><?php if ($hasName): ?><div class="text-muted small"><?= e($ex['name']) ?></div><?php endif; ?></td>
+                    <td class="text-end" data-label="Questions" data-order="<?= $ex['reported_count'] === null ? -1 : (int) $ex['reported_count'] ?>"><?= $ex['reported_count'] === null ? '<span class="text-muted">n/a</span>' : number_format((int) $ex['reported_count']) ?></td>
+                    <td data-label="Library" data-order="<?= $ex['latest_version'] ? (int) $ex['latest_collected_count'] : -1 ?>" data-export="<?= $ex['latest_version'] ? 'cached (' . (int) $ex['latest_collected_count'] . ')' : 'not collected' ?>"><span><?php if ($ex['latest_version']): ?><?= chip('cached', 'success', 'check2-circle') ?> <span class="small text-muted"><?= (int) $ex['latest_collected_count'] ?> · <?= e(fmt_ago($ex['latest_collected_at'])) ?></span><?php else: ?><span class="text-muted small">not collected</span><?php endif; ?></span></td>
                     <td class="text-end stack-actions"><a class="btn btn-sm btn-outline-primary" href="<?= e(url('/collect', ['provider' => $provider['slug'], 'exam' => $ex['code']])) ?>">Select<?= icon('arrow-right') ?></a></td>
                 </tr>
             <?php endforeach; ?>

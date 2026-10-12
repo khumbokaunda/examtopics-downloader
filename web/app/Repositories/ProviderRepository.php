@@ -39,16 +39,39 @@ final class ProviderRepository
         return $this->db->one('SELECT * FROM providers WHERE id = ?', [$id]);
     }
 
-    /** Insert or update; a discovered name never overwrites a manual provider's source. */
-    public function upsert(string $slug, ?string $name, string $source): int
+    /**
+     * Insert or update; a discovered name never overwrites a manual provider's source. A name
+     * like "Cisco (120 exams)" is stored as "Cisco" with the count kept separately.
+     */
+    public function upsert(string $slug, ?string $name, string $source, ?int $listedExams = null): int
     {
+        if ($name !== null) {
+            [$name, $count] = self::splitName($name);
+            $listedExams ??= $count;
+            $name = $name === '' ? null : $name;
+        }
         $now = Database::now();
         $this->db->run(
-            'INSERT INTO providers (slug, name, source, created_at, updated_at) VALUES (?, ?, ?, ?, ?)
-             ON DUPLICATE KEY UPDATE name = COALESCE(VALUES(name), name), updated_at = VALUES(updated_at)',
-            [$slug, $name, $source, $now, $now]
+            'INSERT INTO providers (slug, name, source, listed_exam_count, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE name = COALESCE(VALUES(name), name),
+                 listed_exam_count = COALESCE(VALUES(listed_exam_count), listed_exam_count), updated_at = VALUES(updated_at)',
+            [$slug, $name, $source, $listedExams, $now, $now]
         );
         return (int) $this->db->value('SELECT id FROM providers WHERE slug = ?', [$slug]);
+    }
+
+    /**
+     * "Certinia (1 exams)" becomes ["Certinia", 1]; a name without a count is returned as is.
+     *
+     * @return array{0:string,1:?int}
+     */
+    public static function splitName(string $name): array
+    {
+        $name = trim($name);
+        if (preg_match('/^(.*?)\s*\((\d+)\s+exams?\)$/i', $name, $m) === 1) {
+            return [trim($m[1]), (int) $m[2]];
+        }
+        return [$name, null];
     }
 
     public function count(): int

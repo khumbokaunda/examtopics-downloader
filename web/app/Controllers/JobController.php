@@ -23,14 +23,15 @@ final class JobController extends Controller
         if (in_array($type, ['collect', 'inventory', 'providers'], true)) {
             $filters['type'] = $type;
         }
-        $page = max(1, (int) $this->request->query('page', '1'));
-        $jobs = $this->s->jobs()->list($filters, 51, ($page - 1) * 50);
+        // The table pages, sorts and searches in the browser; the list is capped and says so.
+        $limit = 1000;
+        $jobs = $this->s->jobs()->list($filters, $limit + 1);
         return $this->render('jobs/index', [
             'title' => 'Jobs & history',
             'nav' => 'jobs',
-            'jobs' => array_slice($jobs, 0, 50),
-            'hasMore' => count($jobs) > 50,
-            'page' => $page,
+            'jobs' => array_slice($jobs, 0, $limit),
+            'capped' => count($jobs) > $limit,
+            'limit' => $limit,
             'status' => $filters['status'] ?? '',
             'type' => $filters['type'] ?? '',
             'workerRunning' => $this->s->supervisor()->workerRunning(),
