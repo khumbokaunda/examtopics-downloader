@@ -145,7 +145,20 @@ func mdToHTML(md []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// Interactive enables the "delete Markdown file?" prompt after a conversion. cmd/main.go
+// turns it off for -batch runs. The prompt is also skipped whenever stdin is not a
+// terminal, so an unattended run never blocks waiting for input; the Markdown file is kept.
+var Interactive = true
+
+func stdinIsTerminal() bool {
+	fi, err := os.Stdin.Stat()
+	return err == nil && fi.Mode()&os.ModeCharDevice != 0
+}
+
 func deleteMarkdownFile(filePath string) {
+	if !Interactive || !stdinIsTerminal() {
+		return
+	}
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print("Delete Markdown file after conversion? (y/n): ")
 	input, _ := reader.ReadString('\n')

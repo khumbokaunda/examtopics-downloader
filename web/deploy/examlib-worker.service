@@ -1,0 +1,25 @@
+# Optional: a permanently running worker instead of on-demand workers.
+# 1. Set 'worker' => ['autostart' => false] in config/config.local.php
+# 2. cp deploy/examlib-worker.service /etc/systemd/system/ && systemctl enable --now examlib-worker
+[Unit]
+Description=Exam Library background worker
+After=network-online.target mysql.service mariadb.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/srv/examtopics-downloader/web
+ExecStart=/usr/bin/php /srv/examtopics-downloader/web/bin/worker.php --daemon
+# The worker stops its current job cleanly on SIGTERM (the job is marked failed).
+KillSignal=SIGTERM
+TimeoutStopSec=30
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

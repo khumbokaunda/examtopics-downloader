@@ -1,0 +1,33 @@
+# Exam Library with Apache (mod_php or php-fpm via proxy_fcgi). Enable mod_rewrite and mod_ssl.
+<VirtualHost *:443>
+    ServerName exams.example.com
+    DocumentRoot /srv/examtopics-downloader/web/public
+
+    SSLEngine on
+    SSLCertificateFile    /etc/letsencrypt/live/exams.example.com/fullchain.pem
+    SSLCertificateKeyFile /etc/letsencrypt/live/exams.example.com/privkey.pem
+
+    <Directory /srv/examtopics-downloader/web/public>
+        Options -Indexes -MultiViews
+        AllowOverride None
+        Require all granted
+        # Optional extra layer: Require ip 203.0.113.10
+        RewriteEngine On
+        RewriteCond %{REQUEST_FILENAME} !-f
+        RewriteRule ^ index.php [L]
+    </Directory>
+
+    # Only index.php may run.
+    <FilesMatch "\.php$">
+        Require all denied
+    </FilesMatch>
+    <Files "index.php">
+        Require all granted
+    </Files>
+
+    # For php-fpm instead of mod_php:
+    # <FilesMatch "^index\.php$">
+    #     SetHandler "proxy:unix:/run/php/php8.3-fpm.sock|fcgi://localhost"
+    # </FilesMatch>
+    # ProxyTimeout 300
+</VirtualHost>

@@ -136,8 +136,23 @@ func GrepStringFromCache(baseString, searchString string) bool {
 	)
 }
 
+// BaseURL is the ExamTopics origin. EXAMTOPICS_BASE_URL overrides it so the tool can be
+// exercised against a local fixture server in tests; it has no other use.
+var BaseURL = func() string {
+	if v := os.Getenv("EXAMTOPICS_BASE_URL"); v != "" {
+		return strings.TrimRight(v, "/")
+	}
+	return "https://www.examtopics.com"
+}()
+
+// AddToBaseUrl makes a scraped href absolute. ExamTopics serves some hrefs
+// already absolute, so prefixing unconditionally produced doubled URLs like
+// "https://www.examtopics.comhttps://www.examtopics.com/exams/...".
 func AddToBaseUrl(addString string) string {
-	return fmt.Sprintf("https://www.examtopics.com%s", addString)
+	if strings.HasPrefix(addString, "http://") || strings.HasPrefix(addString, "https://") {
+		return addString
+	}
+	return BaseURL + addString
 }
 
 func CreateRateLimiter(rps float64) *time.Ticker {
@@ -159,7 +174,12 @@ func Sleep(seconds time.Duration) {
 
 func SortCachedLinks(linksWithNumbers []models.FileInfo) []string {
 	sort.Slice(linksWithNumbers, func(i, j int) bool {
-		return linksWithNumbers[i].Number < linksWithNumbers[j].Number
+		if linksWithNumbers[i].Number != linksWithNumbers[j].Number {
+			return linksWithNumbers[i].Number < linksWithNumbers[j].Number
+		}
+		// Files without a parsable number all share -1; fall back to the name
+		// so the order is at least deterministic.
+		return linksWithNumbers[i].Name < linksWithNumbers[j].Name
 	})
 
 	// Collect sorted links
@@ -203,7 +223,7 @@ func CapitalizeFirstLetter(s string) string {
 // NewGitHubClient creates an authenticated HTTP client with optimized transport
 func NewGitHubClient(token string) *http.Client {
 	transport := models.OptimizedTransport()
-	
+
 	return &http.Client{
 		Timeout: constants.HttpTimeout,
 		Transport: &models.AuthTransport{
@@ -225,20 +245,6 @@ func GetNameFromLink(link string) string {
 	name := strings.TrimSuffix(path.Base(link), ".json")
 	name = strings.ReplaceAll(name, "-", " ")
 	return strings.Join(strings.Fields(name), " ")
-}
-
-func SortQuestionDataByPageNumber(data []models.QuestionData) []models.QuestionData {
-	sortedData := make([]models.QuestionData, len(data))
-	copy(sortedData, data)
-
-	sort.Slice(sortedData, func(i, j int) bool {
-		pageNumI := ExtractNumberFromPath(sortedData[i].Title)
-		pageNumJ := ExtractNumberFromPath(sortedData[j].Title)
-
-		return pageNumI < pageNumJ
-	})
-
-	return sortedData
 }
 
 func StartTime() time.Time {

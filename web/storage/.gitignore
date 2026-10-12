@@ -1,0 +1,5 @@
+# Private runtime data: never committed, never web-accessible.
+*
+!.gitignore
+!*/
+!*/.gitkeep
