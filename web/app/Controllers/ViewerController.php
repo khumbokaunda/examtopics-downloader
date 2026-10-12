@@ -31,7 +31,7 @@ final class ViewerController extends Controller
         } catch (RuntimeException $ex) {
             throw new HttpException(409, $ex->getMessage());
         }
-        $questions = array_values(array_filter((array) ($data['questions'] ?? []), 'is_array'));
+        $questions = array_map([QuestionView::class, 'normalize'], array_values(array_filter((array) ($data['questions'] ?? []), 'is_array')));
         if ($q !== '') {
             $needle = mb_strtolower($q);
             $questions = array_values(array_filter($questions, static function (array $item) use ($needle): bool {

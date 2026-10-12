@@ -263,21 +263,18 @@ body.dialog-open { overflow: hidden; }
 }
 .q-meta { font-size: var(--text-xs); color: var(--color-text-subtle); font-family: var(--font-mono); text-align: right; }
 .q-text { font-size: 1rem; line-height: 1.65; margin-bottom: var(--space-3); overflow-wrap: anywhere; }
+.q-text p { margin: 0 0 var(--space-2); }
+.q-text p:last-child { margin-bottom: 0; }
 .choices { list-style: none; margin: 0 0 var(--space-4); padding: 0; display: grid; gap: 6px; }
 .choice {
-  display: flex; gap: var(--space-3); align-items: flex-start;
+  display: flex; gap: var(--space-2); align-items: baseline;
   padding: 8px var(--space-3);
   border: 1px solid var(--color-border); border-radius: var(--radius-sm);
   background: var(--color-surface); line-height: 1.55; overflow-wrap: anywhere;
 }
-.choice-letter {
-  width: 24px; height: 24px; flex-shrink: 0; border-radius: 50%;
-  display: inline-flex; align-items: center; justify-content: center;
-  background: var(--color-surface-alt); color: var(--color-text-muted);
-  font-size: var(--text-xs); font-weight: var(--weight-bold);
-}
+.choice-letter { flex-shrink: 0; min-width: 1.6em; font-weight: var(--weight-semibold); color: var(--color-text-muted); }
 .choice.is-answer { border-color: var(--color-success); background: var(--color-success-soft); }
-.choice.is-answer .choice-letter { background: var(--color-success); color: var(--color-on-accent); }
+.choice.is-answer .choice-letter { color: var(--color-success-ink); }
 .answer-box {
   display: flex; gap: var(--space-3); align-items: flex-start;
   padding: var(--space-3) var(--space-4);
