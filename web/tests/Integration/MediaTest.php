@@ -124,6 +124,48 @@ final class MediaTest extends HttpTestCase
         self::assertSame(0, (int) $this->app->db()->value("SELECT COUNT(*) FROM jobs WHERE type = 'images'"));
     }
 
+    public function testAnOutdatedToolIsExplainedNotDumped(): void
+    {
+        ['version' => $version] = $this->collect();
+        $this->app->db()->run('DELETE FROM media');
+        $usage = 'for o in -batch -events -out-json -inventory -providers -exam; do echo "  $o" >&2; done';
+        // A tool built before -images-from existed: its help lacks the option, and Go's flag
+        // package rejects it with exit code 64.
+        $old = $this->fakeTool('old-tool', 'if [ "$1" = "-h" ]; then ' . $usage . '; exit 0; fi; '
+            . 'echo "flag provided but not defined: -images-from" >&2; echo "Usage of examtopics-downloader:" >&2; ' . $usage . '; exit 64');
+        $this->configure($this->startFixture(), $old);
+        $this->newSession();
+        $this->login();
+
+        // Settings says so, and the exam page refuses to queue a download that cannot work.
+        self::assertStringContainsString('out of date', $this->get('/settings')->body);
+        $this->post('/library/huawei/h12-811/' . $version['version'] . '/images');
+        $flash = $this->flashes()[0] ?? [];
+        self::assertSame('danger', $flash['type'] ?? null);
+        self::assertStringContainsString('older than the web app', (string) $flash['message']);
+        self::assertSame(0, (int) $this->app->db()->value("SELECT COUNT(*) FROM jobs WHERE type = 'images'"));
+
+        // A job queued anyway (or the step after a collection) stops early with the same advice.
+        $id = $this->s->jobService()->enqueueImages($version);
+        $this->drain();
+        $job = (array) $this->s->jobs()->find($id);
+        self::assertSame('failed', $job['status']);
+        self::assertSame('0 of 1 images saved', $job['message']);
+        self::assertStringContainsString('older than the web app', (string) $job['error_summary']);
+        self::assertStringContainsString('go build -o bin/examtopics-downloader ./cmd', (string) $job['error_summary']);
+        self::assertSame(0, (int) $this->app->db()->value('SELECT COUNT(*) FROM media'), 'nothing is marked failed, so a retry after rebuilding fetches all');
+
+        // If an old tool does get run, its usage error is explained rather than shown.
+        $half = $this->fakeTool('half-tool', 'if [ "$1" = "-h" ]; then for o in -batch -events -out-json -inventory -providers -exam -images-from -images-dir; '
+            . 'do echo "  $o" >&2; done; exit 0; fi; echo "flag provided but not defined: -images-dir" >&2; echo "Usage of examtopics-downloader:" >&2; exit 64');
+        $this->configure($this->startFixture(), $half);
+        $id = $this->s->jobService()->enqueueImages($version);
+        $this->drain();
+        $job = (array) $this->s->jobs()->find($id);
+        self::assertStringContainsString('it does not know the -images-dir option', (string) $job['error_summary']);
+        self::assertStringNotContainsString('Usage of', (string) $job['error_summary']);
+    }
+
     public function testImagesCanBeTurnedOff(): void
     {
         ['job' => $job] = $this->collect([], ['media' => ['download' => false]]);

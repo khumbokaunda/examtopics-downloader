@@ -381,6 +381,13 @@ final class JobRunner
             $result['note'] = 'all ' . count($urls) . ' images already saved';
             return $result;
         }
+        if (in_array('-images-from', ToolCheck::missingOptions((string) $this->config->get('tool.binary')), true)) {
+            $result['note'] = (count($urls) - count($missing)) . ' of ' . count($urls) . ' images saved';
+            $result['warning'] = 'Images were not downloaded: the collection tool on the server is older than the web app. '
+                . ToolCheck::rebuildHint() . ' Then use "Download missing images" on the exam page.';
+            $result['failed'] = count($missing);
+            return $result;
+        }
 
         $dir = $this->paths->jobDir($id);
         $imagesDir = $dir . '/images';
@@ -454,6 +461,13 @@ final class JobRunner
     /** A sanitised, bounded failure summary: the tool's own failure message, else its log tail. */
     private function failureText(int $exit, string $failure, string $log): string
     {
+        // A tool built before the web app was updated rejects the newer options. Say so,
+        // instead of showing its usage text.
+        if ($exit === 64 && preg_match('/flag provided but not defined: (-[a-z][a-z-]*)/', $this->logTail($log, 400), $m) === 1) {
+            return 'The collection tool on the server is older than the web app: it does not know the ' . $m[1]
+                . ' option. Rebuild it in the project folder with: go build -o bin/examtopics-downloader ./cmd'
+                . ' Then try again. (Exit code 64.)';
+        }
         $parts = [];
         if ($failure !== '') {
             $parts[] = $failure;

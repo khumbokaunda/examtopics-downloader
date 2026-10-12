@@ -50,7 +50,10 @@ final class JobRepository
     /** @return array<string,mixed>|null */
     public function findBySlot(string $slot): ?array
     {
-        return $this->db->one('SELECT * FROM jobs WHERE active_slot = ?', [$slot]);
+        return $this->db->one(
+            'SELECT j.*, p.slug AS provider_slug FROM jobs j LEFT JOIN providers p ON p.id = j.provider_id WHERE j.active_slot = ?',
+            [$slot]
+        );
     }
 
     /**
