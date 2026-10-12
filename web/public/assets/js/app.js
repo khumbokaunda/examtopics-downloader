@@ -462,18 +462,6 @@
     sel.addEventListener('change', function () { if (sel.form) sel.form.submit(); });
   });
 
-  // Instant client-side filtering of a table (the form still searches server-side).
-  document.querySelectorAll('input[data-filter-table]').forEach(function (input) {
-    var table = document.querySelector(input.getAttribute('data-filter-table'));
-    if (!table) return;
-    input.addEventListener('input', function () {
-      var needle = input.value.trim().toLowerCase();
-      table.querySelectorAll('tbody tr[data-filter-text]').forEach(function (tr) {
-        tr.hidden = needle !== '' && tr.getAttribute('data-filter-text').toLowerCase().indexOf(needle) === -1;
-      });
-    });
-  });
-
   // --- Practice mode: reveal one question's answer on demand ---------------------------------
   function multiline(container, text) {
     String(text).split('\n').forEach(function (line, i) {

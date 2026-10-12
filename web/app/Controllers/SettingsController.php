@@ -26,7 +26,7 @@ final class SettingsController extends Controller
             'rps' => (float) $this->app->config()->get('tool.default_rps', 1.0),
             'storage' => $this->app->paths()->storage(),
             'pdfImages' => (bool) $this->app->config()->get('documents.pdf_images', false),
-            'recentLogins' => $this->s->loginAttempts()->recent(10),
+            'recentLogins' => $this->s->loginAttempts()->recent(200),
             'appearance' => Appearance::forUser($this->auth->user()),
             'appearanceOptions' => Appearance::OPTIONS,
         ]);

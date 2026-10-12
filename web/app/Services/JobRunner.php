@@ -200,7 +200,8 @@ final class JobRunner
         foreach ((array) ($doc['providers'] ?? []) as $p) {
             if (is_array($p) && Ids::isProvider($p['slug'] ?? null)) {
                 $name = is_string($p['name'] ?? null) ? mb_substr($p['name'], 0, 128) : null;
-                $this->providers->upsert($p['slug'], $name, 'discovered');
+                $listed = is_int($p['exam_count'] ?? null) && $p['exam_count'] > 0 ? $p['exam_count'] : null;
+                $this->providers->upsert($p['slug'], $name, 'discovered', $listed);
                 $n++;
             }
         }

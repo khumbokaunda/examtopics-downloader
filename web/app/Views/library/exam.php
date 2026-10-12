@@ -13,14 +13,14 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
 ?>
 <nav aria-label="breadcrumb"><ol class="breadcrumb">
     <li class="breadcrumb-item"><a href="<?= e(url('/library')) ?>">Library</a></li>
-    <li class="breadcrumb-item"><?= e($provider['name'] ?: $provider['slug']) ?></li>
+    <li class="breadcrumb-item"><?= e(provider_name($provider)) ?></li>
     <li class="breadcrumb-item active" aria-current="page"><?= e(strtoupper($exam['code'])) ?></li>
 </ol></nav>
 
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title"><?= e(strtoupper($exam['code'])) ?></h1>
-        <p class="page-subtitle"><?= $exam['name'] && strtolower($exam['name']) !== $exam['code'] ? e($exam['name']) . ' · ' : '' ?><?= e($provider['name'] ?: $provider['slug']) ?></p>
+        <p class="page-subtitle"><?= $exam['name'] && strtolower($exam['name']) !== $exam['code'] ? e($exam['name']) . ' · ' : '' ?><?= e(provider_name($provider)) ?></p>
     </div>
     <div class="page-actions">
         <a class="btn btn-outline-secondary" href="<?= e(url('/collect', ['provider' => $provider['slug'], 'exam' => $exam['code']])) ?>"><?= icon('arrow-clockwise') ?>Refresh…</a>

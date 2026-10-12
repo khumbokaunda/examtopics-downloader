@@ -154,6 +154,51 @@ if (!function_exists('e')) {
         return mb_strtoupper($letters);
     }
 
+    /**
+     * A provider's display name: its stored name without an "(N exams)" suffix that older
+     * discoveries kept, else its identifier.
+     *
+     * @param array<string,mixed> $p a providers row (or any row with name and slug keys)
+     */
+    function provider_name(array $p, string $nameKey = 'name', string $slugKey = 'slug'): string
+    {
+        $name = \App\Repositories\ProviderRepository::splitName((string) ($p[$nameKey] ?? ''))[0];
+        return $name !== '' ? $name : (string) ($p[$slugKey] ?? '');
+    }
+
+    /**
+     * A one-line, plain-words summary of a stored collection error (one error per line):
+     * "Listing page 20: ExamTopics asked us to slow down (HTTP 429), retries ran out (+1 more)".
+     * The full text stays available next to it.
+     */
+    function error_summary(string $error): string
+    {
+        $lines = array_values(array_filter(array_map('trim', explode("\n", trim($error))), static fn($l) => $l !== ''));
+        if ($lines === []) {
+            return '';
+        }
+        $first = $lines[0];
+        $where = preg_match('/^(listing page \d+|question page)\b/i', $first, $m) === 1 ? ucfirst(strtolower($m[1])) : '';
+        $code = preg_match('/(?:HTTP|status code) (\d{3})/', $first, $c) === 1 ? (int) $c[1] : null;
+        $reason = match (true) {
+            $code === 429 => 'ExamTopics asked us to slow down (HTTP 429)',
+            $code === 403 => 'ExamTopics refused access (HTTP 403)',
+            $code === 404 => 'page not found (HTTP 404)',
+            $code !== null && $code >= 500 => "ExamTopics had a server error (HTTP {$code})",
+            $code !== null => "unexpected response (HTTP {$code})",
+            (bool) preg_match('/timeout|deadline exceeded/i', $first) => 'the request timed out',
+            (bool) preg_match('/no such host|connection refused|connection reset|EOF/i', $first) => 'the connection failed',
+            default => '',
+        };
+        if ($reason !== '' && preg_match('/gave up after|exhausted retries/i', $first) === 1) {
+            $reason .= ', retries ran out';
+        }
+        $summary = $reason !== '' ? ($where !== '' ? $where . ': ' . $reason : ucfirst($reason))
+            : (mb_strlen($first) > 140 ? mb_substr($first, 0, 139) . '…' : $first);
+        $more = count($lines) - 1;
+        return $summary . ($more > 0 ? " (+{$more} more)" : '');
+    }
+
     function job_label(array $job): string
     {
         return match ($job['type'] ?? '') {

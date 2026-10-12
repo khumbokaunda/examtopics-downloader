@@ -94,8 +94,12 @@ Built from listing pages only; no question pages are fetched.
 
 ```json
 { "schema_version": 1, "kind": "providers", "generated_at": "…", "status": "complete",
-  "providers": [ { "slug": "huawei", "name": "Huawei" } ] }
+  "providers": [ { "slug": "huawei", "name": "Huawei", "exam_count": 52 } ] }
 ```
+
+`exam_count` is the number of exams ExamTopics lists for the provider on its exams index
+("Huawei (52 exams)"); the name is stored without it. It counts exams, not discussions, and is
+left out when the index shows no count.
 
 ## 4. Progress events (`-events <path>`, JSON Lines)
 

@@ -213,6 +213,9 @@ type Inventory struct {
 type Provider struct {
 	Slug string `json:"slug"`
 	Name string `json:"name"`
+	// ExamCount is the number of exams ExamTopics lists for the provider on its exams index
+	// ("Cisco (120 exams)"), when shown. It counts exams, not discussions.
+	ExamCount int `json:"exam_count,omitempty"`
 }
 
 type Providers struct {

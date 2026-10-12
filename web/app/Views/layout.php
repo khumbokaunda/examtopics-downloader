@@ -167,5 +167,6 @@ $flashIcons = ['success' => 'check-circle', 'info' => 'info-circle', 'warning' =
 </main>
 <?php endif; ?>
 <script src="<?= e(asset('/assets/js/app.js')) ?>"></script>
+<script src="<?= e(asset('/assets/js/data-table.js')) ?>"></script>
 </body>
 </html>

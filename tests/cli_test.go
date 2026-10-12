@@ -64,6 +64,7 @@ func runTool(t *testing.T, site *fixturesite.Site, stdin *os.File, args ...strin
 		"EXAMTOPICS_BASE_URL="+srv.URL,
 		"EXAMTOPICS_GITHUB_API="+srv.URL+"/gh",
 		"EXAMTOPICS_GITHUB_TOKEN=",
+		"EXAMTOPICS_RETRY_COOLDOWN=0",
 	)
 	if stdin != nil {
 		cmd.Stdin = stdin
@@ -304,12 +305,31 @@ func TestPersistentRateLimitEndsPartialWithBoundedRetries(t *testing.T) {
 	if r.exit != 2 {
 		t.Fatalf("exit %d, want 2\n%s", r.exit, r.stderr)
 	}
-	if hits := site.Hits(failing); hits != 6 {
-		t.Errorf("rate-limited page requested %d times, want 6 (1 + 5 bounded retries)", hits)
+	if hits := site.Hits(failing); hits != 12 {
+		t.Errorf("rate-limited page requested %d times, want 12 (1 + 5 bounded retries, twice: the second pass)", hits)
 	}
 	ds := readDataset(t, r.file("ds.json"))
 	if ds.Counts.FailedListingPages != 1 || ds.Status != "partial" {
 		t.Errorf("counts %+v status %s", ds.Counts, ds.Status)
+	}
+}
+
+// A page that keeps failing past the retries of the first pass is tried again after the
+// cooldown, so a burst of rate limiting no longer leaves the run partial.
+func TestSecondPassRecoversPagesThatRanOutOfRetries(t *testing.T) {
+	listing := "/discussions/huawei/2/"
+	question := fixturesite.Default(fixturesite.Options{}).Questions()[0].Path()
+	site := fixturesite.Default(fixturesite.Options{FailTimes: map[string]int{listing: 6, question: 6}})
+	r := runTool(t, site, nil, "-batch", "-no-cache", "-p", "huawei", "-exam", "h12-811", "-out-json", "ds.json")
+	if r.exit != 0 {
+		t.Fatalf("exit %d, want 0\n%s", r.exit, r.stderr)
+	}
+	if hits := site.Hits(listing); hits != 7 {
+		t.Errorf("listing page requested %d times, want 7 (6 in the first pass, 1 in the second)", hits)
+	}
+	ds := readDataset(t, r.file("ds.json"))
+	if ds.Status != "complete" || len(ds.Questions) != 5 || ds.Counts.Failures() != 0 {
+		t.Errorf("status %s, %d questions, counts %+v", ds.Status, len(ds.Questions), ds.Counts)
 	}
 }
 
@@ -418,7 +438,7 @@ func TestProvidersDiscovery(t *testing.T) {
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		t.Fatal(err)
 	}
-	if len(doc.Providers) != 2 || doc.Providers[0].Slug != "cisco" || doc.Providers[1].Name != "Huawei" {
+	if len(doc.Providers) != 2 || doc.Providers[0].Slug != "cisco" || doc.Providers[1].Name != "Huawei" || doc.Providers[1].ExamCount != 3 {
 		t.Errorf("providers %+v (exam links, the index itself and other hosts must be ignored)", doc.Providers)
 	}
 }

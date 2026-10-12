@@ -66,7 +66,11 @@ type StatusError struct {
 }
 
 func (e *StatusError) Error() string {
-	return fmt.Sprintf("request for %q failed with status code %d", e.URL, e.StatusCode)
+	text := http.StatusText(e.StatusCode)
+	if text == "" {
+		return fmt.Sprintf("%s returned HTTP %d", e.URL, e.StatusCode)
+	}
+	return fmt.Sprintf("%s returned HTTP %d (%s)", e.URL, e.StatusCode, text)
 }
 
 // RateLimitError reports that a host refused the request because an API quota
@@ -195,7 +199,7 @@ func (f *Fetcher) Get(url string) ([]byte, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("exhausted retries for %q: %w", url, lastErr)
+	return nil, fmt.Errorf("gave up after %d attempts: %w", constants.MaxRetries+1, lastErr)
 }
 
 // retryHint carries an optional server-supplied wait alongside the underlying
@@ -450,6 +454,20 @@ var providerLinkRE = regexp.MustCompile(`^/exams/([a-z0-9-]+)/?$`)
 
 // GetProviders lists providers from the ExamTopics exams index. Only the href pattern is
 // relied on, not the page layout (docs/AUDIT.md, uncertainty 3).
+// providerCountRE splits "Certinia (1 exams)" from the exams index into name and count.
+var providerCountRE = regexp.MustCompile(`^(.*?)\s*\((\d+)\s+exams?\)$`)
+
+// SplitProviderName separates a provider link's text into its name and the exam count the
+// index shows after it, if any.
+func SplitProviderName(text string) (string, int) {
+	text = strings.TrimSpace(text)
+	if m := providerCountRE.FindStringSubmatch(text); m != nil {
+		n, _ := strconv.Atoi(m[2])
+		return strings.TrimSpace(m[1]), n
+	}
+	return text, 0
+}
+
 func GetProviders() (dataset.Providers, error) {
 	reporter.Phase("providers", "Reading the provider list")
 	doc, err := scrapeFetcher.Document(utils.BaseURL + "/exams/")
@@ -468,10 +486,13 @@ func GetProviders() (dataset.Providers, error) {
 		if m == nil || !ValidProviderSlug(m[1]) {
 			return
 		}
-		name := utils.CleanText(s.Text())
+		name, count := SplitProviderName(utils.CleanText(s.Text()))
 		if i, dup := seen[m[1]]; dup {
 			if providers[i].Name == m[1] && name != "" {
 				providers[i].Name = name
+			}
+			if providers[i].ExamCount == 0 {
+				providers[i].ExamCount = count
 			}
 			return
 		}
@@ -479,7 +500,7 @@ func GetProviders() (dataset.Providers, error) {
 			name = m[1]
 		}
 		seen[m[1]] = len(providers)
-		providers = append(providers, dataset.Provider{Slug: m[1], Name: name})
+		providers = append(providers, dataset.Provider{Slug: m[1], Name: name, ExamCount: count})
 	})
 	sort.Slice(providers, func(i, j int) bool { return providers[i].Slug < providers[j].Slug })
 	if providers == nil {

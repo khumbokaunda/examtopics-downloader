@@ -155,7 +155,7 @@ final class DocumentStore
      */
     public function downloadName(array $version, Variant|string $variant, string $ext): string
     {
-        $provider = (string) ($version['provider_name'] ?: ucfirst((string) $version['provider_slug']));
+        $provider = (\App\Repositories\ProviderRepository::splitName((string) $version['provider_name'])[0] ?: ucfirst((string) $version['provider_slug']));
         $exam = strtoupper((string) $version['exam_code']);
         $label = $variant instanceof Variant ? $variant->fileLabel() : $variant;
         $date = substr((string) $version['collected_at'], 0, 10);
@@ -172,7 +172,7 @@ final class DocumentStore
     {
         $examName = trim((string) ($version['exam_name'] ?? '')) ?: trim((string) ($dataset['exam_name'] ?? ''));
         return [
-            'provider' => (string) ($version['provider_name'] ?: ucfirst((string) $version['provider_slug'])),
+            'provider' => (\App\Repositories\ProviderRepository::splitName((string) $version['provider_name'])[0] ?: ucfirst((string) $version['provider_slug'])),
             'exam' => $examName !== '' ? $examName : strtoupper((string) $version['exam_code']),
             'exam_code' => (string) $version['exam_code'],
             'version' => (string) $version['version'],

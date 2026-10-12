@@ -62,7 +62,7 @@ final class JobRepository
         }
         $sql = 'SELECT j.*, p.slug AS provider_slug FROM jobs j LEFT JOIN providers p ON p.id = j.provider_id'
             . ($where ? ' WHERE ' . implode(' AND ', $where) : '')
-            . ' ORDER BY j.id DESC LIMIT ' . max(1, min(200, $limit)) . ' OFFSET ' . max(0, $offset);
+            . ' ORDER BY j.id DESC LIMIT ' . max(1, min(5000, $limit)) . ' OFFSET ' . max(0, $offset);
         return $this->db->all($sql, $params);
     }
 

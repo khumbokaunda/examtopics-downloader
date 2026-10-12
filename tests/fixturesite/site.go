@@ -46,6 +46,8 @@ type Options struct {
 	FailPaths map[string]int
 	// Paths that return 429 (Retry-After: 1) the first time and succeed afterwards.
 	FlakyPaths map[string]bool
+	// Paths that return 503 (Retry-After: 1) for their first N requests, then succeed.
+	FailTimes map[string]int
 	// PerPage is the number of discussion links per listing page.
 	PerPage int
 }
@@ -140,6 +142,11 @@ func (s *Site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "injected failure", code)
 		return
 	}
+	if n, ok := s.opts.FailTimes[path]; ok && hit <= n {
+		w.Header().Set("Retry-After", "1")
+		http.Error(w, "overloaded", http.StatusServiceUnavailable)
+		return
+	}
 	if s.opts.FlakyPaths[path] && hit == 1 {
 		w.Header().Set("Retry-After", "1")
 		http.Error(w, "slow down", http.StatusTooManyRequests)
@@ -179,7 +186,7 @@ func page(w http.ResponseWriter, title, body string) {
 
 func (s *Site) examsIndex(w http.ResponseWriter) {
 	page(w, "Exams", `<ul>
-  <li><a href="/exams/huawei/">Huawei</a></li>
+  <li><a href="/exams/huawei/">Huawei (3 exams)</a></li>
   <li><a href="https://www.examtopics.com/exams/cisco/">Cisco</a></li>
   <li><a href="/exams/huawei/h12-811/">H12-811</a></li>
   <li><a href="/exams/">All</a></li>

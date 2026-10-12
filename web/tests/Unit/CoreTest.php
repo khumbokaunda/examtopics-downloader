@@ -101,6 +101,28 @@ final class CoreTest extends TestCase
         self::assertStringContainsString('x=1', $out);
     }
 
+    public function testProviderNamesLoseTheirExamCount(): void
+    {
+        self::assertSame(['Certinia', 1], \App\Repositories\ProviderRepository::splitName('Certinia (1 exams)'));
+        self::assertSame(['Checkpoint', 22], \App\Repositories\ProviderRepository::splitName(' Checkpoint (22 exams) '));
+        self::assertSame(['(ISC)2', 9], \App\Repositories\ProviderRepository::splitName('(ISC)2 (9 exams)'));
+        self::assertSame(['Cisco', null], \App\Repositories\ProviderRepository::splitName('Cisco'));
+        self::assertSame('Checkpoint', provider_name(['name' => 'Checkpoint (22 exams)', 'slug' => 'checkpoint']));
+        self::assertSame('checkpoint', provider_name(['name' => null, 'slug' => 'checkpoint']));
+    }
+
+    public function testErrorSummariesAreShortAndPlain(): void
+    {
+        $old = "listing page 20: exhausted retries for \"https://www.examtopics.com/discussions/checkpoint/20/\": "
+            . "request for \"https://www.examtopics.com/discussions/checkpoint/20/\" failed with status code 429\nlisting page 21: same";
+        self::assertSame('Listing page 20: ExamTopics asked us to slow down (HTTP 429), retries ran out (+1 more)', error_summary($old));
+        $new = 'listing page 3: gave up after 6 attempts: https://www.examtopics.com/discussions/x/3/ returned HTTP 503 (Service Unavailable)';
+        self::assertSame('Listing page 3: ExamTopics had a server error (HTTP 503), retries ran out', error_summary($new));
+        self::assertSame('Listing page 1: ExamTopics refused access (HTTP 403)', error_summary('listing page 1: https://x/ returned HTTP 403 (Forbidden)'));
+        self::assertSame('Something unusual', error_summary("Something unusual\n"));
+        self::assertSame('', error_summary(''));
+    }
+
     public function testMigrationSplitterIgnoresComments(): void
     {
         $sql = "-- header; with semicolon\nCREATE TABLE a (\n  id INT -- trailing; comment\n);\n\nCREATE TABLE b (id INT);\n";

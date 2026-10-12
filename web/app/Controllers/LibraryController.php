@@ -44,7 +44,7 @@ final class LibraryController extends Controller
             $items[] = ['label' => $label, 'section' => 'Documents', 'icon' => 'file-earmark-text', 'path' => $this->path($base)];
         }
         foreach ($this->s->providers()->allWithStats() as $p) {
-            $items[] = ['label' => (string) ($p['name'] ?: $p['slug']), 'section' => 'Provider', 'icon' => 'buildings',
+            $items[] = ['label' => (string) (provider_name($p)), 'section' => 'Provider', 'icon' => 'buildings',
                 'path' => $this->path('/providers/' . rawurlencode((string) $p['slug']))];
         }
         return Response::json(['items' => $items]);
