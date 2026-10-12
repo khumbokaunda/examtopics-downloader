@@ -458,6 +458,19 @@
     setTimeout(poll, 1000);
   });
 
+  // --- Documents being built in the background -----------------------------------------------
+  document.querySelectorAll('[data-doc-status]').forEach(function (el) {
+    var label = el.querySelector('[data-field="progress"]');
+    var poll = function () {
+      getJSON(el.getAttribute('data-doc-status')).then(function (d) {
+        if (d.status !== 'building') { window.location.reload(); return; }
+        if (label && d.total) label.textContent = d.percent + '% (' + d.done + ' of ' + d.total + ' questions)';
+        setTimeout(poll, 2000);
+      }).catch(function () { window.location.reload(); });
+    };
+    setTimeout(poll, 2000);
+  });
+
   // --- Forms ------------------------------------------------------------------------------
   // Prevent duplicate submissions while a request is being initiated.
   document.querySelectorAll('form[data-once]').forEach(function (form) {

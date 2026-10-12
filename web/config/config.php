@@ -68,7 +68,10 @@ return [
     'documents' => [
         // PDFs embed the saved images up to this total; the rest are listed by address.
         'image_total_bytes' => 100 * 1024 * 1024,
-        'pdf_time_limit'    => 600,
+        // PDFs are built by a background process (bin/build-document.php), so the page can
+        // show progress and no web request waits on a large exam.
+        'background'        => true,
+        'pdf_time_limit'    => 1800,   // seconds per PDF build
         'pdf_memory_limit'  => '1024M',
     ],
 

@@ -177,6 +177,36 @@ final class LibraryDocumentsTest extends HttpTestCase
         self::assertSame($jobsBefore, (int) $this->app->db()->value('SELECT COUNT(*) FROM jobs'), 'documents never trigger a collection');
     }
 
+    public function testPdfsAreBuiltInTheBackgroundWithProgress(): void
+    {
+        $this->configure($this->startFixture(), null, ['documents' => ['background' => true], 'setsid' => '/usr/bin/setsid']);
+        $this->newSession();
+        $this->login();
+        $r = $this->post($this->base() . '/' . $this->version['version'] . '/documents', ['variant' => 'study', 'format' => 'pdf']);
+        self::assertSame(303, $r->status, 'the request returns at once');
+        $flash = $this->flashes()[0] ?? [];
+        self::assertSame('info', $flash['type'] ?? null, (string) ($flash['message'] ?? ''));
+        $doc = $this->app->db()->one("SELECT * FROM documents WHERE format = 'pdf'");
+        self::assertContains($doc['status'], ['building', 'ready']);
+        $deadline = time() + 60;
+        do {
+            $status = json_decode($this->get('/api/documents/' . $doc['uuid'])->body, true);
+            if ($status['status'] !== 'building') {
+                break;
+            }
+            usleep(200_000);
+        } while (time() < $deadline);
+        self::assertSame('ready', $status['status'], (string) ($status['error'] ?? ''));
+        self::assertSame([5, 5, 100], [$status['done'], $status['total'], $status['percent']]);
+        self::assertStringContainsString('/documents/' . $doc['uuid'] . '/download', $this->get($this->base())->body);
+
+        // A build whose process has gone is shown as failed, so it can be started again.
+        $this->app->db()->run("UPDATE documents SET status = 'building', builder_pid = 999999 WHERE id = ?", [(int) $doc['id']]);
+        $status = json_decode($this->get('/api/documents/' . $doc['uuid'])->body, true);
+        self::assertSame('failed', $status['status']);
+        self::assertStringContainsString('stopped before it finished', (string) $status['error']);
+    }
+
     public function testDocumentsAreReusedAndTamperingIsDetected(): void
     {
         $first = $this->generate('study', 'md');

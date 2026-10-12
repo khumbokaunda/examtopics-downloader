@@ -373,7 +373,14 @@ func parseQuestionPage(doc *goquery.Document, link string) (models.QuestionData,
 
 	headerText := questionHeader(doc)
 	topic, qnum, examName := parseHeader(headerText)
-	card := doc.Find(".card-text")
+	// Only the question's own blocks: the page has other .card-text elements, such as the
+	// sign-in box ("Forgot my password"), which used to end up in the question text.
+	card := doc.Find(".question-body .card-text")
+	if card.Length() == 0 {
+		card = doc.Find(".card-text").FilterFunction(func(_ int, s *goquery.Selection) bool {
+			return s.Closest(".modal").Length() == 0
+		})
+	}
 	cardText := card.Text()
 	suggested := ""
 	if m := suggestedAnswerRE.FindStringSubmatch(cardText); m != nil {

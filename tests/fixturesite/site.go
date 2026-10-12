@@ -215,8 +215,10 @@ func (s *Site) image(w http.ResponseWriter, r *http.Request, path string) {
 
 func page(w http.ResponseWriter, title, body string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprintf(w, "<!doctype html>\n<html><head><title>%s</title></head><body>\n%s\n</body></html>\n",
-		html.EscapeString(title), body)
+	// Like the real site, every page carries a sign-in box with its own .card-text.
+	fmt.Fprintf(w, "<!doctype html>\n<html><head><title>%s</title></head><body>\n%s\n%s</body></html>\n",
+		html.EscapeString(title), body,
+		"<div class=\"modal\" id=\"login-modal\"><div class=\"card-text\"><a href=\"/reset\">Forgot my password</a></div></div>\n")
 }
 
 func (s *Site) examsIndex(w http.ResponseWriter) {

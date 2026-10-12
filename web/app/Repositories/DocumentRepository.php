@@ -13,7 +13,6 @@ final class DocumentRepository
     }
 
     /** @return array<string,mixed>|null */
-    /** @return array<string,mixed>|null */
     public function findByUuid(string $uuid): ?array
     {
         $id = $this->db->value('SELECT id FROM documents WHERE uuid = ?', [$uuid]);
@@ -49,7 +48,10 @@ final class DocumentRepository
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON DUPLICATE KEY UPDATE options = VALUES(options), status = VALUES(status), rel_path = VALUES(rel_path),
                  filename = VALUES(filename), size_bytes = VALUES(size_bytes), checksum = VALUES(checksum),
-                 error = VALUES(error), generated_at = VALUES(generated_at)',
+                 error = VALUES(error), generated_at = VALUES(generated_at),
+                 progress_done = IF(VALUES(status) = \'building\', NULL, progress_done),
+                 progress_total = IF(VALUES(status) = \'building\', NULL, progress_total),
+                 builder_pid = IF(VALUES(status) = \'building\', NULL, builder_pid)',
             [\App\Core\Ids::uuid(), $d['cache_version_id'], $d['format'], $d['variant'], $d['options_hash'], json_encode($d['options']),
              $d['status'], $d['rel_path'], $d['filename'], $d['size_bytes'], $d['checksum'], $d['error'], Database::now()]
         );
@@ -57,6 +59,22 @@ final class DocumentRepository
             'SELECT id FROM documents WHERE cache_version_id = ? AND format = ? AND variant = ? AND options_hash = ?',
             [$d['cache_version_id'], $d['format'], $d['variant'], $d['options_hash']]
         );
+    }
+
+    /** Progress of a background build: questions laid out so far, of all. */
+    public function progress(int $id, int $done, int $total): void
+    {
+        $this->db->run('UPDATE documents SET progress_done = ?, progress_total = ? WHERE id = ?', [$done, $total, $id]);
+    }
+
+    public function setBuilder(int $id, int $pid): void
+    {
+        $this->db->run('UPDATE documents SET builder_pid = ? WHERE id = ?', [$pid, $id]);
+    }
+
+    public function markFailed(int $id, string $error): void
+    {
+        $this->db->run("UPDATE documents SET status = 'failed', error = ? WHERE id = ?", [mb_substr($error, 0, 1000), $id]);
     }
 
     /**

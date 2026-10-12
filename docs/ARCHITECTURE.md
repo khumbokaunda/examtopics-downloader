@@ -32,7 +32,8 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
    immutable file per version plus a manifest. MySQL indexes them (`cache_versions`) and can be
    rebuilt from the manifests.
 4. **Document generation**: Markdown and PDF built from one validated version, recorded in
-   `documents` with options, size and checksum, and reused when unchanged.
+   `documents` with options, size and checksum, and reused when unchanged. PDFs are built by
+   a detached process that records its progress, so the page shows it and no request waits.
 5. **Saved images**: after a collection, the tool downloads the questions' images (only from
    ExamTopics, paced like page requests). The worker checks each file again and keeps it once
    in `storage/media`, named by its content hash (`media` table). The reader serves them from

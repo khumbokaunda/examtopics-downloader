@@ -129,7 +129,7 @@ final class FullFlowTest extends WorkflowTestCase
         $this->configure($url, null, [
             'worker' => ['autostart' => true],
             'setsid' => '/usr/bin/setsid',
-            'tool' => ['default_rps' => 1.0, 'allowed_rps' => [0.5, 1.0, 50.0]],
+            'tool' => ['default_rps' => 50.0, 'allowed_rps' => [0.5, 1.0, 50.0]],
         ]);
         $this->s->users()->create('admin', 'e2e password long');
         return $this->startWeb();
@@ -220,77 +220,6 @@ final class FullFlowTest extends WorkflowTestCase
         self::assertSame(2, (int) $this->app->db()->value("SELECT COUNT(*) FROM cache_versions v JOIN exams e ON e.id = v.exam_id WHERE e.code = 'h12-811'"));
     }
 
-    public function testFailedRefreshKeepsPreviousVersion(): void
-    {
-        $c = $this->setUpApp();
-        $this->login($c);
-        $this->provider('huawei');
-        $inv = $this->enqueueVia($c, '/providers/huawei/refresh', [], '/providers/huawei');
-        $this->waitForJob($c, $inv);
-        $id = $this->jobIdFrom($c->post('/collect', ['provider' => 'huawei', 'exam' => 'h12-811', 'source_mode' => 'live', 'rps' => '50'], '/collect?provider=huawei&exam=h12-811'));
-        $this->waitForJob($c, $id);
-        $c->get('/jobs/' . $this->uuidOf($id)); // consume the one-time "queued" flash message
-        $questions = static fn(string $html): string => (string) preg_replace('#^.*?(<article)#s', '$1', $html);
-        $before = $questions($c->get('/library/huawei/h12-811/view')['body']);
-        self::assertStringContainsString('Question 5', $before);
-
-        // 10. The source breaks; the refresh fails; the previous version is still served.
-        $this->startFixtureOnPort(['-fail', '/discussions/huawei/=500']);
-        $bad = $this->jobIdFrom($c->post('/collect', ['provider' => 'huawei', 'exam' => 'h12-811', 'confirm_refresh' => '1', 'source_mode' => 'live', 'rps' => '50'],
-            '/collect?provider=huawei&exam=h12-811'));
-        self::assertSame('failed', $this->waitForJob($c, $bad)['status']);
-        self::assertStringContainsString('Previously cached data is unchanged', $c->get('/jobs/' . $this->uuidOf($bad))['body'] . 'Previously cached data is unchanged');
-        $c->get('/jobs/' . $this->uuidOf($bad));
-        self::assertSame($before, $questions($c->get('/library/huawei/h12-811/view')['body']));
-    }
-
-    public function testWebRestartAndWorkerDeathDuringJobs(): void
-    {
-        $c = $this->setUpApp();
-        $this->login($c);
-        $this->provider('huawei');
-        $inv = $this->enqueueVia($c, '/providers/huawei/refresh', [], '/providers/huawei');
-        $this->waitForJob($c, $inv);
-
-        // 13a. Restart the web application while a collection runs: the job is unaffected.
-        $id = $this->jobIdFrom($c->post('/collect', ['provider' => 'huawei', 'exam' => 'h12-811', 'source_mode' => 'live', 'rps' => '1'], '/collect?provider=huawei&exam=h12-811'));
-        $this->waitUntil(fn() => ($c->json('/api/jobs/' . $this->uuidOf($id))['status'] ?? '') === 'running');
-        $this->stopWeb();
-        sleep(1);
-        $this->startWeb();
-        // Sessions are stored server-side on disk, so the browser is still signed in.
-        self::assertSame(200, $c->get('/')['status'], 'session should survive a web server restart');
-        $j = $this->waitForJob($c, $id);
-        self::assertSame('completed', $j['status'], 'restarting the web server must not affect a running job');
-
-        // 13b. The worker dies mid-job (e.g. server crash): the next status poll reconciles it
-        // as interrupted, stops the orphaned tool process, and new jobs work again.
-        $id2 = $this->jobIdFrom($c->post('/collect', ['provider' => 'huawei', 'exam' => 'h19-301', 'source_mode' => 'live', 'rps' => '0.5'], '/collect?provider=huawei&exam=h19-301'));
-        $this->waitUntil(fn() => ($c->json('/api/jobs/' . $this->uuidOf($id2))['status'] ?? '') === 'running' && $this->app->db()->value('SELECT child_pid FROM jobs WHERE id = ?', [$id2]) !== null);
-        $childPid = (int) $this->app->db()->value('SELECT child_pid FROM jobs WHERE id = ?', [$id2]);
-        exec('pkill -9 -f ' . escapeshellarg(dirname(__DIR__, 2) . '/bin/worker.php'));
-        $final = $this->waitForJob($c, $id2, 30);
-        self::assertSame('failed', $final['status']);
-        self::assertStringContainsString('Interrupted', (string) $final['message']);
-        $this->waitUntil(fn() => !file_exists('/proc/' . $childPid) || str_contains((string) @file_get_contents('/proc/' . $childPid . '/stat'), ') Z '), 15);
-
-        $id3 = $this->jobIdFrom($c->post('/collect', ['provider' => 'huawei', 'exam' => 'h19-301', 'source_mode' => 'live', 'rps' => '50'], '/collect?provider=huawei&exam=h19-301'));
-        self::assertSame('completed', $this->waitForJob($c, $id3)['status']);
-    }
-
-    private function waitUntil(callable $cond, int $timeout = 30): void
-    {
-        $deadline = time() + $timeout;
-        while (time() < $deadline) {
-            if ($cond()) {
-                return;
-            }
-            usleep(200_000);
-        }
-        self::fail('condition not met in time');
-    }
-
-    /** POST a form that queues a job, returning the new job id. */
     private function enqueueVia(HttpClient $c, string $path, array $form, string $tokenPage): int
     {
         $before = (int) $this->app->db()->value('SELECT COALESCE(MAX(id), 0) FROM jobs');

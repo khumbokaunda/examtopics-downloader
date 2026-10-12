@@ -52,6 +52,7 @@ return static function (Router $r): void {
 
     $r->get('/documents/{uuid}/download', [DocumentController::class, 'download']);
     $r->post('/documents/{uuid}/delete', [DocumentController::class, 'delete']);
+    $r->get('/api/documents/{uuid}', [DocumentController::class, 'statusJson']);
 
     $r->get('/settings', [SettingsController::class, 'index']);
     $r->post('/settings/password', [SettingsController::class, 'password']);

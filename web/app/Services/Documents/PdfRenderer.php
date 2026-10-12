@@ -64,7 +64,7 @@ final class PdfRenderer
      * @param array<string,mixed> $dataset
      * @param array{provider:string,exam:string,exam_code:string,version:string,collected_at:string,status:string} $meta
      */
-    public function render(array $dataset, array $meta, Variant $variant): string
+    public function render(array $dataset, array $meta, Variant $variant, ?callable $progress = null): string
     {
         class_exists(PdfCanvas::class); // dompdf looks the backend class up without autoloading
         $options = new Options();
@@ -93,11 +93,24 @@ final class PdfRenderer
         // Record where marked elements land: section headings (bookmarks, contents page
         // numbers) and the contents cells the numbers are written into.
         $marks = [];
+        $total = count(array_filter((array) ($dataset['questions'] ?? []), 'is_array'));
+        $done = 0;
+        if ($progress !== null) {
+            $progress(0, $total);
+        }
         $dompdf->setCallbacks([[
             'event' => 'begin_frame',
-            'f' => static function (Frame $frame, Canvas $canvas) use (&$marks): void {
+            'f' => static function (Frame $frame, Canvas $canvas) use (&$marks, &$done, $total, $progress): void {
                 $node = $frame->get_node();
-                if (!$node instanceof \DOMElement || !$node->hasAttribute('data-mark')) {
+                if (!$node instanceof \DOMElement) {
+                    return;
+                }
+                // Pages are laid out in order, so the last question reached is the progress.
+                if ($progress !== null && $node->hasAttribute('data-q') && (int) $node->getAttribute('data-q') > $done) {
+                    $done = (int) $node->getAttribute('data-q');
+                    $progress($done, $total);
+                }
+                if (!$node->hasAttribute('data-mark')) {
                     return;
                 }
                 $key = $node->getAttribute('data-mark');
@@ -250,6 +263,7 @@ final class PdfRenderer
         $b[] = $this->tocRow('appB', $withKey ? 'B' : 'A', 'Source index', $h);
 
         // Sections.
+        $position = 0;
         foreach ($sections as $s) {
             $inSection = array_map(static fn(int $i) => $cards[$i], $s['indexes']);
             $figures = count(array_filter($inSection, static fn(array $c) => $c['figures'] > 0));
@@ -266,7 +280,7 @@ final class PdfRenderer
             $b[] = '<h2 class="sec-title" id="' . $s['key'] . '" data-mark="sec:' . $s['key'] . '"><span class="sec-num">' . $h($s['number']) . '</span> ' . $h($s['title']) . '</h2>';
             $b[] = '<div class="sec-intro">' . $h(implode(' · ', $intro)) . '</div>';
             foreach ($inSection as $n => $card) {
-                $b[] = $this->card($card, $variant, $n === count($inSection) - 1, $h, $t, $text);
+                $b[] = $this->card($card, $variant, $n === count($inSection) - 1, $h, $t, $text, ++$position);
             }
             $b[] = '</div>';
         }
@@ -356,7 +370,7 @@ final class PdfRenderer
     /**
      * @param array{q:array<string,mixed>,qImages:list<array{url:string,uri:?string}>,aImages:list<array{url:string,uri:?string}>,figureMissing:bool,figures:int,keyVaries:bool} $card
      */
-    private function card(array $card, Variant $variant, bool $last, callable $h, callable $t, callable $text): string
+    private function card(array $card, Variant $variant, bool $last, callable $h, callable $t, callable $text, int $position): string
     {
         $q = $card['q'];
         $showAnswers = $variant->showAnswers();
@@ -370,7 +384,7 @@ final class PdfRenderer
         }
         $src = QuestionView::meta($q);
         $b = [];
-        $b[] = '<div class="q' . ($last ? ' q-last' : '') . '">';
+        $b[] = '<div class="q' . ($last ? ' q-last' : '') . '" data-q="' . $position . '">';
         $b[] = '<div class="q-core">';
         $b[] = '<table class="q-label"><tr><td><span class="q-num">Q' . (int) ($q['number'] ?? 0) . '</span>'
             . ($src !== '' ? '<span class="q-src">' . $h($src) . '</span>' : '') . '</td>'

@@ -74,12 +74,16 @@ abstract class WorkflowTestCase extends DbTestCase
         $cfg = array_replace_recursive($base, [
             'tool' => [
                 'binary' => $tool ?? self::$binDir . '/examtopics-downloader',
-                'extra_env' => ['EXAMTOPICS_BASE_URL' => $fixtureUrl, 'EXAMTOPICS_GITHUB_API' => $fixtureUrl . '/gh'],
-                'default_rps' => 1.0,
+                // The fixture site is local: no polite pacing or retry pauses are needed, and
+                // they made every test wait seconds. Tests that need a slow job pass rps 1.
+                'extra_env' => ['EXAMTOPICS_BASE_URL' => $fixtureUrl, 'EXAMTOPICS_GITHUB_API' => $fixtureUrl . '/gh',
+                                'EXAMTOPICS_RETRY_COOLDOWN' => '0'],
+                'default_rps' => 50.0,
                 'allowed_rps' => [0.25, 0.5, 1.0, 50.0],
                 'kill_grace' => 2,
             ],
             'worker' => ['autostart' => false],
+            'documents' => ['background' => false], // built in the request, so tests see the result
             'php_cli' => PHP_BINARY,
         ], $overrides);
         $this->configFile = sys_get_temp_dir() . '/examtopics-test-config-' . getmypid() . '.php';

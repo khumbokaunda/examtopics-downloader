@@ -174,7 +174,7 @@ func TestExactExamCollectionIsCompleteAndExcludesVariants(t *testing.T) {
 		if q.Number != i+1 || q.QuestionNumber != i+1 || q.Topic != 1 {
 			t.Errorf("question %d: number=%d question_number=%d topic=%d", i, q.Number, q.QuestionNumber, q.Topic)
 		}
-		if !strings.HasPrefix(q.Text, "H12-811 question") || strings.Contains(q.Text, "Suggested Answer") {
+		if !strings.HasPrefix(q.Text, "H12-811 question") || strings.Contains(q.Text, "Suggested Answer") || strings.Contains(q.Text, "Forgot") {
 			t.Errorf("question %d text not cleanly extracted: %q", i, q.Text)
 		}
 		if len(q.Choices) != 5 || q.Choices[0].Letter != "A" || q.Choices[0].Text != "OSPF" {
@@ -354,6 +354,9 @@ func TestModernPageLayoutIsParsed(t *testing.T) {
 		t.Fatalf("%d questions", len(ds.Questions))
 	}
 	for _, q := range ds.Questions {
+		if strings.Contains(q.Text, "Forgot") {
+			t.Errorf("Q%d text includes the sign-in box: %q", q.QuestionNumber, q.Text)
+		}
 		if len(q.Choices) != 5 || q.Choices[4].Letter != "E" || q.Choices[4].Text != "EIGRP" {
 			t.Errorf("Q%d choices %+v", q.QuestionNumber, q.Choices)
 		}
