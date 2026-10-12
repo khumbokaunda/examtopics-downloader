@@ -72,6 +72,12 @@ final class DocumentRepository
         $this->db->run('UPDATE documents SET builder_pid = ? WHERE id = ?', [$pid, $id]);
     }
 
+    public function deleteFailed(int $versionId, string $format, string $variant): void
+    {
+        $this->db->run("DELETE FROM documents WHERE cache_version_id = ? AND format = ? AND variant = ? AND status = 'failed'",
+            [$versionId, $format, $variant]);
+    }
+
     public function markFailed(int $id, string $error): void
     {
         $this->db->run("UPDATE documents SET status = 'failed', error = ? WHERE id = ?", [mb_substr($error, 0, 1000), $id]);

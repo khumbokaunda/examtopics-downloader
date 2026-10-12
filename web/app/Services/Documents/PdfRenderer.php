@@ -32,6 +32,13 @@ final class PdfRenderer
     /** Questions per section when the exam has a single topic. */
     private const SECTION_SIZE = 50;
 
+    /**
+     * Comments per question in the discussions PDF. dompdf keeps the whole document in
+     * memory (about 1 MB per question with a dozen comments), so a 1,000-question exam with
+     * every comment could exceed any sensible limit; the most upvoted ones are kept.
+     */
+    private const PDF_COMMENTS = 10;
+
     // Print palette, from the app's theme tokens (default teal accent).
     private const TEAL = [0x1C, 0x72, 0x93];
     private const NAVY = [0x12, 0x40, 0x56];
@@ -350,7 +357,7 @@ final class PdfRenderer
             $rows[] = ['Answers.', 'Answers, explanations and discussions are left out, so you can practise without them.'];
         }
         if ($variant->showComments()) {
-            $rows[] = ['Discussions.', 'Comments from each discussion follow the answer, with the answer each commenter selected. Replies are indented.'];
+            $rows[] = ['Discussions.', 'Up to the ' . self::PDF_COMMENTS . ' most upvoted comments of each discussion follow the answer, with the answer each commenter selected. The reader on the site shows every comment.'];
         }
         $flags = '<span class="badge">FIGURE MISSING</span> the question refers to an image that could not be included.';
         if ($variant->showAnswers() || $variant->answerKey()) {
@@ -440,7 +447,7 @@ final class PdfRenderer
         $b[] = '</div>'; // q-core: kept on one page
 
         if ($showAnswers && $variant->showComments()) {
-            $comments = QuestionView::comments($q);
+            $comments = self::topComments(QuestionView::comments($q), self::PDF_COMMENTS);
             if ($comments !== []) {
                 $b[] = '<div class="disc">';
                 foreach ($comments as $n => $c) {
@@ -565,6 +572,34 @@ final class PdfRenderer
                 $fm->registerFont(['family' => $family, 'weight' => $weight, 'style' => 'normal'], 'file://' . $dir . '/' . $file);
             }
         }
+    }
+
+    /**
+     * The most upvoted comments, in page order. A reply is kept only with its kept parent
+     * (the comment before it that is not a reply).
+     *
+     * @param list<array{upvotes:?int,reply:bool}> $comments
+     * @return list<array{upvotes:?int,reply:bool}>
+     */
+    private static function topComments(array $comments, int $limit): array
+    {
+        if (count($comments) <= $limit) {
+            return $comments;
+        }
+        $ranked = array_keys($comments);
+        usort($ranked, static fn(int $a, int $b) => ((int) $comments[$b]['upvotes'] <=> (int) $comments[$a]['upvotes']) ?: $a <=> $b);
+        $keep = array_fill_keys(array_slice($ranked, 0, $limit), true);
+        $out = [];
+        $parentKept = false;
+        foreach ($comments as $i => $c) {
+            if (!$c['reply']) {
+                $parentKept = isset($keep[$i]);
+            }
+            if (isset($keep[$i]) && (!$c['reply'] || $parentKept)) {
+                $out[] = $c;
+            }
+        }
+        return $out;
     }
 
     /** @param list<array<string,mixed>> $choices */

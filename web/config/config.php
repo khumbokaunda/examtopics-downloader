@@ -72,7 +72,7 @@ return [
         // show progress and no web request waits on a large exam.
         'background'        => true,
         'pdf_time_limit'    => 1800,   // seconds per PDF build
-        'pdf_memory_limit'  => '1024M',
+        'pdf_memory_limit'  => '2048M',  // for the background PDF process only
     ],
 
     'worker' => [

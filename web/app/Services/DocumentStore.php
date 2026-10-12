@@ -75,6 +75,8 @@ final class DocumentStore
         if ($format !== 'pdf' || $this->launcher === null || !(bool) $this->config->get('documents.background', true)) {
             return $this->generate($version, $p, null);
         }
+        // One attempt at a time is shown: earlier failures of this document are cleared.
+        $this->docs->deleteFailed((int) $version['id'], $format, $p['variant']->key);
         $id = $this->docs->save($p['record'] + ['status' => 'building', 'size_bytes' => null, 'checksum' => null, 'error' => null]);
         $doc = (array) $this->docs->find($id);
         if (!($this->launcher)((string) $doc['uuid'])) {
@@ -94,6 +96,23 @@ final class DocumentStore
         }
         $id = (int) $doc['id'];
         $this->docs->setBuilder($id, getmypid() ?: 0);
+        // Running out of memory or time ends PHP with a fatal error that no catch sees; say
+        // which limit it was, so the page shows something better than "stopped".
+        $docs = $this->docs;
+        $config = $this->config;
+        register_shutdown_function(static function () use ($docs, $id, $config): void {
+            $e = error_get_last();
+            $row = $docs->find($id);
+            if ($e === null || $row === null || $row['status'] !== 'building' || !in_array($e['type'], [E_ERROR, E_CORE_ERROR], true)) {
+                return;
+            }
+            $msg = str_contains($e['message'], 'Allowed memory size')
+                ? 'The PDF needed more memory than the limit of ' . ini_get('memory_limit') . '. Raise documents.pdf_memory_limit in config.local.php, or use a variant without discussions.'
+                : (str_contains($e['message'], 'Maximum execution time')
+                    ? 'The PDF took longer than ' . (int) $config->get('documents.pdf_time_limit', 1800) . ' seconds. Raise documents.pdf_time_limit in config.local.php.'
+                    : 'The build stopped: ' . $e['message']);
+            $docs->markFailed($id, $msg);
+        });
         try {
             $version = $this->cache->versionRow((int) $doc['cache_version_id']) ?? throw new RuntimeException('The version no longer exists.');
             $p = $this->prepare($version, (string) $doc['format'], (string) $doc['variant']);
@@ -186,7 +205,7 @@ final class DocumentStore
         try {
             @set_time_limit((int) $this->config->get('documents.pdf_time_limit', 1800));
             if ($format === 'pdf') {
-                @ini_set('memory_limit', (string) $this->config->get('documents.pdf_memory_limit', '1024M'));
+                @ini_set('memory_limit', (string) $this->config->get('documents.pdf_memory_limit', '2048M'));
             }
             $dataset = $this->cache->load($version, true);
             $dataset['questions'] = array_map([\App\Services\Documents\QuestionView::class, 'normalize'],
