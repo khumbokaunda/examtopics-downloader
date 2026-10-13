@@ -86,7 +86,7 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                 </div>
                 <?php foreach ((array) ($item['answer_images'] ?? []) as $i => $u): ?><?= $img((string) $u, 'Answer image ' . ($i + 1)) ?><?php endforeach; ?>
                 <?php if (trim((string) ($item['explanation'] ?? '')) !== ''): ?>
-                    <div class="explanation"><div class="section-heading">Explanation</div><?= nl2br(e(trim((string) $item['explanation'])), false) ?></div>
+                    <div class="explanation"><div class="section-heading">Explanation</div><?php foreach (QuestionView::paragraphs((string) $item['explanation']) as $para): ?><p><?= $para ?></p><?php endforeach; ?></div>
                 <?php endif; ?>
                 <?php $comments = QuestionView::comments($item); if ($comments !== []): ?>
                     <details class="discussion">
@@ -104,7 +104,7 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                                                 <?php if ($c['timestamp'] !== ''): ?><span class="comment-time"><?= e($c['timestamp']) ?></span><?php endif; ?>
                                             </div>
                                         <?php endif; ?>
-                                        <div class="comment-body"><?= nl2br(e($c['content']), false) ?></div>
+                                        <div class="comment-body"><?php foreach (QuestionView::paragraphs($c['content']) as $para): ?><p><?= $para ?></p><?php endforeach; ?></div>
                                         <?php if ($c['selected'] !== '' || $c['upvotes'] !== null): ?>
                                             <div class="comment-foot">
                                                 <?php if ($c['selected'] !== ''): ?><?= chip('selected ' . $c['selected'], 'primary', 'check2') ?><?php endif; ?>

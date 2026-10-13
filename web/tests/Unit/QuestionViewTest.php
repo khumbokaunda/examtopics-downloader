@@ -44,6 +44,16 @@ final class QuestionViewTest extends TestCase
         self::assertSame(['x.png', 'y.png'], $text['question_images']);
     }
 
+    public function testScrapedTextIsCleaned(): void
+    {
+        self::assertSame('Here’s how each mode works: “On demand” – café', QuestionView::cleanText("Hereâ€™s how each mode works: â€œOn demandâ€\u{009D} â€“ cafÃ©"));
+        self::assertSame("A & B 'x' <tag> a b", QuestionView::cleanText('A &amp; B &#39;x&#39; &amp;lt;tag&amp;gt; a&nbsp;b'));
+        self::assertSame('中文 costs €5™ and é', QuestionView::cleanText('中文 costs €5™ and é'), 'correct text is left alone');
+        self::assertSame("One\n\nTwo", QuestionView::cleanText("One  \n\n\n\nTwo\n"));
+        $c = QuestionView::comments(['comments' => [['author' => 'x', 'content' => "Dead Peer Detection checks the peer.\n\n\nHereâ€™s how:", 'upvotes' => 1]]]);
+        self::assertSame("Dead Peer Detection checks the peer.\n\nHere’s how:", $c[0]['content']);
+    }
+
     public function testDragAndDropQuestionsAreRecognised(): void
     {
         $dd = ['text' => "DRAG DROP -\nDrag and drop the descriptions from the left onto the protocols on the right.\nSelect and Place:", 'answer' => ''];

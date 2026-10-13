@@ -513,10 +513,17 @@
   });
 
   // --- Practice mode: reveal one question's answer on demand ---------------------------------
+  // Text as paragraphs (blank lines separate them), keeping single line breaks, like the
+  // server's QuestionView::paragraphs().
   function multiline(container, text) {
-    String(text).split('\n').forEach(function (line, i) {
-      if (i > 0) container.appendChild(document.createElement('br'));
-      container.appendChild(document.createTextNode(line));
+    String(text).trim().split(/\n\s*\n/).forEach(function (para) {
+      if (!para.trim()) return;
+      var p = document.createElement('p');
+      para.trim().split('\n').forEach(function (line, i) {
+        if (i > 0) p.appendChild(document.createElement('br'));
+        p.appendChild(document.createTextNode(line));
+      });
+      container.appendChild(p);
     });
   }
 
