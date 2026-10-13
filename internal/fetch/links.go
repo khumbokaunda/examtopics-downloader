@@ -25,11 +25,14 @@ type DiscussionRef struct {
 }
 
 // The exam code is matched lazily so it stops at the first "-topic-N-question-M" (or
-// "-question-M") suffix. Codes are lower-case alphanumerics and hyphens.
+// "-question-M") suffix. Codes are lower-case alphanumerics, hyphens and underscores: some
+// exams are spelled with one in their discussion links ("h19-101_v60" for H19-101_V6.0).
 var discussionPathRE = regexp.MustCompile(
-	`^/discussions/([a-z0-9-]+)/view/(\d+)-exam-([a-z0-9-]+?)(?:-topic-(\d+))?-question-(\d+)(?:-discussion)?/?$`)
+	`^/discussions/([a-z0-9-]+)/view/(\d+)-exam-([a-z0-9_-]+?)(?:-topic-(\d+))?-question-(\d+)(?:-discussion)?/?$`)
 
-var examCodeRE = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`)
+var examCodeRE = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9_-]*[a-z0-9])?$`)
+
+var providerSlugRE = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`)
 
 // ValidExamCode reports whether code is acceptable for -exam.
 func ValidExamCode(code string) bool {
@@ -38,7 +41,7 @@ func ValidExamCode(code string) bool {
 
 // ValidProviderSlug reports whether slug is acceptable for -p in machine modes.
 func ValidProviderSlug(slug string) bool {
-	return len(slug) <= 64 && examCodeRE.MatchString(slug) && !strings.Contains(slug, "--")
+	return len(slug) <= 64 && providerSlugRE.MatchString(slug) && !strings.Contains(slug, "--")
 }
 
 // relativePath strips the scheme and host from an ExamTopics href. Hrefs on other hosts

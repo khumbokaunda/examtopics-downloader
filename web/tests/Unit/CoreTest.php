@@ -19,6 +19,7 @@ final class CoreTest extends TestCase
         return [
             'plain'         => ['h12-811', true],
             'versioned'     => ['h12-811-v2-0', true],
+            'underscore'    => ['h19-101_v60', true],
             'numeric'       => ['200-301', true],
             'long slug'     => ['professional-cloud-devops-engineer', true],
             'uppercase'     => ['H12-811', false],
