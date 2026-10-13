@@ -4,7 +4,8 @@ examtopics_output.pdf
 *.txt
 env/
 !examples/*
-.DS_STORE/bin/
+.DS_STORE
+/bin/
 # Font licences travel with the fonts.
 !web/public/assets/vendor/fonts/*/OFL.txt
 !web/resources/fonts/*.txt
