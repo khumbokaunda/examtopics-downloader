@@ -369,6 +369,78 @@ func GetAllPages(providerName string, sel Selector) (ScrapeResult, error) {
 // uniqueDiscussionLinks keeps one link per discussion ID (the same discussion can appear on
 // two listing pages when new posts shift the pagination) and orders them by topic,
 // question number, then ID.
+// GetPagesFromKnownLinks collects an exam from the discussion links an inventory refresh
+// remembered, plus any added since. ExamTopics lists a provider's discussions newest first,
+// so instead of every listing page it reads them from the first until two pages in a row
+// hold nothing newer than the inventory's newest discussion (newerThan).
+func GetPagesFromKnownLinks(providerName string, sel Selector, known []string, newerThan int) (ScrapeResult, error) {
+	baseURL := fmt.Sprintf("%s/discussions/%s/", utils.BaseURL, providerName)
+	numPages, err := getMaxNumPages(baseURL)
+	if err != nil {
+		return ScrapeResult{}, err
+	}
+	fmt.Fprintf(out, "Using %d question links remembered by the inventory; checking the newest listing pages for questions added since.\n", len(known))
+	reporter.Phase("listing_pages", fmt.Sprintf("Checking the newest listing pages (%d questions already known)", len(known)))
+
+	links := make([]listingLink, 0, len(known)+20)
+	for _, k := range known {
+		links = append(links, listingLink{Href: k})
+	}
+	var errs []string
+	failed, read, quiet := 0, 0, 0
+	for page := 1; page <= numPages && quiet < 2; page++ {
+		pageLinks, err := getLinksFromPage(fmt.Sprintf("%s%d/", baseURL, page), func(href string) bool {
+			_, ok := ParseDiscussionLink(href, providerName)
+			return ok
+		})
+		read++
+		reporter.Progress("listing_pages", read, -1)
+		if err != nil {
+			failed++
+			quiet = 0
+			msg := fmt.Sprintf("listing page %d: %v", page, err)
+			reporter.Warning("listing_pages", msg)
+			errs = append(errs, msg)
+			continue
+		}
+		newer := false
+		for _, l := range pageLinks {
+			ref, _ := ParseDiscussionLink(l.Href, providerName)
+			if id, err := strconv.Atoi(ref.ID); err == nil && id > newerThan {
+				newer = true
+			}
+			if sel.MatchLink(l.Href) {
+				links = append(links, l)
+			}
+		}
+		if newer {
+			quiet = 0
+		} else {
+			quiet++
+		}
+	}
+	sorted := uniqueDiscussionLinks(links, providerName)
+	fmt.Fprintf(out, "Read %d of %d listing pages; %d questions to fetch (%d new since the inventory).\n", read, numPages, len(sorted), len(sorted)-len(uniqueDiscussionLinks(links[:len(known)], providerName)))
+	reporter.Phase("question_pages", fmt.Sprintf("Fetching %d question pages", len(sorted)))
+
+	items, failedQuestions, qErrs := scrapeQuestionPages(sorted)
+	result := ScrapeResult{
+		Pages:           read,
+		FailedPages:     failed,
+		Links:           len(sorted),
+		FailedQuestions: failedQuestions,
+		Errors:          append(errs, qErrs...),
+	}
+	for _, it := range items {
+		result.Questions = append(result.Questions, it.legacy)
+		result.Normalized = append(result.Normalized, it.norm)
+		if result.ExamName == "" {
+			result.ExamName = it.examName
+		}
+	}
+	return result, nil
+}
+
 func uniqueDiscussionLinks(links []listingLink, provider string) []string {
 	seen := make(map[string]struct{})
 	var refs []DiscussionRef

@@ -84,13 +84,21 @@ Written atomically by `examtopics-downloader -exam <code> -out-json <path>`.
 {
   "schema_version": 1, "kind": "inventory",
   "provider": "huawei", "generated_at": "…", "status": "complete",
-  "listing_pages": 47, "failed_listing_pages": 0, "errors": [],
-  "exams": [ { "code": "h12-811", "name": "", "question_count": 192 } ]
+  "listing_pages": 47, "failed_listing_pages": 0, "errors": [], "newest_id": 158201,
+  "exams": [ { "code": "h12-811", "name": "", "question_count": 192,
+               "links": ["/discussions/huawei/view/90211-exam-h12-811-topic-1-question-1-discussion/", "…"] } ]
 }
 ```
 
 `question_count` is the number of **unique discussion IDs** whose link parses to exactly that code.
 Built from listing pages only; no question pages are fetched.
+
+`links` (optional) are the exam's discussion paths, ordered by topic and question number, and
+`newest_id` (optional) is the highest discussion number seen on any listing page. The web app
+saves both after a complete refresh (`storage/inventory/<provider>/<exam>.links` and
+`meta.json`) and passes them to a collection as `-links-from <file> -newer-than <id>`: the tool
+then fetches those questions and reads listing pages, newest first, only until two pages in a
+row hold no discussion newer than `newest_id`, instead of reading every listing page.
 
 ## 3. Providers (`-providers -out-json`)
 

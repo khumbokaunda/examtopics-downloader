@@ -39,7 +39,8 @@ func main() {
 
 type options struct {
 	provider, grepStr, exam, outputPath, fileType, token, outJSON, events string
-	imagesFrom, imagesDir                                                 string
+	imagesFrom, imagesDir, linksFrom                                      string
+	newerThan                                                             int
 	commentBool, examsFlag, saveUrls, noCache, inventory, providers       bool
 	batch, version                                                        bool
 	rps                                                                   float64
@@ -66,6 +67,8 @@ func parseFlags(args []string) (*options, error) {
 	fs.StringVar(&o.events, "events", "", "Write JSON Lines progress events to this path (\"-\" for stdout)")
 	fs.StringVar(&o.imagesFrom, "images-from", "", "Download the images listed in this file (a dataset JSON from -out-json, or one address per line) and exit")
 	fs.StringVar(&o.imagesDir, "images-dir", "", "Folder for -images-from; files are named by the SHA-256 of their content")
+	fs.StringVar(&o.linksFrom, "links-from", "", "With -exam: collect these discussion links (one per line, from an inventory) instead of scanning every listing page")
+	fs.IntVar(&o.newerThan, "newer-than", 0, "With -links-from: the newest discussion number already known; listing pages are read only until they hold nothing newer")
 	fs.BoolVar(&o.batch, "batch", false, "Unattended mode: never prompt, no progress bars, status text on stderr")
 	fs.BoolVar(&o.version, "version", false, "Print the tool version and exit")
 	if err := fs.Parse(args); err != nil {
@@ -90,6 +93,9 @@ func (o *options) validate() error {
 	}
 	if o.exam != "" && o.grepStr != "" {
 		return errors.New("use either -exam (exact) or -s (substring), not both")
+	}
+	if o.linksFrom != "" && o.exam == "" {
+		return errors.New("-links-from needs -exam")
 	}
 	if (o.imagesFrom == "") != (o.imagesDir == "") {
 		return errors.New("-images-from and -images-dir are used together")
@@ -316,7 +322,16 @@ func runCollect(o *options, reporter progress.Reporter) int {
 		}
 	}
 
-	result, err := fetch.GetAllPages(o.provider, sel)
+	var result fetch.ScrapeResult
+	var err error
+	if o.linksFrom != "" {
+		var known []string
+		if known, err = fetch.ReadLinkList(o.linksFrom, o.provider); err == nil {
+			result, err = fetch.GetPagesFromKnownLinks(o.provider, sel, known, o.newerThan)
+		}
+	} else {
+		result, err = fetch.GetAllPages(o.provider, sel)
+	}
 	if err != nil {
 		reporter.Failed(err.Error())
 		fmt.Fprintln(os.Stderr, "error:", err)

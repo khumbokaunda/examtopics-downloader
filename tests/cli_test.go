@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -478,6 +479,57 @@ func TestImageListReportsEachOutcome(t *testing.T) {
 	entries, _ := os.ReadDir(filepath.Join(dir, "media"))
 	if len(entries) != 3 { // two images and images.json, no temporary files
 		t.Errorf("media folder has %d entries", len(entries))
+	}
+}
+
+// The inventory remembers each exam's links, so a collection reads only the newest listing
+// pages: it finds a question added since the inventory and stops once pages hold nothing new.
+func TestCollectionFromInventoryLinks(t *testing.T) {
+	site := fixturesite.Default(fixturesite.Options{NewestFirst: true})
+	r := runTool(t, site, nil, "-batch", "-inventory", "-p", "huawei", "-out-json", "inv.json")
+	if r.exit != 0 {
+		t.Fatalf("inventory exit %d\n%s", r.exit, r.stderr)
+	}
+	raw, _ := os.ReadFile(r.file("inv.json"))
+	var inv dataset.Inventory
+	if err := json.Unmarshal(raw, &inv); err != nil {
+		t.Fatal(err)
+	}
+	var links []string
+	for _, e := range inv.Exams {
+		if e.Code == "h12-811" {
+			links = e.Links
+		}
+	}
+	if len(links) != 5 || inv.NewestID != 1010 {
+		t.Fatalf("inventory links %v, newest %d", links, inv.NewestID)
+	}
+
+	collect := func(known []string, newerThan int) (toolRun, *fixturesite.Site) {
+		site := fixturesite.Default(fixturesite.Options{NewestFirst: true})
+		srv := httptest.NewServer(site)
+		t.Cleanup(srv.Close)
+		dir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(dir, "links.txt"), []byte(strings.Join(known, "\n")+"\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return runToolAt(t, srv.URL, dir, nil, "-batch", "-no-cache", "-p", "huawei", "-exam", "h12-811",
+			"-links-from", "links.txt", "-newer-than", strconv.Itoa(newerThan), "-out-json", "ds.json"), site
+	}
+
+	// Nothing new since the inventory: two quiet pages, then the questions.
+	r, s := collect(links, inv.NewestID)
+	if r.exit != 0 || len(readDataset(t, r.file("ds.json")).Questions) != 5 {
+		t.Fatalf("exit %d\n%s", r.exit, r.stderr)
+	}
+	if s.Hits("/discussions/huawei/3/") != 0 || s.Hits("/discussions/huawei/4/") != 0 {
+		t.Errorf("read listing pages it did not need: page 3 %d, page 4 %d", s.Hits("/discussions/huawei/3/"), s.Hits("/discussions/huawei/4/"))
+	}
+
+	// A question the inventory did not know (the newest h12-811 one) is found on the listing.
+	r, _ = collect(links[:4], 1004)
+	if ds := readDataset(t, r.file("ds.json")); r.exit != 0 || len(ds.Questions) != 5 || ds.Questions[4].QuestionNumber != 5 {
+		t.Fatalf("new question not found: exit %d\n%s", r.exit, r.stderr)
 	}
 }
 

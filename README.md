@@ -84,8 +84,12 @@ Each command line argument you can provide when running the program:
     	Download the images listed in this file (a dataset JSON from -out-json, or one address per line) and exit
   -inventory
     	List the provider's exams with discussion counts (JSON) and exit
+  -links-from string
+    	With -exam: collect these discussion links (one per line, from an inventory) instead of scanning every listing page
   -no-cache
     	Optional argument, set to disable looking through cached data on github
+  -newer-than int
+    	With -links-from: the newest discussion number already known; listing pages are read only until they hold nothing newer
   -o string
     	Optional path of the file where the data will be outputted (default "examtopics_output.md")
   -out-json string

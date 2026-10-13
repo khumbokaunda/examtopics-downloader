@@ -48,6 +48,7 @@ final class CollectController extends Controller
             'allowedRps' => (array) $this->app->config()->get('tool.allowed_rps', [0.25, 0.5, 1.0]),
             'defaultRps' => (float) $this->app->config()->get('tool.default_rps', 1.0),
             'lastRefresh' => $provider !== null ? $this->s->refreshes()->latest((int) $provider['id']) : null,
+            'knownLinks' => $exam !== null ? (new \App\Services\InventoryLinks($this->app->paths()))->forExam((string) $provider['slug'], (string) $exam['code']) : null,
         ]);
     }
 
@@ -65,7 +66,8 @@ final class CollectController extends Controller
             $this->flash('warning', 'This exam is already in your library. Tick "Collect a fresh version" to refresh it; the current version stays available until the new one passes validation.');
             return $this->redirect('/collect', ['provider' => $provider['slug'], 'exam' => $code]);
         }
-        $options = $this->s->jobService()->collectOptions($this->request->input('source_mode'), $this->request->input('rps'));
+        $options = $this->s->jobService()->collectOptions($this->request->input('source_mode'), $this->request->input('rps'),
+            $this->request->input('full_scan') === '1');
         try {
             $id = $this->s->jobService()->enqueueCollect($provider, $code, $options);
         } catch (ActiveJobException $e) {

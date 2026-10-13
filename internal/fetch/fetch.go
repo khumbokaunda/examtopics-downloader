@@ -554,10 +554,12 @@ func GetInventory(provider string) (dataset.Inventory, error) {
 	})
 
 	type agg struct {
-		ids  map[string]struct{}
-		name string
+		ids   map[string]struct{}
+		name  string
+		links []listingLink
 	}
 	byCode := make(map[string]*agg)
+	newest := 0
 	for _, l := range links {
 		ref, _ := ParseDiscussionLink(l.Href, provider)
 		a := byCode[ref.Code]
@@ -566,14 +568,19 @@ func GetInventory(provider string) (dataset.Inventory, error) {
 			byCode[ref.Code] = a
 		}
 		a.ids[ref.ID] = struct{}{}
+		a.links = append(a.links, l)
 		if a.name == "" {
 			a.name = ExamNameFromTitle(l.Text)
+		}
+		if id, err := strconv.Atoi(ref.ID); err == nil && id > newest {
+			newest = id
 		}
 	}
 
 	exams := make([]dataset.InventoryExam, 0, len(byCode))
 	for code, a := range byCode {
-		exams = append(exams, dataset.InventoryExam{Code: code, Name: a.name, QuestionCount: len(a.ids)})
+		exams = append(exams, dataset.InventoryExam{Code: code, Name: a.name, QuestionCount: len(a.ids),
+			Links: uniqueDiscussionLinks(a.links, provider)})
 	}
 	sort.Slice(exams, func(i, j int) bool { return exams[i].Code < exams[j].Code })
 
@@ -589,6 +596,7 @@ func GetInventory(provider string) (dataset.Inventory, error) {
 		Status:             status,
 		ListingPages:       numPages,
 		FailedListingPages: failedPages,
+		NewestID:           newest,
 		Errors:             dataset.CapErrors(errs),
 		Exams:              exams,
 	}, nil

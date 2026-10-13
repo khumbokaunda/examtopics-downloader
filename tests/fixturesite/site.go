@@ -57,6 +57,8 @@ type Options struct {
 	FailTimes map[string]int
 	// PerPage is the number of discussion links per listing page.
 	PerPage int
+	// NewestFirst lists the newest discussions first, as ExamTopics does.
+	NewestFirst bool
 }
 
 type Site struct {
@@ -237,6 +239,9 @@ func (s *Site) listing(w http.ResponseWriter, n int) {
 	start := (n - 1) * s.opts.PerPage
 	for i := start; i < start+s.opts.PerPage && i < len(s.questions); i++ {
 		q := s.questions[i]
+		if s.opts.NewestFirst {
+			q = s.questions[len(s.questions)-1-i]
+		}
 		href := q.Path()
 		if q.Absolute {
 			href = "https://www.examtopics.com" + href

@@ -27,7 +27,9 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
    progress events. The CLI remains fully usable on its own.
 2. **Provider and exam inventory**: `-inventory` counts unique discussions per exact exam
    code from listing pages only. Results are stored in `exams` (reported count, refresh time)
-   and `inventory_refreshes` (status, errors).
+   and `inventory_refreshes` (status, errors). A complete refresh also remembers each exam's
+   discussion links (`storage/inventory/<provider>/`), so a later collection of that exam reads
+   only the newest listing pages (`-links-from`, `-newer-than`) instead of all of them.
 3. **Exam library**: canonical JSON datasets in `storage/cache/<provider>/<exam>/`, one
    immutable file per version plus a manifest. MySQL indexes them (`cache_versions`) and can be
    rebuilt from the manifests.

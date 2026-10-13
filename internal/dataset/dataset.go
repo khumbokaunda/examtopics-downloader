@@ -206,18 +206,24 @@ type InventoryExam struct {
 	Code          string `json:"code"`
 	Name          string `json:"name"`
 	QuestionCount int    `json:"question_count"`
+	// Links are the exam's discussion paths, ordered by topic and question number, so a
+	// collection can skip scanning the provider's listing pages (-links-from).
+	Links []string `json:"links,omitempty"`
 }
 
 type Inventory struct {
-	SchemaVersion      int             `json:"schema_version"`
-	Kind               string          `json:"kind"`
-	Provider           string          `json:"provider"`
-	GeneratedAt        string          `json:"generated_at"`
-	Status             string          `json:"status"`
-	ListingPages       int             `json:"listing_pages"`
-	FailedListingPages int             `json:"failed_listing_pages"`
-	Errors             []string        `json:"errors"`
-	Exams              []InventoryExam `json:"exams"`
+	SchemaVersion      int    `json:"schema_version"`
+	Kind               string `json:"kind"`
+	Provider           string `json:"provider"`
+	GeneratedAt        string `json:"generated_at"`
+	Status             string `json:"status"`
+	ListingPages       int    `json:"listing_pages"`
+	FailedListingPages int    `json:"failed_listing_pages"`
+	// NewestID is the highest discussion number seen: a collection given the links above
+	// only reads listing pages until they hold nothing newer (-newer-than).
+	NewestID int             `json:"newest_id,omitempty"`
+	Errors   []string        `json:"errors"`
+	Exams    []InventoryExam `json:"exams"`
 }
 
 type Provider struct {
