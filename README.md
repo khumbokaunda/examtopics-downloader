@@ -86,6 +86,8 @@ Each command line argument you can provide when running the program:
     	List the provider's exams with discussion counts (JSON) and exit
   -links-from string
     	With -exam: collect these discussion links (one per line, from an inventory) instead of scanning every listing page
+  -links-only
+    	With -links-from: fetch only those links and read no listing pages (for exams the listing pages do not show)
   -no-cache
     	Optional argument, set to disable looking through cached data on github
   -newer-than int

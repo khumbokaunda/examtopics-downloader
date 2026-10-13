@@ -70,7 +70,7 @@ final class JobPipelineTest extends WorkflowTestCase
         self::assertSame('completed', $job['status'], (string) $job['error_summary']);
         self::assertSame('complete', $job['result_status']);
         self::assertSame(0, (int) $job['exit_code']);
-        self::assertStringContainsString('Using 5 question links remembered by the inventory',
+        self::assertStringContainsString('Using 5 known question links',
             (string) file_get_contents($this->app->paths()->jobDir((int) $job['id']) . '/tool.log'));
         $version = $this->s->versions()->find((int) $job['cache_version_id']);
         self::assertSame(5, (int) $version['collected_count']);

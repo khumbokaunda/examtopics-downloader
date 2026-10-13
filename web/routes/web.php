@@ -32,6 +32,8 @@ return static function (Router $r): void {
 
     $r->get('/collect', [CollectController::class, 'index']);
     $r->post('/collect', [CollectController::class, 'start']);
+    $r->post('/collect/links', [CollectController::class, 'addLinks']);
+    $r->post('/collect/links/clear', [CollectController::class, 'clearLinks']);
 
     $r->get('/jobs', [JobController::class, 'index']);
     $r->get('/jobs/{uuid}', [JobController::class, 'show']);

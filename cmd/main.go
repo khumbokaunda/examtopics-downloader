@@ -42,7 +42,7 @@ type options struct {
 	imagesFrom, imagesDir, linksFrom                                      string
 	newerThan                                                             int
 	commentBool, examsFlag, saveUrls, noCache, inventory, providers       bool
-	batch, version                                                        bool
+	batch, version, linksOnly                                             bool
 	rps                                                                   float64
 	setFlags                                                              map[string]bool
 }
@@ -69,6 +69,7 @@ func parseFlags(args []string) (*options, error) {
 	fs.StringVar(&o.imagesDir, "images-dir", "", "Folder for -images-from; files are named by the SHA-256 of their content")
 	fs.StringVar(&o.linksFrom, "links-from", "", "With -exam: collect these discussion links (one per line, from an inventory) instead of scanning every listing page")
 	fs.IntVar(&o.newerThan, "newer-than", 0, "With -links-from: the newest discussion number already known; listing pages are read only until they hold nothing newer")
+	fs.BoolVar(&o.linksOnly, "links-only", false, "With -links-from: fetch only those links and read no listing pages (for exams the listing pages do not show)")
 	fs.BoolVar(&o.batch, "batch", false, "Unattended mode: never prompt, no progress bars, status text on stderr")
 	fs.BoolVar(&o.version, "version", false, "Print the tool version and exit")
 	if err := fs.Parse(args); err != nil {
@@ -96,6 +97,9 @@ func (o *options) validate() error {
 	}
 	if o.linksFrom != "" && o.exam == "" {
 		return errors.New("-links-from needs -exam")
+	}
+	if o.linksOnly && o.linksFrom == "" {
+		return errors.New("-links-only needs -links-from")
 	}
 	if (o.imagesFrom == "") != (o.imagesDir == "") {
 		return errors.New("-images-from and -images-dir are used together")
@@ -327,7 +331,11 @@ func runCollect(o *options, reporter progress.Reporter) int {
 	if o.linksFrom != "" {
 		var known []string
 		if known, err = fetch.ReadLinkList(o.linksFrom, o.provider); err == nil {
-			result, err = fetch.GetPagesFromKnownLinks(o.provider, sel, known, o.newerThan)
+			newerThan := o.newerThan
+			if o.linksOnly {
+				newerThan = -1
+			}
+			result, err = fetch.GetPagesFromKnownLinks(o.provider, sel, known, newerThan)
 		}
 	} else {
 		result, err = fetch.GetAllPages(o.provider, sel)

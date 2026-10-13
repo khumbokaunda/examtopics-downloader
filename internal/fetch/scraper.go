@@ -369,18 +369,25 @@ func GetAllPages(providerName string, sel Selector) (ScrapeResult, error) {
 // uniqueDiscussionLinks keeps one link per discussion ID (the same discussion can appear on
 // two listing pages when new posts shift the pagination) and orders them by topic,
 // question number, then ID.
-// GetPagesFromKnownLinks collects an exam from the discussion links an inventory refresh
-// remembered, plus any added since. ExamTopics lists a provider's discussions newest first,
-// so instead of every listing page it reads them from the first until two pages in a row
-// hold nothing newer than the inventory's newest discussion (newerThan).
+// GetPagesFromKnownLinks collects an exam from known discussion links: the ones an
+// inventory refresh remembered and any the user added. ExamTopics lists a provider's
+// discussions newest first, so instead of every listing page it reads them from the first
+// until two pages in a row hold nothing newer than the inventory's newest discussion
+// (newerThan). A negative newerThan reads no listing pages at all: for exams whose
+// discussions ExamTopics does not list, only the given links can be collected.
 func GetPagesFromKnownLinks(providerName string, sel Selector, known []string, newerThan int) (ScrapeResult, error) {
 	baseURL := fmt.Sprintf("%s/discussions/%s/", utils.BaseURL, providerName)
-	numPages, err := getMaxNumPages(baseURL)
-	if err != nil {
-		return ScrapeResult{}, err
+	numPages := 0
+	if newerThan < 0 {
+		fmt.Fprintf(out, "Using %d question links you provided; no listing pages are read.\n", len(known))
+	} else {
+		var err error
+		if numPages, err = getMaxNumPages(baseURL); err != nil {
+			return ScrapeResult{}, err
+		}
+		fmt.Fprintf(out, "Using %d known question links; checking the newest listing pages for questions added since.\n", len(known))
+		reporter.Phase("listing_pages", fmt.Sprintf("Checking the newest listing pages (%d questions already known)", len(known)))
 	}
-	fmt.Fprintf(out, "Using %d question links remembered by the inventory; checking the newest listing pages for questions added since.\n", len(known))
-	reporter.Phase("listing_pages", fmt.Sprintf("Checking the newest listing pages (%d questions already known)", len(known)))
 
 	links := make([]listingLink, 0, len(known)+20)
 	for _, k := range known {
@@ -420,7 +427,9 @@ func GetPagesFromKnownLinks(providerName string, sel Selector, known []string, n
 		}
 	}
 	sorted := uniqueDiscussionLinks(links, providerName)
-	fmt.Fprintf(out, "Read %d of %d listing pages; %d questions to fetch (%d new since the inventory).\n", read, numPages, len(sorted), len(sorted)-len(uniqueDiscussionLinks(links[:len(known)], providerName)))
+	if newerThan >= 0 {
+		fmt.Fprintf(out, "Read %d of %d listing pages; %d questions to fetch (%d new since the inventory).\n", read, numPages, len(sorted), len(sorted)-len(uniqueDiscussionLinks(links[:len(known)], providerName)))
+	}
 	reporter.Phase("question_pages", fmt.Sprintf("Fetching %d question pages", len(sorted)))
 
 	items, failedQuestions, qErrs := scrapeQuestionPages(sorted)

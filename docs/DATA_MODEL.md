@@ -100,6 +100,17 @@ saves both after a complete refresh (`storage/inventory/<provider>/<exam>.links`
 then fetches those questions and reads listing pages, newest first, only until two pages in a
 row hold no discussion newer than `newest_id`, instead of reading every listing page.
 
+Some exams' discussions are not on the listing pages at all (in October 2026, H19-101-V6.0),
+so no inventory finds them, although each discussion page still opens. On the Collect page,
+"Exam not listed? Collect from links" reads discussion links from pasted text: the links
+themselves, or a search results page copied as text, where a title such as "Exam
+H19-101_V6.0 topic 1 question 1 discussion" is paired with the address line under it
+("examtopics.com › huawei › view › 390360"). Each link is rebuilt with the exam's current
+spelling (an older one such as `h19-101_v60` no longer opens) and kept in
+`storage/inventory/<provider>/added/<exam>.links`, which inventory refreshes leave alone. A
+collection passes them with the inventory's links, or, for an exam the listing pages do not
+show, with `-links-only`, so no listing page is read.
+
 ## 3. Providers (`-providers -out-json`)
 
 ```json
