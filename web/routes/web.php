@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Controllers\AnswerController;
 use App\Controllers\AuthController;
 use App\Controllers\CollectController;
 use App\Controllers\DashboardController;
@@ -43,6 +44,7 @@ return static function (Router $r): void {
     $r->get('/api/palette', [LibraryController::class, 'paletteJson']);
     $r->get('/library/{provider}/{exam}', [LibraryController::class, 'exam']);
     $r->get('/library/{provider}/{exam}/view', [ViewerController::class, 'show']);
+    $r->post('/library/{provider}/{exam}/answers', [AnswerController::class, 'save']);
     $r->get('/library/{provider}/{exam}/{version}/json', [LibraryController::class, 'downloadJson']);
     $r->post('/library/{provider}/{exam}/{version}/delete', [LibraryController::class, 'deleteVersion']);
     $r->post('/library/{provider}/{exam}/{version}/documents', [DocumentController::class, 'generate']);

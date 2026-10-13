@@ -8,6 +8,7 @@ use App\Core\Http\HttpException;
 use App\Core\Http\Response;
 use App\Core\Ids;
 use App\Services\ActiveJobException;
+use App\Services\Documents\QuestionView;
 use App\Services\Documents\Variant;
 use App\Services\MediaStore;
 use App\Services\ToolCheck;
@@ -69,9 +70,11 @@ final class LibraryController extends Controller
         }
         $selected = $this->findVersion($e, $this->request->query('version'));
         try {
-            $images = $this->s->media()->summary(MediaStore::urlsOf($this->s->cache()->load($selected)));
+            $data = $this->s->cache()->load($selected);
+            $images = $this->s->media()->summary(MediaStore::urlsOf($data));
+            $answers = $this->answerSummary($e, $data);
         } catch (RuntimeException) {
-            $images = null; // the data file is missing or damaged; the page says so elsewhere
+            $images = $answers = null; // the data file is missing or damaged; the page says so elsewhere
         }
         return $this->render('library/exam', [
             'title' => strtoupper((string) $e['code']),
@@ -83,6 +86,7 @@ final class LibraryController extends Controller
             'documents' => array_map([$this->s->documents(), 'refresh'], $this->s->documentRepo()->forVersion((int) $selected['id'])),
             'variants' => Variant::ALL,
             'images' => $images,
+            'answers' => $answers,
             'jobs' => $this->s->jobs()->list(['provider_id' => (int) $p['id'], 'exam_code' => (string) $e['code']], 20),
             'activeJob' => $this->activeCollectFor($p, $e),
         ]);
@@ -134,6 +138,29 @@ final class LibraryController extends Controller
             $this->flash('danger', $ex->getMessage());
         }
         return $this->redirect('/library/' . rawurlencode($p['slug']) . '/' . rawurlencode($e['code']));
+    }
+
+    /**
+     * Answers to check, and the ones corrected or checked in the reader.
+     *
+     * @param array<string,mixed> $e
+     * @param array<string,mixed> $data
+     * @return array{check:int,corrected:int,checked:int,fingerprint:?string}
+     */
+    private function answerSummary(array $e, array $data): array
+    {
+        $questions = QuestionView::applyEdits(
+            array_map([QuestionView::class, 'normalize'], array_values(array_filter((array) ($data['questions'] ?? []), 'is_array'))),
+            $this->s->answerEdits()->forExam((int) $e['id']));
+        $out = ['check' => 0, 'corrected' => 0, 'checked' => 0, 'fingerprint' => $this->s->answerEdits()->fingerprint((int) $e['id'])];
+        foreach ($questions as $q) {
+            $out['check'] += QuestionView::doubts($q) !== [] ? 1 : 0;
+            $kind = (string) ($q['edit']['kind'] ?? '');
+            if ($kind === 'corrected' || $kind === 'checked') {
+                $out[$kind]++;
+            }
+        }
+        return $out;
     }
 
     /**

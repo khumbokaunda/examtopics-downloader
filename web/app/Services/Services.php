@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Core\App;
+use App\Repositories\AnswerEditRepository;
 use App\Repositories\CacheVersionRepository;
 use App\Repositories\DocumentRepository;
 use App\Repositories\ExamRepository;
@@ -63,6 +64,11 @@ final class Services
         return $this->app->service(DocumentRepository::class, fn() => new DocumentRepository($this->app->db()));
     }
 
+    public function answerEdits(): AnswerEditRepository
+    {
+        return $this->app->service(AnswerEditRepository::class, fn() => new AnswerEditRepository($this->app->db()));
+    }
+
     public function settings(): SettingsRepository
     {
         return $this->app->service(SettingsRepository::class, fn() => new SettingsRepository($this->app->db()));
@@ -105,6 +111,7 @@ final class Services
     {
         return $this->app->service(DocumentStore::class, fn() => new DocumentStore(
             $this->app->config(), $this->app->paths(), $this->app->logger(), $this->documentRepo(), $this->cache(), $this->media(),
+            $this->answerEdits(),
             fn(string $uuid): bool => $this->supervisor()->launchScript('build-document.php', [$uuid], 'documents-build.log')));
     }
 }

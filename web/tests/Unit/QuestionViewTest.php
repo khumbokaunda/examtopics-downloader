@@ -85,4 +85,64 @@ final class QuestionViewTest extends TestCase
         // Text in another shape is kept as one block.
         self::assertCount(1, QuestionView::comments(['comments_text' => "alice\n1 upvotes\nI think it is A.\nBecause of the RFC."]));
     }
+
+    /**
+     * A real discussion: two voters, both limited to one letter, and comments that argue for
+     * ABC and ABCD. The vote says A; the hints say why it needs checking.
+     */
+    public function testDoubtfulAnswersAreFlaggedWithWhatTheCommentsSay(): void
+    {
+        $comments = [
+            ["As respostas corretas são A, B e C.\nD. LSA não é um tipo de pacote", 2, ''],
+            ['A,B,C. D is not a packet, LSA is routing information.', 1, ''],
+            ["All are correct.\nList of OSPF packets:\nHello", 1, 'A'],
+            ['Aaaaaa', 1, ''],
+            ['All the given options are correct.', 1, ''],
+            ['The answer is ABCD', 2, ''],
+            ['All the above', 2, ''],
+            ['A,B,C,D', 3, ''],
+            ["A B and C are correct answers.\nHELLO: Used to discover neighbors.", 2, 'A'],
+        ];
+        $q = QuestionView::normalize([
+            'text' => 'Which of the following packets are OSPF packets?', 'topic' => 1, 'question_number' => 12,
+            'choices' => [['letter' => 'A', 'text' => 'HELLO'], ['letter' => 'B', 'text' => 'LSR'], ['letter' => 'C', 'text' => 'LSU'], ['letter' => 'D', 'text' => 'LSA']],
+            'answer' => '', 'community_votes' => [],
+            'comments' => array_map(static fn(array $c) => ['author' => 'u', 'content' => $c[0], 'upvotes' => $c[1], 'selected_answer' => $c[2]], $comments),
+        ]);
+        self::assertSame('A: 5 (100%) – most voted (counted from the comments)', QuestionView::votesLine($q));
+        self::assertSame([
+            'The question asks for more than one answer, but the answer has one letter.',
+            'Only 2 people voted.',
+            'Most comments that name an answer say ABCD (5 of 8).',
+        ], QuestionView::doubts($q));
+        self::assertSame('ABCD (5), ABC (3)', QuestionView::claimsLine($q));
+
+        // Corrected in the reader: the hints go, and the collected answer is still named.
+        self::assertSame('1-12', QuestionView::key($q));
+        [$fixed] = QuestionView::applyEdits([$q], ['1-12' => ['answer' => 'ABC', 'note' => 'LSA is not a packet type.']]);
+        self::assertSame('ABC (corrected by you; the collected answer was A)', QuestionView::answerLine($fixed));
+        self::assertSame('LSA is not a packet type.', $fixed['edit']['note']);
+        self::assertSame([], QuestionView::doubts($fixed));
+        // Saving the collected letters unchanged marks the answer as checked.
+        [$checked] = QuestionView::applyEdits([$q], ['1-12' => ['answer' => 'A', 'note' => null]]);
+        self::assertStringEndsWith('; checked by you)', (string) QuestionView::answerLine($checked));
+        self::assertSame([], QuestionView::doubts($checked));
+    }
+
+    public function testCommentsNameAnswersInManyWays(): void
+    {
+        $l = ['A', 'B', 'C', 'D', 'E'];
+        foreach ([
+            'I think it is B.' => 'B', 'Correct answer: C' => 'C', 'go with D because it is newer' => 'D', 'E' => 'E',
+            'AD for sure.' => 'AD', 'C is correct' => 'C', 'Answer is B, D' => 'BD',
+            'Agreed.' => null, 'A switch forwards frames; AD of OSPF is 110' => null, 'C and D are wrong' => null,
+        ] as $text => $want) {
+            self::assertSame($want, QuestionView::claimIn($text, $l), $text);
+        }
+        // Wording that asks for a number of answers.
+        $q = ['text' => 'Which two statements are true? (Choose two.)', 'answer' => 'A', 'answer_source' => 'suggested', 'suggested_answer' => 'A',
+            'choices' => [['letter' => 'A', 'text' => 'x'], ['letter' => 'B', 'text' => 'y'], ['letter' => 'C', 'text' => 'z']]];
+        self::assertSame(['The question asks for two answers, but the answer has 1.'], QuestionView::doubts($q));
+        self::assertSame([], QuestionView::doubts(['text' => 'Which of the following is true when links are up?'] + $q));
+    }
 }

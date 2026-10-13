@@ -1,10 +1,11 @@
 <?php
 /** @var array $provider @var array $exam @var array $version @var list<array> $questions @var string $mode
- *  @var string $q @var int $page @var int $pages @var int $total @var int $all @var array<string,string> $localImages */
+ *  @var string $q @var int $page @var int $pages @var int $total @var int $all @var array<string,string> $localImages
+ *  @var bool $review @var int $toCheck */
 use App\Services\Documents\QuestionView;
 
 $base = '/library/' . rawurlencode($provider['slug']) . '/' . rawurlencode($exam['code']);
-$params = ['version' => $version['version'], 'mode' => $mode === 'practice' ? 'practice' : '', 'q' => $q];
+$params = ['version' => $version['version'], 'mode' => $mode === 'practice' ? 'practice' : '', 'q' => $q, 'review' => $review ? '1' : ''];
 $practice = $mode === 'practice';
 $img = static function (string $url, string $alt) use ($localImages): string {
     // The copy saved on this server when there is one, else the original address.
@@ -24,7 +25,7 @@ $img = static function (string $url, string $alt) use ($localImages): string {
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title"><?= e(strtoupper($exam['code'])) ?></h1>
-        <p class="page-subtitle"><?= $total ?> of <?= $all ?> questions · version <?= e(fmt_time($version['collected_at'])) ?></p>
+        <p class="page-subtitle"><?= $review ? $total . ' answers to check, of ' . $all . ' questions' : $total . ' of ' . $all . ' questions' ?> · version <?= e(fmt_time($version['collected_at'])) ?></p>
         <?php if ($version['status'] === 'partial'): ?><div class="mt-2"><?= chip('Partial version: some questions could not be collected', 'warning', 'exclamation-triangle') ?></div><?php endif; ?>
     </div>
     <div class="page-actions">
@@ -38,17 +39,25 @@ $img = static function (string $url, string $alt) use ($localImages): string {
 <form class="toolbar reader-toolbar" method="get" action="<?= e(url($base . '/view')) ?>">
     <input type="hidden" name="version" value="<?= e($version['version']) ?>">
     <?php if ($practice): ?><input type="hidden" name="mode" value="practice"><?php endif; ?>
+    <?php if ($review): ?><input type="hidden" name="review" value="1"><?php endif; ?>
     <div class="search-field"><?= icon('search') ?><input class="form-control" type="search" name="q" value="<?= e($q) ?>" placeholder="Search question and answer-choice text" aria-label="Search questions"></div>
     <button class="btn btn-outline-secondary" type="submit">Search</button>
-    <?php if ($q === ''): ?>
+    <?php if ($q === '' && !$review): ?>
         <input class="form-control jump-input" type="number" min="1" max="<?= (int) $all ?>" name="jump" placeholder="Go to #" aria-label="Go to question number">
-    <?php else: ?>
-        <a class="btn btn-link" href="<?= e(url($base . '/view', ['version' => $version['version'], 'mode' => $practice ? 'practice' : ''])) ?>">Clear search</a>
+    <?php elseif ($q !== ''): ?>
+        <a class="btn btn-link" href="<?= e(url($base . '/view', ['version' => $version['version'], 'mode' => $practice ? 'practice' : '', 'review' => $review ? '1' : ''])) ?>">Clear search</a>
+    <?php endif; ?>
+    <?php if ($review): ?>
+        <a class="btn btn-outline-secondary" href="<?= e(url($base . '/view', ['version' => $version['version']])) ?>"><?= icon('list-ol') ?>All questions</a>
+    <?php elseif ($toCheck > 0): ?>
+        <a class="btn btn-outline-warning" href="<?= e(url($base . '/view', ['version' => $version['version'], 'review' => '1'])) ?>" title="Answers that look doubtful and that you have not corrected or checked yet"><?= icon('exclamation-triangle') ?>To check (<?= $toCheck ?>)</a>
     <?php endif; ?>
 </form>
 
 <?php if ($questions === []): ?>
-    <div class="card"><div class="card-body"><?= empty_state('search', 'No questions match', 'Search looks in question and answer-choice text. Try fewer words.', null, true) ?></div></div>
+    <div class="card"><div class="card-body"><?= $review && $q === ''
+        ? empty_state('check2-all', 'Nothing left to check', 'Every answer that looked doubtful has been corrected or checked.', null, true)
+        : empty_state('search', 'No questions match', 'Search looks in question and answer-choice text. Try fewer words.', null, true) ?></div></div>
 <?php endif; ?>
 
 <?php foreach ($questions as $item): $n = (int) $item['number'];
@@ -75,15 +84,66 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                         data-reveal-url="<?= e(url('/api/library/' . rawurlencode($provider['slug']) . '/' . rawurlencode($exam['code']) . '/' . rawurlencode($version['version']) . '/questions/' . $n)) ?>"><?= icon('eye') ?><span class="label">Reveal answer</span></button>
                 <div class="reveal-target" hidden></div>
             <?php else: ?>
-                <?php $answer = QuestionView::answerLine($item); $votes = QuestionView::votesLine($item); ?>
-                <div class="answer-box">
-                    <?= icon('check-circle-fill') ?>
+                <?php $answer = QuestionView::answerLine($item); $votes = QuestionView::votesLine($item);
+                $edit = $item['edit'] ?? null; $doubts = QuestionView::doubts($item); $letters = QuestionView::choiceLetters($item); ?>
+                <div class="answer-box<?= ($edit['kind'] ?? '') === 'corrected' ? ' is-corrected' : '' ?>">
+                    <?= icon(($edit['kind'] ?? '') === 'corrected' ? 'pencil-square' : 'check-circle-fill') ?>
                     <div>
                         <?php $note = QuestionView::pictureAnswerNote($item); ?>
                         <div class="answer-text"><strong>Answer:</strong> <?= $answer !== null ? e($answer) : '<span class="text-muted">' . e($note ?? 'not available') . '</span>' ?></div>
                         <?php if ($votes !== null): ?><div class="answer-votes">Community votes: <?= e($votes) ?></div><?php endif; ?>
+                        <?php if (($edit['note'] ?? '') !== ''): ?><div class="answer-note"><span class="answer-note-label">Your note</span><?php foreach (QuestionView::paragraphs($edit['note']) as $para): ?><p><?= $para ?></p><?php endforeach; ?></div><?php endif; ?>
                     </div>
                 </div>
+                <?php if ($doubts !== []): $claims = QuestionView::claimsLine($item); ?>
+                    <div class="answer-check" role="note">
+                        <?= icon('exclamation-triangle-fill') ?>
+                        <div>
+                            <div class="answer-check-title">Check this answer</div>
+                            <ul class="answer-check-list"><?php foreach ($doubts as $d): ?><li><?= e($d) ?></li><?php endforeach; ?></ul>
+                            <?php if ($claims !== null): ?><div class="answer-check-claims">Answers named in the comments: <?= e($claims) ?></div><?php endif; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
+                <details class="answer-edit"<?= $doubts !== [] && $review ? ' open' : '' ?>>
+                    <summary><?= icon('pencil-square') ?><?= $edit !== null ? 'Change your correction' : ($letters !== [] ? 'Correct this answer' : 'Add a note') ?></summary>
+                    <div class="answer-edit-body">
+                        <form method="post" action="<?= e(url($base . '/answers')) ?>" data-once data-busy="Saving…">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="key" value="<?= e(QuestionView::key($item)) ?>">
+                            <input type="hidden" name="version" value="<?= e($version['version']) ?>">
+                            <input type="hidden" name="page" value="<?= (int) $page ?>">
+                            <input type="hidden" name="q" value="<?= e($q) ?>">
+                            <?php if ($review): ?><input type="hidden" name="review" value="1"><?php endif; ?>
+                            <?php if ($letters !== []): ?>
+                                <fieldset class="mb-3">
+                                    <legend class="form-label">Correct answer</legend>
+                                    <div class="letter-picks">
+                                        <?php foreach ($letters as $l): ?>
+                                            <label class="letter-pick"><input type="checkbox" name="letter_<?= e($l) ?>" value="1"<?= in_array($l, $answerLetters, true) ? ' checked' : '' ?>><span><?= e($l) ?></span></label>
+                                        <?php endforeach; ?>
+                                    </div>
+                                    <div class="form-text">Tick every correct letter. Saving the collected letters unchanged marks the answer as checked.</div>
+                                </fieldset>
+                            <?php endif; ?>
+                            <label class="form-label" for="note-<?= $n ?>">Note <span class="text-muted fw-normal">(optional, shown with the answer)</span></label>
+                            <textarea class="form-control" id="note-<?= $n ?>" name="note" rows="2" maxlength="2000" placeholder="Why this is the answer, e.g. LSA is not a packet type"><?= e((string) ($edit['note'] ?? '')) ?></textarea>
+                            <div class="answer-edit-actions"><button class="btn btn-sm btn-primary" type="submit"><?= icon('check2') ?>Save</button></div>
+                        </form>
+                        <?php if ($edit !== null): ?>
+                            <form method="post" action="<?= e(url($base . '/answers')) ?>" class="answer-edit-remove" data-once data-busy="Removing…">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="key" value="<?= e(QuestionView::key($item)) ?>">
+                                <input type="hidden" name="version" value="<?= e($version['version']) ?>">
+                                <input type="hidden" name="page" value="<?= (int) $page ?>">
+                                <input type="hidden" name="q" value="<?= e($q) ?>">
+                                <?php if ($review): ?><input type="hidden" name="review" value="1"><?php endif; ?>
+                                <input type="hidden" name="action" value="remove">
+                                <button class="btn btn-sm btn-link btn-link-danger" type="submit"><?= icon('arrow-counterclockwise') ?>Remove my correction<?= ($edit['collected'] ?? '') !== '' ? ' (back to ' . e($edit['collected']) . ')' : '' ?></button>
+                            </form>
+                        <?php endif; ?>
+                    </div>
+                </details>
                 <?php foreach ((array) ($item['answer_images'] ?? []) as $i => $u): ?><?= $img((string) $u, 'Answer image ' . ($i + 1)) ?><?php endforeach; ?>
                 <?php if (trim((string) ($item['explanation'] ?? '')) !== ''): ?>
                     <div class="explanation"><div class="section-heading">Explanation</div><?php foreach (QuestionView::paragraphs((string) $item['explanation']) as $para): ?><p><?= $para ?></p><?php endforeach; ?></div>

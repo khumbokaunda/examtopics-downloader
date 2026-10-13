@@ -355,7 +355,8 @@ final class PdfRenderer
         $rows[] = ['Source.', $count . ' questions from ' . ($cached ? 'the public cached ExamTopics dataset' : 'the ExamTopics discussion pages')
             . ', collected ' . $meta['collected_at'] . ' (version ' . $meta['version'] . ').'];
         if ($variant->showAnswers()) {
-            $rows[] = ['Answers.', 'Each answer is the one ExamTopics suggests when the page shows it, otherwise the answer most voted by the community, with the vote count.'];
+            $rows[] = ['Answers.', 'Each answer is the one ExamTopics suggests when the page shows it, otherwise the answer most voted by the community, with the vote count.'
+                . ' Answers you corrected in the reader say so, with the collected answer.'];
         } elseif ($variant->answerKey()) {
             $rows[] = ['Answers.', 'Answers are not shown with the questions, so you can practise. They are listed in Appendix A at the end.'];
         } else {
@@ -427,11 +428,16 @@ final class PdfRenderer
         if ($showAnswers) {
             $b[] = '<div class="ans">';
             if ($answer !== '') {
+                $edit = is_array($q['edit'] ?? null) ? $q['edit'] : null;
                 $source = match ($q['answer_source'] ?? '') {
                     'suggested' => 'Suggested by ExamTopics',
                     'community' => 'Most voted by the community',
+                    'edited' => 'Corrected by you' . (($edit['collected'] ?? '') !== '' ? ', collected ' . implode(', ', str_split(self::letters($edit['collected']))) : ''),
                     default => '',
                 };
+                if (($edit['kind'] ?? '') === 'checked') {
+                    $source .= ', checked by you';
+                }
                 $b[] = '<div class="ans-line"><span class="ans-label">Answer</span> <span class="ans-value">' . $h(implode(', ', str_split($answer))) . '</span>'
                     . ($source !== '' ? ' <span class="ans-src">' . $h($source) . '</span>' : '') . '</div>';
                 if ($card['figureMissing']) {
@@ -444,6 +450,9 @@ final class PdfRenderer
             $votes = QuestionView::votesLine($q);
             if ($votes !== null) {
                 $b[] = '<div class="ans-votes">Community vote: ' . $t($votes) . '</div>';
+            }
+            if (($q['edit']['note'] ?? '') !== '') {
+                $b[] = '<div class="ans-note"><span class="ans-label">Your note</span> ' . $text((string) $q['edit']['note']) . '</div>';
             }
             $b[] = $this->figures($card['aImages'], 'Answer image', $h);
             if (trim((string) ($q['explanation'] ?? '')) !== '') {
@@ -716,6 +725,7 @@ td.opt-l { width: 6mm; padding-left: 3.5mm !important; font-family: "Poppins Sem
 .ans-warn { font-family: "Poppins Medium", "DejaVu Sans", sans-serif; font-size: 8.5pt; color: #8A5A00; }
 .ans-votes { font-size: 8pt; color: #6B7580; }
 .ans-expl { font-size: 9.5pt; color: #4A5363; margin-top: 4pt; }
+.ans-note { font-size: 9pt; color: #1A2028; margin-top: 4pt; }
 
 .fig { margin: 4pt 0 6pt 0; }
 .fig img { max-width: 100%; max-height: 110mm; }
