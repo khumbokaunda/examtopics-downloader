@@ -530,8 +530,16 @@
   document.querySelectorAll('[data-reveal-url]').forEach(function (btn) {
     var label = btn.querySelector('.label') || btn;
     btn.addEventListener('click', function () {
-      var target = btn.closest('.question-card').querySelector('.reveal-target');
+      var card = btn.closest('.question-card');
+      var target = card.querySelector('.reveal-target');
+      // Mark the answer's choices, as study mode does, or clear them again.
+      var mark = function (letters) {
+        card.querySelectorAll('.choice[data-letter]').forEach(function (li) {
+          li.classList.toggle('is-answer', letters.indexOf(li.getAttribute('data-letter')) !== -1);
+        });
+      };
       if (!target.hidden && target.childElementCount) {
+        mark([]);
         target.hidden = true;
         label.textContent = 'Reveal answer';
         btn.setAttribute('aria-expanded', 'false');
@@ -540,6 +548,7 @@
       btn.disabled = true;
       getJSON(btn.getAttribute('data-reveal-url')).then(function (d) {
         target.replaceChildren();
+        mark(d.letters || []);
         var box = el('div', 'answer-box');
         box.appendChild(icon('check-circle-fill'));
         var body = el('div');

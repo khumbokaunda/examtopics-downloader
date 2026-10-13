@@ -109,6 +109,8 @@ final class ViewerController extends Controller
         return Response::json([
             'number' => (int) $q['number'],
             'answer' => QuestionView::answerLine($q),
+            // The choices to mark as the answer, as study mode does.
+            'letters' => preg_match('/^[A-Z]+$/', trim((string) ($q['answer'] ?? ''))) === 1 ? str_split(trim((string) $q['answer'])) : [],
             'answer_note' => QuestionView::pictureAnswerNote($q),
             'note' => ($q['edit']['note'] ?? '') !== '' ? $q['edit']['note'] : null,
             'votes' => QuestionView::votesLine($q),
