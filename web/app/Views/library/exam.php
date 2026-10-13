@@ -1,7 +1,8 @@
 <?php
 /** @var array $provider @var array $exam @var list<array> $versions @var array $selected @var list<array> $documents
  *  @var array<string,array> $variants @var array{total:int,saved:int,failed:int,skipped:int,pending:int}|null $images
- *  @var list<array> $jobs @var array|null $activeJob */
+ *  @var list<array> $jobs @var array|null $activeJob
+ *  @var array{check:int,corrected:int,checked:int,fingerprint:?string}|null $answers */
 $base = '/library/' . rawurlencode($provider['slug']) . '/' . rawurlencode($exam['code']);
 $vBase = $base . '/' . rawurlencode($selected['version']);
 $isLatest = (int) $exam['latest_version_id'] === (int) $selected['id'];
@@ -68,6 +69,16 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
                         <?php endif; ?>
                     </dd>
                     <?php endif; ?>
+                    <?php if ($answers !== null): ?>
+                    <dt>Answers</dt>
+                    <dd>
+                        <?php if ($answers['check'] > 0): ?>
+                            <a class="btn btn-sm btn-outline-warning me-2" href="<?= e(url($base . '/view', ['version' => $selected['version'], 'review' => '1'])) ?>"><?= icon('exclamation-triangle') ?><?= $answers['check'] ?> to check</a>
+                        <?php endif; ?>
+                        <?php $done = array_filter([$answers['corrected'] > 0 ? $answers['corrected'] . ' corrected by you' : null, $answers['checked'] > 0 ? $answers['checked'] . ' checked by you' : null]); ?>
+                        <span class="<?= $answers['check'] > 0 ? 'text-muted' : '' ?>"><?= $done !== [] ? e(implode(', ', $done)) : ($answers['check'] > 0 ? 'Doubtful answers can be corrected in the reader.' : 'None look doubtful') ?></span>
+                    </dd>
+                    <?php endif; ?>
                 </dl>
                 <?php foreach ($warnings as $w): ?><div class="alert alert-warning small mt-3 mb-0"><?= icon('exclamation-triangle') ?><div class="alert-body"><?= e((string) $w) ?></div></div><?php endforeach; ?>
                 <div class="mt-4"><a class="btn btn-sm btn-outline-secondary" href="<?= e(url($vBase . '/json')) ?>"><?= icon('braces') ?>Download JSON</a></div>
@@ -107,16 +118,20 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
                                     $failed = $failures[0] ?? null;
                                     $ready = array_filter($docIndex[$key][$fmt] ?? [], static fn($d) => $d['status'] === 'ready');
                                     $building = array_filter($docIndex[$key][$fmt] ?? [], static fn($d) => $d['status'] === 'building') !== [];
-                                    // A PDF built before more images were saved can be rebuilt with them.
-                                    $stale = $fmt === 'pdf' && $ready !== [] && $images !== null
+                                    // A PDF built before more images were saved can be rebuilt with them, and any
+                                    // document made before answers were corrected, with the corrections.
+                                    $staleImages = $fmt === 'pdf' && $ready !== [] && $images !== null
                                         && max(array_map(static fn($d) => (int) (json_decode((string) $d['options'], true)['images'] ?? 0), $ready)) < $images['saved'];
+                                    $staleEdits = $ready !== [] && $answers !== null
+                                        && !in_array($answers['fingerprint'], array_map(static fn($d) => json_decode((string) $d['options'], true)['edits'] ?? null, $ready), true);
+                                    $stale = $staleImages || $staleEdits;
                                     ?>
                                     <?php if (!$building && ($ready === [] || $stale || $failed !== null)): ?>
                                     <span class="d-inline-flex align-items-center gap-2">
                                         <?php if ($ready === [] || $stale): ?>
                                         <form method="post" action="<?= e(url($vBase . '/documents')) ?>" data-once data-busy="Generating…"><?= csrf_field() ?>
                                             <input type="hidden" name="variant" value="<?= e($key) ?>"><input type="hidden" name="format" value="<?= $fmt ?>">
-                                            <button class="btn btn-sm btn-outline-primary" type="submit"><?= icon($stale ? 'arrow-repeat' : ($failed !== null ? 'arrow-clockwise' : 'plus-lg')) ?><?= $stale ? 'Rebuild with new images' : ($failed !== null ? 'Retry' : 'Generate') ?></button>
+                                            <button class="btn btn-sm btn-outline-primary" type="submit"><?= icon($stale ? 'arrow-repeat' : ($failed !== null ? 'arrow-clockwise' : 'plus-lg')) ?><?= $staleEdits ? 'Rebuild with your corrections' : ($stale ? 'Rebuild with new images' : ($failed !== null ? 'Retry' : 'Generate')) ?></button>
                                         </form>
                                         <?php endif; ?>
                                         <?php if ($failed !== null): $why = trim((string) $failed['error']) ?: 'No reason was recorded.'; ?>

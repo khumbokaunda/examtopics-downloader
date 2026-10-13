@@ -44,6 +44,13 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
 6. **Web interface**: server-rendered PHP templates in an application shell (sidebar, top bar,
    command palette), styled by a token-based theme over Bootstrap 5's CSS. See
    [The interface](#the-interface).
+7. **Answer corrections**: the reader flags answers that look doubtful (the wording asks for
+   several answers but one letter was collected, few votes, ExamTopics and the community
+   disagree, or the comments mostly name another answer) and lets you correct or confirm them,
+   with a note. Corrections are stored per exam question in `answer_edits` (keyed by topic and
+   question number), so they apply to every version and survive refreshes. They are shown over
+   the collected data, which is never changed; documents record them in their options, so one
+   made before a correction is offered for rebuilding.
 
 ## The interface
 
@@ -176,5 +183,9 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
   (`internal/fetch/testdata/discussion-2026.html` keeps its markup with invented text), not
   against the live site, which the development environment cannot reach. Pages in the older
   layout (choices as list items, a vote tally, comments as text) are still parsed.
+- The collection tool reads ExamTopics' suggested answer and the votes; it does not understand
+  what the comments argue. On a multi-answer question ExamTopics may let each voter pick only
+  one letter, so the vote can be incomplete. The reader's "Check this answer" hints point at
+  such cases (they are heuristics, not verdicts), and corrections are made by hand.
 - One collection runs at a time by design, so a large provider inventory or exam can occupy
   the worker for a long time.

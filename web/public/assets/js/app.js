@@ -548,6 +548,12 @@
         line.appendChild(document.createTextNode(d.answer || d.answer_note || 'not available'));
         body.appendChild(line);
         if (d.votes) body.appendChild(el('div', 'answer-votes', 'Community votes: ' + d.votes));
+        if (d.note) {
+          var note = el('div', 'answer-note');
+          note.appendChild(el('span', 'answer-note-label', 'Your note'));
+          multiline(note, d.note);
+          body.appendChild(note);
+        }
         box.appendChild(body);
         target.appendChild(box);
         (d.answer_images || []).forEach(function (u, i) {

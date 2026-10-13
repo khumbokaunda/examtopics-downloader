@@ -31,7 +31,15 @@ final class ViewerController extends Controller
         } catch (RuntimeException $ex) {
             throw new HttpException(409, $ex->getMessage());
         }
-        $questions = array_map([QuestionView::class, 'normalize'], array_values(array_filter((array) ($data['questions'] ?? []), 'is_array')));
+        $questions = QuestionView::applyEdits(
+            array_map([QuestionView::class, 'normalize'], array_values(array_filter((array) ($data['questions'] ?? []), 'is_array'))),
+            $this->s->answerEdits()->forExam((int) $e['id']));
+        // Answers that look doubtful and nobody has checked yet (study mode only).
+        $review = $mode === 'study' && $this->request->query('review') === '1';
+        $toCheck = $mode === 'study' ? count(array_filter($questions, static fn(array $item) => QuestionView::doubts($item) !== [])) : 0;
+        if ($review) {
+            $questions = array_values(array_filter($questions, static fn(array $item) => QuestionView::doubts($item) !== []));
+        }
         if ($q !== '') {
             $needle = mb_strtolower($q);
             $questions = array_values(array_filter($questions, static function (array $item) use ($needle): bool {
@@ -46,7 +54,7 @@ final class ViewerController extends Controller
         $pages = max(1, (int) ceil($total / $perPage));
         $page = max(1, min($pages, (int) $this->request->query('page', '1')));
         $jump = (int) $this->request->query('jump', '0');
-        if ($jump > 0 && $q === '') {
+        if ($jump > 0 && $q === '' && !$review) {
             $page = max(1, min($pages, (int) ceil($jump / $perPage)));
         }
         $slice = array_slice($questions, ($page - 1) * $perPage, $perPage);
@@ -62,6 +70,8 @@ final class ViewerController extends Controller
             'version' => $v,
             'questions' => $slice,
             'mode' => $mode,
+            'review' => $review,
+            'toCheck' => $toCheck,
             'q' => $q,
             'page' => $page,
             'pages' => $pages,
@@ -95,10 +105,12 @@ final class ViewerController extends Controller
             throw HttpException::notFound('Question');
         }
         $q = QuestionView::normalize($q);
+        $q = QuestionView::applyEdit($q, $this->s->answerEdits()->forExam((int) $e['id'])[QuestionView::key($q)] ?? null);
         return Response::json([
             'number' => (int) $q['number'],
             'answer' => QuestionView::answerLine($q),
             'answer_note' => QuestionView::pictureAnswerNote($q),
+            'note' => ($q['edit']['note'] ?? '') !== '' ? $q['edit']['note'] : null,
             'votes' => QuestionView::votesLine($q),
             'explanation' => (string) ($q['explanation'] ?? ''),
             'answer_images' => $this->imageSources((array) ($q['answer_images'] ?? [])),

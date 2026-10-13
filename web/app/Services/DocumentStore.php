@@ -7,9 +7,11 @@ namespace App\Services;
 use App\Core\Config;
 use App\Core\Logger;
 use App\Core\Paths;
+use App\Repositories\AnswerEditRepository;
 use App\Repositories\DocumentRepository;
 use App\Services\Documents\MarkdownRenderer;
 use App\Services\Documents\PdfRenderer;
+use App\Services\Documents\QuestionView;
 use App\Services\Documents\Variant;
 use RuntimeException;
 use Throwable;
@@ -33,6 +35,7 @@ final class DocumentStore
         private DocumentRepository $docs,
         private CacheService $cache,
         private MediaStore $media,
+        private AnswerEditRepository $edits,
         /** Starts bin/build-document.php for a document UUID; null builds in the request. */
         private ?\Closure $launcher = null,
     ) {
@@ -168,6 +171,12 @@ final class DocumentStore
             $imageUrls = MediaStore::urlsOf($this->cache->load($version));
             $options['images'] = count($this->media->savedHashes($imageUrls));
         }
+        // Answers corrected in the reader: a correction changes the options, so documents made
+        // before it are made again. Exams without corrections keep their existing documents.
+        $edits = $this->edits->fingerprint((int) $version['exam_id']);
+        if ($edits !== null) {
+            $options['edits'] = $edits;
+        }
         $hash = hash('sha256', (string) json_encode($options));
         $dir = $this->paths->documentDir((string) $version['provider_slug'], (string) $version['exam_code'], (string) $version['version']);
         $file = $variant->key . '.' . $format;
@@ -208,8 +217,9 @@ final class DocumentStore
                 @ini_set('memory_limit', (string) $this->config->get('documents.pdf_memory_limit', '2048M'));
             }
             $dataset = $this->cache->load($version, true);
-            $dataset['questions'] = array_map([\App\Services\Documents\QuestionView::class, 'normalize'],
-                array_values(array_filter((array) ($dataset['questions'] ?? []), 'is_array')));
+            $dataset['questions'] = QuestionView::applyEdits(array_map([QuestionView::class, 'normalize'],
+                array_values(array_filter((array) ($dataset['questions'] ?? []), 'is_array'))),
+                $this->edits->forExam((int) $version['exam_id']));
             $meta = $this->meta($version, $dataset);
             $content = $format === 'md'
                 ? (new MarkdownRenderer())->render($dataset, $meta, $variant)

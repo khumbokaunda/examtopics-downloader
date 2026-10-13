@@ -224,12 +224,288 @@ final class QuestionView
         if ($a === '') {
             return null;
         }
+        $edit = is_array($q['edit'] ?? null) ? $q['edit'] : null;
         $source = match ($q['answer_source'] ?? '') {
             'suggested' => 'suggested by ExamTopics',
             'community' => 'most-voted community answer; ExamTopics gave no suggested answer',
+            'edited' => 'corrected by you; ' . (($edit['collected'] ?? '') !== '' ? 'the collected answer was ' . $edit['collected'] : 'no answer was collected'),
             default => '',
         };
+        if (($edit['kind'] ?? '') === 'checked') {
+            $source .= ($source !== '' ? '; ' : '') . 'checked by you';
+        }
         return $a . ($source !== '' ? ' (' . $source . ')' : '');
+    }
+
+    /** Pattern of question keys (see key()). */
+    public const KEY_PATTERN = '/^(?:\d{1,4}-\d{1,6}|id-[A-Za-z0-9_-]{1,40}|n-\d{1,6})$/';
+
+    /**
+     * A question's identity across versions and sources: its topic and question number
+     * (ExamTopics' own numbering), else its discussion ID, else its position. Corrections
+     * made in the reader are stored under it.
+     *
+     * @param array<string,mixed> $q
+     */
+    public static function key(array $q): string
+    {
+        $n = (int) ($q['question_number'] ?? 0);
+        if ($n > 0) {
+            return max(1, (int) ($q['topic'] ?? 1)) . '-' . $n;
+        }
+        $id = (string) ($q['id'] ?? '');
+        if (preg_match('/^[A-Za-z0-9_-]{1,40}$/', $id) === 1) {
+            return 'id-' . $id;
+        }
+        return 'n-' . (int) ($q['number'] ?? 0);
+    }
+
+    /**
+     * Apply the corrections made in the reader (answer_edits rows keyed by question key).
+     * What was collected stays in $q['edit'], so pages can say what was changed.
+     *
+     * @param list<array<string,mixed>> $questions normalized questions
+     * @param array<string,array<string,mixed>> $edits
+     * @return list<array<string,mixed>>
+     */
+    public static function applyEdits(array $questions, array $edits): array
+    {
+        if ($edits === []) {
+            return $questions;
+        }
+        return array_map(static fn(array $q) => self::applyEdit($q, $edits[self::key($q)] ?? null), $questions);
+    }
+
+    /**
+     * @param array<string,mixed> $q a normalized question
+     * @param array<string,mixed>|null $edit
+     * @return array<string,mixed>
+     */
+    public static function applyEdit(array $q, ?array $edit): array
+    {
+        if ($edit === null) {
+            return $q;
+        }
+        $collected = trim((string) ($q['answer'] ?? ''));
+        $answer = self::letters((string) ($edit['answer'] ?? ''));
+        $kind = $answer === '' ? 'note' : ($answer === self::letters($collected) ? 'checked' : 'corrected');
+        $q['edit'] = [
+            'kind' => $kind,
+            'answer' => $answer,
+            'note' => trim((string) ($edit['note'] ?? '')),
+            'collected' => $collected,
+            'updated_at' => (string) ($edit['updated_at'] ?? ''),
+        ];
+        if ($kind === 'corrected') {
+            $q['answer'] = $answer;
+            $q['answer_source'] = 'edited';
+        }
+        return $q;
+    }
+
+    /**
+     * Reasons to check a question's answer by hand. The collection tool reads ExamTopics'
+     * suggested answer and the votes; it cannot follow what the comments argue, and votes
+     * can be few or limited to one letter. Empty when nothing looks wrong, when the question
+     * has no lettered choices, or when the answer was already corrected or checked.
+     *
+     * @param array<string,mixed> $q a normalized question
+     * @return list<string>
+     */
+    public static function doubts(array $q): array
+    {
+        if (count(self::choiceLetters($q)) < 2 || in_array($q['edit']['kind'] ?? '', ['corrected', 'checked'], true)) {
+            return [];
+        }
+        $answer = self::letters((string) ($q['answer'] ?? ''));
+        $out = [];
+        if ($answer === '') {
+            $out[] = 'No answer was collected.';
+        }
+        $expected = self::expectedAnswers((string) ($q['text'] ?? ''));
+        if ($answer !== '' && $expected !== null && ($expected === 0 ? strlen($answer) < 2 : strlen($answer) !== $expected)) {
+            $out[] = $expected === 0
+                ? 'The question asks for more than one answer, but the answer has one letter.'
+                : 'The question asks for ' . self::NUMBERS[$expected] . ' answers, but the answer has ' . strlen($answer) . '.';
+        }
+        $votes = array_values(array_filter((array) ($q['community_votes'] ?? []), 'is_array'));
+        $suggested = self::letters((string) ($q['suggested_answer'] ?? ''));
+        $voted = self::letters((string) ($votes[0]['answer'] ?? ''));
+        if (($q['answer_source'] ?? '') === 'suggested' && $suggested !== '' && $voted !== '' && $voted !== $suggested) {
+            $out[] = 'ExamTopics suggests ' . $suggested . ', but the community voted ' . $voted . '.';
+        }
+        if (($q['answer_source'] ?? '') === 'community') {
+            if (!empty($q['votes_from_comments'])) {
+                $n = count(array_filter(self::comments($q), static fn(array $c) => $c['selected'] !== ''));
+                $few = $n === 1 ? 'Only one person voted.' : 'Only ' . $n . ' people voted.';
+            } else {
+                $n = array_sum(array_map(static fn(array $v) => (int) ($v['count'] ?? 0), $votes));
+                $few = $n === 1 ? 'Only one vote was cast.' : 'Only ' . $n . ' votes were cast.';
+            }
+            if ($n < 3) {
+                $out[] = $few;
+            }
+        }
+        $claims = self::textClaims($q);
+        if ($claims !== []) {
+            $top = $claims[0];
+            $forAnswer = 0;
+            foreach ($claims as $c) {
+                $forAnswer = $c['answer'] === $answer ? $c['count'] : $forAnswer;
+            }
+            if ($top['answer'] !== $answer && $top['count'] >= 2 && $top['count'] > $forAnswer) {
+                $out[] = 'Most comments that name an answer say ' . $top['answer'] . ' (' . $top['count'] . ' of '
+                    . array_sum(array_column($claims, 'count')) . ').';
+            }
+        }
+        return $out;
+    }
+
+    /** What the comments say, e.g. "ABCD (5), ABC (3)"; null when none names an answer. */
+    public static function claimsLine(array $q): ?string
+    {
+        $claims = self::textClaims($q);
+        return $claims === [] ? null
+            : implode(', ', array_map(static fn(array $c) => $c['answer'] . ' (' . $c['count'] . ')', $claims));
+    }
+
+    /**
+     * The answers comments name in their text ("A, B and C", "the answer is BD", "all of the
+     * above"): the first each comment names, counted per comment, most named first. Only the
+     * question's own choice letters count.
+     *
+     * @param array<string,mixed> $q
+     * @return list<array{answer:string,count:int}>
+     */
+    public static function textClaims(array $q): array
+    {
+        $letters = self::choiceLetters($q);
+        if (count($letters) < 2) {
+            return [];
+        }
+        $tally = [];
+        foreach (self::comments($q) as $c) {
+            $claim = self::claimIn($c['content'], $letters);
+            if ($claim !== null) {
+                $tally[$claim] = ($tally[$claim] ?? 0) + 1;
+            }
+        }
+        $out = [];
+        foreach ($tally as $answer => $count) {
+            $out[] = ['answer' => (string) $answer, 'count' => $count];
+        }
+        usort($out, static fn(array $a, array $b) => [$b['count'], $a['answer']] <=> [$a['count'], $b['answer']]);
+        return $out;
+    }
+
+    /**
+     * The first answer a comment names, as sorted letters, or null.
+     *
+     * @param list<string> $letters the question's choice letters
+     */
+    public static function claimIn(string $text, array $letters): ?string
+    {
+        $all = implode('', $letters);
+        $L = '[' . $all . ']';
+        $end = '(?![\w\x{2019}\'])';
+        $found = [];
+        // "All of the above", "all are correct", "all the given options are correct".
+        if (preg_match('/(?<!not\s)\ball\s+(?:of\s+)?(?:the\s+)?(?:above\b|of\s+them\b|(?:given\s+|listed\s+)?(?:options|answers|choices)?\s*(?:are|is)\s+(?:correct|right|true|valid)\b)/iu',
+            $text, $m, PREG_OFFSET_CAPTURE) === 1) {
+            $found[$m[0][1]] = $all;
+        }
+        $sep = '(?:\s*(?:,|\/|&|\+|\band\b|\be\b|\by\b|\bet\b|\bund\b)\s*|\s+)';
+        $patterns = [
+            // Separate letters: "A, B and C", "A,B,C,D", "B & D", "A, B e C".
+            'list' => '/(?<![\w\x{2019}\'])' . $L . $end . '(?:' . $sep . $L . $end . ')+/u',
+            // Joined letters at the start or after an answer word: "ABCD", "the answer is BD".
+            'joined' => '/(?<![\w\x{2019}\'])' . $L . '{2,}' . $end . '/u',
+            // One letter after an answer word: "Answer: B", "I think it is C", "go with D".
+            'after' => '/(?i:\b(?:answers?|ans|correct(?:\s+(?:answer|option|one))?|option|go(?:ing)?\s+(?:with|for)|vote\s+for|i\s+think|it\s+is|it\x{2019}s|it\'s|should\s+be|must\s+be)'
+                . '\s*(?:is|:|=|-|would\s+be|should\s+be)?\s*(?:option\s+)?)(' . $L . ')' . $end
+                . '(?=\s*(?:$|[.,;:!?)]|(?i:because|since|as|for|is|and|but)\b))/u',
+            // One letter followed by a verdict: "B is correct", "C is the answer".
+            'verdict' => '/(?<![\w\x{2019}\'])' . $L . '\s+(?i:is\s+(?:the\s+)?(?:correct|right|true|answer)\b)/u',
+            // The whole comment is one letter.
+            'alone' => '/^\s*' . $L . '\s*[.!]?\s*$/u',
+        ];
+        foreach ($patterns as $name => $re) {
+            if (preg_match_all($re, $text, $ms, PREG_OFFSET_CAPTURE) === false) {
+                continue;
+            }
+            foreach ($ms[0] as $i => [$match, $at]) {
+                $span = $name === 'after' ? $ms[1][$i][0] : ($name === 'verdict' ? substr($match, 0, 1) : $match);
+                // Only the capital letters: separators ("and", "e") are lower case.
+                $answer = self::letters((string) preg_replace('/[^A-Z]/', '', $span));
+                if ($answer === '') {
+                    continue;
+                }
+                if ($name === 'joined' && ($answer !== $match || !self::afterAnswerWord(substr($text, 0, $at)))) {
+                    continue; // letters out of order or repeated, or an acronym in a sentence
+                }
+                // "C and D are wrong" names what the answer is not.
+                if (preg_match('/^\s*(?:is|are|were)\s+(?:not\b|wrong|incorrect|false)/i', substr($text, $at + strlen($match))) === 1) {
+                    continue;
+                }
+                $found[$name === 'after' ? $ms[1][$i][1] : $at] ??= $answer;
+                break;
+            }
+        }
+        if ($found === []) {
+            return null;
+        }
+        ksort($found);
+        return (string) reset($found);
+    }
+
+    /** Text before joined letters ends at the comment's start or with an answer word. */
+    private static function afterAnswerWord(string $before): bool
+    {
+        return trim($before) === ''
+            || preg_match('/(?:\b(?:answers?|ans|correct|options?|choices?|is|are|be|with|for|votes?|voted|picked?|chose|choose|selected?)|[:=])\W{0,3}$/i', $before) === 1;
+    }
+
+    /**
+     * How many answers the wording asks for: a number ("Choose two"), 0 for "more than one"
+     * ("Which of the following ... are"), or null when it does not say.
+     */
+    private static function expectedAnswers(string $text): ?int
+    {
+        if (preg_match('/\b(?:choose|select|pick|identify|which|what)\s+(two|three|four|five|2|3|4|5)(?![\w-])/i', $text, $m) === 1) {
+            $n = array_search(strtolower($m[1]), self::NUMBERS, true);
+            return $n !== false ? $n : (int) $m[1];
+        }
+        if (preg_match('/[(\[]\s*multiple[\s-]+(?:choice|answers?|select(?:ion)?|response)s?\s*[)\]]/i', $text) === 1
+            || preg_match('/\bwhich\s+of\s+the\s+following\b(?:(?!\b(?:is|was|does|has)\b)[^.?!\n])*?\b(?:are|were|have)\b/i', $text) === 1) {
+            return 0;
+        }
+        return null;
+    }
+
+    private const NUMBERS = [2 => 'two', 3 => 'three', 4 => 'four', 5 => 'five'];
+
+    /**
+     * @param array<string,mixed> $q
+     * @return list<string> the choices' letters
+     */
+    public static function choiceLetters(array $q): array
+    {
+        $out = [];
+        foreach ((array) ($q['choices'] ?? []) as $c) {
+            $l = is_array($c) ? (string) ($c['letter'] ?? '') : '';
+            if (preg_match('/^[A-Z]$/', $l) === 1) {
+                $out[] = $l;
+            }
+        }
+        return array_values(array_unique($out));
+    }
+
+    /** Answer letters, sorted and without repeats: "ca" and "A, C" both become "AC". */
+    public static function letters(string $s): string
+    {
+        $l = array_unique(str_split((string) preg_replace('/[^A-Z]/', '', strtoupper($s))));
+        sort($l);
+        return implode('', array_filter($l, static fn(string $c) => $c !== ''));
     }
 
     /** @param array<string,mixed> $q */
