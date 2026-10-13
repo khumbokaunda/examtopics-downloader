@@ -85,6 +85,7 @@ final class LibraryDocumentsTest extends HttpTestCase
         $reveal = $this->get('/api/library/huawei/h12-811/' . $this->version['version'] . '/questions/3');
         $json = json_decode($reveal->body, true);
         self::assertStringStartsWith('BE', $json['answer']);
+        self::assertSame(['B', 'E'], $json['letters'], 'the reveal says which choices to mark');
         self::assertNotEmpty($json['comments']);
         self::assertSame(404, $this->get('/api/library/huawei/h12-811/' . $this->version['version'] . '/questions/99')->status);
     }

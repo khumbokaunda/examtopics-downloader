@@ -73,7 +73,7 @@ $img = static function (string $url, string $alt) use ($localImages): string {
             <?php if (($item['choices'] ?? []) !== []): ?>
                 <ul class="list-unstyled choices">
                     <?php foreach ((array) $item['choices'] as $c): $letter = (string) ($c['letter'] ?? ''); ?>
-                        <li class="choice<?= $letter !== '' && in_array($letter, $answerLetters, true) ? ' is-answer' : '' ?>"><span class="choice-letter"><?= e($letter) ?>.</span> <span class="choice-text"><?= nl2br(e((string) ($c['text'] ?? '')), false) ?><?php foreach ((array) ($c['images'] ?? []) as $u): ?><?= $img((string) $u, 'Choice ' . $letter) ?><?php endforeach; ?></span></li>
+                        <li class="choice<?= $letter !== '' && in_array($letter, $answerLetters, true) ? ' is-answer' : '' ?>" data-letter="<?= e($letter) ?>"><span class="choice-letter"><?= e($letter) ?>.</span> <span class="choice-text"><?= nl2br(e((string) ($c['text'] ?? '')), false) ?><?php foreach ((array) ($c['images'] ?? []) as $u): ?><?= $img((string) $u, 'Choice ' . $letter) ?><?php endforeach; ?></span></li>
                     <?php endforeach; ?>
                 </ul>
             <?php endif; ?>
