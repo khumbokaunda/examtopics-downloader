@@ -531,6 +531,23 @@ func TestCollectionFromInventoryLinks(t *testing.T) {
 	if ds := readDataset(t, r.file("ds.json")); r.exit != 0 || len(ds.Questions) != 5 || ds.Questions[4].QuestionNumber != 5 {
 		t.Fatalf("new question not found: exit %d\n%s", r.exit, r.stderr)
 	}
+
+	// -links-only, for exams the listing pages do not show: only the given links are fetched.
+	only := fixturesite.Default(fixturesite.Options{})
+	srv := httptest.NewServer(only)
+	t.Cleanup(srv.Close)
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "links.txt"), []byte(strings.Join(links[:2], "\n")+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	r = runToolAt(t, srv.URL, dir, nil, "-batch", "-no-cache", "-p", "huawei", "-exam", "h12-811",
+		"-links-from", "links.txt", "-links-only", "-out-json", "ds.json")
+	if r.exit != 0 || len(readDataset(t, r.file("ds.json")).Questions) != 2 {
+		t.Fatalf("links only: exit %d\n%s", r.exit, r.stderr)
+	}
+	if only.Hits("/discussions/huawei/") != 0 || only.Hits("/discussions/huawei/1/") != 0 {
+		t.Errorf("-links-only read a listing page")
+	}
 }
 
 func TestNoMatchExitsThreeWithoutOutput(t *testing.T) {

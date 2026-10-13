@@ -9,3 +9,5 @@ env/
 # Font licences travel with the fonts.
 !web/public/assets/vendor/fonts/*/OFL.txt
 !web/resources/fonts/*.txt
+# Test fixtures (pasted search results).
+!web/tests/fixtures/*.txt

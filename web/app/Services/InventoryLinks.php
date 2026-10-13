@@ -72,6 +72,49 @@ final class InventoryLinks
         ];
     }
 
+    /**
+     * Links the user added for an exam (Collect from links), as paths. They are kept apart
+     * from the inventory's, so a refresh never removes them.
+     *
+     * @return list<string>
+     */
+    public function added(string $provider, string $exam): array
+    {
+        if (!Ids::isProvider($provider) || !Ids::isExam($exam)) {
+            return [];
+        }
+        $path = $this->dir($provider) . '/added/' . $exam . '.links';
+        return is_file($path) ? array_values(array_filter(array_map('trim', file($path) ?: []), static fn(string $l) => $l !== '')) : [];
+    }
+
+    /**
+     * Add links for an exam, keeping one per discussion number.
+     *
+     * @param list<string> $paths discussion paths, e.g. /discussions/huawei/view/390360-exam-...-discussion/
+     * @return int how many links the exam has now
+     */
+    public function addLinks(string $provider, string $exam, array $paths): int
+    {
+        if (!Ids::isProvider($provider) || !Ids::isExam($exam)) {
+            return 0;
+        }
+        $byId = [];
+        foreach (array_merge($this->added($provider, $exam), $paths) as $p) {
+            if (preg_match('#^/discussions/[a-z0-9-]+/view/(\d+)-#', $p, $m) === 1) {
+                $byId[$m[1]] = $p; // a later paste replaces an earlier link for the same discussion
+            }
+        }
+        Paths::atomicWrite($this->dir($provider) . '/added/' . $exam . '.links', implode("\n", $byId) . "\n");
+        return count($byId);
+    }
+
+    public function clearAdded(string $provider, string $exam): void
+    {
+        if (Ids::isProvider($provider) && Ids::isExam($exam)) {
+            @unlink($this->dir($provider) . '/added/' . $exam . '.links');
+        }
+    }
+
     private function dir(string $provider): string
     {
         return $this->paths->storage() . '/inventory/' . $provider;

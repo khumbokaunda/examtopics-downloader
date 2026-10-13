@@ -105,11 +105,12 @@ final class JobRunner
                 if (($options['source_mode'] ?? 'auto') === 'live') {
                     $argv[] = '-no-cache';
                 }
-                // The links the last inventory found: only the newest listing pages are read.
-                $known = empty($options['full_scan']) ? (new InventoryLinks($this->paths))->forExam((string) $provider['slug'], (string) $job['exam_code']) : null;
-                if ($known !== null) {
-                    array_push($argv, '-links-from', $known['path'], '-newer-than', (string) $known['newest_id']);
+                $links = $this->linkArgs((int) $provider['id'], (string) $provider['slug'], (string) $job['exam_code'], $options, $dir);
+                if (is_string($links)) {
+                    $this->jobs->finish($id, 'failed', 'Collection tool out of date', $links);
+                    return;
                 }
+                array_push($argv, ...$links);
                 break;
             default:
                 $this->jobs->finish($id, 'failed', 'Unknown job type', 'Unknown job type.');
@@ -249,6 +250,44 @@ final class JobRunner
         }
         $this->jobs->finish($id, 'completed', "Found {$n} providers", null, $exit);
         $this->log->info('inventory', 'Providers discovered', ['job_id' => $id, 'count' => $n]);
+    }
+
+    /**
+     * Discussion links to hand the tool: the ones the last inventory found (so only the
+     * newest listing pages are read) and any the user added for questions ExamTopics does
+     * not list. For an exam the listing pages do not show at all, only the added links are
+     * fetched and no listing page is read.
+     *
+     * @param array<string,mixed> $options
+     * @return list<string>|string the arguments, or why the collection cannot run
+     */
+    private function linkArgs(int $providerId, string $provider, string $exam, array $options, string $dir): array|string
+    {
+        $store = new InventoryLinks($this->paths);
+        $fullScan = !empty($options['full_scan']);
+        $known = $fullScan ? null : $store->forExam($provider, $exam);
+        $added = $store->added($provider, $exam);
+        if ($known === null && $added === []) {
+            return [];
+        }
+        $missing = ToolCheck::missingOptions((string) $this->config->get('tool.binary'));
+        if ($added === []) {
+            // A tool older than the remembered links scans every listing page instead.
+            return in_array('-links-from', $missing, true) ? [] : ['-links-from', (string) $known['path'], '-newer-than', (string) $known['newest_id']];
+        }
+        if (array_intersect(['-links-from', '-links-only'], $missing) !== []) {
+            return 'The collection tool on the server is older than the web app, so it cannot collect the links you added. '
+                . ToolCheck::rebuildHint() . ' Then try again.';
+        }
+        $file = $dir . '/links.txt';
+        $lines = $known !== null ? (file((string) $known['path'], FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: []) : [];
+        Paths::atomicWrite($file, implode("\n", array_values(array_unique(array_merge($lines, $added)))) . "\n");
+        $listed = (int) ($this->exams->find($providerId, $exam)['in_inventory'] ?? 0) === 1;
+        return match (true) {
+            $known !== null => ['-links-from', $file, '-newer-than', (string) $known['newest_id']],
+            $listed || $fullScan => ['-links-from', $file, '-newer-than', '0'], // every listing page as well
+            default => ['-links-from', $file, '-links-only'],
+        };
     }
 
     /** @param array<string,mixed>|null $provider */

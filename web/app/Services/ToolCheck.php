@@ -12,7 +12,8 @@ namespace App\Services;
 final class ToolCheck
 {
     /** Options the web app relies on. */
-    public const REQUIRED = ['-batch', '-events', '-out-json', '-inventory', '-providers', '-exam', '-images-from', '-images-dir'];
+    public const REQUIRED = ['-batch', '-events', '-out-json', '-inventory', '-providers', '-exam', '-images-from', '-images-dir',
+        '-links-from', '-newer-than', '-links-only'];
 
     /** @var array<string,list<string>> */
     private static array $cache = [];

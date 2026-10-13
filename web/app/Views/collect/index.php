@@ -1,7 +1,7 @@
 <?php
 /** @var list<array> $providers @var array|null $provider @var list<array> $exams @var string $q @var array|null $exam
  *  @var list<array> $versions @var array|null $best @var list<array> $documents @var array|null $activeCollect
- *  @var list<float> $allowedRps @var float $defaultRps @var array|null $lastRefresh @var array|null $knownLinks */
+ *  @var list<float> $allowedRps @var float $defaultRps @var array|null $lastRefresh @var array|null $knownLinks @var int $addedLinks */
 $examUrl = static fn(array $p, array $e): string => url('/library/' . rawurlencode($p['slug']) . '/' . rawurlencode($e['code']));
 ?>
 <header class="page-header">
@@ -64,6 +64,29 @@ $examUrl = static fn(array $p, array $e): string => url('/library/' . rawurlenco
                 <?php endif; ?>
             <?php endif; ?>
         </div>
+        <?php if ($provider): ?>
+            <details class="card mt-4 links-import"<?= $exams === [] && $lastRefresh !== null ? ' open' : '' ?>>
+                <summary class="card-header"><span class="card-title"><?= icon('link-45deg') ?>Exam not listed? Collect from links</span><?= icon('chevron-down', 'links-import-caret') ?></summary>
+                <div class="card-body">
+                    <p class="small text-muted">ExamTopics leaves some exams' discussions off its listing pages, so the inventory cannot find them, but the pages still open.
+                        Search for them, for example <code>site:examtopics.com "H19-101_V6.0" discussion</code>, then select the whole results page (Ctrl+A), copy it and paste it here.
+                        Discussion links, one per line, work too. Old spellings of the exam in search results are corrected. Only the questions you paste can be collected.</p>
+                    <form method="post" action="<?= e(url('/collect/links')) ?>" data-once data-busy="Reading…">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="provider" value="<?= e($provider['slug']) ?>">
+                        <div class="mb-3">
+                            <label class="form-label" for="links-exam">Exam code <span class="text-muted fw-normal">(optional, read from the text when empty)</span></label>
+                            <input class="form-control" id="links-exam" name="exam" maxlength="128" autocomplete="off" placeholder="e.g. h19-101-v6-0, as in the exam page's address">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="links-text">Search results or links</label>
+                            <textarea class="form-control small" id="links-text" name="links" rows="6" required placeholder="Exam H19-101_V6.0 topic 1 question 1 discussion&#10;https://www.examtopics.com › huawei › view › 390360..."></textarea>
+                        </div>
+                        <button class="btn btn-outline-primary" type="submit"><?= icon('plus-lg') ?>Add these links</button>
+                    </form>
+                </div>
+            </details>
+        <?php endif; ?>
     </div>
 
     <div class="col-xl-5">
@@ -120,6 +143,9 @@ $examUrl = static fn(array $p, array $e): string => url('/library/' . rawurlenco
                                     </div>
                                 </div>
                             <?php endif; ?>
+                            <?php if ($addedLinks > 0): ?>
+                                <p class="form-text mt-0 mb-3"><?= icon('link-45deg') ?> Includes the <?= number_format($addedLinks) ?> question links you added.<?= (int) $exam['in_inventory'] !== 1 ? ' ExamTopics does not list this exam\'s discussions, so only these are collected and no listing pages are read.' : '' ?></p>
+                            <?php endif; ?>
                             <?php if ($best): ?>
                                 <div class="form-check mb-3">
                                     <input class="form-check-input" type="checkbox" value="1" id="confirm_refresh" name="confirm_refresh" required>
@@ -131,6 +157,14 @@ $examUrl = static fn(array $p, array $e): string => url('/library/' . rawurlenco
                             <p class="form-text mb-0 mt-2">Comments are always collected. Choose whether to include them when you generate documents.</p>
                         </div>
                     </form>
+                    <?php if ($addedLinks > 0): ?>
+                        <form method="post" action="<?= e(url('/collect/links/clear')) ?>" class="mt-2" data-confirm="The collected versions are not affected." data-confirm-title="Forget the links you added?" data-confirm-button="Forget them" data-confirm-tone="danger">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="provider" value="<?= e($provider['slug']) ?>">
+                            <input type="hidden" name="exam" value="<?= e($exam['code']) ?>">
+                            <button class="btn btn-sm btn-link btn-link-danger px-0" type="submit"><?= icon('x-lg') ?>Forget the <?= number_format($addedLinks) ?> added links</button>
+                        </form>
+                    <?php endif; ?>
                 </div>
             </div>
         <?php endif; ?>

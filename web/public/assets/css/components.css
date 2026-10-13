@@ -453,3 +453,10 @@ body.dialog-open { overflow: hidden; }
   color: var(--color-text); font-size: var(--text-xs); line-height: var(--lh-xs); white-space: normal; text-align: left;
 }
 .error-pop-body strong { color: var(--color-danger-ink); }
+
+/* Collect page: "Exam not listed? Collect from links", a card that opens. */
+.links-import > summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
+.links-import > summary::-webkit-details-marker { display: none; }
+.links-import:not([open]) > summary { border-bottom: 0; }
+.links-import-caret { transition: transform var(--dur-sm) var(--ease-out); color: var(--color-text-muted); }
+.links-import[open] .links-import-caret { transform: rotate(180deg); }
