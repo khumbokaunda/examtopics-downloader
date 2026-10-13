@@ -14,6 +14,8 @@ func TestParseDiscussionLink(t *testing.T) {
 		// Versioned codes stay whole, so exact matching can tell them apart.
 		{"/discussions/huawei/view/1-exam-h12-811-v2-0-topic-1-question-7-discussion/", "huawei", "h12-811-v2-0", "1", 1, 7, true},
 		{"https://www.examtopics.com/discussions/huawei/view/2-exam-h12-811-topic-3-question-12/", "huawei", "h12-811", "2", 3, 12, true},
+		// Some codes have an underscore (H19-101_V6.0).
+		{"https://www.examtopics.com/discussions/huawei/view/391032-exam-h19-101_v60-topic-1-question-16-discussion/", "huawei", "h19-101_v60", "391032", 1, 16, true},
 		{"/discussions/huawei/view/3-exam-h12-811-question-4/?foo=bar#x", "huawei", "h12-811", "3", 0, 4, true},
 		// Rejected: wrong provider, other host, listing pages, malformed.
 		{"/discussions/cisco/view/1-exam-200-301-topic-1-question-1/", "huawei", "", "", 0, 0, false},

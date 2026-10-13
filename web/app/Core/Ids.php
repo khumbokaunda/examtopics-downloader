@@ -12,8 +12,9 @@ final class Ids
 {
     // Lower-case alphanumerics and single hyphens, as used in ExamTopics URLs.
     public const PROVIDER = '/^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/';
-    // Exam codes from discussion links, e.g. "h12-811", "200-301", "professional-cloud-architect".
-    public const EXAM = '/^[a-z0-9](?:[a-z0-9-]{0,126}[a-z0-9])?$/';
+    // Exam codes from discussion links, e.g. "h12-811", "200-301", "professional-cloud-architect",
+    // and some with an underscore, e.g. "h19-101_v60" (H19-101_V6.0).
+    public const EXAM = '/^[a-z0-9](?:[a-z0-9_-]{0,126}[a-z0-9])?$/';
     // 20261012T083000Z-3f9a1c
     public const VERSION = '/^\d{8}T\d{6}Z-[0-9a-f]{6}$/';
 
