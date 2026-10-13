@@ -105,6 +105,11 @@ final class JobRunner
                 if (($options['source_mode'] ?? 'auto') === 'live') {
                     $argv[] = '-no-cache';
                 }
+                // The links the last inventory found: only the newest listing pages are read.
+                $known = empty($options['full_scan']) ? (new InventoryLinks($this->paths))->forExam((string) $provider['slug'], (string) $job['exam_code']) : null;
+                if ($known !== null) {
+                    array_push($argv, '-links-from', $known['path'], '-newer-than', (string) $known['newest_id']);
+                }
                 break;
             default:
                 $this->jobs->finish($id, 'failed', 'Unknown job type', 'Unknown job type.');
@@ -271,6 +276,8 @@ final class JobRunner
         }
         $complete = ($doc['status'] ?? '') === 'complete';
         $this->exams->applyInventory($providerId, $exams, $complete);
+        // Each exam's links, so its next collection can skip most listing pages.
+        (new InventoryLinks($this->paths))->remember((string) $provider['slug'], $doc);
         $errors = (array) ($doc['errors'] ?? []);
         $this->refreshes->record($providerId, $id, $complete ? 'complete' : 'partial', count($exams),
             (int) ($doc['listing_pages'] ?? 0), (int) ($doc['failed_listing_pages'] ?? 0),

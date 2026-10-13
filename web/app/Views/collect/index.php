@@ -1,7 +1,7 @@
 <?php
 /** @var list<array> $providers @var array|null $provider @var list<array> $exams @var string $q @var array|null $exam
  *  @var list<array> $versions @var array|null $best @var list<array> $documents @var array|null $activeCollect
- *  @var list<float> $allowedRps @var float $defaultRps @var array|null $lastRefresh */
+ *  @var list<float> $allowedRps @var float $defaultRps @var array|null $lastRefresh @var array|null $knownLinks */
 $examUrl = static fn(array $p, array $e): string => url('/library/' . rawurlencode($p['slug']) . '/' . rawurlencode($e['code']));
 ?>
 <header class="page-header">
@@ -111,6 +111,15 @@ $examUrl = static fn(array $p, array $e): string => url('/library/' . rawurlenco
                                     <?php endforeach; ?>
                                 </select>
                             </div>
+                            <?php if ($knownLinks): ?>
+                                <div class="mb-3">
+                                    <p class="form-text mt-0 mb-2"><?= icon('lightning-charge') ?> Uses the <?= number_format($knownLinks['count']) ?> question links from the inventory refresh of <?= e(fmt_time($knownLinks['generated_at'] !== '' ? gmdate('Y-m-d H:i:s', (int) strtotime($knownLinks['generated_at'])) : null)) ?>, and reads only the newest listing pages for questions added since.</p>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="1" id="full_scan" name="full_scan">
+                                        <label class="form-check-label small" for="full_scan">Scan every listing page instead (slower)</label>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
                             <?php if ($best): ?>
                                 <div class="form-check mb-3">
                                     <input class="form-check-input" type="checkbox" value="1" id="confirm_refresh" name="confirm_refresh" required>

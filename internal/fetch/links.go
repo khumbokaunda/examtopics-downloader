@@ -1,6 +1,8 @@
 package fetch
 
 import (
+	"fmt"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -140,4 +142,26 @@ func (s Selector) MatchCachedFile(name, apiURL string) bool {
 		return ok && code == s.Exam
 	}
 	return utils.GrepStringFromCache(apiURL, s.Search)
+}
+
+// ReadLinkList reads discussion links for a provider, one per line (blank lines and lines
+// starting with # are skipped). Lines that are not discussion links are an error.
+func ReadLinkList(path, provider string) ([]string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var links []string
+	for n, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		ref, ok := ParseDiscussionLink(line, provider)
+		if !ok {
+			return nil, fmt.Errorf("%s line %d is not a %s discussion link", path, n+1, provider)
+		}
+		links = append(links, ref.Path)
+	}
+	return links, nil
 }

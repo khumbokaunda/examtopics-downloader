@@ -86,9 +86,9 @@ final class JobService
     /**
      * Validate collection options from a form. Only verified tool options are accepted.
      *
-     * @return array{source_mode:string,rps:float}
+     * @return array{source_mode:string,rps:float,full_scan:bool}
      */
-    public function collectOptions(?string $sourceMode, ?string $rps): array
+    public function collectOptions(?string $sourceMode, ?string $rps, bool $fullScan = false): array
     {
         $mode = in_array($sourceMode, ['auto', 'live'], true) ? $sourceMode : 'auto';
         $allowed = array_map('floatval', (array) $this->config->get('tool.allowed_rps', [0.25, 0.5, 1.0]));
@@ -96,7 +96,7 @@ final class JobService
         if ($rps !== null && is_numeric($rps) && in_array((float) $rps, $allowed, true)) {
             $rate = (float) $rps;
         }
-        return ['source_mode' => $mode, 'rps' => $rate];
+        return ['source_mode' => $mode, 'rps' => $rate, 'full_scan' => $fullScan];
     }
 
     /** @param array<string,mixed> $options */
