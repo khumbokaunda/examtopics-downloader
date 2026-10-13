@@ -21,7 +21,7 @@ final class QuestionView
      */
     public static function normalize(array $q): array
     {
-        $lines = preg_split('/\R/', (string) ($q['text'] ?? '')) ?: [];
+        $lines = preg_split('/\R/', self::cleanText((string) ($q['text'] ?? ''))) ?: [];
         $lines = array_filter($lines, static fn(string $l) => strcasecmp(trim($l), 'Forgot my password') !== 0);
         $text = trim(implode("\n", $lines));
         if (array_filter((array) ($q['choices'] ?? []), 'is_array') === []) {
@@ -32,6 +32,14 @@ final class QuestionView
             }
         }
         $q['text'] = $text;
+        foreach ((array) ($q['choices'] ?? []) as $i => $c) {
+            if (is_array($c)) {
+                $q['choices'][$i]['text'] = self::cleanText((string) ($c['text'] ?? ''));
+            }
+        }
+        if (isset($q['explanation'])) {
+            $q['explanation'] = self::cleanText((string) $q['explanation']);
+        }
         $q = self::pictureChoices($q);
         // No answer and no vote tally (older collections of the 2026 pages): count the
         // community vote from the comments' selected answers, as the collection tool now does.
@@ -46,6 +54,54 @@ final class QuestionView
         }
         return $q;
     }
+
+    /**
+     * Scraped text as it should read:
+     * - Character references left in it are decoded ("&amp;" to "&", "&#39;" to an
+     *   apostrophe), also when they were encoded twice.
+     * - Text that was decoded twice ("â€™" for an apostrophe, "Ã©" for "é") is repaired,
+     *   run by run, so correct accented or non-Latin text is never touched.
+     * - Non-breaking spaces become spaces, and runs of blank lines become one.
+     */
+    public static function cleanText(string $s): string
+    {
+        if ($s === '') {
+            return $s;
+        }
+        $s = (string) preg_replace_callback(self::MOJIBAKE, static function (array $m): string {
+            $bytes = '';
+            foreach (mb_str_split($m[0]) as $ch) {
+                $cp = mb_ord($ch);
+                // Latin-1 and the C1 controls (bytes Windows-1252 leaves undefined) are the
+                // byte itself; the rest are Windows-1252's own characters for 0x80 to 0x9F.
+                $byte = $cp <= 0xFF ? $cp : (self::CP1252[$cp] ?? null);
+                if ($byte === null) {
+                    return $m[0];
+                }
+                $bytes .= chr($byte);
+            }
+            return mb_check_encoding($bytes, 'UTF-8') ? $bytes : $m[0];
+        }, $s);
+        for ($i = 0; $i < 2 && preg_match('/&(#\d+|#x[0-9a-f]+|[a-z][a-z0-9]*);/i', $s) === 1; $i++) {
+            $s = html_entity_decode($s, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        }
+        $s = str_replace(["\u{00A0}", "\r\n", "\r"], [' ', "\n", "\n"], $s);
+        $s = (string) preg_replace('/[ \t]+\n/', "\n", $s);
+        return trim((string) preg_replace('/\n{3,}/', "\n\n", $s));
+    }
+
+    /**
+     * A UTF-8 character's bytes read as Windows-1252: a lead byte (Â to ô) followed by one to
+     * three bytes 0x80 to 0xBF, each shown as its Windows-1252 character.
+     */
+    private const MOJIBAKE = '/[\x{00C2}-\x{00F4}][\x{0080}-\x{00BF}\x{0152}\x{0153}\x{0160}\x{0161}\x{0178}\x{017D}\x{017E}\x{0192}'
+        . '\x{02C6}\x{02DC}\x{2013}\x{2014}\x{2018}-\x{201A}\x{201C}-\x{201E}\x{2020}-\x{2022}\x{2026}\x{2030}\x{2039}\x{203A}\x{20AC}\x{2122}]{1,3}/u';
+
+    /** Windows-1252's characters for bytes 0x80 to 0x9F. */
+    private const CP1252 = [0x20AC => 0x80, 0x201A => 0x82, 0x0192 => 0x83, 0x201E => 0x84, 0x2026 => 0x85, 0x2020 => 0x86,
+        0x2021 => 0x87, 0x02C6 => 0x88, 0x2030 => 0x89, 0x0160 => 0x8A, 0x2039 => 0x8B, 0x0152 => 0x8C, 0x017D => 0x8E,
+        0x2018 => 0x91, 0x2019 => 0x92, 0x201C => 0x93, 0x201D => 0x94, 0x2022 => 0x95, 0x2013 => 0x96, 0x2014 => 0x97,
+        0x02DC => 0x98, 0x2122 => 0x99, 0x0161 => 0x9A, 0x203A => 0x9B, 0x0153 => 0x9C, 0x017E => 0x9E, 0x0178 => 0x9F];
 
     /**
      * Options that are pictures, from collections that kept every image in one list: when
@@ -222,16 +278,16 @@ final class QuestionView
             if (is_array($c) && trim((string) ($c['content'] ?? '')) !== '') {
                 $selected = (string) ($c['selected_answer'] ?? '');
                 $out[] = [
-                    'author' => (string) ($c['author'] ?? ''),
+                    'author' => self::cleanText((string) ($c['author'] ?? '')),
                     'timestamp' => (string) ($c['timestamp'] ?? ''),
                     'upvotes' => isset($c['upvotes']) ? (int) $c['upvotes'] : null,
-                    'content' => (string) $c['content'],
+                    'content' => self::cleanText((string) $c['content']),
                     'selected' => preg_match('/^[A-Z]{1,10}$/', $selected) === 1 ? $selected : '',
                     'reply' => (string) ($c['parent_id'] ?? '') !== '',
                 ];
             }
         }
-        $text = trim((string) ($q['comments_text'] ?? ''));
+        $text = self::cleanText((string) ($q['comments_text'] ?? ''));
         if ($out === [] && $text !== '') {
             $out = self::legacyComments($text)
                 ?? [['author' => '', 'timestamp' => '', 'upvotes' => null, 'content' => $text, 'selected' => '', 'reply' => false, 'badge' => '']];

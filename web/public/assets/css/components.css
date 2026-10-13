@@ -317,6 +317,8 @@ body.dialog-open { overflow: hidden; }
 .comment-author { font-weight: var(--weight-semibold); color: var(--color-text); }
 .comment-time { font-size: var(--text-xs); color: var(--color-text-subtle); }
 .comment-body { color: var(--color-text); }
+.comment-body p, .explanation p { margin: 0 0 6px; }
+.comment-body p:last-child, .explanation p:last-child { margin-bottom: 0; }
 .comment-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: 6px; font-size: var(--text-xs); color: var(--color-text-muted); }
 .comment-votes { display: inline-flex; align-items: center; gap: 4px; }
 .q-image { max-width: 100%; height: auto; display: block; margin: var(--space-2) 0 var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: #fff; }
