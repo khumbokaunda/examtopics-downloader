@@ -460,3 +460,7 @@ body.dialog-open { overflow: hidden; }
 .links-import:not([open]) > summary { border-bottom: 0; }
 .links-import-caret { transition: transform var(--dur-sm) var(--ease-out); color: var(--color-text-muted); }
 .links-import[open] .links-import-caret { transform: rotate(180deg); }
+
+/* A large exam's PDF in parts: one download button per part. */
+.doc-parts { display: inline-flex; flex-direction: column; align-items: stretch; gap: 4px; }
+.doc-parts .btn { justify-content: flex-start; }

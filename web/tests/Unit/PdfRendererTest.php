@@ -133,6 +133,16 @@ final class PdfRendererTest extends TestCase
         self::assertLessThan(strpos($card, 'Refer to the exhibit'), strpos($card, '<div class="fig">'), 'the exhibit comes first, where it was marked');
     }
 
+    public function testAPartSaysWhichQuestionsItHolds(): void
+    {
+        $data = self::dataset(4);
+        $data['questions'] = array_slice($data['questions'], 2);
+        $html = (new PdfRenderer(self::images(), self::tmp()))->html($data, self::META + ['part' => ['n' => 2, 'of' => 2, 'first' => 3, 'last' => 4]], Variant::get('study'));
+        self::assertStringContainsString('Part 2 of 2, questions 3 to 4', $html);
+        self::assertSame([[0, 465], [465, 465], [930, 465]], \App\Services\DocumentStore::partRanges(1395, 500));
+        self::assertSame([[0, 500]], \App\Services\DocumentStore::partRanges(500, 500), 'exams up to the limit stay in one file');
+    }
+
     public function testExamsWithSeveralTopicsGetASectionPerTopic(): void
     {
         $r = new PdfRenderer(null, self::tmp());

@@ -63,7 +63,11 @@ final class DocumentController extends Controller
             throw HttpException::notFound('Document');
         }
         $doc = $this->s->documentRepo()->findByUuid($uuid) ?? throw HttpException::notFound('Document');
-        return $this->sendDocument($doc);
+        $part = (string) $this->request->query('part', '1');
+        if (preg_match('/^[1-9]\d{0,2}$/', $part) !== 1 || (int) $part > max(1, count(DocumentStore::parts($doc)))) {
+            throw HttpException::notFound('Document part');
+        }
+        return $this->sendDocument($doc, (int) $part);
     }
 
     public function delete(string $uuid): Response
@@ -79,14 +83,16 @@ final class DocumentController extends Controller
     }
 
     /** @param array<string,mixed> $doc */
-    private function sendDocument(array $doc): Response
+    private function sendDocument(array $doc, int $part = 1): Response
     {
         // The path comes only from the database record and must resolve inside the documents
         // root and match the recorded checksum.
-        $path = $this->s->documents()->verifiedPath($doc);
+        $path = $this->s->documents()->verifiedPath($doc, $part);
         if ($path === null) {
             throw new HttpException(409, 'This document is missing or failed its integrity check. Generate it again from the library page.');
         }
-        return Response::download($path, (string) $doc['filename'], DocumentStore::FORMATS[(string) $doc['format']]);
+        $parts = count(DocumentStore::parts($doc));
+        $name = $parts > 1 ? (string) preg_replace('/(\.[a-z]+)$/', '_Part' . $part . 'of' . $parts . '$1', (string) $doc['filename']) : (string) $doc['filename'];
+        return Response::download($path, $name, DocumentStore::FORMATS[(string) $doc['format']]);
     }
 }

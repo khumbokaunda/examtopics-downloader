@@ -103,8 +103,13 @@ time or memory limit) shows as failed and can be started again. For very large e
 `documents.pdf_time_limit` (seconds, default 1800) or `documents.pdf_memory_limit` in
 `config.local.php`. Markdown is always fast and is made in the request.
 
-Large PDFs need real memory, not just a high PHP limit: the 1,395-question CCNA (200-301)
-study guide with about 870 pictures peaks at roughly 1.2 GB of server memory (about 0.85 MB per question). When the server
+Large PDFs need real memory, not just a high PHP limit: in one file, the 1,395-question CCNA
+(200-301) study guide with about 870 pictures peaks at roughly 1.2 GB of server memory (about
+0.85 MB per question). So exams with more than `documents.pdf_part_questions` questions (500 by
+default) get their PDFs in near-equal parts, made one after another in the same build: the
+CCNA becomes three parts of 465 questions, and the build peaks at about 410 MB (and takes
+about 40% less time). Each part is a
+complete document with its own contents and appendices, downloaded on its own. When the server
 runs short, the operating system stops the build without a word, and the exam page then says
 how far it got and how much memory it was using. `free -m` shows the memory available, and
 `sudo dmesg -T | grep -i "killed process"` shows whether the kernel stopped a build. Adding
