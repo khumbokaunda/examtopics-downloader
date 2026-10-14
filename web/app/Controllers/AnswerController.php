@@ -17,6 +17,51 @@ use RuntimeException;
  */
 final class AnswerController extends Controller
 {
+    /**
+     * Every answer corrected, checked or annotated for an exam, in one table, so corrections
+     * made by someone else (or by a browser assistant acting for you) can be reviewed at once.
+     */
+    public function index(string $provider, string $exam): Response
+    {
+        $p = $this->findProvider($provider);
+        $e = $this->findExam($p, $exam);
+        $v = $this->findVersion($e, $this->request->query('version'));
+        try {
+            $data = $this->s->cache()->load($v);
+        } catch (RuntimeException) {
+            $data = ['questions' => []];
+        }
+        $byKey = [];
+        foreach ((array) ($data['questions'] ?? []) as $item) {
+            if (is_array($item)) {
+                $byKey[QuestionView::key($item)] = $item;
+            }
+        }
+        $rows = [];
+        foreach ($this->s->answerEdits()->forExam((int) $e['id']) as $key => $edit) {
+            $q = isset($byKey[$key]) ? QuestionView::applyEdit(QuestionView::normalize($byKey[$key]), $edit) : null;
+            $rows[] = [
+                'key' => (string) $key,
+                'number' => $q !== null ? (int) ($q['number'] ?? 0) : null,
+                'text' => $q !== null ? (string) ($q['text'] ?? '') : '',
+                'kind' => $q['edit']['kind'] ?? ((string) $edit['answer'] === '' ? 'note' : 'corrected'),
+                'collected' => $q['edit']['collected'] ?? null,
+                'answer' => (string) $edit['answer'],
+                'note' => trim((string) ($edit['note'] ?? '')),
+                'updated_at' => (string) $edit['updated_at'],
+            ];
+        }
+        usort($rows, static fn(array $a, array $b) => ($a['number'] ?? PHP_INT_MAX) <=> ($b['number'] ?? PHP_INT_MAX));
+        return $this->render('library/corrections', [
+            'title' => strtoupper((string) $e['code']) . ' corrections',
+            'nav' => 'library',
+            'provider' => $p,
+            'exam' => $e,
+            'version' => $v,
+            'rows' => $rows,
+        ]);
+    }
+
     public function save(string $provider, string $exam): Response
     {
         $p = $this->findProvider($provider);
@@ -38,17 +83,18 @@ final class AnswerController extends Controller
                 break;
             }
         }
-        if ($q === null) {
-            throw HttpException::notFound('Question');
-        }
         $n = (int) ($q['number'] ?? 0);
         $examId = (int) $e['id'];
 
+        // A correction can be removed even when its question is not in this version.
         if ($this->request->input('action') === 'remove') {
             $this->s->answerEdits()->delete($examId, $key);
-            $this->flash('success', "Question $n: your correction was removed, so the collected answer is shown again.");
+            $this->flash('success', ($n > 0 ? "Question $n: your" : 'Your') . ' correction was removed, so the collected answer is shown again.');
             $this->app->logger()->info('app', 'Answer correction removed', ['exam' => $e['code'], 'question' => $key]);
             return $this->backToReader($p, $e, $v, $n);
+        }
+        if ($q === null) {
+            throw HttpException::notFound('Question');
         }
 
         $letters = '';
@@ -83,6 +129,9 @@ final class AnswerController extends Controller
     private function backToReader(array $p, array $e, array $v, int $n): Response
     {
         $query = ['version' => (string) $v['version']];
+        if ($this->request->input('return') === 'corrections') {
+            return $this->redirect('/library/' . rawurlencode((string) $p['slug']) . '/' . rawurlencode((string) $e['code']) . '/corrections', $query);
+        }
         $page = (int) $this->request->input('page', '1');
         if ($page > 1) {
             $query['page'] = (string) $page;

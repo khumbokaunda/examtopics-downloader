@@ -46,6 +46,7 @@ return static function (Router $r): void {
     $r->get('/api/palette', [LibraryController::class, 'paletteJson']);
     $r->get('/library/{provider}/{exam}', [LibraryController::class, 'exam']);
     $r->get('/library/{provider}/{exam}/view', [ViewerController::class, 'show']);
+    $r->get('/library/{provider}/{exam}/corrections', [AnswerController::class, 'index']);
     $r->post('/library/{provider}/{exam}/answers', [AnswerController::class, 'save']);
     $r->get('/library/{provider}/{exam}/{version}/json', [LibraryController::class, 'downloadJson']);
     $r->post('/library/{provider}/{exam}/{version}/delete', [LibraryController::class, 'deleteVersion']);
