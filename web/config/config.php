@@ -76,6 +76,22 @@ return [
         'pdf_part_questions' => 500,     // larger exams get their PDF in parts of at most this many questions
     ],
 
+    // Email (sign-up codes, password resets, notifications). Usually set on Settings > Email,
+    // which takes precedence; these are the defaults. app_url is the address people open,
+    // used for links in emails, e.g. https://examtopics.example.com.
+    'app_url' => '',
+    'mail' => [
+        'host' => '',
+        'port' => 587,
+        'encryption' => 'tls',      // tls (STARTTLS) | ssl | none
+        'username' => '',
+        'password' => '',
+        'from_address' => '',
+        'from_name' => '',
+        'transport' => 'smtp',      // "file" writes messages to storage/mail instead of sending
+        'background' => true,       // send queued notification emails from a background process
+    ],
+
     'worker' => [
         // Start a detached worker automatically when jobs are queued. Set false if you run
         // bin/worker.php --daemon under systemd instead (docs/OPERATIONS.md).

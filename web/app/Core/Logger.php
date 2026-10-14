@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Core;
 
 /**
- * JSON Lines logger with separate channels (app, jobs, inventory, documents, security).
+ * JSON Lines logger with separate channels (app, jobs, inventory, documents, security, mail).
  * Every message and context value is redacted. Rotate with logrotate (see docs/OPERATIONS.md).
  */
 final class Logger
 {
-    public const CHANNELS = ['app', 'jobs', 'inventory', 'documents', 'security'];
+    public const CHANNELS = ['app', 'jobs', 'inventory', 'documents', 'security', 'mail'];
 
     public function __construct(private string $dir)
     {

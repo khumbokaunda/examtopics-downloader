@@ -27,6 +27,7 @@ All commands run from `web/` as the web server user, for example
 | Document generation (timings, failures) | `storage/logs/documents.log` |
 | Logins, throttling, CSRF rejections, refused pages, password, account and branding changes | `storage/logs/security.log` |
 | Worker process output | `storage/logs/worker.log` |
+| Emails sent, skipped and failed (with the SMTP error) | `storage/logs/mail.log`; Settings > Email lists recent notification emails |
 | One job's raw files | `storage/jobs/<id>/` (`events.jsonl`, `tool.log`, and `output.json` if it was rejected) |
 
 Logs are JSON Lines and are redacted: tokens, authorization headers, cookies and the
