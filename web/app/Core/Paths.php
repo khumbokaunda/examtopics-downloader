@@ -48,6 +48,12 @@ final class Paths
         return $this->storage . '/logs';
     }
 
+    /** Logo files, outside the web root and served by BrandingController. */
+    public function brandingRoot(): string
+    {
+        return $this->storage . '/branding';
+    }
+
     public function mediaRoot(): string
     {
         return $this->storage . '/media';

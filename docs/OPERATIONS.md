@@ -25,7 +25,7 @@ All commands run from `web/` as the web server user, for example
 | Job lifecycle, publication, reconciliation | `storage/logs/jobs.log` |
 | Inventory refreshes | `storage/logs/inventory.log` |
 | Document generation (timings, failures) | `storage/logs/documents.log` |
-| Logins, throttling, CSRF rejections, password changes | `storage/logs/security.log` |
+| Logins, throttling, CSRF rejections, refused pages, password, account and branding changes | `storage/logs/security.log` |
 | Worker process output | `storage/logs/worker.log` |
 | One job's raw files | `storage/jobs/<id>/` (`events.jsonl`, `tool.log`, and `output.json` if it was rejected) |
 
@@ -136,7 +136,7 @@ images" on each exam page. `storage/jobs/` and `storage/logs/` are diagnostic on
 
 ```bash
 php bin/migrate.php                    # recreate the schema
-php bin/create-user.php yourname       # recreate your account
+php bin/create-user.php yourname       # recreate your account (an administrator)
 php bin/rebuild-index.php              # re-index every cached version from its manifest
 ```
 

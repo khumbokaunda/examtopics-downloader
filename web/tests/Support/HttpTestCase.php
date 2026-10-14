@@ -46,10 +46,22 @@ abstract class HttpTestCase extends WorkflowTestCase
         return $this->kernel()->handle(new Request('POST', $path, [], $data, ['REMOTE_ADDR' => $this->ip]));
     }
 
-    protected function login(string $user = 'admin', string $password = 'correct horse battery'): void
+    /**
+     * A POST with uploaded files.
+     *
+     * @param array<string,string> $data @param array<string,array{name:string,tmp_name:string,size:int,error:int}> $files
+     */
+    protected function postFiles(string $path, array $data, array $files): Response
+    {
+        $data['_csrf'] = $this->session->csrfToken();
+        return $this->kernel()->handle(new Request('POST', $path, [], $data, ['REMOTE_ADDR' => $this->ip], $files));
+    }
+
+    /** Sign in, creating the account first (an administrator unless $role says otherwise). */
+    protected function login(string $user = 'admin', string $password = 'correct horse battery', string $role = 'admin'): void
     {
         if ($this->s->users()->findByUsername($user) === null) {
-            $this->s->users()->create($user, $password);
+            $this->s->users()->create($user, $password, $role);
         }
         $r = $this->post('/login', ['username' => $user, 'password' => $password]);
         self::assertSame(303, $r->status, 'login should redirect');

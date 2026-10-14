@@ -10,6 +10,7 @@ final class Request
      * @param array<string,mixed> $query
      * @param array<string,mixed> $post
      * @param array<string,mixed> $server
+     * @param array<string,mixed> $files uploads, shaped like $_FILES
      */
     public function __construct(
         public readonly string $method,
@@ -17,6 +18,7 @@ final class Request
         public readonly array $query = [],
         public readonly array $post = [],
         public readonly array $server = [],
+        public readonly array $files = [],
     ) {
     }
 
@@ -33,6 +35,7 @@ final class Request
             $_GET,
             $_POST,
             $_SERVER,
+            $_FILES,
         );
     }
 
@@ -46,6 +49,23 @@ final class Request
     {
         $v = $this->post[$key] ?? $default;
         return is_string($v) ? $v : $default;
+    }
+
+    /**
+     * One uploaded file, or null when none was sent. error is a PHP UPLOAD_ERR_* code.
+     *
+     * @return array{name:string,tmp_name:string,size:int,error:int}|null
+     */
+    public function file(string $key): ?array
+    {
+        $f = $this->files[$key] ?? null;
+        if (!is_array($f) || !is_string($f['tmp_name'] ?? null) || !is_int($f['error'] ?? null)) {
+            return null;
+        }
+        if ($f['error'] === UPLOAD_ERR_NO_FILE) {
+            return null;
+        }
+        return ['name' => (string) ($f['name'] ?? ''), 'tmp_name' => $f['tmp_name'], 'size' => (int) ($f['size'] ?? 0), 'error' => $f['error']];
     }
 
     public function header(string $name): ?string

@@ -123,12 +123,12 @@ final class QuestionViewTest extends TestCase
         // Corrected in the reader: the hints go, and the collected answer is still named.
         self::assertSame('1-12', QuestionView::key($q));
         [$fixed] = QuestionView::applyEdits([$q], ['1-12' => ['answer' => 'ABC', 'note' => 'LSA is not a packet type.']]);
-        self::assertSame('ABC (corrected by you; the collected answer was A)', QuestionView::answerLine($fixed));
+        self::assertSame('ABC (corrected; the collected answer was A)', QuestionView::answerLine($fixed));
         self::assertSame('LSA is not a packet type.', $fixed['edit']['note']);
         self::assertSame([], QuestionView::doubts($fixed));
         // Saving the collected letters unchanged marks the answer as checked.
         [$checked] = QuestionView::applyEdits([$q], ['1-12' => ['answer' => 'A', 'note' => null]]);
-        self::assertStringEndsWith('; checked by you)', (string) QuestionView::answerLine($checked));
+        self::assertStringEndsWith('; checked)', (string) QuestionView::answerLine($checked));
         self::assertSame([], QuestionView::doubts($checked));
     }
 

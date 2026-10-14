@@ -28,7 +28,11 @@
     } else {
       prefs = JSON.parse(localStorage.getItem(KEY) || 'null');
       if (prefs && typeof prefs === 'object') {
-        ['accent', 'density', 'surface'].forEach(function (k) { if (ok(k, prefs[k])) root.setAttribute('data-' + k, prefs[k]); });
+        ['accent', 'density', 'surface'].forEach(function (k) {
+          // A custom branding colour applies to everyone, so a remembered accent does not replace it.
+          if (k === 'accent' && root.getAttribute('data-accent') === 'custom') return;
+          if (ok(k, prefs[k])) root.setAttribute('data-' + k, prefs[k]);
+        });
         if (prefs.motion === 'reduced') root.setAttribute('data-motion', 'reduced');
       }
     }

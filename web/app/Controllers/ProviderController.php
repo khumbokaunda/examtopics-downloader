@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Core\Http\HttpException;
 use App\Core\Http\Response;
 use App\Core\Ids;
 use App\Services\ActiveJobException;
@@ -34,12 +35,28 @@ final class ProviderController extends Controller
             'lastRefresh' => $this->s->refreshes()->latest((int) $provider['id']),
             'lastSuccess' => $this->s->refreshes()->latestSuccessful((int) $provider['id']),
             'activeJob' => $this->s->jobs()->findBySlot('inventory:' . $provider['slug']),
+            'mayRefresh' => $this->mayRefresh($provider),
         ]);
+    }
+
+    /**
+     * Collectors refresh any provider. Others with inventory.first may load the exam list of a
+     * provider that has never been fetched, so they can see what it offers and request exams.
+     *
+     * @param array<string,mixed> $provider
+     */
+    private function mayRefresh(array $provider): bool
+    {
+        return $this->auth->can('exams.collect')
+            || ($this->auth->can('inventory.first') && $this->s->providers()->neverFetched((int) $provider['id']));
     }
 
     public function refresh(string $slug): Response
     {
         $provider = $this->findProvider($slug);
+        if (!$this->mayRefresh($provider)) {
+            throw new HttpException(403, "This provider's exam list has already been loaded. An administrator keeps it up to date.");
+        }
         try {
             $id = $this->s->jobService()->enqueueInventory($provider);
             $this->flash('success', 'Inventory refresh queued (job #' . $id . ').');

@@ -94,7 +94,7 @@ final class MarkdownRenderer
                 }
                 if (($q['edit']['note'] ?? '') !== '') {
                     $out[] = '';
-                    $out[] = '**Your note:** ' . self::inline((string) $q['edit']['note']);
+                    $out[] = '**Note:** ' . self::inline((string) $q['edit']['note']);
                 }
                 $out[] = '';
                 foreach ((array) ($q['answer_images'] ?? []) as $i => $img) {

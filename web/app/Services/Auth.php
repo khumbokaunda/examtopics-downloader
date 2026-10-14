@@ -24,12 +24,18 @@ final class Auth
     ) {
     }
 
-    /** @return array<string,mixed>|null */
+    /**
+     * The signed-in person. An account that is disabled (or otherwise not active) while signed
+     * in stops working on its next request.
+     *
+     * @return array<string,mixed>|null
+     */
     public function user(): ?array
     {
         if ($this->user === false) {
             $id = $this->session->get('user_id');
-            $this->user = is_int($id) ? $this->users->find($id) : null;
+            $user = is_int($id) ? $this->users->find($id) : null;
+            $this->user = $user !== null && ($user['status'] ?? 'active') === 'active' ? $user : null;
         }
         return $this->user;
     }
@@ -39,7 +45,27 @@ final class Auth
         return $this->user() !== null;
     }
 
-    /** @return string|null null on success, otherwise a message safe to display */
+    public function can(string $permission): bool
+    {
+        return Access::can($this->user(), $permission);
+    }
+
+    public function isAdmin(): bool
+    {
+        return Access::isAdmin($this->user());
+    }
+
+    /** Forget the cached row, after the signed-in person's own account was changed. */
+    public function refresh(): void
+    {
+        $this->user = false;
+    }
+
+    /**
+     * Sign in with a username or an email address.
+     *
+     * @return string|null null on success, otherwise a message safe to display
+     */
     public function attempt(string $username, string $password, string $ip): ?string
     {
         $max = (int) $this->config->get('security.login_max_attempts', 5);
@@ -49,7 +75,7 @@ final class Auth
             return 'Too many failed sign-in attempts. Try again in a few minutes.';
         }
 
-        $user = $username === '' ? null : $this->users->findByUsername($username);
+        $user = $username === '' ? null : $this->users->findByLogin($username);
         // Verify against a dummy hash when the user does not exist so response timing does
         // not reveal which usernames exist.
         $hash = $user['password_hash'] ?? '$2y$10$usesomesillystringfore7hnbRJHxXVLeakoG8K30oukPsA.ztMG';
@@ -60,6 +86,16 @@ final class Auth
             $this->log->warning('security', 'Login failed', ['ip' => $ip, 'username' => $username]);
             return 'Incorrect username or password.';
         }
+        // Only after the password is right does the answer say what state the account is in.
+        $status = (string) ($user['status'] ?? 'active');
+        if ($status !== 'active') {
+            $this->log->info('security', 'Login refused: account ' . $status, ['ip' => $ip, 'username' => $user['username']]);
+            return match ($status) {
+                'pending' => 'Your account is waiting for an administrator to approve it.',
+                'unverified' => 'Verify your email address first: enter the code from the email we sent.',
+                default => 'This account is disabled. Ask an administrator if you need it again.',
+            };
+        }
 
         $this->session->regenerate();
         $this->session->set('user_id', (int) $user['id']);
@@ -68,7 +104,7 @@ final class Auth
         $this->users->touchLogin((int) $user['id']);
         $this->users->rehashIfNeeded((int) $user['id'], $password, (string) $user['password_hash']);
         $this->user = false;
-        $this->log->info('security', 'Login succeeded', ['ip' => $ip, 'username' => $username]);
+        $this->log->info('security', 'Login succeeded', ['ip' => $ip, 'username' => $user['username']]);
         return null;
     }
 

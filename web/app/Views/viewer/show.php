@@ -5,6 +5,7 @@
 use App\Services\Documents\QuestionView;
 
 $base = '/library/' . rawurlencode($provider['slug']) . '/' . rawurlencode($exam['code']);
+$editor = can('answers.edit');
 $params = ['version' => $version['version'], 'mode' => $mode === 'practice' ? 'practice' : '', 'q' => $q, 'review' => $review ? '1' : ''];
 $practice = $mode === 'practice';
 $img = static function (string $url, string $alt) use ($localImages): string {
@@ -49,7 +50,7 @@ $img = static function (string $url, string $alt) use ($localImages): string {
     <?php endif; ?>
     <?php if ($review): ?>
         <a class="btn btn-outline-secondary" href="<?= e(url($base . '/view', ['version' => $version['version']])) ?>"><?= icon('list-ol') ?>All questions</a>
-    <?php elseif ($toCheck > 0): ?>
+    <?php elseif ($toCheck > 0 && $editor): ?>
         <a class="btn btn-outline-warning" href="<?= e(url($base . '/view', ['version' => $version['version'], 'review' => '1'])) ?>" title="Answers that look doubtful and that you have not corrected or checked yet"><?= icon('exclamation-triangle') ?>To check (<?= $toCheck ?>)</a>
     <?php endif; ?>
 </form>
@@ -94,7 +95,7 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                         <?php $note = QuestionView::pictureAnswerNote($item); ?>
                         <div class="answer-text"><strong>Answer:</strong> <?= $answer !== null ? e($answer) : '<span class="text-muted">' . e($note ?? 'not available') . '</span>' ?></div>
                         <?php if ($votes !== null): ?><div class="answer-votes">Community votes: <?= e($votes) ?></div><?php endif; ?>
-                        <?php if (($edit['note'] ?? '') !== ''): ?><div class="answer-note"><span class="answer-note-label">Your note</span><?php foreach (QuestionView::paragraphs($edit['note']) as $para): ?><p><?= $para ?></p><?php endforeach; ?></div><?php endif; ?>
+                        <?php if (($edit['note'] ?? '') !== ''): ?><div class="answer-note"><span class="answer-note-label">Note</span><?php foreach (QuestionView::paragraphs($edit['note']) as $para): ?><p><?= $para ?></p><?php endforeach; ?></div><?php endif; ?>
                     </div>
                 </div>
                 <?php if ($doubts !== []): $claims = QuestionView::claimsLine($item); ?>
@@ -107,6 +108,7 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                         </div>
                     </div>
                 <?php endif; ?>
+                <?php if ($editor): ?>
                 <details class="answer-edit"<?= $doubts !== [] && $review ? ' open' : '' ?>>
                     <summary><?= icon('pencil-square') ?><?= $edit !== null ? 'Change your correction' : ($letters !== [] ? 'Correct this answer' : 'Add a note') ?></summary>
                     <div class="answer-edit-body">
@@ -146,6 +148,7 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                         <?php endif; ?>
                     </div>
                 </details>
+                <?php endif; ?>
                 <?php foreach ((array) ($item['answer_images'] ?? []) as $i => $u): ?><?= $img((string) $u, 'Answer image ' . ($i + 1)) ?><?php endforeach; ?>
                 <?php if (trim((string) ($item['explanation'] ?? '')) !== ''): ?>
                     <div class="explanation"><div class="section-heading">Explanation</div><?php foreach (QuestionView::paragraphs((string) $item['explanation']) as $para): ?><p><?= $para ?></p><?php endforeach; ?></div>

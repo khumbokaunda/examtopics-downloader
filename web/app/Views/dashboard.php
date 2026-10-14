@@ -3,17 +3,18 @@
  *  @var list<array> $recentVersions @var list<array> $recentCompleted @var list<array> $recentFailed
  *  @var list<array> $recentDocuments @var array<string,int> $jobCounts @var bool $workerRunning */
 $failed = (int) ($jobCounts['failed'] ?? 0);
+$collector = can('exams.collect');
 $recent = array_merge($recentCompleted, $recentFailed);
 usort($recent, static fn($a, $b) => (int) $b['id'] <=> (int) $a['id']);
 ?>
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title">Dashboard</h1>
-        <p class="page-subtitle">Your private exam library at a glance.</p>
+        <p class="page-subtitle"><?= $collector ? 'Your private exam library at a glance.' : 'The exam library at a glance.' ?></p>
     </div>
     <div class="page-actions">
         <a class="btn btn-outline-secondary" href="<?= e(url('/library')) ?>"><?= icon('journal-bookmark') ?>Open library</a>
-        <a class="btn btn-primary" href="<?= e(url('/collect')) ?>"><?= icon('cloud-arrow-down') ?>Collect an exam</a>
+        <?php if ($collector): ?><a class="btn btn-primary" href="<?= e(url('/collect')) ?>"><?= icon('cloud-arrow-down') ?>Collect an exam</a><?php endif; ?>
     </div>
 </header>
 
@@ -23,7 +24,7 @@ usort($recent, static fn($a, $b) => (int) $b['id'] <=> (int) $a['id']);
         ['Cached questions', number_format($totals['questions']), url('/library'), 'patch-question', 'info'],
         ['Providers', number_format($providerCount), url('/providers'), 'buildings', 'neutral'],
         ['Failed jobs', number_format($failed), url('/jobs', ['status' => 'failed']), 'x-circle', $failed > 0 ? 'danger' : 'neutral'],
-    ] as [$label, $value, $href, $iconName, $tone]): ?>
+    ] as $i => [$label, $value, $href, $iconName, $tone]): if ($i === 3 && !$collector) { continue; } ?>
         <a class="kpi" href="<?= e($href) ?>" data-tone="<?= e($tone) ?>">
             <span class="kpi-icon"><?= icon($iconName) ?></span>
             <span class="kpi-text"><span class="kpi-value d-block"><?= e($value) ?></span><span class="kpi-label d-block"><?= e($label) ?></span></span>
@@ -31,6 +32,7 @@ usort($recent, static fn($a, $b) => (int) $b['id'] <=> (int) $a['id']);
     <?php endforeach; ?>
 </div>
 
+<?php if ($collector): ?>
 <div class="card mb-4">
     <div class="card-header">
         <span class="card-title"><?= icon('activity') ?>Active jobs</span>
@@ -47,16 +49,19 @@ usort($recent, static fn($a, $b) => (int) $b['id'] <=> (int) $a['id']);
         <?php endforeach; endif; ?>
     </div>
 </div>
+<?php endif; ?>
 
 <div class="row g-4">
-    <div class="col-lg-6">
+    <div class="col-lg-<?= $collector ? 6 : 12 ?>">
         <div class="card h-100">
             <div class="card-header">
                 <span class="card-title"><?= icon('journal-check') ?>Recently collected</span>
                 <a class="small" href="<?= e(url('/library')) ?>">View library</a>
             </div>
             <?php if ($recentVersions === []): ?>
-                <div class="card-body"><?= empty_state('journal-plus', 'No exams collected yet', 'Pick a provider and an exam to build your library.', ['Collect an exam', url('/collect')], true) ?></div>
+                <div class="card-body"><?= ($collector
+                    ? empty_state('journal-plus', 'No exams collected yet', 'Pick a provider and an exam to build your library.', ['Collect an exam', url('/collect')], true)
+                    : empty_state('journal-plus', 'No exams collected yet', 'Collected exams appear here.', null, true)) ?></div>
             <?php else: ?>
             <ul class="list-rows">
                 <?php foreach ($recentVersions as $v): ?>
@@ -75,6 +80,7 @@ usort($recent, static fn($a, $b) => (int) $b['id'] <=> (int) $a['id']);
             <?php endif; ?>
         </div>
     </div>
+    <?php if ($collector): ?>
     <div class="col-lg-6">
         <div class="card h-100">
             <div class="card-header">
@@ -101,6 +107,7 @@ usort($recent, static fn($a, $b) => (int) $b['id'] <=> (int) $a['id']);
             <?php endif; ?>
         </div>
     </div>
+    <?php endif; ?>
     <div class="col-12">
         <div class="card">
             <div class="card-header"><span class="card-title"><?= icon('file-earmark-text') ?>Recently generated documents</span></div>

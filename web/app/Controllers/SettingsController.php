@@ -13,10 +13,9 @@ final class SettingsController extends Controller
     {
         $binary = (string) $this->app->config()->get('tool.binary');
         $lock = $this->s->supervisor()->lock();
-        return $this->render('settings', [
+        return $this->render('settings/index', [
             'title' => 'Settings',
             'nav' => 'settings',
-            'user' => $this->auth->user(),
             'toolInstalled' => is_file($binary) && is_executable($binary),
             'toolMissing' => \App\Services\ToolCheck::missingOptions($binary),
             'toolPath' => $binary,
@@ -29,11 +28,8 @@ final class SettingsController extends Controller
             'imagesDownload' => (bool) $this->app->config()->get('media.download', true),
             'imageTotals' => $this->s->media()->totals(),
             'recentLogins' => $this->s->loginAttempts()->recent(200),
-            'appearance' => Appearance::forUser($this->auth->user()),
             'system' => $this->system()->effective(),
-            'myTimezone' => (string) ((json_decode((string) ($this->auth->user()['preferences'] ?? ''), true) ?: [])['timezone'] ?? ''),
             'timezones' => \DateTimeZone::listIdentifiers(),
-            'appearanceOptions' => Appearance::OPTIONS,
         ]);
     }
 
@@ -45,18 +41,13 @@ final class SettingsController extends Controller
 
     public function time(): Response
     {
-        $user = (array) $this->auth->user();
-        $mine = (string) $this->request->input('my_timezone', '');
         try {
-            $this->s->users()->setPreferences((int) $user['id'], [
-                'timezone' => $mine !== '' && \App\Services\SystemSettings::validTimezone($mine) ? $mine : '',
-            ]);
             $this->system()->save([
                 'timezone' => (string) $this->request->input('timezone', ''),
                 'idle_timeout' => (string) $this->request->input('idle_timeout', ''),
                 'absolute_timeout' => (string) $this->request->input('absolute_timeout', ''),
             ]);
-            $this->flash('success', 'Time and sign-in settings saved. New timeouts apply from your next page.');
+            $this->flash('success', 'Time and sign-in settings saved. New timeouts apply from the next page.');
         } catch (\PDOException $e) {
             $this->flash('danger', $this->schemaMessage($e));
         }
@@ -72,7 +63,7 @@ final class SettingsController extends Controller
         } catch (\PDOException $e) {
             $this->flash('danger', $this->schemaMessage($e));
         }
-        return $this->redirect('/settings#appearance');
+        return $this->redirect('/account#appearance');
     }
 
     /** The top bar's theme toggle (and any other single preference) from JavaScript. */
@@ -105,31 +96,9 @@ final class SettingsController extends Controller
                 $input[$key] = $value;
             }
         }
-        $prefs = Appearance::merge(Appearance::forUser($user), $input);
+        $prefs = Appearance::merge(Appearance::forUser($user, $this->s->branding()->get()), $input);
         $this->s->users()->setPreferences((int) $user['id'], $prefs);
         return $prefs;
-    }
-
-    public function password(): Response
-    {
-        $user = (array) $this->auth->user();
-        $current = (string) $this->request->input('current_password', '');
-        $new = (string) $this->request->input('new_password', '');
-        $repeat = (string) $this->request->input('repeat_password', '');
-        if (!password_verify($current, (string) $user['password_hash'])) {
-            $this->app->logger()->warning('security', 'Password change rejected: wrong current password', ['username' => $user['username']]);
-            $this->flash('danger', 'The current password is incorrect.');
-        } elseif (strlen($new) < 12) {
-            $this->flash('danger', 'The new password must be at least 12 characters.');
-        } elseif (!hash_equals($new, $repeat)) {
-            $this->flash('danger', 'The new passwords do not match.');
-        } else {
-            $this->s->users()->setPassword((int) $user['id'], $new);
-            $this->session->regenerate();
-            $this->app->logger()->info('security', 'Password changed', ['username' => $user['username']]);
-            $this->flash('success', 'Password changed.');
-        }
-        return $this->redirect('/settings');
     }
 
     public function reconcile(): Response

@@ -19,6 +19,12 @@ if (!function_exists('e')) {
         return View::current()->url($path, $query);
     }
 
+    /** Does the signed-in person hold this permission? Templates hide what the server would refuse. */
+    function can(string $permission): bool
+    {
+        return \App\Services\Access::can(View::current()->user(), $permission);
+    }
+
     function csrf_field(): string
     {
         return '<input type="hidden" name="_csrf" value="' . e(View::current()->csrf()) . '">';

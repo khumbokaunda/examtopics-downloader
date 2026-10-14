@@ -36,14 +36,15 @@ final class TimeSettingsTest extends HttpTestCase
 
     public function testSavingTimeSettings(): void
     {
-        $r = $this->post('/settings/time', ['my_timezone' => 'Africa/Blantyre', 'timezone' => 'Europe/London',
-            'idle_timeout' => '1800', 'absolute_timeout' => '86400']);
+        $r = $this->post('/settings/time', ['timezone' => 'Europe/London', 'idle_timeout' => '1800', 'absolute_timeout' => '86400']);
         self::assertSame(303, $r->status);
         self::assertSame('/settings#time', $r->headers['Location']);
         $s = $this->system()->effective();
         self::assertSame(['idle_timeout' => 1800, 'absolute_timeout' => 86400, 'timezone' => 'Europe/London'], $s);
 
-        // The user's own timezone wins over the system default, and leaves appearance alone.
+        // The user's own timezone (on the account page) wins over the system default, and
+        // leaves appearance alone.
+        self::assertSame('/account#time', $this->post('/account/time', ['my_timezone' => 'Africa/Blantyre'])->headers['Location']);
         $this->post('/settings/appearance', ['accent' => 'rose']);
         $prefs = json_decode((string) $this->app->db()->value("SELECT preferences FROM users WHERE username = 'admin'"), true);
         self::assertSame('Africa/Blantyre', $prefs['timezone']);
@@ -58,7 +59,8 @@ final class TimeSettingsTest extends HttpTestCase
 
     public function testValuesOutsideTheChoicesAreIgnored(): void
     {
-        $this->post('/settings/time', ['my_timezone' => 'Mars/Olympus', 'timezone' => '"><script>', 'idle_timeout' => '5', 'absolute_timeout' => '-1']);
+        $this->post('/settings/time', ['timezone' => '"><script>', 'idle_timeout' => '5', 'absolute_timeout' => '-1']);
+        $this->post('/account/time', ['my_timezone' => 'Mars/Olympus']);
         self::assertSame(['idle_timeout' => 14400, 'absolute_timeout' => 0, 'timezone' => 'UTC'], $this->system()->effective());
         $prefs = json_decode((string) $this->app->db()->value("SELECT preferences FROM users WHERE username = 'admin'"), true);
         self::assertSame('', $prefs['timezone']);

@@ -94,6 +94,18 @@ final class View
             ? $mine : $this->app->service(\App\Services\SystemSettings::class, fn() => new \App\Services\SystemSettings($this->app))->effective()['timezone'];
     }
 
+    /** The installation's name, logo and colour. */
+    public function branding(): \App\Services\Branding
+    {
+        return $this->app->service(\App\Services\Branding::class, fn() => new \App\Services\Branding($this->app));
+    }
+
+    /** @return array<string,mixed>|null */
+    public function user(): ?array
+    {
+        return $this->user;
+    }
+
     public function csrf(): string
     {
         return $this->session->csrfToken();
