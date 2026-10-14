@@ -160,6 +160,16 @@ final class LibraryDocumentsTest extends HttpTestCase
         self::assertStringContainsString('**Answer:** AC (corrected by you; the collected answer was A)', $md);
         self::assertStringContainsString('**Your note:** C is also right.', $md);
 
+        // The corrections page lists it, and it can be removed from there.
+        self::assertStringContainsString('Review corrections', $exam->body);
+        $list = $this->get($this->base() . '/corrections', ['version' => $v])->body;
+        self::assertStringContainsString('Question 1', $list);
+        self::assertStringContainsString('C is also right.', $list);
+        self::assertMatchesRegularExpression('#<span class="mono fw-semibold">AC</span>#', $list);
+        $r = $this->post($this->base() . '/answers', ['key' => '1-1', 'version' => $v, 'action' => 'remove', 'return' => 'corrections']);
+        self::assertStringContainsString('/corrections', $r->headers['Location']);
+        self::assertStringContainsString('Nothing corrected yet', $this->get($this->base() . '/corrections', ['version' => $v])->body);
+
         // Removing it shows the collected answer again: the collected data never changed.
         $this->post($this->base() . '/answers', ['key' => '1-1', 'version' => $v, 'action' => 'remove']);
         self::assertStringNotContainsString('corrected by you', $this->get($this->base() . '/view', ['version' => $v])->body);

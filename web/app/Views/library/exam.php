@@ -77,6 +77,9 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
                         <?php endif; ?>
                         <?php $done = array_filter([$answers['corrected'] > 0 ? $answers['corrected'] . ' corrected by you' : null, $answers['checked'] > 0 ? $answers['checked'] . ' checked by you' : null]); ?>
                         <span class="<?= $answers['check'] > 0 ? 'text-muted' : '' ?>"><?= $done !== [] ? e(implode(', ', $done)) : ($answers['check'] > 0 ? 'Doubtful answers can be corrected in the reader.' : 'None look doubtful') ?></span>
+                        <?php if ($answers['fingerprint'] !== null): ?>
+                            <a class="ms-2" href="<?= e(url($base . '/corrections', ['version' => $selected['version']])) ?>"><?= icon('list-check') ?> Review corrections</a>
+                        <?php endif; ?>
                     </dd>
                     <?php endif; ?>
                 </dl>
