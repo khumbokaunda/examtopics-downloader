@@ -9,6 +9,7 @@ use App\Controllers\BrandingController;
 use App\Controllers\CollectController;
 use App\Controllers\DashboardController;
 use App\Controllers\DocumentController;
+use App\Controllers\EmailController;
 use App\Controllers\JobController;
 use App\Controllers\LibraryController;
 use App\Controllers\MediaController;
@@ -79,6 +80,9 @@ return static function (Router $r): void {
     $r->get('/settings/branding', [BrandingController::class, 'index'], can: 'settings.manage');
     $r->post('/settings/branding', [BrandingController::class, 'save'], can: 'settings.manage');
     $r->post('/settings/branding/logo/remove', [BrandingController::class, 'removeLogo'], can: 'settings.manage');
+    $r->get('/settings/email', [EmailController::class, 'index'], can: 'settings.manage');
+    $r->post('/settings/email', [EmailController::class, 'save'], can: 'settings.manage');
+    $r->post('/settings/email/test', [EmailController::class, 'test'], can: 'settings.manage');
 
     $r->get('/account', [AccountController::class, 'index'], can: $me);
     $r->post('/account/profile', [AccountController::class, 'profile'], can: $me);

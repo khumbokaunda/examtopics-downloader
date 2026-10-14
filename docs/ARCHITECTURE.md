@@ -158,6 +158,16 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
   with `?v=<modified time>` and a sandboxing CSP. A custom colour becomes a stylesheet
   (`/branding/theme.css`, since the CSP allows no inline styles) with a version darkened for
   the light theme and lightened for the dark one until it passes WCAG contrast.
+- **Email** (`App\Services\Mailer`, Settings > Email): SMTP settings live in the database
+  (config.php's `mail` values are defaults), and a blank password field keeps the stored one,
+  which the page never shows. `send()` never throws: it returns false and logs why in
+  `mail.log`, so a sign-up or password page cannot fail because mail is down. Callers pass a
+  short HTML fragment; the letterhead (inline styles and tables, the branding, a PNG logo
+  embedded by CID) is added in one place, and the plain-text part is made from the fragment.
+  Links use the configured site address, never the request's Host header. Emails about events
+  are queued (`mail_queue`, one row per idempotency key) and sent by `bin/send-mail.php`,
+  started in the background and by cron, with retries after 1 minute, 5 minutes, 30 minutes,
+  2 hours and 12 hours. The SMTP password is in the settings table, so backups contain it.
 - **Sessions** end after a period without activity (4 hours by default) and, if set, a fixed
   time after signing in; both are chosen under Settings > Time and sign-in. Session files are
   kept in `storage/sessions`, so the system's own session cleanup (on Debian, every 24 idle

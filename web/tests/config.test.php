@@ -11,4 +11,5 @@ return [
     'storage_dir' => getenv('EXAMTOPICS_TEST_STORAGE') ?: sys_get_temp_dir() . '/examtopics-test-storage',
     'session' => ['secure' => false],
     'github_token' => 'ghp_testtokenTESTTOKENtesttoken000000',
+    'mail' => ['background' => false],
 ];

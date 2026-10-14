@@ -149,8 +149,12 @@ sudo crontab -u www-data /srv/examtopics-downloader/web/deploy/examtopics.cron
 sudo cp /srv/examtopics-downloader/web/deploy/examtopics.logrotate /etc/logrotate.d/examtopics
 ```
 
-The cron file reconciles stale jobs every five minutes and removes working files of jobs
-older than 30 days. Edit the paths inside both files first.
+The cron file reconciles stale jobs and sends (or retries) queued notification emails every
+five minutes, and removes working files of jobs older than 30 days. Edit the paths inside
+both files first.
+
+Then sign in and open Settings > Email to set the mail server and the site address, and send
+a test message. Sign-up codes, password resets and notifications need it.
 
 ## 11. Optional: a permanent worker under systemd
 

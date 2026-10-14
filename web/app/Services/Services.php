@@ -79,6 +79,19 @@ final class Services
         return $this->app->service(Branding::class, fn() => new Branding($this->app));
     }
 
+    public function mailer(): Mailer
+    {
+        return $this->app->service(Mailer::class, fn() => new Mailer($this->app, $this->branding()));
+    }
+
+    public function mailQueue(): MailQueue
+    {
+        $background = (bool) $this->app->config()->get('mail.background', true);
+        return $this->app->service(MailQueue::class, fn() => new MailQueue(
+            $this->app->db(), $this->mailer(), $this->app->logger(),
+            $background ? fn(): bool => $this->supervisor()->launchScript('send-mail.php', [], 'mail-send.log') : null));
+    }
+
     public function supervisor(): WorkerSupervisor
     {
         return $this->app->service(WorkerSupervisor::class, fn() => new WorkerSupervisor(
