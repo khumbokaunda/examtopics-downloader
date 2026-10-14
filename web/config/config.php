@@ -73,6 +73,7 @@ return [
         'background'        => true,
         'pdf_time_limit'    => 1800,   // seconds per PDF build
         'pdf_memory_limit'  => '2048M',  // for the background PDF process only
+        'pdf_part_questions' => 500,     // larger exams get their PDF in parts of at most this many questions
     ],
 
     'worker' => [

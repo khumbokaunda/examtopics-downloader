@@ -44,16 +44,17 @@ final class DocumentRepository
     {
         $this->db->run(
             'INSERT INTO documents (uuid, cache_version_id, format, variant, options_hash, options, status, rel_path, filename,
-                 size_bytes, checksum, error, generated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 size_bytes, checksum, parts, error, generated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON DUPLICATE KEY UPDATE options = VALUES(options), status = VALUES(status), rel_path = VALUES(rel_path),
                  filename = VALUES(filename), size_bytes = VALUES(size_bytes), checksum = VALUES(checksum),
-                 error = VALUES(error), generated_at = VALUES(generated_at),
+                 parts = VALUES(parts), error = VALUES(error), generated_at = VALUES(generated_at),
                  progress_done = IF(VALUES(status) = \'building\', NULL, progress_done),
                  progress_total = IF(VALUES(status) = \'building\', NULL, progress_total),
                  builder_pid = IF(VALUES(status) = \'building\', NULL, builder_pid)',
             [\App\Core\Ids::uuid(), $d['cache_version_id'], $d['format'], $d['variant'], $d['options_hash'], json_encode($d['options']),
-             $d['status'], $d['rel_path'], $d['filename'], $d['size_bytes'], $d['checksum'], $d['error'], Database::now()]
+             $d['status'], $d['rel_path'], $d['filename'], $d['size_bytes'], $d['checksum'],
+             isset($d['parts']) ? json_encode($d['parts']) : null, $d['error'], Database::now()]
         );
         return (int) $this->db->value(
             'SELECT id FROM documents WHERE cache_version_id = ? AND format = ? AND variant = ? AND options_hash = ?',

@@ -238,6 +238,30 @@ final class LibraryDocumentsTest extends HttpTestCase
         self::assertMatchesRegularExpression('/at question 5 of 5, while using about \\d+ MB of memory/', (string) $status['error']);
     }
 
+    public function testLargeExamsGetTheirPdfInParts(): void
+    {
+        $single = $this->generate('study', 'pdf');
+        // Parts of at most 2 questions: the 5-question exam becomes 3 parts, in one build.
+        $this->configure($this->startFixture(), null, ['documents' => ['background' => false, 'pdf_part_questions' => 2]]);
+        $doc = $this->generate('study', 'pdf');
+        $parts = \App\Services\DocumentStore::parts($doc);
+        self::assertSame([[1, 2], [3, 4], [5, 5]], array_map(static fn(array $p) => [$p['first'], $p['last']], $parts));
+        self::assertNull($this->app->db()->value('SELECT id FROM documents WHERE id = ?', [(int) $single['id']]), 'the single PDF is replaced');
+        $dir = dirname($this->app->paths()->documentsRoot() . '/' . $doc['rel_path']);
+        self::assertFileDoesNotExist($dir . '/study.pdf', 'and its file removed');
+
+        self::assertStringContainsString('Part 3', $this->get($this->base())->body);
+        $r = $this->get('/documents/' . $doc['uuid'] . '/download', ['part' => '2']);
+        self::assertSame(200, $r->status);
+        self::assertStringContainsString('_Part2of3.pdf', $r->headers['Content-Disposition']);
+        self::assertStringStartsWith('%PDF-', (string) file_get_contents($r->file, false, null, 0, 5));
+        self::assertSame(404, $this->get('/documents/' . $doc['uuid'] . '/download', ['part' => '4'])->status);
+
+        // Deleting the document removes every part.
+        $this->post('/documents/' . $doc['uuid'] . '/delete');
+        self::assertSame([], glob($dir . '/study.part*.pdf'));
+    }
+
     public function testDocumentsAreReusedAndTamperingIsDetected(): void
     {
         $first = $this->generate('study', 'md');

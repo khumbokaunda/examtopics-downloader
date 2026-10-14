@@ -150,7 +150,8 @@ final class PdfRenderer
         gc_collect_cycles();
         gc_mem_caches();
 
-        $dompdf->addInfo('Title', $meta['provider'] . ' ' . $meta['exam'] . ': ' . $variant->label());
+        $dompdf->addInfo('Title', $meta['provider'] . ' ' . $meta['exam'] . ': ' . $variant->label()
+            . (is_array($meta['part'] ?? null) ? ' (part ' . (int) $meta['part']['n'] . ' of ' . (int) $meta['part']['of'] . ')' : ''));
         $dompdf->addInfo('Subject', 'Collected ' . $meta['collected_at'] . ', version ' . $meta['version']);
         $dompdf->addInfo('Creator', 'Examtopics');
 
@@ -276,8 +277,12 @@ final class PdfRenderer
         $kicker = $meta['provider'] . ' · ' . strtoupper($meta['exam_code']);
         $b[] = '<div class="kicker">' . $t($kicker) . '</div>';
         $b[] = '<h1 class="title">' . $t($meta['exam']) . '</h1>';
-        $b[] = '<div class="subtitle">' . $h($variant->label()) . ' · ' . count($questions) . ' questions · collected '
-            . $h(substr($meta['collected_at'], 0, 10)) . '</div>';
+        // A part of a large exam's PDF says which questions it holds.
+        $part = is_array($meta['part'] ?? null) ? $meta['part'] : null;
+        $b[] = '<div class="subtitle">' . $h($variant->label()) . ' · '
+            . ($part !== null ? 'Part ' . (int) $part['n'] . ' of ' . (int) $part['of'] . ', questions ' . (int) $part['first'] . ' to ' . (int) $part['last']
+                : count($questions) . ' questions')
+            . ' · collected ' . $h(substr($meta['collected_at'], 0, 10)) . '</div>';
         $b[] = $this->about($dataset, $meta, $variant, count($questions), $h);
 
         $b[] = '<div class="label toc-label">Contents</div>';

@@ -98,9 +98,17 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
                                 <td data-label="<?= $fmt === 'md' ? 'Markdown' : 'PDF' ?>">
                                     <div class="d-flex flex-column align-items-start gap-1">
                                     <?php foreach ($docIndex[$key][$fmt] ?? [] as $d): ?>
-                                        <?php if ($d['status'] === 'ready'): ?>
+                                        <?php if ($d['status'] === 'ready'): $docParts = \App\Services\DocumentStore::parts($d); ?>
                                             <span class="d-inline-flex align-items-center gap-1">
+                                                <?php if ($docParts === []): ?>
                                                 <a class="btn btn-sm btn-success" href="<?= e(url('/documents/' . $d['uuid'] . '/download')) ?>" title="<?= e($d['filename']) ?>"><?= icon('download') ?>Download <span class="opacity-75 fw-normal"><?= e(fmt_bytes($d['size_bytes'])) ?></span></a>
+                                                <?php else: ?>
+                                                <span class="doc-parts" title="Large exams are made in parts, so each fits in the server's memory">
+                                                    <?php foreach ($docParts as $i => $part): ?>
+                                                        <a class="btn btn-sm btn-success" href="<?= e(url('/documents/' . $d['uuid'] . '/download', ['part' => (string) ($i + 1)])) ?>"><?= icon('download') ?>Part <?= $i + 1 ?> <span class="opacity-75 fw-normal">Q<?= (int) $part['first'] ?><?= (int) $part['last'] !== (int) $part['first'] ? '–' . (int) $part['last'] : '' ?> · <?= e(fmt_bytes($part['size'])) ?></span></a>
+                                                    <?php endforeach; ?>
+                                                </span>
+                                                <?php endif; ?>
                                                 <form method="post" action="<?= e(url('/documents/' . $d['uuid'] . '/delete')) ?>" data-confirm="The cached exam data is not affected. You can generate it again later." data-confirm-title="Delete this document?" data-confirm-button="Delete" data-confirm-tone="danger"><?= csrf_field() ?>
                                                     <button class="icon-btn btn-link-danger" type="submit" aria-label="Delete document" title="Delete document"><?= icon('trash3') ?></button></form>
                                             </span>

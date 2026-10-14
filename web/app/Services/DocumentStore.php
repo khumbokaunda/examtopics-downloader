@@ -51,7 +51,7 @@ final class DocumentStore
     {
         $p = $this->prepare($version, $format, $variantKey);
         $existing = $this->docs->findByKey((int) $version['id'], $format, $p['variant']->key, $p['hash']);
-        if ($existing !== null && $existing['status'] === 'ready' && $this->verifiedPath($existing) !== null) {
+        if ($existing !== null && $existing['status'] === 'ready' && $this->intact($existing)) {
             return $existing;
         }
         return $this->generate($version, $p, null);
@@ -71,7 +71,7 @@ final class DocumentStore
         $existing = $this->docs->findByKey((int) $version['id'], $format, $p['variant']->key, $p['hash']);
         if ($existing !== null) {
             $existing = $this->refresh($existing);
-            if (($existing['status'] === 'ready' && $this->verifiedPath($existing) !== null) || $existing['status'] === 'building') {
+            if (($existing['status'] === 'ready' && $this->intact($existing)) || $existing['status'] === 'building') {
                 return $existing;
             }
         }
@@ -167,7 +167,7 @@ final class DocumentStore
 
     /**
      * @param array<string,mixed> $version
-     * @return array{variant:Variant,hash:string,record:array<string,mixed>,imageUrls:list<string>,dir:string,file:string}
+     * @return array{variant:Variant,hash:string,record:array<string,mixed>,imageUrls:list<string>,dir:string,file:string,parts:list<array{int,int}>}
      */
     private function prepare(array $version, string $format, string $variantKey): array
     {
@@ -177,11 +177,20 @@ final class DocumentStore
         $variant = Variant::get($variantKey);
         $options = $variant->options() + ['format' => $format, 'renderer' => self::RENDERER_VERSION];
         $imageUrls = [];
+        $parts = [];
         if ($format === 'pdf') {
             // PDFs embed the images saved on this server. Saving more of them (a later image
             // download) changes the options, so the PDF is generated again with them.
-            $imageUrls = MediaStore::urlsOf($this->cache->load($version));
+            $data = $this->cache->load($version);
+            $imageUrls = MediaStore::urlsOf($data);
             $options['images'] = count($this->media->savedHashes($imageUrls));
+            // A large exam is made in parts, one after another, so a build needs the memory of
+            // one part rather than of the whole exam (about 0.85 MB per question).
+            $parts = self::partRanges(count(array_filter((array) ($data['questions'] ?? []), 'is_array')),
+                (int) $this->config->get('documents.pdf_part_questions', 500));
+            if (count($parts) > 1) {
+                $options['parts'] = count($parts);
+            }
         }
         // Answers corrected in the reader: a correction changes the options, so documents made
         // before it are made again. Exams without corrections keep their existing documents.
@@ -193,7 +202,7 @@ final class DocumentStore
         $dir = $this->paths->documentDir((string) $version['provider_slug'], (string) $version['exam_code'], (string) $version['version']);
         $file = $variant->key . '.' . $format;
         return [
-            'variant' => $variant, 'hash' => $hash, 'imageUrls' => $imageUrls, 'dir' => $dir, 'file' => $file,
+            'variant' => $variant, 'hash' => $hash, 'imageUrls' => $imageUrls, 'dir' => $dir, 'file' => $file, 'parts' => $parts,
             'record' => [
                 'cache_version_id' => (int) $version['id'], 'format' => $format, 'variant' => $variant->key,
                 'options_hash' => $hash, 'options' => $options,
@@ -233,17 +242,27 @@ final class DocumentStore
                 array_values(array_filter((array) ($dataset['questions'] ?? []), 'is_array'))),
                 $this->edits->forExam((int) $version['exam_id']));
             $meta = $this->meta($version, $dataset);
-            $content = $format === 'md'
-                ? (new MarkdownRenderer())->render($dataset, $meta, $variant)
-                : $this->pdfRenderer($p['imageUrls'])->render($dataset, $meta, $variant, $progress);
-            Paths::atomicWrite($p['dir'] . '/' . $p['file'], $content);
-            $id = $this->docs->save($record + [
-                'status' => 'ready', 'size_bytes' => strlen($content), 'checksum' => hash('sha256', $content), 'error' => null,
-            ]);
+            if ($format === 'pdf' && count($p['parts']) > 1) {
+                $parts = $this->generateParts($dataset, $meta, $p, $progress);
+                $record['rel_path'] = dirname((string) $record['rel_path']) . '/' . $parts[0]['file'];
+                $result = ['size_bytes' => array_sum(array_column($parts, 'size')),
+                    'checksum' => hash('sha256', implode("\n", array_column($parts, 'checksum'))), 'parts' => $parts];
+                $files = array_column($parts, 'file');
+            } else {
+                $content = $format === 'md'
+                    ? (new MarkdownRenderer())->render($dataset, $meta, $variant)
+                    : $this->pdfRenderer($p['imageUrls'])->render($dataset, $meta, $variant, $progress);
+                Paths::atomicWrite($p['dir'] . '/' . $p['file'], $content);
+                $result = ['size_bytes' => strlen($content), 'checksum' => hash('sha256', $content), 'parts' => null];
+                $files = [$p['file']];
+                unset($content);
+            }
+            $id = $this->docs->save($record + $result + ['status' => 'ready', 'error' => null]);
             $this->docs->deleteSuperseded((int) $version['id'], $format, $variant->key, $p['hash']);
+            $this->removeOtherFiles($p['dir'], $variant->key, $format, $files);
             $this->log->info('documents', 'Document generated', [
                 'document_id' => $id, 'version' => $version['version'], 'exam' => $version['exam_code'],
-                'variant' => $variant->key, 'format' => $format, 'bytes' => strlen($content),
+                'variant' => $variant->key, 'format' => $format, 'bytes' => $result['size_bytes'], 'files' => count($files),
                 'seconds' => round(microtime(true) - $started, 2),
             ]);
             return (array) $this->docs->find($id);
@@ -264,30 +283,139 @@ final class DocumentStore
     }
 
     /**
-     * The document's file path if it is inside the documents root and matches its recorded
-     * checksum; null otherwise (missing, tampered or corrupted).
+     * A large exam's PDF in parts, made one after another so that only one part's layout is in
+     * memory at a time. Each part is a complete document: cover, contents, bookmarks and its
+     * own answer key and source index.
+     *
+     * @param array<string,mixed> $dataset
+     * @param array<string,mixed> $meta
+     * @param array{variant:Variant,imageUrls:list<string>,dir:string,parts:list<array{int,int}>} $p
+     * @param (callable(int,int):void)|null $progress
+     * @return list<array{file:string,first:int,last:int,size:int,checksum:string}>
+     */
+    private function generateParts(array $dataset, array $meta, array $p, ?callable $progress): array
+    {
+        $questions = $dataset['questions'];
+        $total = count($questions);
+        $out = [];
+        foreach ($p['parts'] as $n => [$offset, $length]) {
+            $part = $dataset;
+            $part['questions'] = array_slice($questions, $offset, $length);
+            $first = (int) ($part['questions'][0]['number'] ?? $offset + 1);
+            $last = (int) ($part['questions'][$length - 1]['number'] ?? $offset + $length);
+            $content = $this->pdfRenderer($p['imageUrls'])->render($part,
+                $meta + ['part' => ['n' => $n + 1, 'of' => count($p['parts']), 'first' => $first, 'last' => $last]], $p['variant'],
+                $progress === null ? null : static fn(int $done, int $all) => $progress($offset + $done, $total));
+            $file = $p['variant']->key . '.part' . ($n + 1) . '.pdf';
+            Paths::atomicWrite($p['dir'] . '/' . $file, $content);
+            $out[] = ['file' => $file, 'first' => $first, 'last' => $last, 'size' => strlen($content), 'checksum' => hash('sha256', $content)];
+            // The next part reuses this part's memory.
+            unset($content, $part);
+            gc_collect_cycles();
+        }
+        return $out;
+    }
+
+    /**
+     * Near-equal parts of at most $max questions, as [offset, length]: 1395 questions with a
+     * maximum of 500 are three parts of 465.
+     *
+     * @return list<array{int,int}>
+     */
+    public static function partRanges(int $count, int $max): array
+    {
+        $parts = max(1, (int) ceil($count / max(1, $max)));
+        $size = max(1, (int) ceil($count / $parts));
+        $out = [];
+        for ($offset = 0; $offset < $count; $offset += $size) {
+            $out[] = [$offset, min($size, $count - $offset)];
+        }
+        return $out;
+    }
+
+    /**
+     * The files of a document made in parts, in order; empty for a document in one file.
+     *
+     * @param array<string,mixed> $doc
+     * @return list<array{file:string,first:int,last:int,size:int,checksum:string}>
+     */
+    public static function parts(array $doc): array
+    {
+        $parts = json_decode((string) ($doc['parts'] ?? ''), true);
+        if (!is_array($parts)) {
+            return [];
+        }
+        return array_values(array_filter($parts, static fn($x) => is_array($x)
+            && preg_match('/^[a-z_]+\.part\d+\.pdf$/', (string) ($x['file'] ?? '')) === 1));
+    }
+
+    /**
+     * A file of the document (a part, for one made in parts) if it is inside the documents
+     * root and matches its recorded checksum; null otherwise (missing, tampered or corrupted).
      *
      * @param array<string,mixed> $doc
      */
-    public function verifiedPath(array $doc): ?string
+    public function verifiedPath(array $doc, int $part = 1): ?string
     {
         if (($doc['status'] ?? '') !== 'ready' || !is_string($doc['rel_path'] ?? null)) {
             return null;
         }
-        $path = Paths::resolveInside($this->paths->documentsRoot(), $doc['rel_path']);
-        if ($path === null || !is_file($path) || filesize($path) !== (int) $doc['size_bytes']) {
+        $parts = self::parts($doc);
+        if ($parts !== []) {
+            $entry = $parts[$part - 1] ?? null;
+            if ($entry === null) {
+                return null;
+            }
+            [$rel, $size, $sum] = [dirname($doc['rel_path']) . '/' . $entry['file'], (int) $entry['size'], (string) $entry['checksum']];
+        } elseif ($part === 1) {
+            [$rel, $size, $sum] = [$doc['rel_path'], (int) $doc['size_bytes'], (string) $doc['checksum']];
+        } else {
             return null;
         }
-        return hash_equals((string) $doc['checksum'], (string) hash_file('sha256', $path)) ? $path : null;
+        $path = Paths::resolveInside($this->paths->documentsRoot(), $rel);
+        if ($path === null || !is_file($path) || filesize($path) !== $size) {
+            return null;
+        }
+        return hash_equals($sum, (string) hash_file('sha256', $path)) ? $path : null;
+    }
+
+    /** @param array<string,mixed> $doc whether every file of a ready document is intact */
+    private function intact(array $doc): bool
+    {
+        foreach (range(1, max(1, count(self::parts($doc)))) as $part) {
+            if ($this->verifiedPath($doc, $part) === null) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Remove files a document of this variant and format no longer uses: a single PDF that is
+     * now made in parts, or parts of one that now fits in a single file.
+     *
+     * @param list<string> $keep
+     */
+    private function removeOtherFiles(string $dir, string $variantKey, string $format, array $keep): void
+    {
+        foreach (glob($dir . '/' . $variantKey . '.*' . $format) ?: [] as $path) {
+            if (!in_array(basename($path), $keep, true) && preg_match('/^' . preg_quote($variantKey, '/') . '(\.part\d+)?\.' . $format . '$/', basename($path)) === 1) {
+                @unlink($path);
+            }
+        }
     }
 
     /** @param array<string,mixed> $doc */
     public function delete(array $doc): void
     {
         if (is_string($doc['rel_path'] ?? null)) {
-            $path = Paths::resolveInside($this->paths->documentsRoot(), $doc['rel_path']);
-            if ($path !== null) {
-                @unlink($path);
+            $parts = self::parts($doc);
+            $rels = $parts === [] ? [$doc['rel_path']] : array_map(static fn(array $x) => dirname($doc['rel_path']) . '/' . $x['file'], $parts);
+            foreach ($rels as $rel) {
+                $path = Paths::resolveInside($this->paths->documentsRoot(), $rel);
+                if ($path !== null) {
+                    @unlink($path);
+                }
             }
         }
         $this->docs->delete((int) $doc['id']);
