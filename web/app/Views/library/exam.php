@@ -124,14 +124,17 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
                                         && max(array_map(static fn($d) => (int) (json_decode((string) $d['options'], true)['images'] ?? 0), $ready)) < $images['saved'];
                                     $staleEdits = $ready !== [] && $answers !== null
                                         && !in_array($answers['fingerprint'], array_map(static fn($d) => json_decode((string) $d['options'], true)['edits'] ?? null, $ready), true);
-                                    $stale = $staleImages || $staleEdits;
+                                    // Made with an older layout than the current one.
+                                    $staleLayout = $ready !== [] && max(array_map(static fn($d) => (int) (json_decode((string) $d['options'], true)['renderer'] ?? 0), $ready))
+                                        < \App\Services\DocumentStore::RENDERER_VERSION;
+                                    $stale = $staleImages || $staleEdits || $staleLayout;
                                     ?>
                                     <?php if (!$building && ($ready === [] || $stale || $failed !== null)): ?>
                                     <span class="d-inline-flex align-items-center gap-2">
                                         <?php if ($ready === [] || $stale): ?>
                                         <form method="post" action="<?= e(url($vBase . '/documents')) ?>" data-once data-busy="Generating…"><?= csrf_field() ?>
                                             <input type="hidden" name="variant" value="<?= e($key) ?>"><input type="hidden" name="format" value="<?= $fmt ?>">
-                                            <button class="btn btn-sm btn-outline-primary" type="submit"><?= icon($stale ? 'arrow-repeat' : ($failed !== null ? 'arrow-clockwise' : 'plus-lg')) ?><?= $staleEdits ? 'Rebuild with your corrections' : ($stale ? 'Rebuild with new images' : ($failed !== null ? 'Retry' : 'Generate')) ?></button>
+                                            <button class="btn btn-sm btn-outline-primary" type="submit"><?= icon($stale ? 'arrow-repeat' : ($failed !== null ? 'arrow-clockwise' : 'plus-lg')) ?><?= $staleEdits ? 'Rebuild with your corrections' : ($staleImages ? 'Rebuild with new images' : ($staleLayout ? 'Rebuild with the latest layout' : ($failed !== null ? 'Retry' : 'Generate'))) ?></button>
                                         </form>
                                         <?php endif; ?>
                                         <?php if ($failed !== null): $why = trim((string) $failed['error']) ?: 'No reason was recorded.'; ?>

@@ -31,6 +31,12 @@ final class QuestionView
                 $text = $stem;
             }
         }
+        // The public cached dataset marks where each question picture sits with "//IMG//", one
+        // mark per picture, in order. The marks are kept as the places between text parts.
+        if (str_contains($text, self::IMG_MARK)) {
+            $q['text_parts'] = array_map('trim', explode(self::IMG_MARK, $text));
+            $text = trim(implode("\n\n", array_filter($q['text_parts'], static fn(string $p) => $p !== '')));
+        }
         $q['text'] = $text;
         foreach ((array) ($q['choices'] ?? []) as $i => $c) {
             if (is_array($c)) {
@@ -53,6 +59,44 @@ final class QuestionView
             }
         }
         return $q;
+    }
+
+    private const IMG_MARK = '//IMG//';
+
+    /**
+     * The question as text and pictures in order: a picture goes where the cached dataset
+     * marked it, and pictures without a mark follow the text, as they always did.
+     *
+     * @param array<string,mixed> $q a normalized question
+     * @return list<array{text:string}|array{image:int}> image: an index into questionImages()
+     */
+    public static function questionSegments(array $q): array
+    {
+        $count = count(self::questionImages($q));
+        $parts = is_array($q['text_parts'] ?? null) ? array_values(array_map('strval', $q['text_parts'])) : [(string) ($q['text'] ?? '')];
+        $out = [];
+        $next = 0;
+        foreach ($parts as $i => $part) {
+            if (trim($part) !== '') {
+                $out[] = ['text' => $part];
+            }
+            if ($i < count($parts) - 1 && $next < $count) {
+                $out[] = ['image' => $next++];
+            }
+        }
+        for (; $next < $count; $next++) {
+            $out[] = ['image' => $next];
+        }
+        return $out;
+    }
+
+    /**
+     * @param array<string,mixed> $q
+     * @return list<string> the question's picture addresses
+     */
+    public static function questionImages(array $q): array
+    {
+        return array_values(array_filter(array_map('strval', (array) ($q['question_images'] ?? [])), static fn(string $u) => $u !== ''));
     }
 
     /**

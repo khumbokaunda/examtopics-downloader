@@ -123,6 +123,18 @@ final class PdfRendererTest extends TestCase
         self::assertStringContainsString('I think A.', $discussions);
     }
 
+    public function testPicturesGoWhereTheCachedDatasetMarkedThem(): void
+    {
+        $data = self::dataset(4);
+        $data['questions'][3]['text'] = "//IMG//\nRefer to the exhibit. Which route is used?";
+        // As the document store hands questions to the renderer.
+        $data['questions'] = array_map([\App\Services\Documents\QuestionView::class, 'normalize'], $data['questions']);
+        $html = (new PdfRenderer(self::images(), self::tmp()))->html($data, self::META, Variant::get('study'));
+        self::assertStringNotContainsString('//IMG//', $html);
+        $card = substr($html, (int) strpos($html, 'data-q="3"'));
+        self::assertLessThan(strpos($card, 'Refer to the exhibit'), strpos($card, '<div class="fig">'), 'the exhibit comes first, where it was marked');
+    }
+
     public function testExamsWithSeveralTopicsGetASectionPerTopic(): void
     {
         $r = new PdfRenderer(null, self::tmp());
