@@ -23,7 +23,7 @@ practice mode.
 | `app/Services` | Jobs and worker, cache publication and validation, documents |
 | `app/Repositories` | All SQL (prepared statements only) |
 | `app/Views` | PHP templates |
-| `bin/` | `migrate`, `create-user`, `worker`, `reconcile`, `rebuild-index`, `cleanup` |
+| `bin/` | `migrate`, `create-user`, `worker`, `reconcile`, `rebuild-index`, `cleanup`, `send-mail`, `backup` |
 | `config/` | `config.php` (defaults, committed) and `config.local.php` (yours, ignored) |
 | `database/migrations` | Ordered SQL migrations |
 | `deploy/` | nginx, Apache, systemd, logrotate and cron examples |

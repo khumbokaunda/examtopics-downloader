@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Controllers\AccountController;
 use App\Controllers\AnswerController;
 use App\Controllers\AuthController;
+use App\Controllers\BackupController;
 use App\Controllers\BrandingController;
 use App\Controllers\CollectController;
 use App\Controllers\DashboardController;
@@ -111,6 +112,13 @@ return static function (Router $r): void {
     $r->post('/requests', [RequestController::class, 'store'], can: 'exams.request');
     $r->post('/requests/{uuid}/cancel', [RequestController::class, 'cancel'], can: 'exams.request');
     $r->post('/requests/{uuid}/answer', [RequestController::class, 'answer'], can: 'requests.manage');
+
+    $r->get('/backups', [BackupController::class, 'index'], can: 'backup.manage');
+    $r->post('/backups', [BackupController::class, 'create'], can: 'backup.manage');
+    $r->post('/backups/upload', [BackupController::class, 'upload'], can: 'backup.manage');
+    $r->get('/backups/{name}/download', [BackupController::class, 'download'], can: 'backup.manage');
+    $r->post('/backups/{name}/restore', [BackupController::class, 'restore'], can: 'backup.manage');
+    $r->post('/backups/{name}/delete', [BackupController::class, 'delete'], can: 'backup.manage');
 
     $r->get('/users', [UserController::class, 'index'], can: 'users.manage');
     $r->get('/users/new', [UserController::class, 'create'], can: 'users.manage');

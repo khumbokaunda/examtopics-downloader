@@ -58,6 +58,7 @@ final class AuthController extends Controller
             'noUsers' => $this->s->users()->count() === 0,
             'canRegister' => $this->s->registration()->available($mailer),
             'canReset' => $mailer->configured(),
+            'restored' => $this->request->query('restored') === '1',
         ], $status);
     }
 

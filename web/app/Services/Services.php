@@ -120,6 +120,11 @@ final class Services
         return $this->app->service(Registration::class, fn() => new Registration($this->app, $this->users(), $this->notifier()));
     }
 
+    public function backup(): Backup
+    {
+        return $this->app->service(Backup::class, fn() => new Backup($this->app));
+    }
+
     public function supervisor(): WorkerSupervisor
     {
         return $this->app->service(WorkerSupervisor::class, fn() => new WorkerSupervisor(

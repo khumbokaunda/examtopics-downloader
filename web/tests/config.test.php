@@ -12,4 +12,5 @@ return [
     'session' => ['secure' => false],
     'github_token' => 'ghp_testtokenTESTTOKENtesttoken000000',
     'mail' => ['background' => false],
+    'backup' => ['background' => false],
 ];

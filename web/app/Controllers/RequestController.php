@@ -22,7 +22,7 @@ final class RequestController extends Controller
         $status = (string) $this->request->query('status', $manager ? 'open' : '');
         $status = isset(ExamRequests::STATUSES[$status]) ? $status : '';
         return $this->render('requests/index', [
-            'title' => 'Exam requests',
+            'title' => $manager ? 'Exam requests' : 'My requests',
             'nav' => 'requests',
             'manager' => $manager,
             'status' => $status,

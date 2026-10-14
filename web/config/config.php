@@ -92,6 +92,9 @@ return [
         'background' => true,       // send queued notification emails from a background process
     ],
 
+    // Backups made on the Backups page are packed by a background process (bin/backup.php).
+    'backup' => ['background' => true],
+
     'worker' => [
         // Start a detached worker automatically when jobs are queued. Set false if you run
         // bin/worker.php --daemon under systemd instead (docs/OPERATIONS.md).
