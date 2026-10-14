@@ -40,6 +40,7 @@ use App\Services\SystemSettings;
             <div class="list-group list-group-flush">
                 <a class="list-group-item list-group-item-action" href="<?= e(url('/users')) ?>"><?= icon('people') ?> <strong>Users</strong><div class="small text-muted">Accounts, roles and what each person may do.</div></a>
                 <a class="list-group-item list-group-item-action" href="<?= e(url('/settings/branding')) ?>"><?= icon('brush') ?> <strong>Branding</strong><div class="small text-muted">System name, logo and colours.</div></a>
+                <a class="list-group-item list-group-item-action" href="<?= e(url('/backups')) ?>"><?= icon('archive') ?> <strong>Backups</strong><div class="small text-muted">Back up and restore everything, or move it to another server.</div></a>
                 <a class="list-group-item list-group-item-action" href="<?= e(url('/settings/email')) ?>"><?= icon('envelope-at') ?> <strong>Email</strong><div class="small text-muted">The mail server for sign-up codes, password resets and notifications.</div></a>
             </div>
         </div>

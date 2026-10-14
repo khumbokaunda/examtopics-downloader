@@ -5,3 +5,6 @@
 */5 * * * * /usr/bin/php /srv/examtopics-downloader/web/bin/send-mail.php > /dev/null 2>&1
 # Remove working files of jobs that finished more than 30 days ago.
 17 3 * * * /usr/bin/php /srv/examtopics-downloader/web/bin/cleanup.php --days=30 > /dev/null 2>&1
+# Optional: a nightly backup of everything, keeping the newest seven (uncomment to use).
+# Copy them off the server too: a backup on the same disk does not survive losing the disk.
+#41 2 * * * /usr/bin/php /srv/examtopics-downloader/web/bin/backup.php create --scheduled --keep=7 > /dev/null 2>&1

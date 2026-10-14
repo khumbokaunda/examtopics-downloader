@@ -192,6 +192,12 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
   are queued (`mail_queue`, one row per idempotency key) and sent by `bin/send-mail.php`,
   started in the background and by cron, with retries after 1 minute, 5 minutes, 30 minutes,
   2 hours and 12 hours. The SMTP password is in the settings table, so backups contain it.
+- **Backups** (`App\Services\Backup`, the Backups page and `bin/backup.php`): a zip with a
+  manifest, every table as JSON (except installation-specific or short-lived ones) and the
+  storage areas. Archive entry names are checked against a strict pattern before anything is
+  read, so an archive cannot write outside its storage area. A restore needs the
+  administrator's password again, makes a safety backup first, replaces the tables in one
+  transaction and ends every session. See docs/OPERATIONS.md.
 - **Sessions** end after a period without activity (4 hours by default) and, if set, a fixed
   time after signing in; both are chosen under Settings > Time and sign-in. Session files are
   kept in `storage/sessions`, so the system's own session cleanup (on Debian, every 24 idle

@@ -134,17 +134,55 @@ cached data.
 
 ## Backups
 
-| Back up | Why |
-|---|---|
-| `web/storage/cache/` | The canonical exam data (datasets and manifests). **The one thing you cannot regenerate without scraping again.** |
-| `web/config/config.local.php` | Your configuration and secrets |
-| The MySQL database (`mysqldump examtopics`) | Users, job history, inventories, document records |
+The **Backups** page (administrators, `backup.manage`) makes one zip file holding everything:
+every table (accounts, settings, providers, exams, versions, requests, notifications,
+corrections), `storage/cache` (the exam data, **the one thing you cannot regenerate without
+scraping again**), the known question links, the logo and, if ticked, the saved images
+(`storage/media`) and built documents (`storage/documents`). Backups are kept in
+`storage/backups`, outside the web root; they can be downloaded, uploaded, restored and
+deleted there. They hold password hashes and the email password: keep copies private.
 
-`storage/documents/` can be skipped: documents are regenerated on demand. `storage/media/`
-(saved question images) is worth keeping but can be downloaded again with "Download missing
-images" on each exam page. `storage/jobs/` and `storage/logs/` are diagnostic only.
+Not in a backup: `config/config.local.php` (copy it yourself: it has the database password),
+sign-in throttling records, pending codes and emails, job working files and logs.
 
-### Restoring after losing the database
+From the command line (for large archives and for cron):
+
+```bash
+php bin/backup.php create                     # everything
+php bin/backup.php create --no-media --no-documents
+php bin/backup.php list
+php bin/backup.php restore /path/to/examtopics-backup-....zip   # asks you to type RESTORE
+```
+
+`deploy/examtopics.cron` has a commented nightly line (`create --scheduled --keep=7`). Copy
+backups off the server as well.
+
+**Restoring** checks the archive first (entry names, format, an active administrator in it,
+and that it was not made by a newer version), then makes a database-only safety backup named
+`...-before-restore.zip` and stops if that fails. The tables are replaced in one transaction,
+so a failure changes nothing; files are then written over what is there (nothing else is
+deleted). Jobs that were running in the backup are marked failed, and everyone is signed out,
+since the accounts may differ. The Backups page shows the result of the last restore.
+
+### Moving to a new server
+
+1. On the old server: Backups > Make a backup (with images and documents), then download it,
+   or run `php bin/backup.php create` and copy the file from `storage/backups`.
+2. On the new server, install the app as in `docs/INSTALL.md`: the code, the Go tool,
+   `composer install --no-dev`, the database and user, `config/config.local.php` (copy the
+   old one and change what differs), the web server and the cron file.
+3. Copy the backup over and restore it, before anyone signs in:
+
+   ```bash
+   cd /srv/examtopics-downloader/web
+   php bin/backup.php restore /tmp/examtopics-backup-....zip
+   ```
+
+   This creates the tables if needed, so `bin/migrate.php` is not required first.
+4. Sign in with your usual account, check Settings > Email (send a test message) and point
+   the domain at the new server.
+
+### Restoring after losing the database without a backup
 
 ```bash
 php bin/migrate.php                    # recreate the schema
