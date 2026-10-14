@@ -10,6 +10,7 @@ use Dompdf\Canvas;
 use Dompdf\Dompdf;
 use Dompdf\FontMetrics;
 use Dompdf\Frame;
+use Dompdf\Frame\FrameTree;
 use Dompdf\Options;
 
 /**
@@ -47,6 +48,9 @@ final class PdfRenderer
 
     /** @var array{pages:int,sections:array<string,array{title:string,page:int}>} */
     private array $layout = ['pages' => 0, 'sections' => []];
+
+    /** @var array<string,true> folders of the image files in the document; dompdf may read only these and the fonts */
+    private array $imageDirs = [];
 
     public function __construct(private ?ImageSource $images = null, private string $tempDir = '')
     {
@@ -130,10 +134,21 @@ final class PdfRenderer
             },
         ]]);
 
+        $this->imageDirs = [];
         $doc = $this->document($dataset, $meta, $variant);
+        $dompdf->getOptions()->setChroot(array_merge([self::fontDir()], array_keys($this->imageDirs)));
         $dompdf->loadHtml($doc['html'], 'UTF-8');
         $dompdf->setPaper('A4', 'portrait');
         $dompdf->render();
+        // The pages are drawn: the layout tree and the parsed HTML are no longer needed. On a
+        // large exam they are most of the memory, and writing the file out needs more on top.
+        $blank = new \DOMDocument();
+        $blank->loadHTML('<html><body></body></html>');
+        $dompdf->setDom($blank);
+        $dompdf->setTree(new FrameTree($blank));
+        unset($doc['html']);
+        gc_collect_cycles();
+        gc_mem_caches();
 
         $dompdf->addInfo('Title', $meta['provider'] . ' ' . $meta['exam'] . ': ' . $variant->label());
         $dompdf->addInfo('Subject', 'Collected ' . $meta['collected_at'] . ', version ' . $meta['version']);
@@ -229,7 +244,7 @@ final class PdfRenderer
                 $cImages[(string) ($c['letter'] ?? '')] = is_array($c) ? $this->embed((array) ($c['images'] ?? [])) : [];
             }
             $all = array_merge($qImages, $aImages, ...array_values($cImages));
-            $missing = array_filter($all, static fn(array $im) => $im['uri'] === null) !== [];
+            $missing = array_filter($all, static fn(array $im) => $im['file'] === null) !== [];
             $cards[$i] = [
                 'q' => $q, 'qImages' => $qImages, 'aImages' => $aImages, 'cImages' => $cImages,
                 'figureMissing' => $missing,
@@ -381,7 +396,7 @@ final class PdfRenderer
     }
 
     /**
-     * @param array{q:array<string,mixed>,qImages:list<array{url:string,uri:?string}>,aImages:list<array{url:string,uri:?string}>,cImages:array<string,list<array{url:string,uri:?string}>>,figureMissing:bool,figures:int,keyVaries:bool} $card
+     * @param array{q:array<string,mixed>,qImages:list<array{url:string,file:?string}>,aImages:list<array{url:string,file:?string}>,cImages:array<string,list<array{url:string,file:?string}>>,figureMissing:bool,figures:int,keyVaries:bool} $card
      */
     private function card(array $card, Variant $variant, bool $last, callable $h, callable $t, callable $text, int $position): string
     {
@@ -539,15 +554,15 @@ final class PdfRenderer
     }
 
     /**
-     * @param list<array{url:string,uri:?string}> $images
+     * @param list<array{url:string,file:?string}> $images
      */
     private function figures(array $images, string $label, callable $h, int $first = 0): string
     {
         $out = [];
         foreach ($images as $i => $im) {
             $i += $first;
-            if ($im['uri'] !== null) {
-                $out[] = '<div class="fig"><img src="' . $h($im['uri']) . '" alt="' . $h($label . ' ' . ($i + 1)) . '"></div>';
+            if ($im['file'] !== null) {
+                $out[] = '<div class="fig"><img src="' . $h($im['file']) . '" alt="' . $h($label . ' ' . ($i + 1)) . '"></div>';
             } else {
                 $shown = (string) preg_replace('#^https?://(www\.)?#i', '', $im['url']);
                 $out[] = '<div class="fig-missing"><span class="badge">FIGURE MISSING</span> ' . $h($label . ' ' . ($i + 1)) . ': ' . $h($shown) . '</div>';
@@ -558,7 +573,7 @@ final class PdfRenderer
 
     /**
      * @param list<mixed> $urls
-     * @return list<array{url:string,uri:?string}>
+     * @return list<array{url:string,file:?string}>
      */
     private function embed(array $urls): array
     {
@@ -566,7 +581,11 @@ final class PdfRenderer
         foreach ($urls as $url) {
             $url = (string) $url;
             if ($url !== '') {
-                $out[] = ['url' => $url, 'uri' => $this->images?->dataUri($url)];
+                $file = $this->images?->file($url);
+                if ($file !== null) {
+                    $this->imageDirs[dirname($file)] = true;
+                }
+                $out[] = ['url' => $url, 'file' => $file];
             }
         }
         return $out;

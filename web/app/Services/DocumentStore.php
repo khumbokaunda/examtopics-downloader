@@ -122,13 +122,20 @@ final class DocumentStore
             $last = 0.0;
             $this->generate($version, $p, function (int $done, int $total) use ($id, &$last): void {
                 if (microtime(true) - $last >= 1.0 || $done === $total) {
-                    $this->docs->progress($id, $done, $total);
+                    $this->docs->progress($id, $done, $total, self::memoryMb());
                     $last = microtime(true);
                 }
             }, $id);
         } catch (Throwable $e) {
             $this->docs->markFailed($id, $e->getMessage());
         }
+    }
+
+    /** This process's memory in MB, as the operating system counts it (PHP's own count leaves out GD and libxml). */
+    private static function memoryMb(): int
+    {
+        $status = (string) @file_get_contents('/proc/self/status');
+        return preg_match('/^VmRSS:\s+(\d+)\s+kB/m', $status, $m) === 1 ? (int) round((int) $m[1] / 1024) : (int) (memory_get_usage(true) >> 20);
     }
 
     /**
@@ -149,7 +156,12 @@ final class DocumentStore
         if ($alive) {
             return $doc;
         }
-        $this->docs->markFailed((int) $doc['id'], 'The build stopped before it finished (the server restarted, or it ran out of time or memory). Try again.');
+        $mb = (int) ($doc['builder_memory_mb'] ?? 0);
+        $at = $doc['progress_total'] ? ' at question ' . (int) $doc['progress_done'] . ' of ' . (int) $doc['progress_total'] : '';
+        $this->docs->markFailed((int) $doc['id'], $mb > 0
+            ? "The build stopped before it finished{$at}, while using about {$mb} MB of memory. The server most likely ran out of memory"
+                . ' and stopped it. Try again when the server is quieter, or use the Markdown file or a variant without discussions.'
+            : 'The build stopped before it finished (the server restarted, or it ran out of time or memory). Try again.');
         return (array) $this->docs->find((int) $doc['id']);
     }
 
@@ -324,9 +336,9 @@ final class DocumentStore
     /** @param list<string> $imageUrls */
     private function pdfRenderer(array $imageUrls): PdfRenderer
     {
-        $images = $this->media->imageSource($imageUrls, (int) $this->config->get('documents.image_total_bytes', 100 * 1024 * 1024));
         $tmp = $this->paths->storage() . '/tmp/dompdf';
-        Paths::ensureDir($tmp);
+        Paths::ensureDir($tmp . '/images');
+        $images = $this->media->imageSource($imageUrls, (int) $this->config->get('documents.image_total_bytes', 100 * 1024 * 1024), $tmp . '/images');
         return new PdfRenderer($images, $tmp);
     }
 }

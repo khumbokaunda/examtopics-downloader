@@ -62,9 +62,10 @@ final class DocumentRepository
     }
 
     /** Progress of a background build: questions laid out so far, of all. */
-    public function progress(int $id, int $done, int $total): void
+    public function progress(int $id, int $done, int $total, ?int $memoryMb = null): void
     {
-        $this->db->run('UPDATE documents SET progress_done = ?, progress_total = ? WHERE id = ?', [$done, $total, $id]);
+        $this->db->run('UPDATE documents SET progress_done = ?, progress_total = ?, builder_memory_mb = COALESCE(?, builder_memory_mb) WHERE id = ?',
+            [$done, $total, $memoryMb, $id]);
     }
 
     public function setBuilder(int $id, int $pid): void
