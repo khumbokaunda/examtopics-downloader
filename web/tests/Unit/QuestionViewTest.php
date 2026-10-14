@@ -50,6 +50,9 @@ final class QuestionViewTest extends TestCase
         self::assertSame("A & B 'x' <tag> a b", QuestionView::cleanText('A &amp; B &#39;x&#39; &amp;lt;tag&amp;gt; a&nbsp;b'));
         self::assertSame('中文 costs €5™ and é', QuestionView::cleanText('中文 costs €5™ and é'), 'correct text is left alone');
         self::assertSame("One\n\nTwo", QuestionView::cleanText("One  \n\n\n\nTwo\n"));
+        // Punctuation read as Hebrew in ExamTopics' own text.
+        self::assertSame("APs are \"lightweight,\" so it\u{2019}s managed \u{2022} centrally",
+            QuestionView::cleanText("APs are \u{05D2}\u{20AC}lightweight,\u{05D2}\u{20AC} so it\u{05D2}\u{20AC}\u{2122}s managed \u{05D2}\u{20AC}\u{00A2} centrally"));
         $c = QuestionView::comments(['comments' => [['author' => 'x', 'content' => "Dead Peer Detection checks the peer.\n\n\nHereâ€™s how:", 'upvotes' => 1]]]);
         self::assertSame("Dead Peer Detection checks the peer.\n\nHere’s how:", $c[0]['content']);
     }

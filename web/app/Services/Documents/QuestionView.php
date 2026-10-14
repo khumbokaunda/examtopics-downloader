@@ -112,6 +112,7 @@ final class QuestionView
         if ($s === '') {
             return $s;
         }
+        $s = strtr($s, self::HEBREW_PUNCTUATION);
         $s = (string) preg_replace_callback(self::MOJIBAKE, static function (array $m): string {
             $bytes = '';
             foreach (mb_str_split($m[0]) as $ch) {
@@ -140,6 +141,19 @@ final class QuestionView
      */
     private const MOJIBAKE = '/[\x{00C2}-\x{00F4}][\x{0080}-\x{00BF}\x{0152}\x{0153}\x{0160}\x{0161}\x{0178}\x{017D}\x{017E}\x{0192}'
         . '\x{02C6}\x{02DC}\x{2013}\x{2014}\x{2018}-\x{201A}\x{201C}-\x{201E}\x{2020}-\x{2022}\x{2026}\x{2030}\x{2039}\x{203A}\x{20AC}\x{2122}]{1,3}/u';
+
+    /**
+     * Punctuation in ExamTopics' own text that was read as Hebrew (Windows-1255): a curly
+     * apostrophe shows as "ג€™", a bullet as "ג€¢", and a quotation mark, whose last byte
+     * Windows-1255 does not have, as a bare "ג€". Gimel followed by a euro sign never occurs
+     * in real text.
+     */
+    private const HEBREW_PUNCTUATION = [
+        "\u{05D2}\u{20AC}\u{2122}" => "\u{2019}", "\u{05D2}\u{20AC}\u{02DC}" => "\u{2018}",
+        "\u{05D2}\u{20AC}\u{201C}" => "\u{2013}", "\u{05D2}\u{20AC}\u{201D}" => "\u{2014}",
+        "\u{05D2}\u{20AC}\u{00A6}" => "\u{2026}", "\u{05D2}\u{20AC}\u{00A2}" => "\u{2022}",
+        "\u{05D2}\u{20AC}" => '"',
+    ];
 
     /** Windows-1252's characters for bytes 0x80 to 0x9F. */
     private const CP1252 = [0x20AC => 0x80, 0x201A => 0x82, 0x0192 => 0x83, 0x201E => 0x84, 0x2026 => 0x85, 0x2020 => 0x86,
