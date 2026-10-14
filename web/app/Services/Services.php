@@ -74,6 +74,11 @@ final class Services
         return $this->app->service(SettingsRepository::class, fn() => new SettingsRepository($this->app->db()));
     }
 
+    public function branding(): Branding
+    {
+        return $this->app->service(Branding::class, fn() => new Branding($this->app));
+    }
+
     public function supervisor(): WorkerSupervisor
     {
         return $this->app->service(WorkerSupervisor::class, fn() => new WorkerSupervisor(

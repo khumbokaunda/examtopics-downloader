@@ -1,5 +1,6 @@
-<?php /** @var array $provider @var string $q @var list<array> $exams @var array|null $lastRefresh @var array|null $lastSuccess @var array|null $activeJob */
+<?php /** @var array $provider @var string $q @var list<array> $exams @var array|null $lastRefresh @var array|null $lastSuccess @var array|null $activeJob @var bool $mayRefresh */
 $name = provider_name($provider);
+$collector = can('exams.collect');
 ?>
 <nav aria-label="breadcrumb"><ol class="breadcrumb">
     <li class="breadcrumb-item"><a href="<?= e(url('/providers')) ?>">Providers</a></li>
@@ -10,11 +11,13 @@ $name = provider_name($provider);
         <h1 class="page-title"><?= e($name) ?></h1>
         <p class="page-subtitle"><code><?= e($provider['slug']) ?></code> · exams with discussions on ExamTopics</p>
     </div>
+    <?php if ($mayRefresh): ?>
     <div class="page-actions">
         <form method="post" action="<?= e(url('/providers/' . rawurlencode($provider['slug']) . '/refresh')) ?>" data-once><?= csrf_field() ?>
-            <button class="btn btn-outline-primary" type="submit" <?= $activeJob ? 'disabled' : '' ?>><?= icon('arrow-clockwise') ?>Refresh inventory</button>
+            <button class="btn btn-outline-primary" type="submit" <?= $activeJob ? 'disabled' : '' ?>><?= icon('arrow-clockwise') ?><?= $collector ? 'Refresh inventory' : 'Load exam list' ?></button>
         </form>
     </div>
+    <?php endif; ?>
 </header>
 
 <div class="kpi-strip">
@@ -45,7 +48,9 @@ $name = provider_name($provider);
     <?php if ($exams === []): ?>
         <div class="card-body"><?= $q !== ''
             ? empty_state('search', 'No exams match this filter', '<a href="' . e(url('/providers/' . rawurlencode($provider['slug']))) . '">Show every exam</a>.', null, true)
-            : empty_state('collection', 'No exams yet', 'Refresh the inventory to load this provider\'s exams.', null, true) ?></div>
+            : empty_state('collection', 'No exams yet', $mayRefresh
+                ? ($collector ? 'Refresh the inventory to load this provider\'s exams.' : 'Use <strong>Load exam list</strong> to fetch the exams this provider offers. It joins the queue and takes a minute or two.')
+                : 'An administrator has not loaded this provider\'s exams yet.', null, true) ?></div>
     <?php else: ?>
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0 table-stack" id="exam-table" data-table="exams" data-order='[[0,"asc"]]'>
@@ -63,7 +68,7 @@ $name = provider_name($provider);
                     <td data-label="Name"><span class="truncate text-muted" title="<?= e($hasName ? $ex['name'] : '') ?>"><?= e($hasName ? $ex['name'] : '') ?></span></td>
                     <td class="text-end" data-label="Questions" data-order="<?= $ex['reported_count'] === null ? -1 : (int) $ex['reported_count'] ?>"><?= $ex['reported_count'] === null ? '<span class="text-muted">n/a</span>' : number_format((int) $ex['reported_count']) ?></td>
                     <td data-label="Library" data-order="<?= $ex['latest_version'] ? (int) $ex['latest_collected_count'] : -1 ?>" data-export="<?= $ex['latest_version'] ? 'cached (' . (int) $ex['latest_collected_count'] . ')' : 'not collected' ?>"><span><?php if ($ex['latest_version']): ?><?= chip('cached', 'success', 'check2-circle') ?> <span class="small text-muted"><?= (int) $ex['latest_collected_count'] ?> · <?= e(fmt_ago($ex['latest_collected_at'])) ?></span><?php else: ?><span class="text-muted small">not collected</span><?php endif; ?></span></td>
-                    <td class="text-end stack-actions"><a class="btn btn-sm btn-outline-primary" href="<?= e(url('/collect', ['provider' => $provider['slug'], 'exam' => $ex['code']])) ?>">Select<?= icon('arrow-right') ?></a></td>
+                    <td class="text-end stack-actions"><?php if ($collector): ?><a class="btn btn-sm btn-outline-primary" href="<?= e(url('/collect', ['provider' => $provider['slug'], 'exam' => $ex['code']])) ?>">Select<?= icon('arrow-right') ?></a><?php elseif ($ex['latest_version']): ?><a class="btn btn-sm btn-outline-primary" href="<?= e(url('/library/' . rawurlencode($provider['slug']) . '/' . rawurlencode($ex['code']))) ?>">Open<?= icon('arrow-right') ?></a><?php endif; ?></td>
                 </tr>
             <?php endforeach; ?>
             </tbody>

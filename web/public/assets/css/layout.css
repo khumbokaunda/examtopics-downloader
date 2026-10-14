@@ -40,6 +40,9 @@
   font-size: 17px; line-height: 1;
 }
 .brand-mark-lg { width: 48px; height: 48px; border-radius: var(--radius-md); font-size: 24px; }
+/* An uploaded logo in place of the mark: kept to its proportions inside the same box. */
+.brand-logo { width: 32px; height: 32px; flex-shrink: 0; object-fit: contain; }
+.brand-logo-lg { max-width: 220px; max-height: 64px; object-fit: contain; }
 
 .sidebar-nav { flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; padding: var(--space-2) 0 var(--space-4); }
 .sidebar-heading {

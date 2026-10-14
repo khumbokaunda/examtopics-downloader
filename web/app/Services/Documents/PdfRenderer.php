@@ -455,11 +455,11 @@ final class PdfRenderer
                 $source = match ($q['answer_source'] ?? '') {
                     'suggested' => 'Suggested by ExamTopics',
                     'community' => 'Most voted by the community',
-                    'edited' => 'Corrected by you' . (($edit['collected'] ?? '') !== '' ? ', collected ' . implode(', ', str_split(self::letters($edit['collected']))) : ''),
+                    'edited' => 'Corrected' . (($edit['collected'] ?? '') !== '' ? ', collected ' . implode(', ', str_split(self::letters($edit['collected']))) : ''),
                     default => '',
                 };
                 if (($edit['kind'] ?? '') === 'checked') {
-                    $source .= ', checked by you';
+                    $source .= ', checked';
                 }
                 $b[] = '<div class="ans-line"><span class="ans-label">Answer</span> <span class="ans-value">' . $h(implode(', ', str_split($answer))) . '</span>'
                     . ($source !== '' ? ' <span class="ans-src">' . $h($source) . '</span>' : '') . '</div>';
@@ -475,7 +475,7 @@ final class PdfRenderer
                 $b[] = '<div class="ans-votes">Community vote: ' . $t($votes) . '</div>';
             }
             if (($q['edit']['note'] ?? '') !== '') {
-                $b[] = '<div class="ans-note"><span class="ans-label">Your note</span> ' . $text((string) $q['edit']['note']) . '</div>';
+                $b[] = '<div class="ans-note"><span class="ans-label">Note</span> ' . $text((string) $q['edit']['note']) . '</div>';
             }
             $b[] = $this->figures($card['aImages'], 'Answer image', $h);
             if (trim((string) ($q['explanation'] ?? '')) !== '') {

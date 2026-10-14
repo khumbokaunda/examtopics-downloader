@@ -16,21 +16,21 @@ final class HttpSecurityTest extends HttpTestCase
         $this->newSession();
     }
 
-    /** Every route except the login page must refuse anonymous access. */
+    /** Every route except the sign-in page and the branding files must refuse anonymous access. */
     public function testEveryRouteRequiresAuthentication(): void
     {
-        $paths = [
-            ['GET', '/'], ['GET', '/providers'], ['GET', '/providers/huawei'], ['GET', '/collect'], ['GET', '/jobs'],
-            ['GET', '/jobs/1'], ['GET', '/library'], ['GET', '/library/huawei/h12-811'], ['GET', '/library/huawei/h12-811/view'],
-            ['GET', '/library/huawei/h12-811/20261012T083000Z-abcdef/json'], ['GET', '/documents/1/download'], ['GET', '/settings'],
-            ['GET', '/api/jobs/1'], ['GET', '/api/jobs/active'], ['GET', '/api/providers/huawei/exams'],
-            ['GET', '/api/library/huawei/h12-811/20261012T083000Z-abcdef/questions/1'], ['GET', '/api/palette'], ['GET', '/api/jobs/1/log'], ['GET', '/api/documents/1'],
-            ['POST', '/collect'], ['POST', '/providers/discover'], ['POST', '/providers/add'], ['POST', '/providers/huawei/refresh'],
-            ['POST', '/jobs/1/cancel'], ['POST', '/documents/1/delete'], ['POST', '/library/huawei/h12-811/20261012T083000Z-abcdef/documents'],
-            ['POST', '/library/huawei/h12-811/20261012T083000Z-abcdef/delete'], ['POST', '/settings/password'], ['POST', '/settings/reconcile'],
-            ['POST', '/settings/appearance'], ['POST', '/settings/time'], ['POST', '/api/appearance'], ['POST', '/logout'],
-            ['GET', '/media/' . str_repeat('ab', 32)], ['POST', '/library/huawei/h12-811/20261012T083000Z-abcdef/images'],
-        ];
+        $router = new Router();
+        (require dirname(__DIR__, 2) . '/routes/web.php')($router);
+        $samples = ['slug' => 'huawei', 'provider' => 'huawei', 'exam' => 'h12-811', 'version' => '20261012T083000Z-abcdef',
+            'uuid' => '1', 'number' => '1', 'hash' => str_repeat('ab', 32), 'username' => 'someone', 'file' => 'logo.png'];
+        $paths = [];
+        foreach ($router->routes() as $route) {
+            if ($route['public']) {
+                continue;
+            }
+            $paths[] = [$route['method'], preg_replace_callback('/\{([a-z_]+)\}/', static fn($m) => $samples[$m[1]], $route['pattern'])];
+        }
+        self::assertGreaterThan(40, count($paths));
         foreach ($paths as [$method, $path]) {
             $r = $method === 'GET' ? $this->get($path) : $this->post($path, []);
             if (str_starts_with($path, '/api/')) {

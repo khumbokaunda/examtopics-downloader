@@ -1,20 +1,27 @@
-<?php /** @var list<array> $providers @var array<string,array> $activeJobs */ ?>
+<?php /** @var list<array> $providers @var array<string,array> $activeJobs */
+$collector = can('exams.collect');
+$first = can('inventory.first');
+?>
 <header class="page-header">
     <div class="page-header-text">
-        <h1 class="page-title">Providers &amp; inventory</h1>
+        <h1 class="page-title"><?= $collector ? 'Providers &amp; inventory' : 'Providers' ?></h1>
         <p class="page-subtitle">Providers come from ExamTopics itself. <strong>Listed</strong> is how many exams ExamTopics shows for a provider; <strong>Exams</strong> is how many have discussions you can collect, found by refreshing its inventory.</p>
     </div>
+    <?php if ($collector): ?>
     <div class="page-actions">
         <form method="post" action="<?= e(url('/providers/discover')) ?>" data-once><?= csrf_field() ?>
             <button class="btn btn-outline-primary" type="submit" <?= isset($activeJobs['*']) ? 'disabled' : '' ?>>
                 <?= icon('radar') ?><?= isset($activeJobs['*']) ? 'Discovering…' : 'Discover providers' ?></button>
         </form>
     </div>
+    <?php endif; ?>
 </header>
 
 <div class="card mb-4">
     <?php if ($providers === []): ?>
-        <div class="card-body"><?= empty_state('buildings', 'No providers yet', 'Use <strong>Discover providers</strong>, or add one by its identifier below (for example <code>huawei</code>).') ?></div>
+        <div class="card-body"><?= $collector
+            ? empty_state('buildings', 'No providers yet', 'Use <strong>Discover providers</strong>, or add one by its identifier below (for example <code>huawei</code>).')
+            : empty_state('buildings', 'No providers yet', 'An administrator has not loaded the providers yet.') ?></div>
     <?php else: ?>
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0 table-stack" data-table="providers" data-order='[[0,"asc"]]'>
@@ -28,7 +35,8 @@
                 <th class="text-end" data-nosort data-novis data-nosearch data-export="false"><span class="visually-hidden">Actions</span></th>
             </tr></thead>
             <tbody>
-            <?php foreach ($providers as $p): $job = $activeJobs[$p['slug']] ?? null; $name = provider_name($p); ?>
+            <?php foreach ($providers as $p): $job = $activeJobs[$p['slug']] ?? null; $name = provider_name($p);
+                $mayRefresh = $collector || ($first && (int) $p['exam_count'] === 0 && (int) $p['success_count'] === 0); ?>
                 <tr>
                     <td class="stack-title" data-order="<?= e(strtolower($name)) ?>" data-export="<?= e($name) ?>"><a class="table-row-link" href="<?= e(url('/providers/' . rawurlencode($p['slug']))) ?>"><?= e($name) ?></a><?= $p['source'] === 'manual' ? ' ' . chip('manual', 'neutral') : '' ?></td>
                     <td data-label="Identifier"><code><?= e($p['slug']) ?></code></td>
@@ -42,9 +50,11 @@
                         <?php else: ?><span class="text-muted">never</span><?php endif; ?>
                     </span></td>
                     <td class="text-end stack-actions">
+                        <?php if ($mayRefresh): ?>
                         <form method="post" action="<?= e(url('/providers/' . rawurlencode($p['slug']) . '/refresh')) ?>" data-once><?= csrf_field() ?>
-                            <button class="btn btn-sm btn-outline-secondary" type="submit" <?= $job ? 'disabled' : '' ?>><?= icon('arrow-clockwise') ?>Refresh inventory</button>
+                            <button class="btn btn-sm btn-outline-secondary" type="submit" <?= $job ? 'disabled' : '' ?>><?= icon('arrow-clockwise') ?><?= $collector ? 'Refresh inventory' : 'Load exam list' ?></button>
                         </form>
+                        <?php endif; ?>
                     </td>
                 </tr>
             <?php endforeach; ?>
@@ -54,6 +64,7 @@
     <?php endif; ?>
 </div>
 
+<?php if ($collector): ?>
 <div class="card">
     <div class="card-header"><span class="card-title"><?= icon('plus-circle') ?>Add a provider by identifier</span></div>
     <div class="card-body">
@@ -65,3 +76,4 @@
         </form>
     </div>
 </div>
+<?php endif; ?>

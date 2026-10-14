@@ -148,17 +148,17 @@ final class LibraryDocumentsTest extends HttpTestCase
         self::assertSame('success', $this->flashes()[0]['type'] ?? null);
 
         $reader = $this->get($this->base() . '/view', ['version' => $v]);
-        self::assertStringContainsString('AC (corrected by you; the collected answer was A)', $reader->body);
+        self::assertStringContainsString('AC (corrected; the collected answer was A)', $reader->body);
         self::assertStringContainsString('C is also right.', $reader->body);
         // The exam page counts it and offers to rebuild the document made before it.
         $exam = $this->get($this->base());
-        self::assertStringContainsString('1 corrected by you', $exam->body);
+        self::assertStringContainsString('1 corrected', $exam->body);
         self::assertStringContainsString('Rebuild with your corrections', $exam->body);
         $after = $this->generate('study', 'md');
         self::assertNotSame($before['options_hash'], $after['options_hash']);
         $md = (string) file_get_contents($this->download($after)->file);
-        self::assertStringContainsString('**Answer:** AC (corrected by you; the collected answer was A)', $md);
-        self::assertStringContainsString('**Your note:** C is also right.', $md);
+        self::assertStringContainsString('**Answer:** AC (corrected; the collected answer was A)', $md);
+        self::assertStringContainsString('**Note:** C is also right.', $md);
 
         // The corrections page lists it, and it can be removed from there.
         self::assertStringContainsString('Review corrections', $exam->body);
@@ -172,7 +172,7 @@ final class LibraryDocumentsTest extends HttpTestCase
 
         // Removing it shows the collected answer again: the collected data never changed.
         $this->post($this->base() . '/answers', ['key' => '1-1', 'version' => $v, 'action' => 'remove']);
-        self::assertStringNotContainsString('corrected by you', $this->get($this->base() . '/view', ['version' => $v])->body);
+        self::assertStringNotContainsString('(corrected;', $this->get($this->base() . '/view', ['version' => $v])->body);
         self::assertSame(404, $this->post($this->base() . '/answers', ['key' => '9-99', 'version' => $v, 'letter_A' => '1'])->status);
     }
 

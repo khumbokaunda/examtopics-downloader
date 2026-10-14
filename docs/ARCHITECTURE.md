@@ -129,10 +129,35 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
 
 ## Security model
 
-- **Authentication** on every route except the login page, enforced centrally in the
-  kernel; the API answers 401. Passwords use `password_hash`. Logins are throttled per IP,
+- **Authentication** on every route except the login page and the branding files (the
+  sign-in page shows the logo), enforced centrally in the kernel; the API answers 401.
+  People sign in with their username or email address. Passwords use `password_hash`. Logins are throttled per IP,
   respond the same for unknown users, regenerate the session ID, and only redirect to
   same-site paths.
+- **Access** (`App\Services\Access`): each account has a role, administrator or member, and
+  may be given extra permissions on top of it. Permissions are small named rights such as
+  `library.view` or `exams.collect`, listed with a plain sentence in one catalogue; the
+  administrator holds all of them. Every route names the permission it needs
+  (`routes/web.php`, `can:`); the kernel answers 403 naming it, and a route that names none is
+  for administrators only, so a forgotten gate fails closed. Templates hide what the server
+  would refuse with `can()`. A test checks that every route has a gate and every permission the
+  code checks is in the catalogue.
+  - Members browse providers and the library, read and practise exams, download built
+    documents, and may load the exam list of a provider that has never been fetched (its first
+    inventory refresh). Building documents, correcting answers and the rest are for
+    administrators, or for a member given that permission on the Users page.
+  - Accounts are active, unverified, waiting for approval or disabled; only active ones sign
+    in, and a disabled account stops working on its next request. Nobody changes their own
+    role or status, and the last active administrator cannot be demoted, disabled or
+    deleted. Account changes are written to the security log.
+  - `php bin/create-user.php <name> --admin` re-enables an account, resets its password and
+    makes it an administrator, to recover from a lock-out.
+- **Branding** (Settings > Branding): the system name, tagline, logo, colour and default
+  theme are stored as settings and read everywhere from `App\Services\Branding`. Logos are
+  scaled to PNG (or kept as SVG), stored in `storage/branding` outside the web root and served
+  with `?v=<modified time>` and a sandboxing CSP. A custom colour becomes a stylesheet
+  (`/branding/theme.css`, since the CSP allows no inline styles) with a version darkened for
+  the light theme and lightened for the dark one until it passes WCAG contrast.
 - **Sessions** end after a period without activity (4 hours by default) and, if set, a fixed
   time after signing in; both are chosen under Settings > Time and sign-in. Session files are
   kept in `storage/sessions`, so the system's own session cleanup (on Debian, every 24 idle

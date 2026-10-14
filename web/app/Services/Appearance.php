@@ -19,22 +19,41 @@ final class Appearance
         'motion'  => ['system', 'reduced'],
     ];
 
-    /** @return array<string,string> */
-    public static function defaults(): array
+    /**
+     * The defaults: the first of each list, except that the branding's theme and preset colour
+     * are the defaults for people who have not chosen their own.
+     *
+     * @param array{accent?:string,theme?:string}|null $brand
+     * @return array<string,string>
+     */
+    public static function defaults(?array $brand = null): array
     {
-        return array_map(static fn(array $values): string => $values[0], self::OPTIONS);
+        $defaults = array_map(static fn(array $values): string => $values[0], self::OPTIONS);
+        return $brand === null ? $defaults : self::merge($defaults, ['accent' => $brand['accent'] ?? '', 'theme' => $brand['theme'] ?? '']);
     }
 
     /**
      * The preferences of a user row (or the defaults for nobody).
      *
      * @param array<string,mixed>|null $user
+     * @param array{accent?:string,theme?:string}|null $brand
      * @return array<string,string>
      */
-    public static function forUser(?array $user): array
+    public static function forUser(?array $user, ?array $brand = null): array
     {
         $stored = json_decode((string) ($user['preferences'] ?? ''), true);
-        return self::merge(self::defaults(), is_array($stored) ? $stored : []);
+        return self::merge(self::defaults($brand), is_array($stored) ? $stored : []);
+    }
+
+    /**
+     * The accent painted on the page: a custom branding colour applies to everyone, otherwise
+     * the person's own choice.
+     *
+     * @param array<string,string> $prefs @param array{accent:string} $brand
+     */
+    public static function pageAccent(array $prefs, array $brand): string
+    {
+        return $brand['accent'] === 'custom' ? 'custom' : $prefs['accent'];
     }
 
     /**

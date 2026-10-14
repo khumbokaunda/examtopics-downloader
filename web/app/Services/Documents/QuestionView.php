@@ -286,11 +286,11 @@ final class QuestionView
         $source = match ($q['answer_source'] ?? '') {
             'suggested' => 'suggested by ExamTopics',
             'community' => 'most-voted community answer; ExamTopics gave no suggested answer',
-            'edited' => 'corrected by you; ' . (($edit['collected'] ?? '') !== '' ? 'the collected answer was ' . $edit['collected'] : 'no answer was collected'),
+            'edited' => 'corrected; ' . (($edit['collected'] ?? '') !== '' ? 'the collected answer was ' . $edit['collected'] : 'no answer was collected'),
             default => '',
         };
         if (($edit['kind'] ?? '') === 'checked') {
-            $source .= ($source !== '' ? '; ' : '') . 'checked by you';
+            $source .= ($source !== '' ? '; ' : '') . 'checked';
         }
         return $a . ($source !== '' ? ' (' . $source . ')' : '');
     }

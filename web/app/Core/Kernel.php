@@ -16,7 +16,9 @@ use Throwable;
 /**
  * Request pipeline. Policy lives here rather than in controllers, so it cannot be forgotten
  * on a new endpoint:
- *  - every route requires a signed-in user unless explicitly public (only the login page);
+ *  - every route requires a signed-in user unless explicitly public (sign-in, branding files);
+ *  - a signed-in route needs the permission it names, and one that names none is for
+ *    administrators only (403 otherwise);
  *  - every POST requires a valid CSRF token;
  *  - every response gets security headers and Cache-Control: no-store;
  *  - errors never expose stack traces to the browser.
@@ -67,6 +69,17 @@ final class Kernel
             }
             $next = $request->method === 'GET' ? $request->path : '/';
             return Response::redirect($this->url('/login', ['next' => $next]));
+        }
+        if (!$match['public']) {
+            $needed = $match['can'];
+            if ($needed === null ? !$this->auth->isAdmin() : !$this->auth->can($needed)) {
+                $this->app->logger()->warning('security', 'Access refused', [
+                    'path' => $request->path, 'username' => $this->auth->user()['username'] ?? null, 'needs' => $needed ?? 'admin',
+                ]);
+                throw new HttpException(403, $needed === null
+                    ? 'This page is for administrators.'
+                    : 'Your account does not have access to this page. It needs the "' . $needed . '" permission, which an administrator can give you.');
+            }
         }
         if ($request->method === 'POST') {
             $token = $request->input('_csrf') ?? $request->header('X-CSRF-Token');

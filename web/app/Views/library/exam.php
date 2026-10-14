@@ -6,6 +6,7 @@
 $base = '/library/' . rawurlencode($provider['slug']) . '/' . rawurlencode($exam['code']);
 $vBase = $base . '/' . rawurlencode($selected['version']);
 $isLatest = (int) $exam['latest_version_id'] === (int) $selected['id'];
+$builder = can('documents.build');
 $docIndex = [];
 foreach ($documents as $d) {
     $docIndex[$d['variant']][$d['format']][] = $d;
@@ -25,7 +26,7 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
         <p class="page-subtitle"><?= $exam['name'] && strtolower($exam['name']) !== $exam['code'] ? e($exam['name']) . ' · ' : '' ?><?= e(provider_name($provider)) ?></p>
     </div>
     <div class="page-actions">
-        <a class="btn btn-outline-secondary" href="<?= e(url('/collect', ['provider' => $provider['slug'], 'exam' => $exam['code']])) ?>"><?= icon('arrow-clockwise') ?>Refresh…</a>
+        <?php if (can('exams.collect')): ?><a class="btn btn-outline-secondary" href="<?= e(url('/collect', ['provider' => $provider['slug'], 'exam' => $exam['code']])) ?>"><?= icon('arrow-clockwise') ?>Refresh…</a><?php endif; ?>
         <a class="btn btn-outline-primary" href="<?= e(url($base . '/view', ['version' => $selected['version'], 'mode' => 'practice'])) ?>"><?= icon('patch-question') ?>Practice</a>
         <a class="btn btn-primary" href="<?= e(url($base . '/view', ['version' => $selected['version']])) ?>"><?= icon('book') ?>Read</a>
     </div>
@@ -62,20 +63,20 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
                         <?php else: $toFetch = $images['failed'] + $images['pending']; ?>
                             <?= number_format($images['saved']) ?> of <?= number_format($images['total']) ?> saved on this server
                             <?php if ($images['skipped'] > 0): ?><span class="text-muted">(<?= (int) $images['skipped'] ?> cannot be saved: not ExamTopics images or too large)</span><?php endif; ?>
-                            <?php if ($toFetch > 0 && !$activeJob): ?>
+                            <?php if ($toFetch > 0 && !$activeJob && can('exams.collect')): ?>
                                 <form class="d-inline" method="post" action="<?= e(url($vBase . '/images')) ?>" data-once data-busy="Queuing…"><?= csrf_field() ?>
                                     <button class="btn btn-sm btn-outline-primary ms-2" type="submit"><?= icon('images') ?>Download <?= $toFetch ?> missing</button></form>
                             <?php endif; ?>
                         <?php endif; ?>
                     </dd>
                     <?php endif; ?>
-                    <?php if ($answers !== null): ?>
+                    <?php if ($answers !== null && can('answers.edit')): ?>
                     <dt>Answers</dt>
                     <dd>
                         <?php if ($answers['check'] > 0): ?>
                             <a class="btn btn-sm btn-outline-warning me-2" href="<?= e(url($base . '/view', ['version' => $selected['version'], 'review' => '1'])) ?>"><?= icon('exclamation-triangle') ?><?= $answers['check'] ?> to check</a>
                         <?php endif; ?>
-                        <?php $done = array_filter([$answers['corrected'] > 0 ? $answers['corrected'] . ' corrected by you' : null, $answers['checked'] > 0 ? $answers['checked'] . ' checked by you' : null]); ?>
+                        <?php $done = array_filter([$answers['corrected'] > 0 ? $answers['corrected'] . ' corrected' : null, $answers['checked'] > 0 ? $answers['checked'] . ' checked' : null]); ?>
                         <span class="<?= $answers['check'] > 0 ? 'text-muted' : '' ?>"><?= $done !== [] ? e(implode(', ', $done)) : ($answers['check'] > 0 ? 'Doubtful answers can be corrected in the reader.' : 'None look doubtful') ?></span>
                         <?php if ($answers['fingerprint'] !== null): ?>
                             <a class="ms-2" href="<?= e(url($base . '/corrections', ['version' => $selected['version']])) ?>"><?= icon('list-check') ?> Review corrections</a>
@@ -112,8 +113,10 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
                                                     <?php endforeach; ?>
                                                 </span>
                                                 <?php endif; ?>
+                                                <?php if ($builder): ?>
                                                 <form method="post" action="<?= e(url('/documents/' . $d['uuid'] . '/delete')) ?>" data-confirm="The cached exam data is not affected. You can generate it again later." data-confirm-title="Delete this document?" data-confirm-button="Delete" data-confirm-tone="danger"><?= csrf_field() ?>
                                                     <button class="icon-btn btn-link-danger" type="submit" aria-label="Delete document" title="Delete document"><?= icon('trash3') ?></button></form>
+                                                <?php endif; ?>
                                             </span>
                                         <?php elseif ($d['status'] === 'building'): ?>
                                             <span class="doc-building" data-doc-status="<?= e(url('/api/documents/' . $d['uuid'])) ?>">
@@ -140,7 +143,9 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
                                         < \App\Services\DocumentStore::RENDERER_VERSION;
                                     $stale = $staleImages || $staleEdits || $staleLayout;
                                     ?>
-                                    <?php if (!$building && ($ready === [] || $stale || $failed !== null)): ?>
+                                    <?php if (!$builder): ?>
+                                        <?php if ($ready === [] && !$building): ?><span class="small text-muted">Not built yet</span><?php endif; ?>
+                                    <?php elseif (!$building && ($ready === [] || $stale || $failed !== null)): ?>
                                     <span class="d-inline-flex align-items-center gap-2">
                                         <?php if ($ready === [] || $stale): ?>
                                         <form method="post" action="<?= e(url($vBase . '/documents')) ?>" data-once data-busy="Generating…"><?= csrf_field() ?>
@@ -164,7 +169,7 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
                     </tbody>
                 </table>
             </div>
-            <div class="card-footer small text-muted">Existing documents are reused when nothing has changed. PDFs include the images saved on this server; Markdown files link to them on ExamTopics. PDFs are built in the background: large exams take a few minutes, and the progress shows here.</div>
+            <div class="card-footer small text-muted"><?php if ($builder): ?>Existing documents are reused when nothing has changed. PDFs include the images saved on this server; Markdown files link to them on ExamTopics. PDFs are built in the background: large exams take a few minutes, and the progress shows here.<?php else: ?>PDFs include the images saved on this server; Markdown files link to them on ExamTopics. A document that is not built yet can be built by an administrator.<?php endif; ?></div>
         </div>
     </div>
 
@@ -180,7 +185,7 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
                         </div>
                         <div class="row-side">
                             <?= status_badge($v['status']) ?>
-                            <?php if (!$latest): ?>
+                            <?php if (!$latest && can('library.manage')): ?>
                                 <form method="post" action="<?= e(url($base . '/' . rawurlencode($v['version']) . '/delete')) ?>" data-confirm="This version's cached data and its generated documents are deleted permanently. Other versions are not affected." data-confirm-title="Delete this version?" data-confirm-button="Delete version" data-confirm-tone="danger"><?= csrf_field() ?>
                                     <button class="btn btn-sm btn-link btn-link-danger p-0" type="submit">Delete</button></form>
                             <?php endif; ?>
@@ -189,6 +194,7 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
                 <?php endforeach; ?>
             </ul>
         </div>
+        <?php if (can('exams.collect')): ?>
         <div class="card">
             <div class="card-header"><span class="card-title"><?= icon('clock-history') ?>Job history</span></div>
             <?php if ($jobs === []): ?>
@@ -205,5 +211,6 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
             </ul>
             <?php endif; ?>
         </div>
+        <?php endif; ?>
     </div>
 </div>

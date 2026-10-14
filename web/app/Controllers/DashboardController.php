@@ -10,7 +10,9 @@ final class DashboardController extends Controller
 {
     public function index(): Response
     {
-        $this->s->supervisor()->ensure();
+        if ($this->auth->can('exams.collect')) {
+            $this->s->supervisor()->ensure();
+        }
         $jobs = $this->s->jobs();
         return $this->render('dashboard', [
             'title' => 'Dashboard',

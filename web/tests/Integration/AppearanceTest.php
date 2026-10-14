@@ -38,14 +38,14 @@ final class AppearanceTest extends HttpTestCase
     {
         $r = $this->post('/settings/appearance', ['theme' => 'dark', 'accent' => 'indigo', 'density' => 'compact', 'surface' => 'soft', 'motion' => 'reduced']);
         self::assertSame(303, $r->status);
-        self::assertSame('/settings#appearance', $r->headers['Location']);
+        self::assertSame('/account#appearance', $r->headers['Location']);
         $html = $this->html();
         foreach (['data-theme="dark"', 'data-theme-choice="dark"', 'data-accent="indigo"', 'data-density="compact"',
                   'data-surface="soft"', 'data-motion="reduced"'] as $attr) {
             self::assertStringContainsString($attr, $html);
         }
-        // The settings page shows the saved choices as checked.
-        self::assertMatchesRegularExpression('#name="accent" value="indigo" checked#', $this->get('/settings')->body);
+        // The account page shows the saved choices as checked.
+        self::assertMatchesRegularExpression('#name="accent" value="indigo" checked#', $this->get('/account')->body);
     }
 
     public function testUnknownValuesAreIgnored(): void
@@ -55,7 +55,7 @@ final class AppearanceTest extends HttpTestCase
         $html = $this->html();
         self::assertStringContainsString('data-accent="rose"', $html, 'a bad value leaves the saved one alone');
         self::assertStringContainsString('data-theme-choice="system"', $html);
-        self::assertStringNotContainsString('<script>alert', $this->get('/settings')->body);
+        self::assertStringNotContainsString('<script>alert', $this->get('/account')->body);
         $stored = json_decode((string) $this->app->db()->value("SELECT preferences FROM users WHERE username = 'admin'"), true);
         self::assertSame(['theme', 'accent', 'density', 'surface', 'motion'], array_keys($stored), 'only known keys are stored');
     }

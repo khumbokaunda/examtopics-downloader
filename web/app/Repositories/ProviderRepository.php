@@ -19,6 +19,7 @@ final class ProviderRepository
             'SELECT p.*,
                     (SELECT COUNT(*) FROM exams e WHERE e.provider_id = p.id AND e.in_inventory = 1) AS exam_count,
                     (SELECT COUNT(*) FROM exams e WHERE e.provider_id = p.id AND e.latest_version_id IS NOT NULL) AS cached_count,
+                    (SELECT COUNT(*) FROM inventory_refreshes s WHERE s.provider_id = p.id AND s.status IN (\'complete\', \'partial\')) AS success_count,
                     r.status AS refresh_status, r.finished_at AS refresh_at, r.error AS refresh_error,
                     (SELECT j.uuid FROM jobs j WHERE j.id = r.job_id) AS refresh_job_uuid
              FROM providers p
@@ -26,6 +27,19 @@ final class ProviderRepository
                  SELECT MAX(id) FROM inventory_refreshes WHERE provider_id = p.id)
              ORDER BY p.slug'
         );
+    }
+
+    /**
+     * Has this provider's exam list never been loaded (no exams, no successful refresh)?
+     * Members may start the first refresh of such a provider; later ones are an administrator's.
+     */
+    public function neverFetched(int $id): bool
+    {
+        return (int) $this->db->value(
+            "SELECT (SELECT COUNT(*) FROM exams WHERE provider_id = ? AND in_inventory = 1)
+                  + (SELECT COUNT(*) FROM inventory_refreshes WHERE provider_id = ? AND status IN ('complete','partial'))",
+            [$id, $id]
+        ) === 0;
     }
 
     /** @return array<string,mixed>|null */
