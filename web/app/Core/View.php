@@ -100,6 +100,19 @@ final class View
         return $this->app->service(\App\Services\Branding::class, fn() => new \App\Services\Branding($this->app));
     }
 
+    /** Unread notifications of the signed-in person, for the bell. */
+    public function unreadNotifications(): int
+    {
+        if ($this->user === null) {
+            return 0;
+        }
+        try {
+            return (int) $this->app->db()->value('SELECT COUNT(*) FROM notifications WHERE user_id = ? AND read_at IS NULL', [(int) $this->user['id']]);
+        } catch (\Throwable) {
+            return 0; // not migrated yet
+        }
+    }
+
     /** @return array<string,mixed>|null */
     public function user(): ?array
     {

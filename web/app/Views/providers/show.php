@@ -1,6 +1,7 @@
-<?php /** @var array $provider @var string $q @var list<array> $exams @var array|null $lastRefresh @var array|null $lastSuccess @var array|null $activeJob @var bool $mayRefresh */
+<?php /** @var array $provider @var string $q @var list<array> $exams @var array|null $lastRefresh @var array|null $lastSuccess @var array|null $activeJob @var bool $mayRefresh @var array<string,true> $requested */
 $name = provider_name($provider);
 $collector = can('exams.collect');
+$requester = can('exams.request');
 ?>
 <nav aria-label="breadcrumb"><ol class="breadcrumb">
     <li class="breadcrumb-item"><a href="<?= e(url('/providers')) ?>">Providers</a></li>
@@ -9,7 +10,7 @@ $collector = can('exams.collect');
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title"><?= e($name) ?></h1>
-        <p class="page-subtitle"><code><?= e($provider['slug']) ?></code> · exams with discussions on ExamTopics</p>
+        <p class="page-subtitle"><code><?= e($provider['slug']) ?></code> · exams with discussions on ExamTopics<?php if (!$collector && $requester): ?> · not in the library yet? <strong>Request</strong> it, or <a href="<?= e(url('/requests', ['provider' => $provider['slug']])) ?>#new">request one that is not listed</a><?php endif; ?></p>
     </div>
     <?php if ($mayRefresh): ?>
     <div class="page-actions">
@@ -68,7 +69,7 @@ $collector = can('exams.collect');
                     <td data-label="Name"><span class="truncate text-muted" title="<?= e($hasName ? $ex['name'] : '') ?>"><?= e($hasName ? $ex['name'] : '') ?></span></td>
                     <td class="text-end" data-label="Questions" data-order="<?= $ex['reported_count'] === null ? -1 : (int) $ex['reported_count'] ?>"><?= $ex['reported_count'] === null ? '<span class="text-muted">n/a</span>' : number_format((int) $ex['reported_count']) ?></td>
                     <td data-label="Library" data-order="<?= $ex['latest_version'] ? (int) $ex['latest_collected_count'] : -1 ?>" data-export="<?= $ex['latest_version'] ? 'cached (' . (int) $ex['latest_collected_count'] . ')' : 'not collected' ?>"><span><?php if ($ex['latest_version']): ?><?= chip('cached', 'success', 'check2-circle') ?> <span class="small text-muted"><?= (int) $ex['latest_collected_count'] ?> · <?= e(fmt_ago($ex['latest_collected_at'])) ?></span><?php else: ?><span class="text-muted small">not collected</span><?php endif; ?></span></td>
-                    <td class="text-end stack-actions"><?php if ($collector): ?><a class="btn btn-sm btn-outline-primary" href="<?= e(url('/collect', ['provider' => $provider['slug'], 'exam' => $ex['code']])) ?>">Select<?= icon('arrow-right') ?></a><?php elseif ($ex['latest_version']): ?><a class="btn btn-sm btn-outline-primary" href="<?= e(url('/library/' . rawurlencode($provider['slug']) . '/' . rawurlencode($ex['code']))) ?>">Open<?= icon('arrow-right') ?></a><?php endif; ?></td>
+                    <td class="text-end stack-actions"><?php if ($collector): ?><a class="btn btn-sm btn-outline-primary" href="<?= e(url('/collect', ['provider' => $provider['slug'], 'exam' => $ex['code']])) ?>">Select<?= icon('arrow-right') ?></a><?php elseif ($ex['latest_version']): ?><a class="btn btn-sm btn-outline-primary" href="<?= e(url('/library/' . rawurlencode($provider['slug']) . '/' . rawurlencode($ex['code']))) ?>">Open<?= icon('arrow-right') ?></a><?php elseif (isset($requested[$ex['code']])): ?><a class="chip chip--warning" href="<?= e(url('/requests')) ?>"><?= icon('hourglass-split') ?>Requested</a><?php elseif ($requester): ?><form method="post" action="<?= e(url('/requests')) ?>" class="d-inline" data-once data-busy="Sending…"><?= csrf_field() ?><input type="hidden" name="provider" value="<?= e($provider['slug']) ?>"><input type="hidden" name="exam" value="<?= e($ex['code']) ?>"><input type="hidden" name="return" value="provider"><button class="btn btn-sm btn-outline-secondary" type="submit"><?= icon('send') ?>Request</button></form><?php endif; ?></td>
                 </tr>
             <?php endforeach; ?>
             </tbody>

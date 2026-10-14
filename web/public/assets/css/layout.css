@@ -288,3 +288,15 @@
 
 /* Theme-dependent icons (the toggle shows a moon in light, a sun in dark). */
 [data-theme="dark"] .when-light, :root:not([data-theme="dark"]) .when-dark { display: none; }
+
+/* Emailed codes: big, spaced digits. */
+.code-input { font-variant-numeric: tabular-nums; letter-spacing: .4em; text-align: center; font-weight: var(--weight-semibold); }
+
+/* The inbox bell and its unread count. */
+.icon-btn.bell { position: relative; text-decoration: none; }
+.icon-btn.bell.is-active { color: var(--color-primary); }
+.bell-count {
+  position: absolute; top: 3px; right: 1px; min-width: 17px; height: 17px; padding: 0 4px;
+  border-radius: 9px; background: var(--color-danger); color: #fff;
+  font-size: 10px; line-height: 17px; font-weight: var(--weight-semibold); text-align: center;
+}

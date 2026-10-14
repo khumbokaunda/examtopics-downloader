@@ -39,6 +39,8 @@ final class JobRunner
         private CacheService $cache,
         private CacheVersionRepository $versions,
         private MediaStore $media,
+        /** Called when a collection publishes an exam (closes its open requests). */
+        private ?\Closure $onCollected = null,
     ) {
     }
 
@@ -375,6 +377,13 @@ final class JobRunner
         }
         $this->jobs->finish($id, 'completed', $msg, $warnings === [] ? null : implode("\n", $warnings),
             $exit, $published['status'], $published['version_id']);
+        if ($this->onCollected !== null) {
+            try {
+                ($this->onCollected)((int) $provider['id'], (string) $job['exam_code']);
+            } catch (Throwable $e) {
+                $this->log->error('jobs', 'After-collection step failed', ['job_id' => $id, 'error' => $e->getMessage()]);
+            }
+        }
     }
 
     /**

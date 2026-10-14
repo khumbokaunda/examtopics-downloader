@@ -5,6 +5,8 @@ declare(strict_types=1);
 
 // Remove the working directories (events, tool log, rejected output) of jobs that finished
 // more than N days ago. Job history rows, cached exams and documents are never touched.
+// Also removes expired sign-up codes and rate-limit records, and sign-ups that never verified
+// their email address within a week.
 // With --media, also delete saved images that no cached version refers to any more (after
 // versions were deleted); this reads every cached dataset, so it is not the default.
 //   php bin/cleanup.php --days=30 [--media] [--dry-run]
@@ -62,6 +64,19 @@ foreach ($ids as $id) {
 }
 $app->logger()->info('app', 'Job directory cleanup', ['removed' => $removed, 'days' => $days, 'dry_run' => $dry, 'at' => Database::now()]);
 echo ($dry ? 'Would remove ' : 'Removed ') . $removed . " job directories finished more than {$days} days ago.\n";
+
+// Expired sign-up leftovers: rate-limit records and codes older than a day, and accounts
+// that signed up but never verified their email address within a week.
+if (!$dry) {
+    $services = new \App\Services\Services($app);
+    $services->throttle()->prune();
+    $services->codes()->prune();
+    $stale = $app->db()->run("DELETE FROM users WHERE status = 'unverified' AND created_at < ?", [gmdate('Y-m-d H:i:s', time() - 7 * 86400)])->rowCount();
+    if ($stale > 0) {
+        $app->logger()->info('security', 'Unverified sign-ups removed', ['count' => $stale]);
+        echo "Removed {$stale} sign-ups that never verified their email address.\n";
+    }
+}
 
 if ($media) {
     $services = new \App\Services\Services($app);

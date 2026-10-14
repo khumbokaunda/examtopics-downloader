@@ -14,6 +14,7 @@ final class Auth
 {
     /** @var array<string,mixed>|null|false false = not looked up yet */
     private array|null|false $user = false;
+    private ?int $unverified = null;
 
     public function __construct(
         private Session $session,
@@ -90,22 +91,41 @@ final class Auth
         $status = (string) ($user['status'] ?? 'active');
         if ($status !== 'active') {
             $this->log->info('security', 'Login refused: account ' . $status, ['ip' => $ip, 'username' => $user['username']]);
+            if ($status === 'unverified') {
+                $this->unverified = (int) $user['id'];
+            }
             return match ($status) {
-                'pending' => 'Your account is waiting for an administrator to approve it.',
+                'pending' => 'Your account is waiting for an administrator to approve it. You will get an email when it is ready.',
                 'unverified' => 'Verify your email address first: enter the code from the email we sent.',
                 default => 'This account is disabled. Ask an administrator if you need it again.',
             };
         }
+        $this->signIn($user, $ip);
+        $this->users->rehashIfNeeded((int) $user['id'], $password, (string) $user['password_hash']);
+        return null;
+    }
 
+    /** After a refused sign-in: the id of an account whose only problem is an unverified email. */
+    public function unverifiedId(): ?int
+    {
+        return $this->unverified;
+    }
+
+    /**
+     * Start a session for an account that has proved who it is (the right password, or a
+     * verification code just after signing up).
+     *
+     * @param array<string,mixed> $user
+     */
+    public function signIn(array $user, string $ip): void
+    {
         $this->session->regenerate();
         $this->session->set('user_id', (int) $user['id']);
         $this->session->set('_started_at', time()); // the sign-in lifetime counts from here
         $this->session->remove('_csrf'); // fresh token for the authenticated session
         $this->users->touchLogin((int) $user['id']);
-        $this->users->rehashIfNeeded((int) $user['id'], $password, (string) $user['password_hash']);
         $this->user = false;
         $this->log->info('security', 'Login succeeded', ['ip' => $ip, 'username' => $user['username']]);
-        return null;
     }
 
     public function logout(string $ip): void

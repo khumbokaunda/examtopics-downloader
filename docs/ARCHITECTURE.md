@@ -152,6 +152,30 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
     deleted. Account changes are written to the security log.
   - `php bin/create-user.php <name> --admin` re-enables an account, resets its password and
     makes it an administrator, to recover from a lock-out.
+- **Sign-up** (Users > Sign-up): open (anyone, after verifying their email), needs approval
+  (an administrator approves after verification) or closed. It is only offered once email is
+  set up. A new account is an unverified member until it types the six-digit code emailed to
+  it; signing in to an unverified account sends a fresh code and asks for it. Sign-ups are
+  limited to five an hour per IP address, and sign-ups never verified are removed after a week
+  by `bin/cleanup.php`.
+- **Emailed codes** (`App\Services\AccountCodes`) confirm an email address (signing up, or
+  changing it on the account page) or reset a forgotten password. Only a hash is stored; a code
+  lasts 30 minutes, works once and allows five wrong tries; codes are sent at most five times
+  an hour per account and a minute apart. A failed check says which of "not right", "expired"
+  or "no longer usable" it was. The forgotten-password page gives the same answer whether or
+  not the address has an account, and is limited to five requests an hour per IP address.
+  An address typed by an administrator counts as verified.
+- **Notifications** (`App\Services\Notifier`): an inbox per person (the bell in the top bar).
+  A repeat of the same kind and link merges into the unread row; a resolve key marks a family
+  read once it is dealt with. Notifications are also emailed through the queue, only to
+  verified addresses of people who have not turned email off on their account page.
+  Notifying is best effort and never breaks the action that caused it. Opening one only ever
+  redirects to a path inside the app.
+- **Exam requests** (`App\Services\ExamRequests`): members request uncollected exams from a
+  provider's page, or by code. Each person has one open request per exam. People with
+  `requests.manage` are notified and answer them (collected or declined, with a message);
+  a finished collection of the exam closes its open requests and tells everyone who asked.
+  A member sees only their own requests, and another person's request answers 404.
 - **Branding** (Settings > Branding): the system name, tagline, logo, colour and default
   theme are stored as settings and read everywhere from `App\Services\Branding`. Logos are
   scaled to PNG (or kept as SVG), stored in `storage/branding` outside the web root and served
