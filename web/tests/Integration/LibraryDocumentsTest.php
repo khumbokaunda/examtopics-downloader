@@ -234,6 +234,8 @@ final class LibraryDocumentsTest extends HttpTestCase
         $status = json_decode($this->get('/api/documents/' . $doc['uuid'])->body, true);
         self::assertSame('failed', $status['status']);
         self::assertStringContainsString('stopped before it finished', (string) $status['error']);
+        // The build recorded its memory, so the message says how far it got and how much it used.
+        self::assertMatchesRegularExpression('/at question 5 of 5, while using about \\d+ MB of memory/', (string) $status['error']);
     }
 
     public function testDocumentsAreReusedAndTamperingIsDetected(): void

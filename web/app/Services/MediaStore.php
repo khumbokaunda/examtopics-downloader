@@ -199,45 +199,43 @@ final class MediaStore
     }
 
     /**
-     * Saved images for one PDF, up to a total size. PNG, JPEG and GIF are embedded as they
-     * are; WebP is converted to PNG when GD can read it.
+     * Saved images for one PDF, up to a total size. PNG, JPEG and GIF files are used as they
+     * are; WebP is converted to a PNG in $tmpDir when GD can read it.
      *
      * @param list<string> $urls
      */
-    public function imageSource(array $urls, int $maxTotal): ImageSource
+    public function imageSource(array $urls, int $maxTotal, string $tmpDir): ImageSource
     {
         $files = [];
         foreach ($this->savedHashes($urls) as $url => $sha) {
             $files[$url] = $this->file($sha);
         }
-        return new class ($files, $maxTotal) implements ImageSource {
+        return new class ($files, $maxTotal, $tmpDir) implements ImageSource {
             private int $used = 0;
 
             /** @param array<string,array{path:string,mime:string,bytes:int}|null> $files */
-            public function __construct(private array $files, private int $maxTotal)
+            public function __construct(private array $files, private int $maxTotal, private string $tmpDir)
             {
             }
 
-            public function dataUri(string $url): ?string
+            public function file(string $url): ?string
             {
                 $f = $this->files[$url] ?? null;
                 if ($f === null || $this->used + $f['bytes'] > $this->maxTotal) {
                     return null;
                 }
-                $data = (string) file_get_contents($f['path']);
-                $mime = $f['mime'];
-                if ($mime === 'image/webp') {
-                    $img = function_exists('imagecreatefromstring') ? @imagecreatefromstring($data) : false;
-                    if ($img === false) {
-                        return null;
+                $path = $f['path'];
+                if ($f['mime'] === 'image/webp') {
+                    $path = $this->tmpDir . '/' . basename($f['path'], '.webp') . '.png';
+                    if (!is_file($path)) {
+                        $img = function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($f['path']) : false;
+                        if ($img === false || !@imagepng($img, $path)) {
+                            return null;
+                        }
                     }
-                    ob_start();
-                    imagepng($img);
-                    $data = (string) ob_get_clean();
-                    $mime = 'image/png';
                 }
-                $this->used += strlen($data);
-                return 'data:' . $mime . ';base64,' . base64_encode($data);
+                $this->used += $f['bytes'];
+                return $path;
             }
         };
     }

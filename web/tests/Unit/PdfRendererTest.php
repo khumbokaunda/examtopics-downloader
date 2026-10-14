@@ -48,18 +48,16 @@ final class PdfRendererTest extends TestCase
 
     private static function images(): ImageSource
     {
-        $img = imagecreatetruecolor(40, 20);
-        ob_start();
-        imagepng($img);
-        $png = (string) ob_get_clean();
-        return new class ($png) implements ImageSource {
-            public function __construct(private string $png)
+        $file = self::tmp() . '/figure.png';
+        imagepng(imagecreatetruecolor(40, 20), $file);
+        return new class ($file) implements ImageSource {
+            public function __construct(private string $file)
             {
             }
 
-            public function dataUri(string $url): ?string
+            public function file(string $url): ?string
             {
-                return str_contains($url, 'gone') ? null : 'data:image/png;base64,' . base64_encode($this->png);
+                return str_contains($url, 'gone') ? null : $this->file;
             }
         };
     }
