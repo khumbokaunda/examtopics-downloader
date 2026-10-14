@@ -222,7 +222,7 @@ final class PdfRenderer
         // Images and flags first: the section intros and the contents count them.
         $cards = [];
         foreach ($questions as $i => $q) {
-            $qImages = $this->embed((array) ($q['question_images'] ?? []));
+            $qImages = $this->embed(QuestionView::questionImages($q));
             $aImages = $showAnswers ? $this->embed((array) ($q['answer_images'] ?? [])) : [];
             $cImages = [];
             foreach ((array) ($q['choices'] ?? []) as $c) {
@@ -402,8 +402,11 @@ final class PdfRenderer
         $b[] = '<table class="q-label"><tr><td><span class="q-num">Q' . (int) ($q['number'] ?? 0) . '</span>'
             . ($src !== '' ? '<span class="q-src">' . $h($src) . '</span>' : '') . '</td>'
             . '<td class="q-flags">' . implode(' ', $flags) . '</td></tr></table>';
-        $b[] = '<div class="q-text">' . $text((string) ($q['text'] ?? '')) . '</div>';
-        $b[] = $this->figures($card['qImages'], 'Question image', $h);
+        foreach (QuestionView::questionSegments($q) as $seg) {
+            $b[] = isset($seg['text'])
+                ? '<div class="q-text">' . $text($seg['text']) . '</div>'
+                : $this->figures(isset($card['qImages'][$seg['image']]) ? [$card['qImages'][$seg['image']]] : [], 'Question image', $h, $seg['image']);
+        }
 
         $choices = array_values(array_filter((array) ($q['choices'] ?? []), 'is_array'));
         if (self::isTrueFalse($choices)) {
@@ -538,10 +541,11 @@ final class PdfRenderer
     /**
      * @param list<array{url:string,uri:?string}> $images
      */
-    private function figures(array $images, string $label, callable $h): string
+    private function figures(array $images, string $label, callable $h, int $first = 0): string
     {
         $out = [];
         foreach ($images as $i => $im) {
+            $i += $first;
             if ($im['uri'] !== null) {
                 $out[] = '<div class="fig"><img src="' . $h($im['uri']) . '" alt="' . $h($label . ' ' . ($i + 1)) . '"></div>';
             } else {

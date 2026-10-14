@@ -68,8 +68,10 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                 <h2 class="q-number"><span class="num">Question <?= $n ?></span><?php $kind = QuestionView::kind($item); if ($kind !== null): ?><?= chip($kind === 'drag-drop' ? 'Drag and drop' : 'Hot area', 'info', $kind === 'drag-drop' ? 'arrows-move' : 'cursor') ?><?php endif; ?></h2>
                 <span class="q-meta"><?= e(QuestionView::meta($item)) ?></span>
             </div>
-            <div class="q-text"><?php foreach (QuestionView::paragraphs((string) ($item['text'] ?? '')) as $para): ?><p><?= $para ?></p><?php endforeach; ?></div>
-            <?php foreach ((array) ($item['question_images'] ?? []) as $i => $u): ?><?= $img((string) $u, 'Question image ' . ($i + 1)) ?><?php endforeach; ?>
+            <?php $qImages = QuestionView::questionImages($item); foreach (QuestionView::questionSegments($item) as $seg): ?>
+                <?php if (isset($seg['text'])): ?><div class="q-text"><?php foreach (QuestionView::paragraphs($seg['text']) as $para): ?><p><?= $para ?></p><?php endforeach; ?></div>
+                <?php else: ?><?= $img($qImages[$seg['image']], 'Question image ' . ($seg['image'] + 1)) ?><?php endif; ?>
+            <?php endforeach; ?>
             <?php if (($item['choices'] ?? []) !== []): ?>
                 <ul class="list-unstyled choices">
                     <?php foreach ((array) $item['choices'] as $c): $letter = (string) ($c['letter'] ?? ''); ?>

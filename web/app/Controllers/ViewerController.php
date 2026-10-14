@@ -158,6 +158,7 @@ final class ViewerController extends Controller
             'topic' => $q['topic'] ?? null,
             'question_number' => $q['question_number'] ?? null,
             'text' => $q['text'] ?? '',
+            'text_parts' => $q['text_parts'] ?? null,
             'choices' => $q['choices'] ?? [],
             'question_images' => $q['question_images'] ?? [],
             'source_url' => $q['source_url'] ?? '',

@@ -67,12 +67,9 @@ final class MarkdownRenderer
                 $out[] = '*' . self::inline($meta2) . '*';
                 $out[] = '';
             }
-            $out[] = self::block((string) ($q['text'] ?? ''));
-            $out[] = '';
-            foreach ((array) ($q['question_images'] ?? []) as $i => $img) {
-                $out[] = self::image((string) $img, 'Question image ' . ($i + 1));
-            }
-            if (($q['question_images'] ?? []) !== []) {
+            $images = QuestionView::questionImages($q);
+            foreach (QuestionView::questionSegments($q) as $seg) {
+                $out[] = isset($seg['text']) ? self::block($seg['text']) : self::image($images[$seg['image']], 'Question image ' . ($seg['image'] + 1));
                 $out[] = '';
             }
             foreach ((array) ($q['choices'] ?? []) as $c) {

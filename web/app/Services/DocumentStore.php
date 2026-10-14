@@ -25,7 +25,7 @@ use Throwable;
 final class DocumentStore
 {
     /** Bump when rendering output changes, so stale documents are regenerated. */
-    public const RENDERER_VERSION = 4;
+    public const RENDERER_VERSION = 5; // 5: pictures placed where the cached dataset marks them
     public const FORMATS = ['md' => 'text/markdown; charset=utf-8', 'pdf' => 'application/pdf'];
 
     public function __construct(

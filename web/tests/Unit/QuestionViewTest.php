@@ -145,4 +145,22 @@ final class QuestionViewTest extends TestCase
         self::assertSame(['The question asks for two answers, but the answer has 1.'], QuestionView::doubts($q));
         self::assertSame([], QuestionView::doubts(['text' => 'Which of the following is true when links are up?'] + $q));
     }
+
+    /** The cached dataset marks each question picture's place with "//IMG//", in order. */
+    public function testImageMarksPlacePicturesInTheText(): void
+    {
+        $choices = [['letter' => 'A', 'text' => 'x'], ['letter' => 'B', 'text' => 'y']];
+        $q = QuestionView::normalize(['text' => "//IMG//\n\nRefer to the exhibit. Which configuration works?",
+            'question_images' => ['exhibit.png'], 'choices' => $choices]);
+        self::assertSame('Refer to the exhibit. Which configuration works?', $q['text'], 'the mark is not shown');
+        self::assertSame([['image' => 0], ['text' => 'Refer to the exhibit. Which configuration works?']], QuestionView::questionSegments($q));
+
+        $lab = QuestionView::normalize(['text' => "SIMULATION\nTopology:\n//IMG//\nTasks:\n1. Configure OSPF\n//IMG//",
+            'question_images' => ['topology.png', 'tasks.png'], 'choices' => []]);
+        self::assertSame([['text' => "SIMULATION\nTopology:"], ['image' => 0], ['text' => "Tasks:\n1. Configure OSPF"], ['image' => 1]],
+            QuestionView::questionSegments($lab));
+
+        // Without marks, pictures follow the text as before.
+        self::assertSame([['text' => 'Q?'], ['image' => 0]], QuestionView::questionSegments(['text' => 'Q?', 'question_images' => ['a.png']]));
+    }
 }
