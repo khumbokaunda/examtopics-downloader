@@ -121,6 +121,17 @@ swap, or building when the server is otherwise quiet, helps.
 The file changed or disappeared on disk. Use **Generate** again; it is rebuilt from the
 cached data.
 
+## Accounts
+
+- **Approving sign-ups**: with Users > Sign-up set to "Needs approval", new accounts wait
+  after verifying their email; administrators are notified and use **Approve** on the Users
+  page. The person gets an email when it is done.
+- **Someone did not get their code**: check Settings > Email (send a test message) and
+  `storage/logs/mail.log`. An administrator can also create the account, or set a new
+  password, on the Users page; an address typed there counts as verified.
+- **Locked out**: `php bin/create-user.php <name> --admin` re-enables the account, resets its
+  password and makes it an administrator.
+
 ## Backups
 
 | Back up | Why |

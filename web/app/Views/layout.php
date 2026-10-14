@@ -22,6 +22,7 @@ $groups = [
     'Study' => [
         'library' => ['/library', 'Library', 'journal-bookmark', 'library.view'],
         'providers' => ['/providers', $collector ? 'Providers & inventory' : 'Providers', 'buildings', 'library.view'],
+        'requests' => ['/requests', $user && can('requests.manage') ? 'Exam requests' : 'My requests', 'inbox', 'exams.request'],
     ],
     'Collect' => [
         'collect' => ['/collect', 'Collect exam', 'cloud-arrow-down', 'exams.collect'],
@@ -109,6 +110,10 @@ $flashIcons = ['success' => 'check-circle', 'info' => 'info-circle', 'warning' =
                     <?= icon('arrow-repeat', 'spin') ?><span class="chip-text label">Job running</span>
                 </a>
                 <?php endif; ?>
+                <?php $unread = \App\Core\View::current()->unreadNotifications(); ?>
+                <a class="icon-btn bell<?= ($nav ?? '') === 'inbox' ? ' is-active' : '' ?>" href="<?= e(url('/inbox')) ?>" aria-label="Inbox<?= $unread > 0 ? ', ' . $unread . ' unread' : '' ?>" title="Inbox">
+                    <?= icon($unread > 0 ? 'bell-fill' : 'bell') ?><?php if ($unread > 0): ?><span class="bell-count"><?= $unread > 99 ? '99+' : $unread ?></span><?php endif; ?>
+                </a>
                 <button class="icon-btn" type="button" data-action="theme-toggle" data-save-url="<?= e(url('/api/appearance')) ?>" aria-label="Switch between light and dark">
                     <span class="when-light"><?= icon('moon-stars') ?></span><span class="when-dark"><?= icon('sun') ?></span>
                 </button>
@@ -120,6 +125,7 @@ $flashIcons = ['success' => 'check-circle', 'info' => 'info-circle', 'warning' =
                     <div class="user-menu-panel" hidden>
                         <div class="menu-header"><div class="name"><?= e(\App\Services\Access::displayName($user)) ?></div><div class="meta"><?= e(\App\Services\Access::roleName((string) $user['role'])) ?> · <?= e($user['username']) ?></div></div>
                         <a class="menu-item" href="<?= e(url('/account')) ?>"><?= icon('person-circle') ?>Account</a>
+                        <a class="menu-item" href="<?= e(url('/inbox')) ?>"><?= icon('bell') ?>Inbox</a>
                         <a class="menu-item" href="<?= e(url('/account')) ?>#appearance"><?= icon('palette') ?>Appearance</a>
                         <?php if (can('settings.manage')): ?><a class="menu-item" href="<?= e(url('/settings')) ?>"><?= icon('gear') ?>Settings</a><?php endif; ?>
                         <div class="menu-divider"></div>
@@ -161,6 +167,7 @@ $flashIcons = ['success' => 'check-circle', 'info' => 'info-circle', 'warning' =
             <?php foreach ($groups as $heading => $links): foreach ($links as [$href, $label, $iconName]): ?>
                 <li class="palette-item" role="option" data-path="<?= e(url($href)) ?>" data-label="<?= e(strtolower($label)) ?>"><?= icon($iconName) ?><span class="palette-label"><?= e($label) ?></span><span class="palette-section">Page</span></li>
             <?php endforeach; endforeach; ?>
+            <li class="palette-item" role="option" data-path="<?= e(url('/inbox')) ?>" data-label="inbox notifications bell"><?= icon('bell') ?><span class="palette-label">Inbox</span><span class="palette-section">Page</span></li>
             <li class="palette-item" role="option" data-path="<?= e(url('/account')) ?>" data-label="account profile password email"><?= icon('person-circle') ?><span class="palette-label">Account</span><span class="palette-section">Page</span></li>
             <li class="palette-item" role="option" data-path="<?= e(url('/account')) ?>#appearance" data-label="appearance theme dark light accent"><?= icon('palette') ?><span class="palette-label">Appearance</span><span class="palette-section">Page</span></li>
         </ul>

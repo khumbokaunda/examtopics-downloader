@@ -1,8 +1,8 @@
-<?php /** @var string $next @var string|null $error @var string $username @var bool $noUsers */ ?>
+<?php /** @var string $next @var string|null $error @var string $username @var bool $noUsers @var bool $canRegister @var bool $canReset */ ?>
 <div class="card auth-card">
     <div class="card-body">
         <h1 class="h3 mb-1">Sign in</h1>
-        <p class="text-muted small mb-4">Use the account created on the server.</p>
+        <p class="text-muted small mb-4">With your username or email address.</p>
         <?php if ($noUsers): ?>
             <div class="alert alert-info small"><?= icon('info-circle') ?><div class="alert-body">No user exists yet. On the server, run<br><code>php bin/create-user.php &lt;username&gt;</code></div></div>
         <?php endif; ?>
@@ -13,14 +13,17 @@
             <?= csrf_field() ?>
             <input type="hidden" name="next" value="<?= e($next) ?>">
             <div class="mb-3">
-                <label class="form-label" for="username">Username</label>
+                <label class="form-label" for="username">Username or email</label>
                 <input class="form-control" id="username" name="username" value="<?= e($username) ?>" autocomplete="username" required autofocus>
             </div>
             <div class="mb-4">
-                <label class="form-label" for="password">Password</label>
+                <div class="d-flex justify-content-between align-items-baseline"><label class="form-label" for="password">Password</label><?php if ($canReset): ?><a class="small" href="<?= e(url('/forgot')) ?>">Forgot it?</a><?php endif; ?></div>
                 <input class="form-control" id="password" name="password" type="password" autocomplete="current-password" required>
             </div>
             <button class="btn btn-primary w-100" type="submit"><?= icon('box-arrow-in-right') ?>Sign in</button>
         </form>
+        <?php if ($canRegister): ?>
+            <p class="small text-center text-muted mt-4 mb-0">New here? <a href="<?= e(url('/register')) ?>">Create an account</a></p>
+        <?php endif; ?>
     </div>
 </div>

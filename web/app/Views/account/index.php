@@ -1,6 +1,6 @@
 <?php
 /** @var array $user @var array<string,string> $appearance @var array<string,list<string>> $appearanceOptions @var bool $customAccent
- *  @var string $systemTimezone @var string $myTimezone @var list<string> $timezones */
+ *  @var string $systemTimezone @var string $myTimezone @var list<string> $timezones @var bool $emailNotifications @var bool $mailReady */
 use App\Services\Access;
 $labels = [
     'theme' => ['system' => ['Match my device', 'Follows the light or dark setting of this device'], 'light' => ['Light', 'Bright surfaces'], 'dark' => ['Dark', 'Dim surfaces for low light']],
@@ -33,6 +33,26 @@ $verified = $user['email'] !== null && $user['email_verified_at'] !== null;
                     </div>
                     <div class="form-actions"><button class="btn btn-primary" type="submit"><?= icon('check2') ?>Save profile</button></div>
                 </form>
+                <?php if ($user['email'] !== null && !$verified): ?>
+                    <div class="settings-section">
+                        <h2 class="section-heading">Confirm your email address</h2>
+                        <?php if (!$mailReady): ?>
+                            <p class="small text-muted mb-0">Email is not set up on this server yet, so a code cannot be sent.</p>
+                        <?php else: ?>
+                            <p class="small text-muted">Type the code we emailed to <?= e($user['email']) ?>. Notifications are only emailed to a confirmed address.</p>
+                            <div class="d-flex flex-wrap gap-2 align-items-start">
+                                <form method="post" action="<?= e(url('/account/email/verify')) ?>" class="toolbar" data-once><?= csrf_field() ?>
+                                    <label class="visually-hidden" for="code">Code</label>
+                                    <input class="form-control code-input flex-grow-0" id="code" name="code" inputmode="numeric" maxlength="7" autocomplete="one-time-code" placeholder="000000" required>
+                                    <button class="btn btn-primary" type="submit">Confirm</button>
+                                </form>
+                                <form method="post" action="<?= e(url('/account/email/send')) ?>" data-once><?= csrf_field() ?>
+                                    <button class="btn btn-outline-secondary" type="submit"><?= icon('send') ?>Send a code</button>
+                                </form>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -46,6 +66,22 @@ $verified = $user['email'] !== null && $user['email_verified_at'] !== null;
                     <div class="mb-3"><label class="form-label" for="np">New password</label><input class="form-control" id="np" name="new_password" type="password" minlength="12" autocomplete="new-password" required><div class="form-text">At least 12 characters.</div></div>
                     <div class="mb-3"><label class="form-label" for="rp">Repeat new password</label><input class="form-control" id="rp" name="repeat_password" type="password" minlength="12" autocomplete="new-password" required></div>
                     <div class="form-actions"><button class="btn btn-primary" type="submit">Change password</button></div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card" id="notifications">
+            <div class="card-header"><span class="card-title"><?= icon('bell') ?>Notifications</span><a class="small" href="<?= e(url('/inbox')) ?>">Open your inbox</a></div>
+            <div class="card-body">
+                <form method="post" action="<?= e(url('/account/notifications')) ?>" data-once><?= csrf_field() ?>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="email_notifications" name="email_notifications" value="1" <?= $emailNotifications ? 'checked' : '' ?>>
+                        <label class="form-check-label" for="email_notifications">Also email me my notifications<?= can('requests.manage') ? ', such as new exam requests' : ', such as an exam I asked for being collected' ?></label>
+                    </div>
+                    <div class="form-text mb-3"><?php if ($user['email'] === null): ?>Add an email address above first.<?php elseif (!$verified): ?>Confirm your email address above first.<?php else: ?>They go to <?= e($user['email']) ?>. Everything also shows in your inbox (the bell at the top).<?php endif; ?></div>
+                    <button class="btn btn-primary" type="submit"><?= icon('check2') ?>Save</button>
                 </form>
             </div>
         </div>

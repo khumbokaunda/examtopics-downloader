@@ -469,3 +469,11 @@ body.dialog-open { overflow: hidden; }
 /* A large exam's PDF in parts: one download button per part. */
 .doc-parts { display: inline-flex; flex-direction: column; align-items: stretch; gap: 4px; }
 .doc-parts .btn { justify-content: flex-start; }
+
+/* Inbox: unread rows stand out. */
+.list-rows li.is-unread { background: var(--color-primary-soft); }
+.list-rows li.is-unread .row-title { font-weight: var(--weight-semibold); }
+.request-answer > summary { list-style: none; }
+.request-answer > summary::-webkit-details-marker { display: none; }
+.request-answer[open] { flex-basis: 100%; }
+.request-answer-body { margin-top: var(--space-2); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-alt); }

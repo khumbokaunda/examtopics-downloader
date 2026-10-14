@@ -28,7 +28,7 @@ final class AccessTest extends HttpTestCase
         (require dirname(__DIR__, 2) . '/routes/web.php')($router);
         foreach ($router->routes() as $r) {
             if ($r['public']) {
-                self::assertMatchesRegularExpression('#^/(login|branding/)#', $r['pattern'], 'unexpected public route');
+                self::assertMatchesRegularExpression('#^/(login|register|verify|forgot|reset|branding/)#', $r['pattern'], 'unexpected public route');
                 continue;
             }
             self::assertNotNull($r['can'], $r['method'] . ' ' . $r['pattern'] . ' names no permission');

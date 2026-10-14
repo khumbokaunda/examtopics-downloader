@@ -10,10 +10,12 @@ use App\Controllers\CollectController;
 use App\Controllers\DashboardController;
 use App\Controllers\DocumentController;
 use App\Controllers\EmailController;
+use App\Controllers\InboxController;
 use App\Controllers\JobController;
 use App\Controllers\LibraryController;
 use App\Controllers\MediaController;
 use App\Controllers\ProviderController;
+use App\Controllers\RequestController;
 use App\Controllers\SettingsController;
 use App\Controllers\UserController;
 use App\Controllers\ViewerController;
@@ -30,6 +32,15 @@ return static function (Router $r): void {
 
     $r->get('/login', [AuthController::class, 'showLogin'], public: true);
     $r->post('/login', [AuthController::class, 'login'], public: true);
+    $r->get('/register', [AuthController::class, 'showRegister'], public: true);
+    $r->post('/register', [AuthController::class, 'register'], public: true);
+    $r->get('/verify', [AuthController::class, 'showVerify'], public: true);
+    $r->post('/verify', [AuthController::class, 'verify'], public: true);
+    $r->post('/verify/resend', [AuthController::class, 'resendVerify'], public: true);
+    $r->get('/forgot', [AuthController::class, 'showForgot'], public: true);
+    $r->post('/forgot', [AuthController::class, 'forgot'], public: true);
+    $r->get('/reset', [AuthController::class, 'showReset'], public: true);
+    $r->post('/reset', [AuthController::class, 'reset'], public: true);
     $r->post('/logout', [AuthController::class, 'logout'], can: $me);
     $r->get('/branding/theme.css', [BrandingController::class, 'css'], public: true);
     $r->get('/branding/{file}', [BrandingController::class, 'file'], public: true);
@@ -88,11 +99,25 @@ return static function (Router $r): void {
     $r->post('/account/profile', [AccountController::class, 'profile'], can: $me);
     $r->post('/account/password', [AccountController::class, 'password'], can: $me);
     $r->post('/account/time', [AccountController::class, 'time'], can: $me);
+    $r->post('/account/email/send', [AccountController::class, 'sendCode'], can: $me);
+    $r->post('/account/email/verify', [AccountController::class, 'verifyEmail'], can: $me);
+    $r->post('/account/notifications', [AccountController::class, 'notifications'], can: $me);
+
+    $r->get('/inbox', [InboxController::class, 'index'], can: $me);
+    $r->post('/inbox/read', [InboxController::class, 'readAll'], can: $me);
+    $r->get('/inbox/{id}', [InboxController::class, 'open'], can: $me);
+
+    $r->get('/requests', [RequestController::class, 'index'], can: 'exams.request');
+    $r->post('/requests', [RequestController::class, 'store'], can: 'exams.request');
+    $r->post('/requests/{uuid}/cancel', [RequestController::class, 'cancel'], can: 'exams.request');
+    $r->post('/requests/{uuid}/answer', [RequestController::class, 'answer'], can: 'requests.manage');
 
     $r->get('/users', [UserController::class, 'index'], can: 'users.manage');
     $r->get('/users/new', [UserController::class, 'create'], can: 'users.manage');
+    $r->post('/users/registration', [UserController::class, 'registration'], can: 'users.manage');
     $r->post('/users', [UserController::class, 'store'], can: 'users.manage');
     $r->get('/users/{username}', [UserController::class, 'edit'], can: 'users.manage');
     $r->post('/users/{username}', [UserController::class, 'update'], can: 'users.manage');
     $r->post('/users/{username}/delete', [UserController::class, 'delete'], can: 'users.manage');
+    $r->post('/users/{username}/approve', [UserController::class, 'approve'], can: 'users.manage');
 };

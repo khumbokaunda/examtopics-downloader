@@ -8,6 +8,7 @@ use App\Core\Http\HttpException;
 use App\Core\Http\Response;
 use App\Repositories\UserRepository;
 use App\Services\Access;
+use App\Services\Registration;
 
 /**
  * Users: accounts, their role, extra permissions and status. Two guards keep the system
@@ -24,7 +25,47 @@ final class UserController extends Controller
             'nav' => 'users',
             'users' => $this->s->users()->all(),
             'me' => (int) $this->auth->user()['id'],
+            'mode' => $this->s->registration()->mode(),
+            'mailReady' => $this->s->mailer()->configured(),
         ]);
+    }
+
+    /** Users > Sign-up: who may create their own account. */
+    public function registration(): Response
+    {
+        $mode = (string) $this->request->input('mode', '');
+        if (isset(Registration::MODES[$mode])) {
+            $this->s->registration()->setMode($mode);
+            $this->audit('Sign-up setting changed', (string) $this->auth->user()['username'], ['mode' => $mode]);
+            $this->flash('success', 'Sign-up is now: ' . Registration::MODES[$mode][0] . '.');
+        }
+        return $this->redirect('/users');
+    }
+
+    /** Approve an account waiting for approval. */
+    public function approve(string $username): Response
+    {
+        $account = $this->find($username);
+        if ($account['status'] === 'pending') {
+            $this->s->users()->update((int) $account['id'], ['status' => 'active']);
+            $this->approved($account);
+            $this->flash('success', 'Approved "' . $account['username'] . '". They have been told by email.');
+        }
+        return $this->redirect('/users');
+    }
+
+    /** @param array<string,mixed> $account an account that just became active after waiting */
+    private function approved(array $account): void
+    {
+        $this->audit('User approved', $account['username'], []);
+        $this->s->notifier()->resolve('account:' . (int) $account['id']);
+        if ($account['email'] !== null) {
+            $mailer = $this->s->mailer();
+            $link = $mailer->link('/login');
+            $mailer->send((string) $account['email'], 'Your account is ready',
+                '<p>Your account on ' . e($this->s->branding()->get()['name']) . ' has been approved. You can sign in now'
+                . ($link !== null ? ': <a href="' . e($link) . '">' . e($link) . '</a>' : '') . '.</p>', null, Access::displayName($account));
+        }
     }
 
     public function create(): Response
@@ -55,9 +96,10 @@ final class UserController extends Controller
                 'title' => 'New user', 'nav' => 'users', 'account' => null, 'form' => $form, 'error' => $error, 'self' => false,
             ], 422);
         }
+        // An address typed by an administrator counts as verified.
         $users->create($form['username'], $password, $form['role'], [
             'display_name' => $form['display_name'], 'email' => $form['email'], 'status' => $form['status'],
-            'permissions' => $form['permissions'],
+            'permissions' => $form['permissions'], 'email_verified' => true,
         ]);
         $this->audit('User created', $form['username'], ['role' => $form['role'], 'status' => $form['status'], 'extra' => $form['permissions']]);
         $this->flash('success', 'Account "' . $form['username'] . '" created. Share the password with them privately; they can change it on their account page.');
@@ -110,6 +152,13 @@ final class UserController extends Controller
         ]);
         if ($password !== '') {
             $users->setPassword((int) $account['id'], $password);
+        }
+        if ($form['email'] !== '' && $form['email'] !== (string) ($account['email'] ?? '')) {
+            $users->markEmailVerified((int) $account['id']); // typed by an administrator
+            $this->s->codes()->forget((int) $account['id'], 'verify');
+        }
+        if ($account['status'] === 'pending' && $form['status'] === 'active') {
+            $this->approved($account);
         }
         $changes = [];
         foreach (['role', 'status'] as $k) {

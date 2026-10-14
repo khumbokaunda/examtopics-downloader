@@ -36,6 +36,8 @@ final class ProviderController extends Controller
             'lastSuccess' => $this->s->refreshes()->latestSuccessful((int) $provider['id']),
             'activeJob' => $this->s->jobs()->findBySlot('inventory:' . $provider['slug']),
             'mayRefresh' => $this->mayRefresh($provider),
+            'requested' => $this->auth->can('exams.request')
+                ? $this->s->requests()->openFor((int) $this->auth->user()['id'], (int) $provider['id']) : [],
         ]);
     }
 

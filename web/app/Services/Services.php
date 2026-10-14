@@ -92,6 +92,34 @@ final class Services
             $background ? fn(): bool => $this->supervisor()->launchScript('send-mail.php', [], 'mail-send.log') : null));
     }
 
+    public function throttle(): Throttle
+    {
+        return $this->app->service(Throttle::class, fn() => new Throttle($this->app->db()));
+    }
+
+    public function codes(): AccountCodes
+    {
+        return $this->app->service(AccountCodes::class, fn() => new AccountCodes(
+            $this->app->db(), $this->mailer(), $this->throttle(), $this->app->logger()));
+    }
+
+    public function notifier(): Notifier
+    {
+        return $this->app->service(Notifier::class, fn() => new Notifier(
+            $this->app->db(), $this->users(), $this->mailQueue(), $this->mailer(), $this->app->logger()));
+    }
+
+    public function requests(): ExamRequests
+    {
+        return $this->app->service(ExamRequests::class, fn() => new ExamRequests(
+            $this->app->db(), $this->users(), $this->notifier(), $this->app->logger()));
+    }
+
+    public function registration(): Registration
+    {
+        return $this->app->service(Registration::class, fn() => new Registration($this->app, $this->users(), $this->notifier()));
+    }
+
     public function supervisor(): WorkerSupervisor
     {
         return $this->app->service(WorkerSupervisor::class, fn() => new WorkerSupervisor(
@@ -115,7 +143,8 @@ final class Services
     {
         return $this->app->service(JobRunner::class, fn() => new JobRunner(
             $this->app->config(), $this->app->paths(), $this->app->logger(), $this->jobs(), $this->providers(),
-            $this->exams(), $this->refreshes(), $this->cache(), $this->versions(), $this->media()));
+            $this->exams(), $this->refreshes(), $this->cache(), $this->versions(), $this->media(),
+            fn(int $providerId, string $exam) => $this->requests()->collected($providerId, $exam)));
     }
 
     public function media(): MediaStore

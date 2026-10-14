@@ -6,10 +6,11 @@ namespace App\Controllers;
 
 use App\Core\Http\Response;
 use App\Repositories\UserRepository;
+use App\Services\AccountCodes;
 use App\Services\Appearance;
 use App\Services\SystemSettings;
 
-/** The signed-in person's own account: profile, password, timezone and appearance. */
+/** The signed-in person's own account: profile, email, password, notifications, timezone and appearance. */
 final class AccountController extends Controller
 {
     public function index(): Response
@@ -26,6 +27,8 @@ final class AccountController extends Controller
             'systemTimezone' => (new SystemSettings($this->app))->effective()['timezone'],
             'myTimezone' => (string) ((json_decode((string) ($user['preferences'] ?? ''), true) ?: [])['timezone'] ?? ''),
             'timezones' => \DateTimeZone::listIdentifiers(),
+            'emailNotifications' => (string) ((json_decode((string) ($user['preferences'] ?? ''), true) ?: [])['email_notifications'] ?? '1') !== '0',
+            'mailReady' => $this->s->mailer()->configured(),
         ]);
     }
 
@@ -45,13 +48,53 @@ final class AccountController extends Controller
             $this->flash('danger', 'Your account needs an email address.');
         } else {
             $users->update((int) $user['id'], ['display_name' => $name, 'email' => $email]);
+            $this->auth->refresh();
             if ($email !== (string) ($user['email'] ?? '')) {
                 $this->app->logger()->info('security', 'Email address changed', ['username' => $user['username']]);
+                $this->s->codes()->forget((int) $user['id'], 'verify');
+                if ($email !== '' && $this->s->mailer()->configured()) {
+                    $error = $this->s->codes()->send((array) $this->auth->user(), 'verify', $email);
+                    $this->flash('success', 'Profile saved. ' . ($error ?? 'We sent a code to ' . $email . ' to confirm it: type it below.'));
+                    return $this->redirect('/account#profile');
+                }
             }
-            $this->auth->refresh();
             $this->flash('success', 'Profile saved.');
         }
         return $this->redirect('/account');
+    }
+
+    /** Send a code to confirm the account's email address. */
+    public function sendCode(): Response
+    {
+        $user = (array) $this->auth->user();
+        if ($user['email'] === null || $user['email_verified_at'] !== null) {
+            return $this->redirect('/account#profile');
+        }
+        $error = $this->s->codes()->send($user, 'verify', (string) $user['email']);
+        $this->flash($error === null ? 'success' : 'warning', $error ?? 'We sent a code to ' . $user['email'] . '.');
+        return $this->redirect('/account#profile');
+    }
+
+    public function verifyEmail(): Response
+    {
+        $user = (array) $this->auth->user();
+        $result = $this->s->codes()->check((int) $user['id'], 'verify', (string) $this->request->input('code', ''));
+        if ($result === 'ok') {
+            $this->s->users()->markEmailVerified((int) $user['id']);
+            $this->app->logger()->info('security', 'Email address verified', ['username' => $user['username']]);
+            $this->flash('success', 'Your email address is verified.');
+        } else {
+            $this->flash('danger', AccountCodes::message($result));
+        }
+        return $this->redirect('/account#profile');
+    }
+
+    public function notifications(): Response
+    {
+        $user = (array) $this->auth->user();
+        $this->s->users()->setPreferences((int) $user['id'], ['email_notifications' => $this->request->input('email_notifications') === '1' ? '1' : '0']);
+        $this->flash('success', 'Notification settings saved.');
+        return $this->redirect('/account#notifications');
     }
 
     public function password(): Response
