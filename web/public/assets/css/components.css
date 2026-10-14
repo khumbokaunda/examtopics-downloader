@@ -477,3 +477,7 @@ body.dialog-open { overflow: hidden; }
 .request-answer > summary::-webkit-details-marker { display: none; }
 .request-answer[open] { flex-basis: 100%; }
 .request-answer-body { margin-top: var(--space-2); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-alt); }
+/* Backups: the actions sit in one row under each backup's details. */
+.backup-actions { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-2); padding-left: 44px; margin-top: var(--space-2); }
+.backup-actions .request-answer[open] { flex-basis: 100%; order: 3; }
+@media (max-width: 575.98px) { .backup-actions { padding-left: 0; } }

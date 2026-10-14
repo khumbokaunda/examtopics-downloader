@@ -1,6 +1,7 @@
 <?php
-/** @var list<array{name:string,size:int,modified:int,manifest:array|null}> $backups @var array{name:string,size:int}|null $running
+/** @var list<array{name:string,size:int,modified:int,manifest:array|null}> $backups @var array<string,mixed>|null $status
  *  @var array<string,int> $sizes @var int $uploadLimit @var bool $zip @var string $dir @var array|null $last */
+$running = ($status['status'] ?? '') === 'running';
 $areaLabels = ['cache' => 'Exam data', 'inventory' => 'Question links', 'branding' => 'Logo', 'media' => 'Saved images', 'documents' => 'Built documents'];
 ?>
 <nav aria-label="breadcrumb"><ol class="breadcrumb">
@@ -17,6 +18,41 @@ $areaLabels = ['cache' => 'Exam data', 'inventory' => 'Question links', 'brandin
 <?php if (!$zip): ?>
     <div class="alert alert-danger"><?= icon('exclamation-octagon') ?><div class="alert-body">The PHP zip extension is missing, so backups cannot be made or read. On the server: <code>apt install php-zip</code>, then restart PHP.</div></div>
 <?php endif; ?>
+<?php if ($status !== null && ($running || in_array($status['status'], ['failed', 'cancelled'], true))): ?>
+<div class="card mb-4" id="backup-progress">
+    <div class="card-header">
+        <span class="card-title"><?= icon('archive') ?><?= $running ? 'Making a backup' : 'The last backup did not finish' ?></span>
+        <?php if ($running): ?>
+            <form method="post" action="<?= e(url('/backups/cancel')) ?>" data-confirm="The unfinished backup file is deleted. Backups already made are kept." data-confirm-title="Cancel this backup?" data-confirm-button="Cancel backup" data-confirm-tone="danger"><?= csrf_field() ?>
+                <button class="btn btn-sm btn-outline-danger" type="submit"><?= icon('x-circle') ?>Cancel</button>
+            </form>
+        <?php endif; ?>
+    </div>
+    <div class="card-body">
+        <div class="job-progress" data-job-progress data-status-url="<?= e(url('/api/backups/status')) ?>"
+             data-final="<?= $running ? '0' : '1' ?>" data-reload-on-finish="1">
+            <div class="job-progress-head">
+                <div>
+                    <span data-field="status"><?= status_badge((string) $status['status']) ?></span>
+                    <span class="job-phase" data-field="phase"><?= e((string) $status['phase']) ?></span>
+                </div>
+                <div class="job-numbers">
+                    <span data-field="counts"><?= $status['done'] !== null ? e($status['done'] . ($status['total'] !== null ? ' / ' . $status['total'] : '')) : '' ?></span>
+                    <span data-field="elapsed" data-elapsed="<?= e((string) ($status['elapsed_seconds'] ?? '')) ?>"></span>
+                </div>
+            </div>
+            <div class="progress" role="progressbar" aria-label="Backup progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= e((string) ($status['percent'] ?? 0)) ?>">
+                <div class="progress-bar" data-field="bar" data-percent="<?= e($status['percent'] === null ? '' : (string) $status['percent']) ?>"></div>
+            </div>
+            <div class="job-message" data-field="message"><?= e($status['message']) ?></div>
+        </div>
+        <?php if ($running): ?><p class="small text-muted mb-0 mt-2">You can leave this page: the backup carries on, and it is listed below when it is ready.</p><?php endif; ?>
+    </div>
+</div>
+<?php endif; ?>
+<?php if (($status['status'] ?? '') === 'completed' && (int) ($status['finished_at'] ?? 0) > time() - 600): ?>
+    <div class="alert alert-success"><?= icon('check-circle') ?><div class="alert-body"><?= e($status['message']) ?> It is at the top of the list below.</div></div>
+<?php endif; ?>
 <?php if ($last !== null): ?>
     <div class="alert alert-<?= $last['warnings'] === [] ? 'success' : 'warning' ?>"><?= icon('clock-history') ?><div class="alert-body">
         <strong>Last restore:</strong> <?= e($last['file']) ?>, <?= e(fmt_time($last['at'])) ?> by <?= e($last['by']) ?>, <?= (int) $last['files'] ?> files written.
@@ -29,11 +65,8 @@ $areaLabels = ['cache' => 'Exam data', 'inventory' => 'Question links', 'brandin
     <div class="col-xl-8">
         <div class="card">
             <div class="card-header"><span class="card-title"><?= icon('archive') ?>Backups on this server</span><span class="small text-muted"><code><?= e($dir) ?></code></span></div>
-            <?php if ($running !== null): ?>
-                <div class="card-body border-bottom"><?= chip('being made', 'info', 'arrow-repeat') ?> <?= e($running['name']) ?>, <?= e(fmt_bytes($running['size'])) ?> so far. <a href="<?= e(url('/backups')) ?>">Refresh</a></div>
-            <?php endif; ?>
             <?php if ($backups === []): ?>
-                <div class="card-body"><?= empty_state('archive', 'No backups yet', 'Make one with the form on this page.', null, true) ?></div>
+                <div class="card-body"><?= empty_state('archive', $running ? 'The first backup is being made' : 'No backups yet', $running ? 'It appears here when it is ready.' : 'Make one with the form on this page.', null, true) ?></div>
             <?php else: ?>
             <ul class="list-rows">
                 <?php foreach ($backups as $b): $m = $b['manifest']; $files = (array) ($m['files'] ?? []); ?>
@@ -50,7 +83,7 @@ $areaLabels = ['cache' => 'Exam data', 'inventory' => 'Question links', 'brandin
                                 <?php if (str_contains($b['name'], 'before-restore')): ?><div class="row-meta">Made automatically before a restore.</div><?php endif; ?>
                             </div>
                         </div>
-                        <div class="row-side flex-wrap gap-2">
+                        <div class="backup-actions">
                             <a class="btn btn-sm btn-outline-secondary" href="<?= e(url('/backups/' . rawurlencode($b['name']) . '/download')) ?>"><?= icon('download') ?>Download</a>
                             <?php if ($m !== null): ?>
                             <details class="request-answer">
@@ -64,7 +97,7 @@ $areaLabels = ['cache' => 'Exam data', 'inventory' => 'Question links', 'brandin
                             </details>
                             <?php endif; ?>
                             <form method="post" action="<?= e(url('/backups/' . rawurlencode($b['name']) . '/delete')) ?>" data-confirm="The file is deleted from the server." data-confirm-title="Delete this backup?" data-confirm-button="Delete" data-confirm-tone="danger"><?= csrf_field() ?>
-                                <button class="icon-btn btn-link-danger" type="submit" aria-label="Delete backup" title="Delete"><?= icon('trash3') ?></button>
+                                <button class="btn btn-sm btn-outline-danger" type="submit"><?= icon('trash3') ?>Delete</button>
                             </form>
                         </div>
                     </li>
@@ -87,7 +120,7 @@ $areaLabels = ['cache' => 'Exam data', 'inventory' => 'Question links', 'brandin
                         </div>
                     <?php endforeach; ?>
                     <p class="form-text">Without images they can be downloaded again later; without documents they can be built again.</p>
-                    <button class="btn btn-primary" type="submit" <?= $zip && $running === null ? '' : 'disabled' ?>><?= icon('archive') ?>Make a backup</button>
+                    <button class="btn btn-primary" type="submit" <?= $zip && !$running ? '' : 'disabled' ?>><?= icon('archive') ?>Make a backup</button>
                 </form>
             </div>
         </div>

@@ -65,15 +65,37 @@ final class Backup
     /**
      * Make a backup.
      *
+     * With $track, progress is written to status.json as it goes, for the Backups page.
+     *
      * @param array{media?:bool,documents?:bool} $options
      * @return array{name:string,path:string,size:int,manifest:array<string,mixed>}
      */
-    public function create(array $options, string $by, string $suffix = ''): array
+    public function create(array $options, string $by, string $suffix = '', bool $track = false): array
+    {
+        $status = $track ? fn(array $s) => $this->writeStatus($s) : static fn(array $s) => null;
+        Paths::ensureDir($this->dir());
+        $started = time();
+        try {
+            $result = $this->build($options, $by, $suffix, $status, $started);
+        } catch (\Throwable $e) {
+            $status(['status' => 'failed', 'phase' => 'failed', 'message' => 'The backup failed: ' . $e->getMessage(), 'started_at' => $started, 'finished_at' => time()]);
+            throw $e;
+        }
+        $status(['status' => 'completed', 'phase' => 'done', 'percent' => 100, 'name' => $result['name'],
+            'message' => 'Backup ready: ' . $result['name'] . ' (' . self::bytes($result['size']) . ').', 'started_at' => $started, 'finished_at' => time()]);
+        return $result;
+    }
+
+    /**
+     * @param array{media?:bool,documents?:bool} $options
+     * @param callable(array<string,mixed>):void $status
+     * @return array{name:string,path:string,size:int,manifest:array<string,mixed>}
+     */
+    private function build(array $options, string $by, string $suffix, callable $status, int $started): array
     {
         if (!class_exists(ZipArchive::class)) {
             throw new RuntimeException('The PHP zip extension is missing. Install it (on Debian: apt install php-zip) and restart PHP.');
         }
-        Paths::ensureDir($this->dir());
         $areas = [];
         foreach (self::AREAS as $area => $default) {
             $areas[$area] = isset(self::OPTIONAL[$area]) ? (bool) ($options[$area] ?? $default) : true;
@@ -85,13 +107,18 @@ final class Backup
         if ($zip->open($part, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
             throw new RuntimeException('Cannot write ' . $part . '. Check that the web server can write to storage/backups.');
         }
+        // Progress: the database is the first 5%, listing files the next 5%, and writing the
+        // archive (compressing and copying every file) the rest.
+        $report = static function (string $phase, int $percent, string $message, ?int $done = null, ?int $total = null) use ($status, $name, $started): void {
+            $status(['status' => 'running', 'phase' => $phase, 'percent' => $percent, 'message' => $message,
+                'done' => $done, 'total' => $total, 'name' => $name, 'started_at' => $started, 'pid' => getmypid()]);
+        };
         try {
             $db = $this->app->db();
             $tables = [];
-            foreach ($this->tables() as $table) {
-                if (in_array($table, self::SKIP, true)) {
-                    continue;
-                }
+            $all = array_values(array_diff($this->tables(), self::SKIP));
+            foreach ($all as $i => $table) {
+                $report('reading the database', (int) floor(5 * $i / max(1, count($all))), 'Reading table ' . $table, $i, count($all));
                 // Rows that describe files left out of this backup are left out too, so the
                 // restored system does not point at files it does not have.
                 $skipRows = in_array($table, array_values(self::OPTIONAL), true) && !$areas[array_search($table, self::OPTIONAL, true)];
@@ -101,7 +128,23 @@ final class Backup
             }
             $files = [];
             foreach ($areas as $area => $included) {
+                $report('listing files', 5, 'Listing ' . $area . ' files');
                 $files[$area] = $included ? $this->addArea($zip, $area) : null;
+            }
+            $count = array_sum(array_map(static fn($f) => is_array($f) ? $f['count'] : 0, $files));
+            $bytes = array_sum(array_map(static fn($f) => is_array($f) ? $f['bytes'] : 0, $files));
+            $what = number_format($count) . ' files (' . self::bytes($bytes) . ')';
+            $report('writing the archive', 10, 'Packing ' . $what);
+            $last = -1;
+            if (method_exists($zip, 'registerProgressCallback')) {
+                // Called by the zip library while it writes; the page is updated at most once a percent.
+                $zip->registerProgressCallback(0.01, static function (float $rate) use ($report, $what, &$last): void {
+                    $percent = 10 + (int) floor(89 * $rate);
+                    if ($percent !== $last) {
+                        $last = $percent;
+                        $report('writing the archive', $percent, 'Packing ' . $what . ': ' . (int) floor($rate * 100) . '% written');
+                    }
+                });
             }
             $manifest = [
                 'format_version' => self::FORMAT,
@@ -245,15 +288,86 @@ final class Backup
         return $out;
     }
 
-    /** A backup still being written (its .part file), or null. @return array{name:string,size:int}|null */
-    public function inProgress(): ?array
+    /**
+     * The progress of the backup being made, or the outcome of the last one, shaped like a
+     * job's status so the page can show it with the same progress bar. A "running" status
+     * whose process is gone (a restart, a full disk) is reported as failed.
+     *
+     * @return array<string,mixed>|null
+     */
+    public function status(): ?array
     {
-        foreach (glob($this->dir() . '/examtopics-backup-*.zip.part') ?: [] as $path) {
-            if (filemtime($path) > time() - 600) {
-                return ['name' => basename($path, '.part'), 'size' => (int) filesize($path)];
+        $s = json_decode((string) @file_get_contents($this->dir() . '/status.json'), true);
+        if (!is_array($s) || !isset($s['status'])) {
+            return null;
+        }
+        $updated = (int) ($s['updated_at'] ?? 0);
+        $pid = (int) ($s['pid'] ?? 0);
+        // posix_kill(pid, 0) only asks whether the process exists; EPERM (1) means it does, but
+        // belongs to another user (a backup started as root from the command line).
+        $alive = $pid > 0 && function_exists('posix_kill')
+            ? (@posix_kill($pid, 0) || posix_get_last_error() === 1)
+            : $updated > time() - 120;
+        if ($s['status'] === 'running' && (($pid > 0 && !$alive) || ($pid === 0 && $updated < time() - 60))) {
+            $s = ['status' => 'failed', 'phase' => 'failed', 'finished_at' => $updated,
+                'message' => 'The backup stopped before it finished (the server may have restarted, or the disk is full). See storage/logs/backup.log, then try again.'] + $s;
+        }
+        $final = $s['status'] !== 'running';
+        return [
+            'status' => (string) $s['status'],
+            'final' => $final,
+            'phase' => (string) ($s['phase'] ?? ''),
+            'percent' => isset($s['percent']) ? (int) $s['percent'] : null,
+            'done' => isset($s['done']) ? (int) $s['done'] : null,
+            'total' => isset($s['total']) ? (int) $s['total'] : null,
+            'message' => (string) ($s['message'] ?? ''),
+            'name' => isset($s['name']) ? (string) $s['name'] : null,
+            'elapsed_seconds' => isset($s['started_at']) ? (int) ($final ? ($s['finished_at'] ?? $updated) : time()) - (int) $s['started_at'] : null,
+            'finished_at' => isset($s['finished_at']) ? (int) $s['finished_at'] : null,
+        ];
+    }
+
+    /**
+     * Stop the backup being made and delete its unfinished file. The zip library writes to
+     * temporary files next to the final name, so every leftover of that name goes.
+     */
+    public function cancel(): bool
+    {
+        $s = json_decode((string) @file_get_contents($this->dir() . '/status.json'), true);
+        if (!is_array($s) || ($s['status'] ?? '') !== 'running') {
+            return false;
+        }
+        $pid = (int) ($s['pid'] ?? 0);
+        if ($pid > 0 && function_exists('posix_kill')) {
+            @posix_kill($pid, 15); // SIGTERM
+        }
+        $name = (string) ($s['name'] ?? '');
+        foreach (glob($this->dir() . '/examtopics-backup-*.zip.part*') ?: [] as $left) {
+            if ($name === '' || str_starts_with(basename($left), $name)) {
+                @unlink($left);
             }
         }
-        return null;
+        $this->writeStatus(['status' => 'cancelled', 'phase' => 'cancelled', 'message' => 'The backup was cancelled and its unfinished file deleted.',
+            'started_at' => $s['started_at'] ?? time(), 'finished_at' => time()]);
+        return true;
+    }
+
+    /** Record that the page started a backup, before the background process has begun. */
+    public function markStarting(): void
+    {
+        $this->writeStatus(['status' => 'running', 'phase' => 'starting', 'percent' => 0, 'message' => 'Starting…', 'started_at' => time()]);
+    }
+
+    /** @param array<string,mixed> $status */
+    public function writeStatus(array $status): void
+    {
+        Paths::ensureDir($this->dir());
+        Paths::atomicWrite($this->dir() . '/status.json', (string) json_encode($status + ['updated_at' => time()], JSON_UNESCAPED_SLASHES));
+    }
+
+    private static function bytes(int $n): string
+    {
+        return function_exists('fmt_bytes') ? fmt_bytes($n) : $n . ' bytes';
     }
 
     /**

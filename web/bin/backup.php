@@ -45,7 +45,7 @@ try {
                     $by = $m[1];
                 }
             }
-            $b = $backup->create(['media' => !$has('--no-media'), 'documents' => !$has('--no-documents')], $by, $suffix);
+            $b = $backup->create(['media' => !$has('--no-media'), 'documents' => !$has('--no-documents')], $by, $suffix, true);
             echo 'Created ' . $b['path'] . ' (' . fmt_bytes($b['size']) . ")\n";
             foreach ($flags as $f) {
                 if (preg_match('/^--keep=(\d+)$/', $f, $m) === 1) {
