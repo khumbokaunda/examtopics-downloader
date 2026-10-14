@@ -16,6 +16,9 @@ $tone = ['sent' => 'success', 'queued' => 'neutral', 'sending' => 'info', 'faile
     <div class="page-actions"><?= $configured ? chip('set up', 'success', 'check2-circle') : chip('not set up', 'warning', 'exclamation-triangle') ?></div>
 </header>
 
+<?php if (!$configured): ?>
+    <div class="alert alert-info"><?= icon('info-circle') ?><div class="alert-body">Until email is set up, the sign-in page does not offer <strong>Create an account</strong> or <strong>Forgot it?</strong>, because both send a code by email. Fill in the mail server below and save; the links then appear.</div></div>
+<?php endif; ?>
 <?php if (!$library): ?>
     <div class="alert alert-danger"><?= icon('exclamation-octagon') ?><div class="alert-body">The mail library is not installed, so nothing can be sent. On the server, run <code>composer install --no-dev</code> in the <code>web</code> folder.</div></div>
 <?php endif; ?>

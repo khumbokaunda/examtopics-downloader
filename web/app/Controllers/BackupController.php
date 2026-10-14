@@ -23,7 +23,7 @@ final class BackupController extends Controller
             'title' => 'Backups',
             'nav' => 'backups',
             'backups' => $backup->list(),
-            'running' => $backup->inProgress(),
+            'status' => $backup->status(),
             'sizes' => $this->areaSizes(),
             'uploadLimit' => self::uploadLimit(),
             'zip' => class_exists(\ZipArchive::class),
@@ -41,21 +41,43 @@ final class BackupController extends Controller
         if ($this->request->input('documents') !== '1') {
             $args[] = '--no-documents';
         }
+        $backup = $this->s->backup();
+        if (($backup->status()['status'] ?? '') === 'running') {
+            $this->flash('warning', 'A backup is already being made. Its progress is shown below.');
+            return $this->redirect('/backups');
+        }
         if ((bool) $this->app->config()->get('backup.background', true)) {
-            $ok = $this->s->supervisor()->launchScript('backup.php', $args, 'backup.log');
-            $this->flash($ok ? 'success' : 'danger', $ok
-                ? 'The backup is being made in the background. Refresh this page in a minute to see it.'
-                : 'The backup could not be started. See storage/logs/app.log, or run php bin/backup.php create on the server.');
+            // The page shows the progress from here on, until the background process finishes.
+            $backup->markStarting();
+            if (!$this->s->supervisor()->launchScript('backup.php', $args, 'backup.log')) {
+                $backup->writeStatus(['status' => 'failed', 'phase' => 'failed', 'started_at' => time(), 'finished_at' => time(),
+                    'message' => 'The backup could not be started. See storage/logs/app.log, or run php bin/backup.php create on the server.']);
+            }
             return $this->redirect('/backups');
         }
         try {
-            $b = $this->s->backup()->create(['media' => !in_array('--no-media', $args, true), 'documents' => !in_array('--no-documents', $args, true)],
-                (string) $this->auth->user()['username']);
+            $b = $backup->create(['media' => !in_array('--no-media', $args, true), 'documents' => !in_array('--no-documents', $args, true)],
+                (string) $this->auth->user()['username'], '', true);
             $this->flash('success', 'Backup ' . $b['name'] . ' made (' . fmt_bytes($b['size']) . ').');
         } catch (\Throwable $e) {
             $this->flash('danger', 'The backup failed: ' . $e->getMessage());
         }
         return $this->redirect('/backups');
+    }
+
+    public function cancel(): Response
+    {
+        if ($this->s->backup()->cancel()) {
+            $this->app->logger()->info('security', 'Backup cancelled', ['username' => $this->auth->user()['username'] ?? null]);
+            $this->flash('success', 'The backup was cancelled and its unfinished file deleted.');
+        }
+        return $this->redirect('/backups');
+    }
+
+    /** The progress of the backup being made, polled by the Backups page. */
+    public function statusJson(): Response
+    {
+        return Response::json($this->s->backup()->status() ?? ['status' => 'none', 'final' => true]);
     }
 
     public function download(string $name): Response

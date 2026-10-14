@@ -89,6 +89,38 @@ final class BackupTest extends HttpTestCase
         self::assertNull($lean['manifest']['files']['media']);
     }
 
+    public function testProgressCancelAndDelete(): void
+    {
+        $b = $this->makeBackup();
+        $status = json_decode($this->get('/api/backups/status')->body, true);
+        self::assertSame(['completed', true, 100, $b['name']], [$status['status'], $status['final'], $status['percent'], $status['name']]);
+        self::assertStringContainsString('Backup ready', $this->get('/backups')->body);
+
+        // A backup whose process died is reported as failed, not as running for ever.
+        $backup = $this->s->backup();
+        $backup->writeStatus(['status' => 'running', 'phase' => 'writing the archive', 'percent' => 40, 'message' => 'Packing', 'pid' => 999999, 'started_at' => time() - 30]);
+        self::assertSame('failed', $backup->status()['status']);
+        self::assertStringContainsString('stopped before it finished', $this->get('/backups')->body);
+
+        // Cancelling one in progress deletes its unfinished file; the page shows its progress until then.
+        $backup->writeStatus(['status' => 'running', 'phase' => 'writing the archive', 'percent' => 40, 'message' => 'Packing 10 files: 33% written',
+            'pid' => getmypid(), 'name' => 'examtopics-backup-20261014-120000.zip', 'started_at' => time()]);
+        $page = $this->get('/backups')->body;
+        self::assertStringContainsString('Making a backup', $page);
+        self::assertStringContainsString('data-percent="40"', $page);
+        self::assertStringContainsString('disabled><i class="bi bi-archive"', $page, 'no second backup while one is being made');
+        touch($backup->dir() . '/examtopics-backup-20261014-120000.zip.part.Ab12Cd');
+        $this->post('/backups/cancel');
+        self::assertSame('cancelled', $backup->status()['status']);
+        self::assertSame([], glob($backup->dir() . '/*.part*'));
+
+        // Delete.
+        self::assertStringContainsString('>Delete</button>', $this->get('/backups')->body);
+        $this->post('/backups/' . $b['name'] . '/delete');
+        self::assertNull($backup->path($b['name']));
+        self::assertSame(404, $this->post('/backups/' . $b['name'] . '/delete')->status);
+    }
+
     public function testHostileOrUnusableArchivesAreRefused(): void
     {
         $backup = $this->s->backup();
