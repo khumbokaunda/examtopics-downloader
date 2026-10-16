@@ -527,6 +527,17 @@ final class QuestionView
      * How many answers the wording asks for: a number ("Choose two"), 0 for "more than one"
      * ("Which of the following ... are"), or null when it does not say.
      */
+    /**
+     * How many choices to let a person pick in practice mode, from the question's wording:
+     * "choose two" allows two, "(multiple answers)" any number (0), otherwise one.
+     *
+     * @param array<string,mixed> $q
+     */
+    public static function picks(array $q): int
+    {
+        return self::expectedAnswers((string) ($q['text'] ?? '')) ?? 1;
+    }
+
     private static function expectedAnswers(string $text): ?int
     {
         if (preg_match('/\b(?:choose|select|pick|identify|which|what)\s+(two|three|four|five|2|3|4|5)(?![\w-])/i', $text, $m) === 1) {

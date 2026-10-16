@@ -552,117 +552,295 @@
     });
   }
 
-  document.querySelectorAll('[data-reveal-url]').forEach(function (btn) {
-    var label = btn.querySelector('.label') || btn;
-    btn.addEventListener('click', function () {
-      var card = btn.closest('.question-card');
-      var target = card.querySelector('.reveal-target');
-      // Mark the answer's choices, as study mode does, or clear them again.
-      var mark = function (letters) {
-        card.querySelectorAll('.choice[data-letter]').forEach(function (li) {
-          li.classList.toggle('is-answer', letters.indexOf(li.getAttribute('data-letter')) !== -1);
-        });
-      };
-      if (!target.hidden && target.childElementCount) {
-        mark([]);
-        target.hidden = true;
-        label.textContent = 'Reveal answer';
-        btn.setAttribute('aria-expanded', 'false');
-        return;
-      }
-      btn.disabled = true;
-      getJSON(btn.getAttribute('data-reveal-url')).then(function (d) {
-        target.replaceChildren();
-        mark(d.letters || []);
-        var box = el('div', 'answer-box');
-        box.appendChild(icon('check-circle-fill'));
-        var body = el('div');
-        var line = el('div', 'answer-text');
-        line.appendChild(el('strong', null, 'Answer: '));
-        line.appendChild(document.createTextNode(d.answer || d.answer_note || 'not available'));
-        body.appendChild(line);
-        if (d.votes) body.appendChild(el('div', 'answer-votes', 'Community votes: ' + d.votes));
-        if (d.note) {
-          var note = el('div', 'answer-note');
-          note.appendChild(el('span', 'answer-note-label', 'Your note'));
-          multiline(note, d.note);
-          body.appendChild(note);
-        }
-        box.appendChild(body);
-        target.appendChild(box);
-        (d.answer_images || []).forEach(function (u, i) {
-          var img = el('img', 'q-image');
-          img.src = u; img.alt = 'Answer image ' + (i + 1); img.referrerPolicy = 'no-referrer'; img.loading = 'lazy';
-          target.appendChild(img);
-        });
-        if (d.explanation) {
-          var ex = el('div', 'explanation');
-          ex.appendChild(el('div', 'section-heading', 'Explanation'));
-          multiline(ex, d.explanation);
-          target.appendChild(ex);
-        }
-        if ((d.comments || []).length) {
-          var det = el('details', 'discussion');
-          var sum = el('summary');
-          sum.appendChild(icon('chevron-right'));
-          sum.appendChild(icon('chat-left-text'));
-          sum.appendChild(document.createTextNode('Discussion (' + d.comments.length + ')'));
-          det.appendChild(sum);
-          var list = el('div', 'discussion-body');
-          var top = Math.max.apply(null, d.comments.map(function (c) { return c.upvotes || 0; }));
-          d.comments.forEach(function (c) {
-            var cm = el('div', 'comment' + (c.reply ? ' is-reply' : '') + (top > 0 && c.upvotes === top ? ' is-top' : ''));
-            if (c.author) {
-              var av = el('span', 'comment-avatar', initials(c.author));
-              av.setAttribute('aria-hidden', 'true');
-              cm.appendChild(av);
-            }
-            var main = el('div', 'comment-main');
-            if (c.author || c.timestamp) {
-              var head = el('div', 'comment-head');
-              if (c.author) head.appendChild(el('span', 'comment-author', c.author));
-              if (c.badge === 'Highly Voted') {
-                var hv = el('span', 'chip chip--warning');
-                hv.appendChild(icon('star-fill'));
-                hv.appendChild(document.createTextNode('highly voted'));
-                head.appendChild(hv);
-              }
-              if (c.timestamp) head.appendChild(el('span', 'comment-time', c.timestamp));
-              main.appendChild(head);
-            }
-            var text = el('div', 'comment-body');
-            multiline(text, c.content);
-            main.appendChild(text);
-            if (c.selected || c.upvotes !== null) {
-              var foot = el('div', 'comment-foot');
-              if (c.selected) {
-                var sel = el('span', 'chip chip--primary');
-                sel.appendChild(icon('check2'));
-                sel.appendChild(document.createTextNode('selected ' + c.selected));
-                foot.appendChild(sel);
-              }
-              if (c.upvotes !== null) {
-                var up = el('span', 'comment-votes');
-                up.title = 'Upvotes';
-                up.appendChild(icon('hand-thumbs-up'));
-                up.appendChild(document.createTextNode(String(c.upvotes)));
-                foot.appendChild(up);
-              }
-              main.appendChild(foot);
-            }
-            cm.appendChild(main);
-            list.appendChild(cm);
-          });
-          det.appendChild(list);
-          target.appendChild(det);
-        }
-        target.hidden = false;
-        label.textContent = 'Hide answer';
-        btn.setAttribute('aria-expanded', 'true');
-      }).catch(function () {
-        target.replaceChildren(el('div', 'text-danger small', 'Could not load the answer. Reload the page and try again.'));
-        target.hidden = false;
-      }).finally(function () { btn.disabled = false; });
+  // The answer, explanation and discussion of one question, built from the reveal data.
+  function renderAnswer(target, d) {
+    target.replaceChildren();
+    var box = el('div', 'answer-box');
+    box.appendChild(icon('check-circle-fill'));
+    var body = el('div');
+    var line = el('div', 'answer-text');
+    line.appendChild(el('strong', null, 'Answer: '));
+    line.appendChild(document.createTextNode(d.answer || d.answer_note || 'not available'));
+    body.appendChild(line);
+    if (d.votes) body.appendChild(el('div', 'answer-votes', 'Community votes: ' + d.votes));
+    if (d.note) {
+      var note = el('div', 'answer-note');
+      note.appendChild(el('span', 'answer-note-label', 'Note'));
+      multiline(note, d.note);
+      body.appendChild(note);
+    }
+    box.appendChild(body);
+    target.appendChild(box);
+    (d.answer_images || []).forEach(function (u, i) {
+      var img = el('img', 'q-image');
+      img.src = u; img.alt = 'Answer image ' + (i + 1); img.referrerPolicy = 'no-referrer'; img.loading = 'lazy';
+      target.appendChild(img);
     });
-  });
+    if (d.explanation) {
+      var ex = el('div', 'explanation');
+      ex.appendChild(el('div', 'section-heading', 'Explanation'));
+      multiline(ex, d.explanation);
+      target.appendChild(ex);
+    }
+    if ((d.comments || []).length) {
+      var det = el('details', 'discussion');
+      var sum = el('summary');
+      sum.appendChild(icon('chevron-right'));
+      sum.appendChild(icon('chat-left-text'));
+      sum.appendChild(document.createTextNode('Discussion (' + d.comments.length + ')'));
+      det.appendChild(sum);
+      var list = el('div', 'discussion-body');
+      var top = Math.max.apply(null, d.comments.map(function (c) { return c.upvotes || 0; }));
+      d.comments.forEach(function (c) {
+        var cm = el('div', 'comment' + (c.reply ? ' is-reply' : '') + (top > 0 && c.upvotes === top ? ' is-top' : ''));
+        if (c.author) {
+          var av = el('span', 'comment-avatar', initials(c.author));
+          av.setAttribute('aria-hidden', 'true');
+          cm.appendChild(av);
+        }
+        var main = el('div', 'comment-main');
+        if (c.author || c.timestamp) {
+          var head = el('div', 'comment-head');
+          if (c.author) head.appendChild(el('span', 'comment-author', c.author));
+          if (c.badge === 'Highly Voted') {
+            var hv = el('span', 'chip chip--warning');
+            hv.appendChild(icon('star-fill'));
+            hv.appendChild(document.createTextNode('highly voted'));
+            head.appendChild(hv);
+          }
+          if (c.timestamp) head.appendChild(el('span', 'comment-time', c.timestamp));
+          main.appendChild(head);
+        }
+        var text = el('div', 'comment-body');
+        multiline(text, c.content);
+        main.appendChild(text);
+        if (c.selected || c.upvotes !== null) {
+          var foot = el('div', 'comment-foot');
+          if (c.selected) {
+            var sel = el('span', 'chip chip--primary');
+            sel.appendChild(icon('check2'));
+            sel.appendChild(document.createTextNode('selected ' + c.selected));
+            foot.appendChild(sel);
+          }
+          if (c.upvotes !== null) {
+            var up = el('span', 'comment-votes');
+            up.title = 'Upvotes';
+            up.appendChild(icon('hand-thumbs-up'));
+            up.appendChild(document.createTextNode(String(c.upvotes)));
+            foot.appendChild(up);
+          }
+          main.appendChild(foot);
+        }
+        cm.appendChild(main);
+        list.appendChild(cm);
+      });
+      det.appendChild(list);
+      target.appendChild(det);
+    }
+  }
+
+  // --- Practice mode: pick choices, reveal and check, clear ----------------------------------
+  // The page holds no answers. They are fetched for the whole page in one request as soon as
+  // it opens, so a reveal is instant. Picks and checked results are remembered in this browser
+  // (per exam version), so they survive moving between pages.
+  var practice = document.querySelector('[data-practice]');
+  if (practice) {
+    var storeKey = 'examtopics.practice.' + practice.getAttribute('data-practice');
+    var store = {};
+    try { store = JSON.parse(localStorage.getItem(storeKey) || '{}') || {}; } catch (e) { store = {}; }
+    var save = function () {
+      try {
+        if (Object.keys(store).length) localStorage.setItem(storeKey, JSON.stringify(store));
+        else localStorage.removeItem(storeKey);
+      } catch (e) { /* storage unavailable: picks last for this page only */ }
+      summary();
+    };
+    var cards = Array.prototype.slice.call(document.querySelectorAll('.question-card[data-q]'));
+    var answers = {};
+    var batchUrl = practice.getAttribute('data-answers-url');
+    var batch = getJSON(batchUrl + (batchUrl.indexOf('?') === -1 ? '?' : '&') + 'numbers=' + cards.map(function (c) { return c.getAttribute('data-q'); }).join(','))
+      .then(function (d) { answers = (d && d.answers) || {}; return answers; })
+      .catch(function () { return null; });
+    var answerFor = function (card) {
+      var n = card.getAttribute('data-q');
+      if (answers[n]) return Promise.resolve(answers[n]);
+      return batch.then(function (a) {
+        return a && a[n] ? a[n] : getJSON(card.querySelector('[data-reveal-url]').getAttribute('data-reveal-url'));
+      });
+    };
+
+    var summary = function () {
+      var bar = practice.querySelector('[data-field="score"]');
+      var clearAll = practice.querySelector('[data-action="practice-clear-all"]');
+      var keys = Object.keys(store);
+      var checked = keys.filter(function (k) { return store[k].r && store[k].ok !== null && store[k].ok !== undefined; });
+      var right = checked.filter(function (k) { return store[k].ok; }).length;
+      if (bar) {
+        bar.textContent = checked.length
+          ? right + ' of ' + checked.length + ' checked answer' + (checked.length === 1 ? '' : 's') + ' correct'
+          : 'Pick an answer, then reveal it to check yourself.';
+      }
+      if (clearAll) clearAll.hidden = keys.length === 0;
+    };
+
+    var choicesOf = function (card) { return Array.prototype.slice.call(card.querySelectorAll('.choices[data-pickable] .choice[data-letter]')); };
+    var picksOf = function (card) {
+      return choicesOf(card).filter(function (li) { return li.classList.contains('is-picked'); }).map(function (li) { return li.getAttribute('data-letter'); });
+    };
+    var setPicks = function (card, letters) {
+      choicesOf(card).forEach(function (li) {
+        var on = letters.indexOf(li.getAttribute('data-letter')) !== -1;
+        li.classList.toggle('is-picked', on);
+        li.setAttribute('aria-checked', String(on));
+      });
+    };
+    var ungrade = function (card) {
+      choicesOf(card).forEach(function (li) {
+        li.classList.remove('is-answer', 'is-wrong');
+        var tag = li.querySelector('.choice-tag');
+        if (tag) tag.remove();
+      });
+      var verdict = card.querySelector('.practice-verdict');
+      if (verdict) verdict.remove();
+    };
+    // Mark the right choices green and wrong picks red, and say how it went.
+    var grade = function (card, d) {
+      ungrade(card);
+      var right = d.letters || [];
+      var picked = picksOf(card);
+      choicesOf(card).forEach(function (li) {
+        var l = li.getAttribute('data-letter');
+        var isRight = right.indexOf(l) !== -1;
+        li.classList.toggle('is-answer', isRight);
+        li.classList.toggle('is-wrong', picked.indexOf(l) !== -1 && right.length > 0 && !isRight);
+        if (picked.indexOf(l) !== -1) li.appendChild(el('span', 'choice-tag', 'your choice'));
+      });
+      var ok = null;
+      if (picked.length && right.length) {
+        ok = picked.length === right.length && picked.every(function (l) { return right.indexOf(l) !== -1; });
+        var v = el('div', 'practice-verdict ' + (ok ? 'is-right' : 'is-wrong'));
+        v.appendChild(icon(ok ? 'check-circle-fill' : 'x-circle-fill'));
+        v.appendChild(document.createTextNode(ok
+          ? 'Correct.'
+          : 'Not quite: you chose ' + picked.join(', ') + '; the answer is ' + right.join(', ') + '.'));
+        var target = card.querySelector('.reveal-target');
+        target.parentNode.insertBefore(v, target);
+      }
+      return ok;
+    };
+
+    var open = function (card, d, remember) {
+      var btn = card.querySelector('[data-reveal-url]');
+      var target = card.querySelector('.reveal-target');
+      renderAnswer(target.querySelector('.reveal-inner'), d);
+      var ok = grade(card, d);
+      // On the next frame, so the height change animates from closed.
+      requestAnimationFrame(function () { target.classList.add('is-open'); });
+      target.setAttribute('aria-hidden', 'false');
+      btn.querySelector('.label').textContent = 'Hide answer';
+      btn.setAttribute('aria-expanded', 'true');
+      card.classList.add('is-revealed');
+      if (remember) {
+        var n = card.getAttribute('data-q');
+        store[n] = { p: picksOf(card), r: 1, ok: ok };
+        save();
+      }
+      updateClear(card);
+    };
+    var close = function (card) {
+      var btn = card.querySelector('[data-reveal-url]');
+      var target = card.querySelector('.reveal-target');
+      target.classList.remove('is-open');
+      target.setAttribute('aria-hidden', 'true');
+      ungrade(card);
+      btn.querySelector('.label').textContent = 'Reveal answer';
+      btn.setAttribute('aria-expanded', 'false');
+      card.classList.remove('is-revealed');
+      var n = card.getAttribute('data-q');
+      if (store[n]) {
+        store[n].r = 0;
+        store[n].ok = null;
+        if (!store[n].p.length) delete store[n];
+        save();
+      }
+      updateClear(card);
+    };
+    var updateClear = function (card) {
+      var b = card.querySelector('[data-action="practice-clear"]');
+      if (b) b.hidden = !(picksOf(card).length || card.classList.contains('is-revealed'));
+    };
+    var reset = function (card) {
+      if (card.classList.contains('is-revealed')) close(card);
+      setPicks(card, []);
+      delete store[card.getAttribute('data-q')];
+      updateClear(card);
+    };
+
+    cards.forEach(function (card) {
+      var n = card.getAttribute('data-q');
+      var max = parseInt(card.getAttribute('data-picks'), 10);
+      var btn = card.querySelector('[data-reveal-url]');
+      choicesOf(card).forEach(function (li) {
+        li.setAttribute('tabindex', '0');
+        li.setAttribute('role', max === 1 ? 'radio' : 'checkbox');
+        li.setAttribute('aria-checked', 'false');
+        var toggle = function () {
+          if (card.classList.contains('is-revealed')) return; // clear the choice to try again
+          var l = li.getAttribute('data-letter');
+          var picked = picksOf(card);
+          var on = picked.indexOf(l) !== -1;
+          if (on) picked = picked.filter(function (x) { return x !== l; });
+          else if (max === 1) picked = [l];
+          else picked.push(l);
+          setPicks(card, picked);
+          if (picked.length) store[n] = { p: picked, r: 0, ok: null };
+          else delete store[n];
+          save();
+          updateClear(card);
+        };
+        li.addEventListener('click', function (e) { if (!e.target.closest('a')) toggle(); });
+        li.addEventListener('keydown', function (e) {
+          if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggle(); }
+        });
+      });
+      btn.addEventListener('click', function () {
+        if (card.classList.contains('is-revealed')) { close(card); return; }
+        btn.disabled = true;
+        answerFor(card).then(function (d) { open(card, d, true); })
+          .catch(function () {
+            var inner = card.querySelector('.reveal-inner');
+            inner.replaceChildren(el('div', 'text-danger small', 'Could not load the answer. Reload the page and try again.'));
+            card.querySelector('.reveal-target').classList.add('is-open');
+          })
+          .finally(function () { btn.disabled = false; });
+      });
+      var clear = card.querySelector('[data-action="practice-clear"]');
+      if (clear) clear.addEventListener('click', function () { reset(card); save(); });
+
+      // Restore what was picked (and revealed) here before.
+      var saved = store[n];
+      if (saved) {
+        setPicks(card, saved.p || []);
+        if (saved.r) answerFor(card).then(function (d) { open(card, d, false); }).catch(function () {});
+        updateClear(card);
+      }
+    });
+
+    var clearAll = practice.querySelector('[data-action="practice-clear-all"]');
+    if (clearAll) {
+      clearAll.addEventListener('click', function () {
+        confirmDialog({
+          title: 'Clear all your choices?',
+          message: 'Your picks and checked answers for every question in this exam are cleared, on every page.',
+          confirmText: 'Clear all', tone: 'danger'
+        }).then(function (yes) {
+          if (!yes) return;
+          cards.forEach(reset);
+          store = {};
+          save();
+        });
+      });
+    }
+    summary();
+  }
 })();

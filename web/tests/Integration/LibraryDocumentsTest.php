@@ -88,6 +88,15 @@ final class LibraryDocumentsTest extends HttpTestCase
         self::assertSame(['B', 'E'], $json['letters'], 'the reveal says which choices to mark');
         self::assertNotEmpty($json['comments']);
         self::assertSame(404, $this->get('/api/library/huawei/h12-811/' . $this->version['version'] . '/questions/99')->status);
+
+        // The page fetches all of its answers in one request, so a reveal is instant.
+        self::assertStringContainsString('data-practice="huawei/h12-811/' . $this->version['version'] . '"', $practice->body);
+        self::assertStringContainsString('data-pickable', $practice->body);
+        $batch = json_decode($this->get('/api/library/huawei/h12-811/' . $this->version['version'] . '/answers', ['numbers' => '1,3,99,x'])->body, true);
+        self::assertSame(['1', '3'], array_map('strval', array_keys($batch['answers'])));
+        self::assertSame(['B', 'E'], $batch['answers']['3']['letters']);
+        self::assertSame($json, $batch['answers']['3'], 'the same details as the single reveal');
+        self::assertSame([], json_decode($this->get('/api/library/huawei/h12-811/' . $this->version['version'] . '/answers')->body, true)['answers']);
     }
 
     /** H19-301 is served in the 2026 page layout (inline choices, no suggested answer). */

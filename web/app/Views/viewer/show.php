@@ -61,9 +61,17 @@ $img = static function (string $url, string $alt) use ($localImages): string {
         : empty_state('search', 'No questions match', 'Search looks in question and answer-choice text. Try fewer words.', null, true) ?></div></div>
 <?php endif; ?>
 
+<?php if ($practice && $questions !== []): ?>
+    <div class="practice-bar" data-practice="<?= e($provider['slug'] . '/' . $exam['code'] . '/' . $version['version']) ?>"
+         data-answers-url="<?= e(url('/api/library/' . rawurlencode($provider['slug']) . '/' . rawurlencode($exam['code']) . '/' . rawurlencode($version['version']) . '/answers')) ?>">
+        <span class="practice-score"><?= icon('ui-checks') ?><span data-field="score">Pick an answer, then reveal it to check yourself.</span></span>
+        <button class="btn btn-sm btn-outline-secondary" type="button" data-action="practice-clear-all" hidden><?= icon('arrow-counterclockwise') ?>Clear all my choices</button>
+    </div>
+<?php endif; ?>
+
 <?php foreach ($questions as $item): $n = (int) $item['number'];
     $answerLetters = (!$practice && preg_match('/^[A-Z]+$/', trim((string) ($item['answer'] ?? ''))) === 1) ? str_split(trim((string) $item['answer'])) : []; ?>
-    <article class="card question-card" id="question-<?= $n ?>">
+    <article class="card question-card" id="question-<?= $n ?>"<?= $practice ? ' data-q="' . $n . '" data-picks="' . (int) ($item['picks'] ?? 1) . '"' : '' ?>>
         <div class="card-body">
             <div class="q-head">
                 <h2 class="q-number"><span class="num">Question <?= $n ?></span><?php $kind = QuestionView::kind($item); if ($kind !== null): ?><?= chip($kind === 'drag-drop' ? 'Drag and drop' : 'Hot area', 'info', $kind === 'drag-drop' ? 'arrows-move' : 'cursor') ?><?php endif; ?></h2>
@@ -74,7 +82,7 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                 <?php else: ?><?= $img($qImages[$seg['image']], 'Question image ' . ($seg['image'] + 1)) ?><?php endif; ?>
             <?php endforeach; ?>
             <?php if (($item['choices'] ?? []) !== []): ?>
-                <ul class="list-unstyled choices">
+                <ul class="list-unstyled choices"<?= $practice ? ' data-pickable aria-label="Your answer"' : '' ?>>
                     <?php foreach ((array) $item['choices'] as $c): $letter = (string) ($c['letter'] ?? ''); ?>
                         <li class="choice<?= $letter !== '' && in_array($letter, $answerLetters, true) ? ' is-answer' : '' ?>" data-letter="<?= e($letter) ?>"><span class="choice-letter"><?= e($letter) ?>.</span> <span class="choice-text"><?= nl2br(e((string) ($c['text'] ?? '')), false) ?><?php foreach ((array) ($c['images'] ?? []) as $u): ?><?= $img((string) $u, 'Choice ' . $letter) ?><?php endforeach; ?></span></li>
                     <?php endforeach; ?>
@@ -82,10 +90,14 @@ $img = static function (string $url, string $alt) use ($localImages): string {
             <?php endif; ?>
 
             <?php if ($practice): ?>
-                <!-- Practice mode: nothing answer-related is in this page. It is fetched on demand. -->
-                <button class="btn btn-sm btn-outline-success" type="button" aria-expanded="false"
-                        data-reveal-url="<?= e(url('/api/library/' . rawurlencode($provider['slug']) . '/' . rawurlencode($exam['code']) . '/' . rawurlencode($version['version']) . '/questions/' . $n)) ?>"><?= icon('eye') ?><span class="label">Reveal answer</span></button>
-                <div class="reveal-target" hidden></div>
+                <!-- Practice mode: nothing answer-related is in this page. The page fetches the answers in the background. -->
+                <div class="practice-actions">
+                    <button class="btn btn-sm btn-outline-success" type="button" aria-expanded="false"
+                            data-reveal-url="<?= e(url('/api/library/' . rawurlencode($provider['slug']) . '/' . rawurlencode($exam['code']) . '/' . rawurlencode($version['version']) . '/questions/' . $n)) ?>"><?= icon('eye') ?><span class="label">Reveal answer</span></button>
+                    <button class="btn btn-sm btn-link" type="button" data-action="practice-clear" hidden><?= icon('x-circle') ?>Clear my choice</button>
+                    <?php if ((int) ($item['picks'] ?? 1) !== 1): ?><span class="small text-muted"><?= (int) $item['picks'] > 1 ? 'Pick ' . (int) $item['picks'] : 'Pick every answer that applies' ?></span><?php endif; ?>
+                </div>
+                <div class="reveal-target" aria-hidden="true"><div class="reveal-inner"></div></div>
             <?php else: ?>
                 <?php $answer = QuestionView::answerLine($item); $votes = QuestionView::votesLine($item);
                 $edit = $item['edit'] ?? null; $doubts = QuestionView::doubts($item); $letters = QuestionView::choiceLetters($item); ?>
