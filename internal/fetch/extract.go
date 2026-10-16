@@ -626,3 +626,65 @@ func normalizeCached(src cachedQuestion) dataset.Question {
 	}
 	return q
 }
+
+// examPageLinkRE matches a provider's exam pages, such as "/exams/huawei/h12-811/".
+var examPageLinkRE = regexp.MustCompile(`^(?:https?://(?:www\.)?examtopics\.com)?/exams/([a-z0-9-]+)/([a-z0-9._-]+)/?$`)
+
+// ExamTitles reads a provider's exams page and returns each exam's full title by the slug in
+// its address: "H12-811: HCIA-Datacom V1.0" at /exams/huawei/h12-811/ gives
+// "h12-811" => "HCIA-Datacom V1.0". Links whose text is only the code give no title.
+func ExamTitles(doc *goquery.Document, provider string) map[string]string {
+	out := map[string]string{}
+	doc.Find("a[href]").Each(func(_ int, s *goquery.Selection) {
+		href, _ := s.Attr("href")
+		m := examPageLinkRE.FindStringSubmatch(strings.TrimSpace(href))
+		if m == nil || m[1] != provider || m[2] == "view" {
+			return
+		}
+		if _, seen := out[m[2]]; seen {
+			return
+		}
+		if t := examTitle(utils.CleanText(s.Text()), m[2]); t != "" {
+			out[m[2]] = t
+		}
+	})
+	return out
+}
+
+// examTitle takes the title from a link text: what follows "CODE:", or the whole text when it
+// is not just the code.
+func examTitle(text, slug string) string {
+	text = strings.TrimSpace(text)
+	if i := strings.Index(text, ":"); i > 0 && codeKey(text[:i]) == codeKey(slug) {
+		return strings.TrimSpace(text[i+1:])
+	}
+	if text == "" || codeKey(text) == codeKey(slug) {
+		return ""
+	}
+	return text
+}
+
+// titleFor finds an exam's title by its code, tolerating different punctuation between the
+// discussion code and the exams page address ("h19-101-v6-0" and "h19-101_v60").
+func titleFor(titles map[string]string, code string) string {
+	if t, ok := titles[code]; ok {
+		return t
+	}
+	for slug, t := range titles {
+		if codeKey(slug) == codeKey(code) {
+			return t
+		}
+	}
+	return ""
+}
+
+// codeKey reduces an exam code to lower-case letters and digits, for comparing spellings.
+func codeKey(s string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(s) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}

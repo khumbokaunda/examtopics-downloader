@@ -166,6 +166,8 @@ func (s *Site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case path == "/exams/":
 		s.examsIndex(w)
+	case path == "/exams/huawei/":
+		s.providerExams(w)
 	case path == "/discussions/huawei/":
 		s.listing(w, 1)
 	case strings.HasPrefix(path, "/discussions/huawei/view/"):
@@ -230,6 +232,16 @@ func (s *Site) examsIndex(w http.ResponseWriter) {
   <li><a href="/exams/huawei/h12-811/">H12-811</a></li>
   <li><a href="/exams/">All</a></li>
   <li><a href="https://elsewhere.example/exams/evil/">Not ExamTopics</a></li>
+</ul>`)
+}
+
+// providerExams is a provider's exams page: each exam's link carries its full title.
+func (s *Site) providerExams(w http.ResponseWriter) {
+	page(w, "Huawei exams", `<ul class="list-unstyled popular-exams-list">
+  <li><a class="popular-exam-link" href="/exams/huawei/h12-811/">H12-811: HCIA-Datacom V1.0</a></li>
+  <li><a class="popular-exam-link" href="/exams/huawei/h19-301/">H19-301: HCSA-Presales-IP Network Certification</a></li>
+  <li><a class="popular-exam-link" href="/exams/huawei/h12-811-v2-0/">H12-811-V2.0</a></li>
+  <li><a href="/exams/cisco/200-301/">200-301: CCNA</a></li>
 </ul>`)
 }
 

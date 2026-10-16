@@ -1,6 +1,11 @@
 package fetch
 
-import "testing"
+import (
+	"strings"
+	"testing"
+
+	"github.com/PuerkitoBio/goquery"
+)
 
 func TestParseDiscussionLink(t *testing.T) {
 	cases := []struct {
@@ -94,5 +99,35 @@ func TestSplitProviderName(t *testing.T) {
 		if name != c.name || n != c.n {
 			t.Errorf("SplitProviderName(%q) = %q, %d; want %q, %d", c.in, name, n, c.name, c.n)
 		}
+	}
+}
+
+func TestExamTitles(t *testing.T) {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(`<ul>
+<li><a class="popular-exam-link" href="/exams/huawei/h12-811/">H12-811: HCIA-Datacom V1.0</a></li>
+<li><a href="https://www.examtopics.com/exams/huawei/h19-101-v6-0/">HCIP-Routing V6.0</a></li>
+<li><a href="/exams/huawei/h12-831/">H12-831</a></li>
+<li><a href="/exams/cisco/200-301/">200-301: CCNA</a></li>
+<li><a href="/exams/huawei/h12-811/view/">View</a></li>
+<li><a href="https://elsewhere.example/exams/huawei/h11-851/">Not ExamTopics</a></li>
+</ul>`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := ExamTitles(doc, "huawei")
+	want := map[string]string{"h12-811": "HCIA-Datacom V1.0", "h19-101-v6-0": "HCIP-Routing V6.0"}
+	if len(got) != len(want) {
+		t.Fatalf("titles %v, want %v", got, want)
+	}
+	for k, v := range want {
+		if got[k] != v {
+			t.Errorf("%s: %q, want %q", k, got[k], v)
+		}
+	}
+	if titleFor(got, "h19-101_v60") != "HCIP-Routing V6.0" {
+		t.Error("a code spelt differently still finds its title")
+	}
+	if titleFor(got, "h12-831") != "" {
+		t.Error("a code-only link gives no title")
 	}
 }
