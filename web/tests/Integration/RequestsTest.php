@@ -140,6 +140,11 @@ final class RequestsTest extends HttpTestCase
         $uuid = (string) $this->app->db()->value('SELECT uuid FROM exam_requests');
         $this->newSession();
         $this->login();
+        // Without a choice nothing happens, and the message says what is missing.
+        $this->flashes();
+        $this->post('/requests/' . $uuid . '/answer', ['response' => 'x']);
+        self::assertStringContainsString('Choose', $this->flashes()[0]['message']);
+        self::assertSame('open', $this->app->db()->value('SELECT status FROM exam_requests'));
         $this->post('/requests/' . $uuid . '/answer', ['status' => 'declined', 'response' => 'ExamTopics has no discussions for it.']);
         $member = $this->s->users()->findByUsername('member');
         $n = $this->app->db()->one("SELECT * FROM notifications WHERE kind = 'request_update'");

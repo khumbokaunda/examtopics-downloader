@@ -97,7 +97,7 @@ final class MediaTest extends HttpTestCase
         self::assertSame(303, $r->status);
         self::assertMatchesRegularExpression('#^/jobs/[0-9a-f-]{36}$#', $r->headers['Location']);
         $job = $this->app->db()->one("SELECT * FROM jobs WHERE type = 'images'");
-        self::assertSame('collect', $job['active_slot'], 'image downloads share the collection slot');
+        self::assertSame(\App\Services\JobService::examSlot((int) $job['provider_id'], 'h12-811'), $job['active_slot'], 'image downloads share their exam\'s collection slot');
         $this->drain();
         $job = (array) $this->s->jobs()->find((int) $job['id']);
         self::assertSame('completed', $job['status'], (string) $job['error_summary']);
@@ -117,11 +117,16 @@ final class MediaTest extends HttpTestCase
         self::assertSame('failed', $this->app->db()->value('SELECT status FROM media WHERE url = ?', [$this->imageUrl]));
         self::assertStringContainsString('Download 1 missing', $this->get('/library/huawei/h12-811')->body);
 
-        // While a collection holds the slot, an image download is refused.
+        // Another exam's collection does not block it: the download joins the queue behind it.
         $this->s->jobService()->enqueueCollect($this->provider('huawei'), 'h19-301', ['source_mode' => 'live', 'rps' => 50.0]);
+        $this->flashes();
+        $this->post('/library/huawei/h12-811/' . $version['version'] . '/images');
+        self::assertSame('success', $this->flashes()[0]['type'] ?? null);
+        self::assertSame(1, (int) $this->app->db()->value("SELECT COUNT(*) FROM jobs WHERE type = 'images'"));
+        // The same exam's download twice is refused.
         $this->post('/library/huawei/h12-811/' . $version['version'] . '/images');
         self::assertSame('warning', $this->flashes()[0]['type'] ?? null);
-        self::assertSame(0, (int) $this->app->db()->value("SELECT COUNT(*) FROM jobs WHERE type = 'images'"));
+        self::assertSame(1, (int) $this->app->db()->value("SELECT COUNT(*) FROM jobs WHERE type = 'images'"));
     }
 
     public function testAnOutdatedToolIsExplainedNotDumped(): void

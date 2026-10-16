@@ -169,12 +169,16 @@ final class FullFlowTest extends WorkflowTestCase
             }
         }
 
-        // 11. A second collection while one is active is rejected.
+        // 11. A second exam joins the queue behind the first; the same exam twice is refused.
         $first = $this->jobIdFrom($c->post('/collect', ['provider' => 'huawei', 'exam' => 'h19-301', 'source_mode' => 'live', 'rps' => '1'],
             '/collect?provider=huawei&exam=h19-301'));
-        $second = $c->post('/collect', ['provider' => 'huawei', 'exam' => 'h12-811-v2-0', 'source_mode' => 'live'], '/collect?provider=huawei&exam=h12-811-v2-0');
-        self::assertStringContainsString('exam=h12-811-v2-0', $second['headers']['location']);
-        self::assertStringContainsString('A collection is in progress: <strong>Collect huawei / h19-301</strong>. Only one collection or image download runs at a time', $c->get($second['headers']['location'])['body']);
+        $second = $this->jobIdFrom($c->post('/collect', ['provider' => 'huawei', 'exam' => 'h12-811-v2-0', 'source_mode' => 'live'], '/collect?provider=huawei&exam=h12-811-v2-0'));
+        self::assertGreaterThan($first, $second);
+        self::assertStringContainsString('Added to the queue: 1 job ahead of it', $c->get('/jobs/' . $this->uuidOf($second))['body']);
+        $again = $c->post('/collect', ['provider' => 'huawei', 'exam' => 'h19-301', 'source_mode' => 'live'], '/collect?provider=huawei&exam=h19-301');
+        self::assertStringContainsString('exam=h19-301', $again['headers']['location']);
+        self::assertStringContainsString('This exam is already', $c->get($again['headers']['location'])['body']);
+        $c->post('/jobs/' . $this->uuidOf($second) . '/cancel', [], '/jobs/' . $this->uuidOf($second));
 
         // 3-4. "Close the browser": forget the session entirely, come back later, sign in again.
         $c->forgetCookies();

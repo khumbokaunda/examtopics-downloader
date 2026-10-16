@@ -92,17 +92,20 @@ final class JobPipelineTest extends WorkflowTestCase
         self::assertFileExists($this->app->paths()->jobDir((int) $job['id']) . '/events.jsonl');
     }
 
-    public function testOnlyOneCollectionCanBeActive(): void
+    public function testCollectionsQueueOnePerExam(): void
     {
         $this->configure($this->startFixture());
         $huawei = $this->provider('huawei');
         $first = $this->s->jobService()->enqueueCollect($huawei, 'h12-811', ['source_mode' => 'live', 'rps' => 1.0]);
+        // Another exam waits its turn in the queue; the worker runs one job at a time.
+        $second = $this->s->jobService()->enqueueCollect($huawei, 'h19-301', ['source_mode' => 'live', 'rps' => 1.0]);
+        self::assertGreaterThan($first, $second);
         try {
-            $this->s->jobService()->enqueueCollect($huawei, 'h19-301', ['source_mode' => 'live', 'rps' => 1.0]);
-            self::fail('a second collection must be rejected while one is queued');
+            $this->s->jobService()->enqueueCollect($huawei, 'h12-811', ['source_mode' => 'live', 'rps' => 1.0]);
+            self::fail('the same exam must not be queued twice');
         } catch (ActiveJobException $e) {
             self::assertSame($first, (int) $e->job['id']);
-            self::assertStringContainsString('Only one collection', $e->getMessage());
+            self::assertStringContainsString('already in the queue', $e->getMessage());
         }
         // An inventory refresh uses a different slot and may queue behind it.
         $inv = $this->s->jobService()->enqueueInventory($huawei);
@@ -112,7 +115,7 @@ final class JobPipelineTest extends WorkflowTestCase
             self::fail('duplicate inventory refresh for the same provider must be rejected');
         } catch (ActiveJobException) {
         }
-        self::assertSame(1, (int) $this->app->db()->value("SELECT COUNT(*) FROM jobs WHERE type = 'collect'"));
+        self::assertSame(2, (int) $this->app->db()->value("SELECT COUNT(*) FROM jobs WHERE type = 'collect'"));
     }
 
     public function testFailedRefreshKeepsPreviousVersion(): void

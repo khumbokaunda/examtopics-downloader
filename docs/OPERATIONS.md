@@ -10,8 +10,9 @@ All commands run from `web/` as the web server user, for example
 
 - **Web requests** render pages and queue jobs. They never run a collection themselves.
 - **One background worker** runs queued jobs one at a time: provider discovery, inventory
-  refreshes and collections. Only one collection may be queued or running at once, and only one
-  refresh per provider. The database enforces this (`jobs.active_slot`).
+  refreshes and collections. More can be queued while one runs; they start in turn, oldest
+  first. The same exam cannot be queued twice (its collection and image download share a
+  slot), nor two refreshes of one provider. The database enforces this (`jobs.active_slot`).
 - The worker holds an exclusive `flock()` on `storage/jobs/worker.lock`. The kernel releases it
   when the process exits for any reason, so the lock cannot go stale.
 - **Document generation** happens inside the web request and never contacts ExamTopics.

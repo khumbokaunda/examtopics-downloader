@@ -30,11 +30,13 @@ $canCollect = can('exams.collect');
             <?php else: ?>
             <ul class="list-rows">
                 <?php foreach ($requests as $r): $label = strtoupper($r['exam_code']); $provider = provider_name(['name' => $r['provider_name'], 'slug' => $r['provider_slug']]); ?>
-                    <li class="flex-wrap">
+                    <?php $mineOpen = $r['status'] === 'open' && (int) $r['user_id'] === (int) \App\Core\View::current()->user()['id'];
+                        $answerable = $r['status'] === 'open' && $manager; ?>
+                    <li class="request-row">
                         <div class="row-main">
                             <span class="icon-bubble" data-tone="<?= e($tone[$r['status']] ?? 'neutral') ?>"><?= icon('journal-plus') ?></span>
                             <div class="row-text">
-                                <div class="row-title"><?= e($label) ?> <span class="text-muted fw-normal">· <a href="<?= e(url('/providers/' . rawurlencode($r['provider_slug']))) ?>"><?= e($provider) ?></a></span></div>
+                                <div class="row-title"><?= e($label) ?> <span class="text-muted fw-normal">· <a href="<?= e(url('/providers/' . rawurlencode($r['provider_slug']))) ?>"><?= e($provider) ?></a></span> <?= chip(ExamRequests::STATUSES[$r['status']] ?? $r['status'], $tone[$r['status']] ?? 'neutral') ?></div>
                                 <div class="row-meta">
                                     <?php if ($manager): ?><?= e($r['display_name'] ?: $r['username']) ?> · <?php endif; ?><?= e(fmt_time($r['created_at'])) ?>
                                     <?php if ($r['status'] === 'open' && (int) $r['open_for_exam'] > 1): ?> · <?= (int) $r['open_for_exam'] ?> people want this<?php endif; ?>
@@ -43,30 +45,32 @@ $canCollect = can('exams.collect');
                                 <?php if ($r['response'] !== null): ?><div class="row-meta"><strong><?= $r['status'] === 'declined' ? 'Reason' : 'Note' ?>:</strong> <?= e($r['response']) ?></div><?php endif; ?>
                             </div>
                         </div>
-                        <div class="row-side flex-wrap gap-2">
-                            <?= chip(ExamRequests::STATUSES[$r['status']] ?? $r['status'], $tone[$r['status']] ?? 'neutral') ?>
+                        <?php if ($r['status'] === 'collected' || $answerable || $mineOpen): ?>
+                        <div class="request-actions">
                             <?php if ($r['status'] === 'collected'): ?>
                                 <a class="btn btn-sm btn-outline-primary" href="<?= e(url('/library/' . rawurlencode($r['provider_slug']) . '/' . rawurlencode($r['exam_code']))) ?>"><?= icon('book') ?>Open</a>
-                            <?php elseif ($r['status'] === 'open' && $manager): ?>
-                                <?php if ($canCollect): ?><a class="btn btn-sm btn-primary" href="<?= e(url('/collect', ['provider' => $r['provider_slug'], 'exam' => $r['exam_code']])) ?>"><?= icon('cloud-arrow-down') ?>Collect</a><?php endif; ?>
-                                <details class="request-answer">
-                                    <summary class="btn btn-sm btn-outline-secondary">Answer</summary>
-                                    <form method="post" action="<?= e(url('/requests/' . $r['uuid'] . '/answer')) ?>" class="request-answer-body" data-once><?= csrf_field() ?>
-                                        <label class="form-label small" for="resp-<?= (int) $r['id'] ?>">Message to <?= e($r['display_name'] ?: $r['username']) ?> (optional)</label>
-                                        <textarea class="form-control form-control-sm mb-2" id="resp-<?= (int) $r['id'] ?>" name="response" rows="2" maxlength="500"></textarea>
-                                        <div class="d-flex gap-2">
-                                            <button class="btn btn-sm btn-success" type="submit" name="status" value="collected"><?= icon('check2') ?>It is in the library</button>
-                                            <button class="btn btn-sm btn-outline-danger" type="submit" name="status" value="declined"><?= icon('x') ?>Decline</button>
-                                        </div>
-                                    </form>
-                                </details>
                             <?php endif; ?>
-                            <?php if ($r['status'] === 'open' && (int) $r['user_id'] === (int) \App\Core\View::current()->user()['id']): ?>
+                            <?php if ($answerable): ?>
+                                <?php if ($canCollect): ?><a class="btn btn-sm btn-primary" href="<?= e(url('/collect', ['provider' => $r['provider_slug'], 'exam' => $r['exam_code']])) ?>"><?= icon('cloud-arrow-down') ?>Collect</a><?php endif; ?>
+                                <button class="btn btn-sm btn-outline-secondary" type="button" data-toggle-panel="answer-<?= (int) $r['id'] ?>"><?= icon('reply') ?>Answer</button>
+                            <?php endif; ?>
+                            <?php if ($mineOpen): ?>
                                 <form method="post" action="<?= e(url('/requests/' . $r['uuid'] . '/cancel')) ?>" data-confirm="You will not be told when it is collected." data-confirm-title="Cancel this request?" data-confirm-button="Cancel request"><?= csrf_field() ?>
-                                    <button class="btn btn-sm btn-link btn-link-danger" type="submit">Cancel</button>
+                                    <button class="btn btn-sm btn-outline-danger" type="submit"><?= icon('x-circle') ?>Cancel request</button>
                                 </form>
                             <?php endif; ?>
                         </div>
+                        <?php endif; ?>
+                        <?php if ($answerable): ?>
+                            <form method="post" action="<?= e(url('/requests/' . $r['uuid'] . '/answer')) ?>" class="request-answer-body" id="answer-<?= (int) $r['id'] ?>" hidden data-once><?= csrf_field() ?>
+                                <label class="form-label small" for="resp-<?= (int) $r['id'] ?>">Message to <?= e($r['display_name'] ?: $r['username']) ?> (optional)</label>
+                                <textarea class="form-control form-control-sm mb-2" id="resp-<?= (int) $r['id'] ?>" name="response" rows="2" maxlength="500" placeholder="For example: collected, enjoy; or why it cannot be collected"></textarea>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <button class="btn btn-sm btn-success" type="submit" name="status" value="collected"><?= icon('check2') ?>It is in the library</button>
+                                    <button class="btn btn-sm btn-outline-danger" type="submit" name="status" value="declined"><?= icon('x') ?>Decline</button>
+                                </div>
+                            </form>
+                        <?php endif; ?>
                     </li>
                 <?php endforeach; ?>
             </ul>

@@ -127,10 +127,13 @@ final class HttpSecurityTest extends HttpTestCase
         $r = $this->post('/collect', ['provider' => 'huawei', 'exam' => 'h12-811', 'source_mode' => 'live', 'rps' => '50']);
         self::assertSame(303, $r->status);
         self::assertMatchesRegularExpression('#^/jobs/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$#', $r->headers['Location'], 'job URLs use UUIDs');
-        // Duplicate submission while it is queued: rejected, still one job.
-        $this->post('/collect', ['provider' => 'huawei', 'exam' => 'h19-301', 'source_mode' => 'live']);
+        // Duplicate submission of the same exam while it is queued: rejected, still one job.
+        $this->post('/collect', ['provider' => 'huawei', 'exam' => 'h12-811', 'source_mode' => 'live']);
         self::assertSame('warning', $this->flashes()[1]['type'] ?? $this->flashes()[0]['type'] ?? null);
         self::assertSame(1, (int) $this->app->db()->value("SELECT COUNT(*) FROM jobs WHERE type = 'collect'"));
+        // Another exam can join the queue; this one shows where it is.
+        self::assertStringContainsString('Add to the queue', $this->get('/collect', ['provider' => 'huawei', 'exam' => 'h19-301'])->body);
+        self::assertStringContainsString('Already in the queue', $this->get('/collect', ['provider' => 'huawei', 'exam' => 'h12-811'])->body);
         $this->drain();
 
         // Cached now: a plain submission must not start a new collection.
