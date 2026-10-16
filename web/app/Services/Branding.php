@@ -226,7 +226,7 @@ final class Branding
         }
         $rgb = self::rgb($hex);
         $light = self::untilContrast($rgb, [255, 255, 255], 4.5, [0, 0, 0]);
-        $darkBg = [14, 19, 25]; // --color-bg in the dark theme
+        $darkBg = [12, 12, 14]; // --color-bg in the dark theme
         $dark = self::untilContrast($rgb, $darkBg, 5.0, [255, 255, 255]);
         $v = static fn(array $c): string => sprintf('#%02X%02X%02X', $c[0], $c[1], $c[2]);
         return ":root[data-accent=\"custom\"] {\n"
@@ -240,7 +240,7 @@ final class Branding
             . '  --color-primary: ' . $v($dark) . ";\n"
             . '  --color-primary-hover: ' . $v(self::mix($dark, [255, 255, 255], 0.15)) . ";\n"
             . '  --color-accent: ' . $v(self::mix($dark, [255, 255, 255], 0.1)) . ";\n"
-            . '  --color-primary-soft: ' . $v(self::mix($dark, $darkBg, 0.78)) . ";\n"
+            . '  --color-primary-soft: ' . $v(self::mix($dark, $darkBg, 0.88)) . ";\n"
             . '  --color-focus-ring: ' . $v($dark) . "55;\n"
             . "}\n"
             . '.swatch-dot[data-swatch="custom"] { background: ' . $v($light) . "; }\n";

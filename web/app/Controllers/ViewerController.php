@@ -83,30 +83,68 @@ final class ViewerController extends Controller
     /** Answer details for one question (practice mode reveal). */
     public function reveal(string $provider, string $exam, string $version, string $number): Response
     {
+        if (!ctype_digit($number)) {
+            throw HttpException::notFound('Question');
+        }
+        $answers = $this->answersFor($provider, $exam, $version, [(int) $number]);
+        return Response::json($answers[(int) $number] ?? throw HttpException::notFound('Question'));
+    }
+
+    /**
+     * Answer details for the questions on a practice page, in one request: the page fetches
+     * them in the background as it opens, so revealing an answer is instant. Reading the
+     * dataset is the slow part, and this reads it once instead of once per question.
+     */
+    public function answers(string $provider, string $exam, string $version): Response
+    {
+        $numbers = [];
+        foreach (explode(',', (string) $this->request->query('numbers', '')) as $n) {
+            if (ctype_digit($n) && count($numbers) < 100) {
+                $numbers[] = (int) $n;
+            }
+        }
+        $answers = $this->answersFor($provider, $exam, $version, $numbers);
+        return Response::json(['answers' => (object) $answers]);
+    }
+
+    /**
+     * @param list<int> $numbers
+     * @return array<int,array<string,mixed>> question number => what the reveal shows
+     */
+    private function answersFor(string $provider, string $exam, string $version, array $numbers): array
+    {
         $p = $this->findProvider($provider);
         $e = $this->findExam($p, $exam);
         $v = $this->findVersion($e, $version);
-        if (!ctype_digit($number)) {
-            throw HttpException::notFound('Question');
+        if ($numbers === []) {
+            return [];
         }
         try {
             $data = $this->s->cache()->load($v);
         } catch (RuntimeException $ex) {
             throw new HttpException(409, $ex->getMessage());
         }
-        $q = null;
+        $wanted = array_flip($numbers);
+        $edits = $this->s->answerEdits()->forExam((int) $e['id']);
+        $out = [];
         foreach ((array) ($data['questions'] ?? []) as $item) {
-            if (is_array($item) && (int) ($item['number'] ?? 0) === (int) $number) {
-                $q = $item;
-                break;
+            if (!is_array($item) || !isset($wanted[(int) ($item['number'] ?? 0)])) {
+                continue;
             }
+            $q = QuestionView::normalize($item);
+            $q = QuestionView::applyEdit($q, $edits[QuestionView::key($q)] ?? null);
+            $out[(int) $q['number']] = $this->revealData($q);
         }
-        if ($q === null) {
-            throw HttpException::notFound('Question');
-        }
-        $q = QuestionView::normalize($q);
-        $q = QuestionView::applyEdit($q, $this->s->answerEdits()->forExam((int) $e['id'])[QuestionView::key($q)] ?? null);
-        return Response::json([
+        return $out;
+    }
+
+    /**
+     * @param array<string,mixed> $q a normalised question
+     * @return array<string,mixed>
+     */
+    private function revealData(array $q): array
+    {
+        return [
             'number' => (int) $q['number'],
             'answer' => QuestionView::answerLine($q),
             // The choices to mark as the answer, as study mode does.
@@ -117,7 +155,7 @@ final class ViewerController extends Controller
             'explanation' => (string) ($q['explanation'] ?? ''),
             'answer_images' => $this->imageSources((array) ($q['answer_images'] ?? [])),
             'comments' => QuestionView::comments($q),
-        ]);
+        ];
     }
 
     /**
@@ -162,6 +200,7 @@ final class ViewerController extends Controller
             'choices' => $q['choices'] ?? [],
             'question_images' => $q['question_images'] ?? [],
             'source_url' => $q['source_url'] ?? '',
+            'picks' => QuestionView::picks($q),
         ];
     }
 }

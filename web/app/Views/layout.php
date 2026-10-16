@@ -67,6 +67,7 @@ $flashIcons = ['success' => 'check-circle', 'info' => 'info-circle', 'warning' =
     <link rel="stylesheet" href="<?= e(asset('/assets/css/base.css')) ?>">
     <link rel="stylesheet" href="<?= e(asset('/assets/css/layout.css')) ?>">
     <link rel="stylesheet" href="<?= e(asset('/assets/css/components.css')) ?>">
+    <link rel="stylesheet" href="<?= e(asset('/assets/css/dark.css')) ?>">
     <?php if ($brand['accent'] === 'custom'): ?><link rel="stylesheet" href="<?= e(url('/branding/theme.css', ['v' => substr(md5($brand['color']), 0, 8)])) ?>"><?php endif; ?>
     <script src="<?= e(asset('/assets/js/theme-init.js')) ?>"></script>
 </head>

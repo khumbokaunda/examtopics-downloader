@@ -78,6 +78,7 @@ return static function (Router $r): void {
     $r->post('/library/{provider}/{exam}/{version}/documents', [DocumentController::class, 'generate'], can: 'documents.build');
     $r->post('/library/{provider}/{exam}/{version}/images', [LibraryController::class, 'downloadImages'], can: $collect);
     $r->get('/api/library/{provider}/{exam}/{version}/questions/{number}', [ViewerController::class, 'reveal'], can: $read);
+    $r->get('/api/library/{provider}/{exam}/{version}/answers', [ViewerController::class, 'answers'], can: $read);
     $r->get('/media/{hash}', [MediaController::class, 'show'], can: $read);
 
     $r->get('/documents/{uuid}/download', [DocumentController::class, 'download'], can: $read);
