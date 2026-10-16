@@ -77,6 +77,42 @@ final class RequestsTest extends HttpTestCase
         self::assertStringContainsString('2 people want this', $this->get('/requests', ['status' => 'open'])->body);
     }
 
+    /** Exams are chosen from a provider's list; a code is only typed when no list was ever loaded. */
+    public function testTheFormOffersTheExamList(): void
+    {
+        $this->s->providers()->upsert('cisco', 'Cisco', 'manual');
+        $this->asMember();
+        $page = $this->get('/requests', ['provider' => 'huawei'])->body;
+        self::assertStringContainsString('Request an exam', $page);
+        self::assertMatchesRegularExpression('#<select class="form-select" id="exam" name="exam" required>#', $page);
+        self::assertStringContainsString('<option value="h12-811"', $page);
+        self::assertStringNotContainsString('placeholder="h12-811"', $page, 'no typing when the list is loaded');
+
+        $r = $this->post('/requests', ['provider' => 'huawei', 'exam' => 'h99-999']);
+        self::assertSame('/requests', $r->headers['Location']);
+        self::assertStringContainsString('not on', $this->flashes()[0]['message']);
+        self::assertSame(0, (int) $this->app->db()->value('SELECT COUNT(*) FROM exam_requests'));
+
+        // A provider whose list was never loaded: type the code.
+        $page = $this->get('/requests', ['provider' => 'cisco'])->body;
+        self::assertStringContainsString('placeholder="h12-811"', $page);
+        self::assertStringContainsString('has not been loaded yet', $page);
+        $this->post('/requests', ['provider' => 'cisco', 'exam' => '200-301']);
+        self::assertSame('success', $this->flashes()[0]['type']);
+
+        // Already requested: shown, but not offered again.
+        $this->request();
+        $this->flashes();
+        self::assertMatchesRegularExpression('#<option value="h12-811" disabled[^>]*>H12-811[^<]*· requested#', $this->get('/requests', ['provider' => 'huawei'])->body);
+
+        // Administrators collect exams themselves, so they get the list without the form.
+        $this->newSession();
+        $this->login();
+        $page = $this->get('/requests')->body;
+        self::assertStringNotContainsString('Request an exam', $page);
+        self::assertStringContainsString('class="col-12"', $page);
+    }
+
     public function testRequestsArePrivateToTheirOwner(): void
     {
         $this->asMember();

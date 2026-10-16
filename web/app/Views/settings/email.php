@@ -1,7 +1,7 @@
 <?php
 /** @var array{host:string,port:int,encryption:string,username:string,password:string,from_address:string,from_name:string,site_url:string} $mail
  *  @var bool $passwordStored @var bool $configured @var bool $library @var array<string,int> $counts @var list<array> $recent @var string $me
- *  @var array<string,string> $encryptions */
+ *  @var array<string,string> $encryptions @var list<array{user:array,ok:bool,reason:string}> $recipients */
 $tone = ['sent' => 'success', 'queued' => 'neutral', 'sending' => 'info', 'failed' => 'danger'];
 ?>
 <nav aria-label="breadcrumb"><ol class="breadcrumb">
@@ -74,6 +74,27 @@ $tone = ['sent' => 'success', 'queued' => 'neutral', 'sending' => 'info', 'faile
                 </ol>
                 <p class="text-muted mb-0">The password is stored in the database, so backups contain it. Keep backup files private.</p>
             </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card" id="recipients">
+            <div class="card-header"><span class="card-title"><?= icon('people') ?>Who gets notification emails</span><span class="small text-muted">People told about exam requests and sign-ups</span></div>
+            <ul class="list-rows">
+                <?php foreach ($recipients as $r): ?>
+                    <li>
+                        <div class="row-main">
+                            <span class="icon-bubble" data-tone="<?= $r['ok'] ? 'success' : 'warning' ?>"><?= icon($r['ok'] ? 'envelope-check' : 'envelope-exclamation') ?></span>
+                            <div class="row-text">
+                                <div class="row-title"><?= e(\App\Services\Access::displayName($r['user'])) ?> <span class="text-muted fw-normal">· <?= e($r['user']['username']) ?></span></div>
+                                <div class="row-meta"><?= e($r['reason']) ?></div>
+                            </div>
+                        </div>
+                        <div class="row-side"><?= $r['ok'] ? chip('emailed', 'success') : chip('inbox only', 'warning') ?></div>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+            <div class="card-footer small text-muted">Everyone also sees their notifications under the bell. Someone who makes a request is not notified of their own request.</div>
         </div>
     </div>
 

@@ -1,5 +1,6 @@
 <?php
-/** @var bool $manager @var string $status @var list<array> $requests @var list<array> $providers @var array{provider:string,exam:string} $prefill */
+/** @var bool $manager @var string $status @var list<array> $requests @var list<array> $providers @var bool $asker
+ *  @var array|null $chosen @var list<array> $choices @var bool $listed @var array<string,true> $mine @var string $exam */
 use App\Services\ExamRequests;
 $tone = ['open' => 'warning', 'collected' => 'success', 'declined' => 'danger', 'cancelled' => 'neutral'];
 $canCollect = can('exams.collect');
@@ -14,7 +15,7 @@ $canCollect = can('exams.collect');
 </header>
 
 <div class="row g-4">
-    <div class="col-xl-8">
+    <div class="<?= $asker ? 'col-xl-8' : 'col-12' ?>">
         <form class="toolbar mb-3" method="get" action="<?= e(url('/requests')) ?>">
             <label class="visually-hidden" for="status">Status</label>
             <select class="form-select flex-grow-0 w-auto" id="status" name="status" data-autosubmit>
@@ -72,24 +73,55 @@ $canCollect = can('exams.collect');
             <?php endif; ?>
         </div>
     </div>
+    <?php if ($asker): $slug = $chosen['slug'] ?? ''; ?>
     <div class="col-xl-4">
         <div class="card" id="new">
             <div class="card-header"><span class="card-title"><?= icon('plus-circle') ?>Request an exam</span></div>
             <div class="card-body">
-                <p class="small text-muted">For an exam that is not in the library. The quickest way is the <strong>Request</strong> button on a provider's page; use this when the exam is not listed there.</p>
-                <form method="post" action="<?= e(url('/requests')) ?>" data-once><?= csrf_field() ?>
-                    <div class="mb-3">
-                        <label class="form-label" for="provider">Provider</label>
-                        <select class="form-select" id="provider" name="provider" required>
+                <form method="get" action="<?= e(url('/requests')) ?>#new" class="mb-3">
+                    <?php if ($status !== ''): ?><input type="hidden" name="status" value="<?= e($status) ?>"><?php endif; ?>
+                    <label class="form-label" for="provider">Provider</label>
+                    <div class="toolbar">
+                        <select class="form-select" id="provider" name="provider" data-autosubmit>
                             <option value="">Choose…</option>
-                            <?php foreach ($providers as $p): ?><option value="<?= e($p['slug']) ?>" <?= $prefill['provider'] === $p['slug'] ? 'selected' : '' ?>><?= e(provider_name($p)) ?></option><?php endforeach; ?>
+                            <?php foreach ($providers as $p): ?><option value="<?= e($p['slug']) ?>" <?= $slug === $p['slug'] ? 'selected' : '' ?>><?= e(provider_name($p)) ?></option><?php endforeach; ?>
                         </select>
+                        <noscript><button class="btn btn-outline-secondary" type="submit">Choose</button></noscript>
                     </div>
-                    <div class="mb-3"><label class="form-label" for="exam">Exam code</label><input class="form-control" id="exam" name="exam" value="<?= e($prefill['exam']) ?>" placeholder="h12-811" pattern="[A-Za-z0-9_\-]{1,128}" required><div class="form-text">As in the ExamTopics address, for example <code>h12-811</code>.</div></div>
-                    <div class="mb-3"><label class="form-label" for="note">Note (optional)</label><textarea class="form-control" id="note" name="note" rows="2" maxlength="500" placeholder="Why you need it, or by when"></textarea></div>
-                    <button class="btn btn-primary" type="submit"><?= icon('send') ?>Request</button>
                 </form>
+                <?php if ($chosen !== null): ?>
+                    <?php if ($listed && $choices === []): ?>
+                        <p class="small text-muted mb-0">Every exam on <?= e(provider_name($chosen)) ?>'s list is already in the library.</p>
+                    <?php else: ?>
+                    <form method="post" action="<?= e(url('/requests')) ?>" data-once data-busy="Sending…"><?= csrf_field() ?>
+                        <input type="hidden" name="provider" value="<?= e($slug) ?>">
+                        <?php if ($listed): ?>
+                            <div class="mb-3">
+                                <label class="form-label" for="exam">Exam</label>
+                                <select class="form-select" id="exam" name="exam" required>
+                                    <option value="">Choose…</option>
+                                    <?php foreach ($choices as $c): $hasName = $c['name'] && strtolower((string) $c['name']) !== $c['code']; $asked = isset($mine[$c['code']]); ?>
+                                        <option value="<?= e($c['code']) ?>" <?= $asked ? 'disabled' : '' ?> <?= !$asked && $exam === $c['code'] ? 'selected' : '' ?>><?= e(strtoupper($c['code'])) ?><?= $hasName ? ' · ' . e($c['name']) : '' ?><?= $c['reported_count'] !== null ? ' (' . (int) $c['reported_count'] . ' questions)' : '' ?><?= $asked ? ' · requested' : '' ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <div class="form-text">Exams on <?= e(provider_name($chosen)) ?>'s list that are not in the library yet.</div>
+                            </div>
+                        <?php else: ?>
+                            <div class="mb-3">
+                                <label class="form-label" for="exam">Exam code</label>
+                                <input class="form-control" id="exam" name="exam" value="<?= e($exam) ?>" placeholder="h12-811" pattern="[A-Za-z0-9_\-]{1,128}" required>
+                                <div class="form-text"><?= e(provider_name($chosen)) ?>'s exam list has not been loaded yet, so type the code as in the ExamTopics address (for example <code>h12-811</code>)<?php if (can('inventory.first')): ?>, or <a href="<?= e(url('/providers/' . rawurlencode($slug))) ?>">load the list</a> and choose from it<?php endif; ?>.</div>
+                            </div>
+                        <?php endif; ?>
+                        <div class="mb-3"><label class="form-label" for="note">Note (optional)</label><textarea class="form-control" id="note" name="note" rows="2" maxlength="500" placeholder="Why you need it, or by when"></textarea></div>
+                        <button class="btn btn-primary" type="submit"><?= icon('send') ?>Request</button>
+                    </form>
+                    <?php endif; ?>
+                <?php else: ?>
+                    <p class="small text-muted mb-0">Choose a provider to see its exams that are not in the library yet.</p>
+                <?php endif; ?>
             </div>
         </div>
     </div>
+    <?php endif; ?>
 </div>

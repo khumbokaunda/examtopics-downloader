@@ -38,6 +38,12 @@ final class ExamRequests
         if ($collected > 0) {
             return ['That exam is already in the library.', null];
         }
+        // Once a provider's exam list is loaded, requests are chosen from it; a code is only
+        // typed for a provider whose list has never been fetched.
+        $listed = (int) $this->db->value('SELECT COUNT(*) FROM exams WHERE provider_id = ? AND in_inventory = 1', [(int) $provider['id']]);
+        if ($listed > 0 && (int) $this->db->value('SELECT COUNT(*) FROM exams WHERE provider_id = ? AND code = ? AND in_inventory = 1', [(int) $provider['id'], $exam]) === 0) {
+            return [strtoupper($exam) . ' is not on ' . provider_name($provider) . '\'s exam list. Choose the exam from the list.', null];
+        }
         $note = mb_substr(trim($note), 0, 500);
         $uuid = Ids::uuid();
         $now = Database::now();

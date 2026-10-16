@@ -7,7 +7,9 @@ namespace App\Controllers;
 use App\Core\Http\Response;
 use App\Repositories\UserRepository;
 use App\Services\Mail\SmtpTransport;
+use App\Services\Access;
 use App\Services\Mailer;
+use App\Services\Notifier;
 
 /** Settings > Email: the SMTP server, the site address used in links, and a test message. */
 final class EmailController extends Controller
@@ -27,7 +29,33 @@ final class EmailController extends Controller
             'recent' => $this->s->mailQueue()->recent(15),
             'me' => (string) ($this->auth->user()['email'] ?? ''),
             'encryptions' => Mailer::ENCRYPTIONS,
+            'recipients' => $this->recipients(),
         ]);
+    }
+
+    /**
+     * The people told about requests and sign-ups, and whether each gets those notifications
+     * by email: only confirmed addresses of people who have not turned email off do.
+     *
+     * @return list<array{user:array<string,mixed>,ok:bool,reason:string}>
+     */
+    private function recipients(): array
+    {
+        $out = [];
+        foreach ($this->s->users()->all() as $u) {
+            if ($u['status'] !== 'active' || !(Access::can($u, 'requests.manage') || Access::can($u, 'users.manage'))) {
+                continue;
+            }
+            $prefs = json_decode((string) ($u['preferences'] ?? ''), true);
+            $reason = match (true) {
+                $u['email'] === null => 'No email address on the account.',
+                $u['email_verified_at'] === null => 'The address is not confirmed yet: confirm it with a code on the account page.',
+                is_array($prefs) && ($prefs['email_notifications'] ?? '1') === '0' => 'Turned emails off on the account page.',
+                default => 'Gets them at ' . $u['email'] . '.',
+            };
+            $out[] = ['user' => $u, 'ok' => Notifier::wantsEmail($u), 'reason' => $reason];
+        }
+        return $out;
     }
 
     public function save(): Response
