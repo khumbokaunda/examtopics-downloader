@@ -257,7 +257,11 @@ func TestInventoryCountsExactCodes(t *testing.T) {
 		}
 	}
 	if names["h12-811-v2-0"] != "H12-811-V2.0" {
-		t.Errorf("display name from listing title: %q", names["h12-811-v2-0"])
+		t.Errorf("display name from listing title when the exams page has no title: %q", names["h12-811-v2-0"])
+	}
+	// Full titles come from the provider's exams page.
+	if names["h12-811"] != "HCIA-Datacom V1.0" || names["h19-301"] != "HCSA-Presales-IP Network Certification" {
+		t.Errorf("titles from the exams page: %v", names)
 	}
 	if inv.Kind != "inventory" || inv.SchemaVersion != 1 || inv.Status != "complete" || inv.ListingPages != 4 {
 		t.Errorf("inventory header %+v", inv)

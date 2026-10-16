@@ -577,9 +577,24 @@ func GetInventory(provider string) (dataset.Inventory, error) {
 		}
 	}
 
+	// Discussion titles only carry the exam code ("Exam H12-811 topic 1 ..."). The provider's
+	// exams page has the full titles ("H12-811: HCIA-Datacom V1.0"), so it is read once too.
+	// It is optional: if it cannot be read, the exams keep their codes as names.
+	titles := map[string]string{}
+	if doc, err := scrapeFetcher.Document(fmt.Sprintf("%s/exams/%s/", utils.BaseURL, provider)); err != nil {
+		log.Printf("provider exams page: %v", err)
+		reporter.Warning("exam_titles", "Exam titles were not read from the provider's exams page: "+err.Error())
+	} else {
+		titles = ExamTitles(doc, provider)
+	}
+
 	exams := make([]dataset.InventoryExam, 0, len(byCode))
 	for code, a := range byCode {
-		exams = append(exams, dataset.InventoryExam{Code: code, Name: a.name, QuestionCount: len(a.ids),
+		name := a.name
+		if t := titleFor(titles, code); t != "" {
+			name = t
+		}
+		exams = append(exams, dataset.InventoryExam{Code: code, Name: name, QuestionCount: len(a.ids),
 			Links: uniqueDiscussionLinks(a.links, provider)})
 	}
 	sort.Slice(exams, func(i, j int) bool { return exams[i].Code < exams[j].Code })
