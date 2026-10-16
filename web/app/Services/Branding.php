@@ -240,7 +240,7 @@ final class Branding
             . '  --color-primary: ' . $v($dark) . ";\n"
             . '  --color-primary-hover: ' . $v(self::mix($dark, [255, 255, 255], 0.15)) . ";\n"
             . '  --color-accent: ' . $v(self::mix($dark, [255, 255, 255], 0.1)) . ";\n"
-            . '  --color-primary-soft: ' . $v(self::mix($dark, $darkBg, 0.88)) . ";\n"
+            . '  --color-primary-soft: ' . $v(self::mix($dark, $darkBg, 0.84)) . ";\n"
             . '  --color-focus-ring: ' . $v($dark) . "55;\n"
             . "}\n"
             . '.swatch-dot[data-swatch="custom"] { background: ' . $v($light) . "; }\n";

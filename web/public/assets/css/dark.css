@@ -59,11 +59,11 @@
 
 /* ---- Alerts: a neutral panel; the colour is in the icon and a thin line -------------------- */
 [data-theme="dark"] .alert { --bs-alert-color: var(--color-text); }
-[data-theme="dark"] .alert-success { --bs-alert-bg: color-mix(in srgb, var(--color-success) 9%, var(--color-surface)); }
-[data-theme="dark"] .alert-warning { --bs-alert-bg: color-mix(in srgb, var(--color-warning) 9%, var(--color-surface)); }
-[data-theme="dark"] .alert-danger  { --bs-alert-bg: color-mix(in srgb, var(--color-danger) 9%, var(--color-surface)); }
-[data-theme="dark"] .alert-info    { --bs-alert-bg: color-mix(in srgb, var(--color-info) 9%, var(--color-surface)); }
-[data-theme="dark"] .alert-primary { --bs-alert-bg: color-mix(in srgb, var(--color-primary) 9%, var(--color-surface)); }
+[data-theme="dark"] .alert-success { --bs-alert-bg: color-mix(in srgb, var(--color-success) 14%, var(--color-surface)); }
+[data-theme="dark"] .alert-warning { --bs-alert-bg: color-mix(in srgb, var(--color-warning) 14%, var(--color-surface)); }
+[data-theme="dark"] .alert-danger  { --bs-alert-bg: color-mix(in srgb, var(--color-danger) 14%, var(--color-surface)); }
+[data-theme="dark"] .alert-info    { --bs-alert-bg: color-mix(in srgb, var(--color-info) 14%, var(--color-surface)); }
+[data-theme="dark"] .alert-primary { --bs-alert-bg: color-mix(in srgb, var(--color-primary) 14%, var(--color-surface)); }
 [data-theme="dark"] .alert-success > .bi:first-child { color: var(--color-success); }
 [data-theme="dark"] .alert-warning > .bi:first-child { color: var(--color-warning); }
 [data-theme="dark"] .alert-danger  > .bi:first-child { color: var(--color-danger); }
@@ -82,6 +82,9 @@
 [data-theme="dark"] .icon-bubble { box-shadow: inset 0 0 0 1px var(--color-border); }
 
 /* ---- The reader: with no outline, the tints of right and wrong choices are a little stronger -- */
-[data-theme="dark"] .choice.is-answer { background: color-mix(in srgb, var(--color-success) 13%, var(--color-surface)); }
-[data-theme="dark"] .choice.is-wrong { background: color-mix(in srgb, var(--color-danger) 14%, var(--color-surface)); }
-[data-theme="dark"] .answer-box { background: color-mix(in srgb, var(--color-success) 8%, var(--color-surface)); }
+[data-theme="dark"] .choice.is-answer { background: color-mix(in srgb, var(--color-success) 24%, var(--color-surface)); }
+[data-theme="dark"] .choice.is-wrong { background: color-mix(in srgb, var(--color-danger) 24%, var(--color-surface)); }
+[data-theme="dark"] .choice.is-picked:not(.is-answer):not(.is-wrong) { background: color-mix(in srgb, var(--color-text) 15%, var(--color-surface)); }
+[data-theme="dark"] .answer-box { background: color-mix(in srgb, var(--color-success) 15%, var(--color-surface)); }
+[data-theme="dark"] .answer-box.is-corrected { background: color-mix(in srgb, var(--color-primary) 15%, var(--color-surface)); }
+[data-theme="dark"] .answer-check { background: color-mix(in srgb, var(--color-warning) 14%, var(--color-surface)); }
