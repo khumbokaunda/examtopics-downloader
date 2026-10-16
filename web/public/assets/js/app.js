@@ -488,6 +488,21 @@
     setTimeout(poll, 2000);
   });
 
+  // --- Panels opened by a button (an answer form under a row, for example) -------------------
+  document.querySelectorAll('[data-toggle-panel]').forEach(function (btn) {
+    var panel = document.getElementById(btn.getAttribute('data-toggle-panel'));
+    if (!panel) return;
+    btn.setAttribute('aria-expanded', 'false');
+    btn.setAttribute('aria-controls', panel.id);
+    btn.addEventListener('click', function () {
+      var open = panel.hidden;
+      panel.hidden = !open;
+      btn.setAttribute('aria-expanded', String(open));
+      btn.classList.toggle('active', open);
+      if (open) { var f = panel.querySelector('textarea, input:not([type=hidden]), select'); if (f) f.focus(); }
+    });
+  });
+
   // --- Forms ------------------------------------------------------------------------------
   // Prevent duplicate submissions while a request is being initiated.
   document.querySelectorAll('form[data-once]').forEach(function (form) {
@@ -495,6 +510,16 @@
       if (ev.defaultPrevented) return;
       if (form.dataset.submitted === '1') { ev.preventDefault(); return; }
       form.dataset.submitted = '1';
+      // A disabled button is left out of what the form sends, so the clicked button's own
+      // choice (such as "declined") is copied into a hidden field before buttons are disabled.
+      var submitter = ev.submitter;
+      if (submitter && submitter.name) {
+        var keep = document.createElement('input');
+        keep.type = 'hidden';
+        keep.name = submitter.name;
+        keep.value = submitter.value;
+        form.appendChild(keep);
+      }
       form.querySelectorAll('button[type="submit"]').forEach(function (b) {
         b.disabled = true;
         var busy = form.getAttribute('data-busy');

@@ -473,6 +473,14 @@ body.dialog-open { overflow: hidden; }
 /* Inbox: unread rows stand out. */
 .list-rows li.is-unread { background: var(--color-primary-soft); }
 .list-rows li.is-unread .row-title { font-weight: var(--weight-semibold); }
+/* Requests: the status beside the exam, the buttons in one row under it, and the answer form
+   opening full width below them. */
+.list-rows > li.request-row { flex-wrap: wrap; }
+.request-row .row-title .chip { margin-left: var(--space-1); vertical-align: middle; }
+.request-actions, .request-row .request-answer-body { flex-basis: 100%; margin-left: 44px; }
+.request-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
+.request-row .request-answer-body { max-width: 560px; }
+@media (max-width: 575.98px) { .request-actions, .request-row .request-answer-body { margin-left: 0; } }
 .request-answer > summary { list-style: none; }
 .request-answer > summary::-webkit-details-marker { display: none; }
 .request-answer[open] { flex-basis: 100%; }

@@ -46,7 +46,9 @@ final class CollectController extends Controller
             'versions' => $versions,
             'best' => $best,
             'documents' => $best !== null ? $this->s->documentRepo()->forVersion((int) $best['id']) : [],
-            'activeCollect' => $this->s->jobs()->findBySlot('collect'),
+            // This exam's own collection or image download, if one is queued or running.
+            'activeCollect' => $exam !== null ? $this->s->jobs()->findBySlot(\App\Services\JobService::examSlot((int) $provider['id'], (string) $exam['code'])) : null,
+            'queue' => $this->s->jobs()->active(),
             'allowedRps' => (array) $this->app->config()->get('tool.allowed_rps', [0.25, 0.5, 1.0]),
             'defaultRps' => (float) $this->app->config()->get('tool.default_rps', 1.0),
             'lastRefresh' => $provider !== null ? $this->s->refreshes()->latest((int) $provider['id']) : null,
@@ -77,7 +79,10 @@ final class CollectController extends Controller
             $this->flash('warning', $e->getMessage());
             return $this->redirect('/collect', ['provider' => $provider['slug'], 'exam' => $code]);
         }
-        $this->flash('success', 'Collection queued. You can close this page; the job keeps running on the server.');
+        $ahead = count(array_filter($this->s->jobs()->active(), static fn(array $j): bool => (int) $j['id'] < $id));
+        $this->flash('success', $ahead > 0
+            ? 'Added to the queue: ' . $ahead . ' job' . ($ahead === 1 ? '' : 's') . ' ahead of it. It starts on its own when they finish, and you can close this page.'
+            : 'Collection queued. You can close this page; the job keeps running on the server.');
         return $this->redirect('/jobs/' . (string) $this->s->jobs()->find($id)['uuid']);
     }
 

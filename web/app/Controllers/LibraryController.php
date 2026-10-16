@@ -170,7 +170,6 @@ final class LibraryController extends Controller
      */
     private function activeCollectFor(array $p, array $e): ?array
     {
-        $job = $this->s->jobs()->findBySlot('collect');
-        return $job !== null && (int) $job['provider_id'] === (int) $p['id'] && $job['exam_code'] === $e['code'] ? $job : null;
+        return $this->s->jobs()->findBySlot(\App\Services\JobService::examSlot((int) $p['id'], (string) $e['code']));
     }
 }

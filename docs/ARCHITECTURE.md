@@ -232,7 +232,7 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
 | MySQL instead of SQLite | The VPS already runs MySQL; SQLite was not guaranteed to be installed. The schema avoids engine-specific features beyond InnoDB and works on MySQL 5.7+ and MariaDB 10.3+. |
 | JSON files as the source of truth | Question content is large and immutable per version; files are easy to back up, checksum and rebuild the index from. The database never duplicates question content. |
 | dompdf instead of the tool's `-type pdf` | The existing path (mdtopdf with gofpdf core fonts) cannot render text outside Latin-1, has no images, and only converts its own legacy Markdown. dompdf embeds TrueType fonts (the app's Poppins, with DejaVu Sans for wider coverage) and supports print CSS, so every variant has one pipeline. |
-| A detached worker plus `flock`, not a queue server | One collection at a time is a requirement, not a limitation. `flock` gives crash-safe mutual exclusion with no extra infrastructure. |
+| A detached worker plus `flock`, not a queue server | Running one job at a time is a requirement, not a limitation: the source site is never hit by two jobs at once. Further jobs wait in the `jobs` table and run in turn. `flock` gives crash-safe mutual exclusion with no extra infrastructure. |
 | A UNIQUE `active_slot` column | Duplicate-submission prevention is atomic in the database, not a racy check-then-insert. |
 | Exact exam matching in the Go tool | Matching must happen where links are parsed. Filtering a substring search in the UI could not stop `h12-811` collecting `h12-811-v2-0`. |
 | Comments always collected | Including or excluding discussions is a document option, so it never needs a new collection. |
@@ -254,5 +254,5 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
   what the comments argue. On a multi-answer question ExamTopics may let each voter pick only
   one letter, so the vote can be incomplete. The reader's "Check this answer" hints point at
   such cases (they are heuristics, not verdicts), and corrections are made by hand.
-- One collection runs at a time by design, so a large provider inventory or exam can occupy
-  the worker for a long time.
+- One job runs at a time by design, so a large provider inventory or exam can occupy the
+  worker for a long time; jobs queued behind it wait.

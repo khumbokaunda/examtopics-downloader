@@ -1,6 +1,6 @@
 <?php
 /** @var list<array> $providers @var array|null $provider @var list<array> $exams @var string $q @var array|null $exam
- *  @var list<array> $versions @var array|null $best @var list<array> $documents @var array|null $activeCollect
+ *  @var list<array> $versions @var array|null $best @var list<array> $documents @var array|null $activeCollect @var list<array> $queue
  *  @var list<float> $allowedRps @var float $defaultRps @var array|null $lastRefresh @var array|null $knownLinks @var int $addedLinks */
 $examUrl = static fn(array $p, array $e): string => url('/library/' . rawurlencode($p['slug']) . '/' . rawurlencode($e['code']));
 ?>
@@ -11,11 +11,15 @@ $examUrl = static fn(array $p, array $e): string => url('/library/' . rawurlenco
     </div>
 </header>
 
-<?php if ($activeCollect): ?>
+<?php if ($queue !== []): $running = array_values(array_filter($queue, static fn($j) => $j['status'] === 'running')); $waiting = count($queue) - count($running); ?>
     <div class="alert alert-primary">
         <?= icon('arrow-repeat', 'spin') ?>
-        <div class="alert-body"><?= ($activeCollect['type'] ?? '') === 'images' ? 'An image download is in progress' : 'A collection is in progress' ?>: <strong><?= e(job_label($activeCollect)) ?></strong>. Only one collection or image download runs at a time.</div>
-        <a class="btn btn-sm btn-primary" href="<?= e(url('/jobs/' . $activeCollect['uuid'])) ?>">View progress</a>
+        <div class="alert-body">
+            <?php if ($running !== []): ?>Running: <strong><?= e(job_label($running[0])) ?></strong>.<?php endif; ?>
+            <?= $waiting > 0 ? $waiting . ' more ' . ($waiting === 1 ? 'job is' : 'jobs are') . ' waiting.' : '' ?>
+            New collections join the queue and start on their own, one at a time.
+        </div>
+        <a class="btn btn-sm btn-primary" href="<?= e(url('/jobs', ['status' => 'running'])) ?>">View the queue</a>
     </div>
 <?php endif; ?>
 
@@ -152,8 +156,14 @@ $examUrl = static fn(array $p, array $e): string => url('/library/' . rawurlenco
                                     <label class="form-check-label small" for="confirm_refresh">Collect a fresh version. The current version stays available until the new one passes validation.</label>
                                 </div>
                             <?php endif; ?>
-                            <button class="btn <?= $best ? 'btn-outline-primary' : 'btn-primary' ?> w-100" type="submit" <?= $activeCollect ? 'disabled' : '' ?>>
-                                <?= icon($best ? 'arrow-clockwise' : 'cloud-arrow-down') ?><?= $activeCollect ? 'Another collection is running' : ($best ? 'Refresh this exam' : 'Start collection') ?></button>
+                            <?php if ($activeCollect): ?>
+                                <a class="btn btn-outline-secondary w-100" href="<?= e(url('/jobs/' . $activeCollect['uuid'])) ?>"><?= icon('hourglass-split') ?><?= $activeCollect['status'] === 'running'
+                                    ? (($activeCollect['type'] ?? '') === 'images' ? 'Its images are downloading: view progress' : 'Being collected now: view progress')
+                                    : 'Already in the queue: view it' ?></a>
+                            <?php else: ?>
+                            <button class="btn <?= $best ? 'btn-outline-primary' : 'btn-primary' ?> w-100" type="submit">
+                                <?= icon($best ? 'arrow-clockwise' : 'cloud-arrow-down') ?><?= $queue !== [] ? ($best ? 'Add a refresh to the queue' : 'Add to the queue') : ($best ? 'Refresh this exam' : 'Start collection') ?></button>
+                            <?php endif; ?>
                             <p class="form-text mb-0 mt-2">Comments are always collected. Choose whether to include them when you generate documents.</p>
                         </div>
                     </form>

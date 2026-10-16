@@ -12,9 +12,11 @@ use App\Repositories\JobRepository;
 
 /**
  * Creates and cancels jobs on behalf of the web UI. Every job that runs the collection
- * engine goes through the single worker, so the engine never runs twice at once:
+ * engine goes through the single worker, which runs one job at a time, oldest first, so the
+ * engine never runs twice at once and further jobs simply wait their turn in the queue.
+ * Slots stop the same work being queued twice:
  *
- *  slot "collect"            one collection (or image download) in the whole application
+ *  slot "collect:<hash>"     one collection or image download per exam
  *  slot "inventory:<slug>"   one inventory refresh per provider
  *  slot "providers"          one provider discovery
  *
@@ -41,19 +43,25 @@ final class JobService
         if (!Ids::isExam($examCode)) {
             throw new \InvalidArgumentException('Invalid exam code.');
         }
-        return $this->enqueue('collect', 'collect', (int) $provider['id'], $examCode, $options);
+        return $this->enqueue('collect', self::examSlot((int) $provider['id'], $examCode), (int) $provider['id'], $examCode, $options);
+    }
+
+    /** The slot of an exam's collection or image download (a hash keeps it within the column). */
+    public static function examSlot(int $providerId, string $examCode): string
+    {
+        return 'collect:' . sha1($providerId . ':' . $examCode);
     }
 
     /**
-     * Download the missing images of a published version. It shares the collection slot:
-     * both talk to ExamTopics, so they never run at the same time.
+     * Download the missing images of a published version. It shares its exam's collection
+     * slot, so an exam is never collected and having its images downloaded at once.
      *
      * @param array<string,mixed> $version cache_versions row
      * @throws ActiveJobException
      */
     public function enqueueImages(array $version): int
     {
-        return $this->enqueue('images', 'collect', (int) $version['provider_id'], (string) $version['exam_code'],
+        return $this->enqueue('images', self::examSlot((int) $version['provider_id'], (string) $version['exam_code']), (int) $version['provider_id'], (string) $version['exam_code'],
             ['version_id' => (int) $version['id'], 'rps' => (float) $this->config->get('tool.default_rps', 1.0)]);
     }
 

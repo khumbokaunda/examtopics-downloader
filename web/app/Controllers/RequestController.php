@@ -79,8 +79,12 @@ final class RequestController extends Controller
     {
         $request = $this->s->requests()->find($uuid) ?? throw HttpException::notFound('Request');
         $status = (string) $this->request->input('status', '');
-        if ($request['status'] !== 'open' || !in_array($status, ['collected', 'declined'], true)) {
+        if ($request['status'] !== 'open') {
             $this->flash('warning', 'That request has already been answered.');
+            return $this->redirect('/requests');
+        }
+        if (!in_array($status, ['collected', 'declined'], true)) {
+            $this->flash('danger', 'Choose "It is in the library" or "Decline".');
             return $this->redirect('/requests');
         }
         $this->s->requests()->answer($request, $status, (string) $this->request->input('response', ''), (array) $this->auth->user());

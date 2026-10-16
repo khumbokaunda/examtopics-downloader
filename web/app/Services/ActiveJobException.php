@@ -13,10 +13,9 @@ final class ActiveJobException extends RuntimeException
     public function __construct(public readonly ?array $job)
     {
         $what = match ($job['type'] ?? '') {
-            'collect' => 'A collection job is already ' . ($job['status'] ?? 'active')
-                . '. Only one collection or image download runs at a time to avoid overloading the source site.',
-            'images' => 'An image download is already ' . ($job['status'] ?? 'active')
-                . '. Only one collection or image download runs at a time to avoid overloading the source site.',
+            'collect' => 'This exam is already ' . (($job['status'] ?? '') === 'running' ? 'being collected' : 'in the queue') . '.',
+            'images' => 'This exam\'s images are already ' . (($job['status'] ?? '') === 'running' ? 'being downloaded' : 'in the queue')
+                . '. Collect it again once that has finished.',
             'inventory' => 'An inventory refresh for this provider is already ' . ($job['status'] ?? 'active') . '.',
             'providers' => 'Provider discovery is already ' . ($job['status'] ?? 'active') . '.',
             default => 'A similar job is already active.',
