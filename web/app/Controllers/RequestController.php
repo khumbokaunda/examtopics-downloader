@@ -28,11 +28,32 @@ final class RequestController extends Controller
             'status' => $status,
             'requests' => $this->s->requests()->list($manager ? null : (int) $this->auth->user()['id'], $status),
             'providers' => $this->s->providers()->allWithStats(),
-            'prefill' => [
-                'provider' => (string) $this->request->query('provider', ''),
-                'exam' => (string) $this->request->query('exam', ''),
-            ],
-        ]);
+            // Administrators collect exams themselves, so only people who ask see the form.
+            'asker' => $this->auth->can('exams.request') && !$this->auth->can('exams.collect'),
+        ] + $this->choice());
+    }
+
+    /**
+     * The provider chosen in the request form, and what to ask next: the exams on its list
+     * that are not collected yet, or (for a provider whose list was never loaded) a code.
+     *
+     * @return array{chosen:?array<string,mixed>,choices:list<array<string,mixed>>,listed:bool,mine:array<string,true>,exam:string}
+     */
+    private function choice(): array
+    {
+        $slug = (string) $this->request->query('provider', '');
+        $provider = Ids::isProvider($slug) ? $this->s->providers()->findBySlug($slug) : null;
+        if ($provider === null) {
+            return ['chosen' => null, 'choices' => [], 'listed' => false, 'mine' => [], 'exam' => ''];
+        }
+        $exams = $this->s->exams()->forProvider((int) $provider['id']);
+        return [
+            'chosen' => $provider,
+            'choices' => array_values(array_filter($exams, static fn(array $e): bool => $e['latest_version'] === null)),
+            'listed' => $exams !== [],
+            'mine' => $this->s->requests()->openFor((int) $this->auth->user()['id'], (int) $provider['id']),
+            'exam' => strtolower((string) $this->request->query('exam', '')),
+        ];
     }
 
     public function store(): Response

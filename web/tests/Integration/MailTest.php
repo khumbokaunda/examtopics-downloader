@@ -125,6 +125,18 @@ final class MailTest extends HttpTestCase
         self::assertSame('failed', $this->app->db()->value("SELECT status FROM mail_queue WHERE idempotency_key = 'request:2:admin'"));
     }
 
+    public function testThePageSaysWhoGetsNotificationEmails(): void
+    {
+        $page = $this->get('/settings/email')->body;
+        self::assertStringContainsString('No email address on the account.', $page);
+        self::assertStringContainsString('inbox only', $page);
+        $admin = $this->s->users()->findByUsername('admin');
+        $this->s->users()->update((int) $admin['id'], ['email' => 'owner@example.com']);
+        self::assertStringContainsString('not confirmed yet', $this->get('/settings/email')->body);
+        $this->s->users()->markEmailVerified((int) $admin['id']);
+        self::assertStringContainsString('Gets them at owner@example.com', $this->get('/settings/email')->body);
+    }
+
     public function testTheTestButton(): void
     {
         $this->setUpMail();

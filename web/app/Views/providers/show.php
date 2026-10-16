@@ -10,7 +10,7 @@ $requester = can('exams.request');
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title"><?= e($name) ?></h1>
-        <p class="page-subtitle"><code><?= e($provider['slug']) ?></code> · exams with discussions on ExamTopics<?php if (!$collector && $requester): ?> · not in the library yet? <strong>Request</strong> it, or <a href="<?= e(url('/requests', ['provider' => $provider['slug']])) ?>#new">request one that is not listed</a><?php endif; ?></p>
+        <p class="page-subtitle"><code><?= e($provider['slug']) ?></code> · exams with discussions on ExamTopics<?php if (!$collector && $requester && $exams !== []): ?> · not in the library yet? <strong>Request</strong> it<?php elseif (!$collector && $requester): ?> · <a href="<?= e(url('/requests', ['provider' => $provider['slug']])) ?>#new">request an exam by its code</a><?php endif; ?></p>
     </div>
     <?php if ($mayRefresh): ?>
     <div class="page-actions">
