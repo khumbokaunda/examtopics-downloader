@@ -1,7 +1,9 @@
 <?php
 /** @var list<array{name:string,size:int,modified:int,manifest:array|null}> $backups @var array<string,mixed>|null $status
- *  @var array<string,int> $sizes @var int $uploadLimit @var bool $zip @var string $dir @var array|null $last */
+ *  @var array<string,int> $sizes @var int $uploadLimit @var bool $zip @var string $dir @var array|null $last
+ *  @var list<array{id:string,name:string,size:int,received:int,updated:int}> $pending */
 $running = ($status['status'] ?? '') === 'running';
+$restoring = ($status['kind'] ?? 'backup') === 'restore';
 $areaLabels = ['cache' => 'Exam data', 'inventory' => 'Question links', 'branding' => 'Logo', 'media' => 'Saved images', 'documents' => 'Built documents'];
 ?>
 <nav aria-label="breadcrumb"><ol class="breadcrumb">
@@ -21,8 +23,8 @@ $areaLabels = ['cache' => 'Exam data', 'inventory' => 'Question links', 'brandin
 <?php if ($status !== null && ($running || in_array($status['status'], ['failed', 'cancelled'], true))): ?>
 <div class="card mb-4" id="backup-progress">
     <div class="card-header">
-        <span class="card-title"><?= icon('archive') ?><?= $running ? 'Making a backup' : 'The last backup did not finish' ?></span>
-        <?php if ($running): ?>
+        <span class="card-title"><?= icon($restoring ? 'arrow-counterclockwise' : 'archive') ?><?= $running ? ($restoring ? 'Restoring a backup' : 'Making a backup') : ($restoring ? 'The last restore did not finish' : 'The last backup did not finish') ?></span>
+        <?php if ($running && !$restoring): ?>
             <form method="post" action="<?= e(url('/backups/cancel')) ?>" data-confirm="The unfinished backup file is deleted. Backups already made are kept." data-confirm-title="Cancel this backup?" data-confirm-button="Cancel backup" data-confirm-tone="danger"><?= csrf_field() ?>
                 <button class="btn btn-sm btn-outline-danger" type="submit"><?= icon('x-circle') ?>Cancel</button>
             </form>
@@ -30,7 +32,7 @@ $areaLabels = ['cache' => 'Exam data', 'inventory' => 'Question links', 'brandin
     </div>
     <div class="card-body">
         <div class="job-progress" data-job-progress data-status-url="<?= e(url('/api/backups/status')) ?>"
-             data-final="<?= $running ? '0' : '1' ?>" data-reload-on-finish="1">
+             data-final="<?= $running ? '0' : '1' ?>" data-reload-on-finish="1"<?php if ($restoring): ?> data-signed-out-url="<?= e(url('/login', ['restored' => '1'])) ?>"<?php endif; ?>>
             <div class="job-progress-head">
                 <div>
                     <span data-field="status"><?= status_badge((string) $status['status']) ?></span>
@@ -41,16 +43,17 @@ $areaLabels = ['cache' => 'Exam data', 'inventory' => 'Question links', 'brandin
                     <span data-field="elapsed" data-elapsed="<?= e((string) ($status['elapsed_seconds'] ?? '')) ?>"></span>
                 </div>
             </div>
-            <div class="progress" role="progressbar" aria-label="Backup progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= e((string) ($status['percent'] ?? 0)) ?>">
+            <div class="progress" role="progressbar" aria-label="<?= $restoring ? 'Restore' : 'Backup' ?> progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= e((string) ($status['percent'] ?? 0)) ?>">
                 <div class="progress-bar" data-field="bar" data-percent="<?= e($status['percent'] === null ? '' : (string) $status['percent']) ?>"></div>
             </div>
             <div class="job-message" data-field="message"><?= e($status['message']) ?></div>
         </div>
-        <?php if ($running): ?><p class="small text-muted mb-0 mt-2">You can leave this page: the backup carries on, and it is listed below when it is ready.</p><?php endif; ?>
+        <?php if ($running && $restoring): ?><p class="small text-muted mb-0 mt-2">It runs on the server, so closing this page does not stop it. When it finishes, everyone, you included, is signed out, and this page goes to the sign-in form.</p>
+        <?php elseif ($running): ?><p class="small text-muted mb-0 mt-2">You can leave this page: the backup carries on, and it is listed below when it is ready.</p><?php endif; ?>
     </div>
 </div>
 <?php endif; ?>
-<?php if (($status['status'] ?? '') === 'completed' && (int) ($status['finished_at'] ?? 0) > time() - 600): ?>
+<?php if (!$restoring && ($status['status'] ?? '') === 'completed' && (int) ($status['finished_at'] ?? 0) > time() - 600): ?>
     <div class="alert alert-success"><?= icon('check-circle') ?><div class="alert-body"><?= e($status['message']) ?> It is at the top of the list below.</div></div>
 <?php endif; ?>
 <?php if ($last !== null): ?>
@@ -88,11 +91,11 @@ $areaLabels = ['cache' => 'Exam data', 'inventory' => 'Question links', 'brandin
                             <?php if ($m !== null): ?>
                             <details class="request-answer">
                                 <summary class="btn btn-sm btn-outline-danger"><?= icon('arrow-counterclockwise') ?>Restore</summary>
-                                <form method="post" action="<?= e(url('/backups/' . rawurlencode($b['name']) . '/restore')) ?>" class="request-answer-body" data-confirm="Every account, setting and exam record is replaced with the backup's. A backup of the current data is made first. Everyone, you included, is signed out." data-confirm-title="Restore this backup?" data-confirm-button="Restore" data-confirm-tone="danger"><?= csrf_field() ?>
+                                <form method="post" action="<?= e(url('/backups/' . rawurlencode($b['name']) . '/restore')) ?>" class="request-answer-body" data-once data-busy="Starting…" data-confirm="Every account, setting and exam record is replaced with the backup's. A backup of the current data is made first. Everyone, you included, is signed out." data-confirm-title="Restore this backup?" data-confirm-button="Restore" data-confirm-tone="danger"><?= csrf_field() ?>
                                     <label class="form-label small" for="pw-<?= e(md5($b['name'])) ?>">Your password, to confirm</label>
                                     <input class="form-control form-control-sm mb-2" id="pw-<?= e(md5($b['name'])) ?>" name="password" type="password" autocomplete="current-password" required>
-                                    <button class="btn btn-sm btn-danger" type="submit">Restore this backup</button>
-                                    <div class="form-text">Large backups are better restored on the server: <code>php bin/backup.php restore <?= e($b['name']) ?></code></div>
+                                    <button class="btn btn-sm btn-danger" type="submit" <?= $running ? 'disabled' : '' ?>>Restore this backup</button>
+                                    <div class="form-text">It runs on the server in the background, and this page shows its progress.</div>
                                 </form>
                             </details>
                             <?php endif; ?>
@@ -127,11 +130,39 @@ $areaLabels = ['cache' => 'Exam data', 'inventory' => 'Question links', 'brandin
         <div class="card mb-4">
             <div class="card-header"><span class="card-title"><?= icon('upload') ?>Upload a backup</span></div>
             <div class="card-body">
-                <form method="post" action="<?= e(url('/backups/upload')) ?>" enctype="multipart/form-data" data-once data-busy="Uploading…"><?= csrf_field() ?>
+                <form method="post" action="<?= e(url('/backups/upload')) ?>" enctype="multipart/form-data" data-chunked-upload
+                      data-start-url="<?= e(url('/backups/uploads')) ?>" data-done-url="<?= e(url('/backups')) ?>"><?= csrf_field() ?>
                     <input class="form-control mb-2" type="file" name="archive" accept=".zip,application/zip" required>
-                    <div class="form-text mb-2">Up to <?= e(fmt_bytes($uploadLimit)) ?> (the server's upload limit). For a larger file, copy it to <code><?= e($dir) ?></code> on the server, or restore it there with <code>php bin/backup.php restore &lt;file&gt;</code>.</div>
-                    <button class="btn btn-outline-primary" type="submit"><?= icon('upload') ?>Upload</button>
+                    <div class="form-text mb-3" data-upload-hint>The file is sent in small pieces, so a large one is fine. If the connection drops or the page closes, choose the same file again and it carries on where it stopped.</div>
+                    <div class="job-progress mb-3" data-upload-progress hidden>
+                        <div class="job-progress-head">
+                            <div><span data-field="status"></span><span class="job-phase" data-field="phase"></span></div>
+                            <div class="job-numbers"><span data-field="counts"></span><span data-field="rate"></span></div>
+                        </div>
+                        <div class="progress" role="progressbar" aria-label="Upload progress" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar" data-field="bar"></div></div>
+                        <div class="job-message" data-field="message" aria-live="polite"></div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button class="btn btn-outline-primary" type="submit" data-upload-submit <?= $zip ? '' : 'disabled' ?>><?= icon('upload') ?>Upload</button>
+                        <button class="btn btn-outline-danger" type="button" data-upload-cancel hidden><?= icon('x-circle') ?>Cancel upload</button>
+                    </div>
                 </form>
+                <?php if ($pending !== []): ?>
+                    <div class="upload-pending">
+                        <div class="small fw-semibold">Unfinished uploads</div>
+                        <?php foreach ($pending as $p): ?>
+                            <div class="upload-pending-row">
+                                <div class="small">
+                                    <div class="text-break"><?= e($p['name']) ?></div>
+                                    <div class="text-muted"><?= e(fmt_bytes($p['received'])) ?> of <?= e(fmt_bytes($p['size'])) ?> (<?= (int) floor(100 * $p['received'] / max(1, $p['size'])) ?>%) · <?= e(fmt_time(gmdate('Y-m-d H:i:s', $p['updated']))) ?>. Choose this file again to carry on.</div>
+                                </div>
+                                <form method="post" action="<?= e(url('/backups/uploads/' . $p['id'] . '/discard')) ?>"><?= csrf_field() ?>
+                                    <button class="btn btn-sm btn-outline-danger" type="submit"><?= icon('trash3') ?>Discard</button>
+                                </form>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
         <div class="card">
@@ -140,7 +171,7 @@ $areaLabels = ['cache' => 'Exam data', 'inventory' => 'Question links', 'brandin
                 <ol class="ps-3 mb-0">
                     <li>Make a backup here with images and documents, and download it.</li>
                     <li>On the new server, install the app (docs/INSTALL.md): code, <code>composer install --no-dev</code>, the database and <code>config.local.php</code>.</li>
-                    <li>Copy the backup there and run <code>php bin/backup.php restore &lt;file&gt;</code> in the <code>web</code> folder.</li>
+                    <li>Either create an account there (<code>php bin/create-user.php</code>), sign in, upload the backup on this page and restore it; or copy it to the server and run <code>php bin/backup.php restore &lt;file&gt;</code> in the <code>web</code> folder.</li>
                     <li>Sign in with your usual account, and point the domain at the new server.</li>
                 </ol>
             </div>

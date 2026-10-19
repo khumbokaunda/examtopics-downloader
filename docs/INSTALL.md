@@ -9,7 +9,7 @@ runs as `www-data` (Debian/Ubuntu). Adjust both to your system.
 
 | Component | Version | Notes |
 |---|---|---|
-| PHP (web and CLI) | 8.1 or newer | Extensions: `pdo_mysql`, `mbstring`, `dom`, `xml`. Recommended: `pcntl` and `posix` (CLI) for clean worker shutdown and orphan cleanup; `gd` if you enable images in PDFs. |
+| PHP (web and CLI) | 8.1 or newer | Extensions: `pdo_mysql`, `mbstring`, `dom`, `xml`, and `zip` for backups. Recommended: `pcntl` and `posix` (CLI) for clean worker shutdown and orphan cleanup; `gd` if you enable images in PDFs. |
 | MySQL or MariaDB | MySQL 5.7+ / MariaDB 10.3+ | One database for metadata. Question content stays in JSON files. |
 | Go | 1.24+ | Only to build the collection tool. |
 | Composer | 2.x | Installs dompdf. |
@@ -113,7 +113,9 @@ web-accessible: configuration, cached data, logs and documents all live outside 
 - Apache: `web/deploy/apache.conf.example`
 
 Both examples redirect HTTP to HTTPS, execute only `index.php`, and raise the FastCGI timeout to
-300 seconds because building a PDF of a large exam can take a while. Get a certificate with
+300 seconds because building a PDF of a large exam can take a while. The nginx example accepts
+request bodies up to 10 MB (`client_max_body_size`): backups are uploaded in pieces of up to
+8 MB. A lower limit still works, with smaller pieces, down to 256 KB. Get a certificate with
 your usual tool (for example `certbot --nginx -d exams.example.com`).
 
 Session cookies are marked `Secure`, so the site must be reached over HTTPS. The only

@@ -30,7 +30,10 @@
 
   function getJSON(url) {
     return fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
-      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+      .then(function (r) {
+        if (!r.ok) { var err = new Error('HTTP ' + r.status); err.status = r.status; throw err; }
+        return r.json();
+      });
   }
 
   // A message in the flash area, like the server's flash messages.
@@ -385,6 +388,7 @@
     var bar = node.querySelector('[data-field="bar"]');
     var elapsedEl = node.querySelector('[data-field="elapsed"]');
     var final = node.getAttribute('data-final') === '1';
+    var signedOut = node.getAttribute('data-signed-out-url');
     var elapsed = parseInt(elapsedEl.getAttribute('data-elapsed'), 10);
     var running = !final;
     setBar(bar, bar.getAttribute('data-percent'), running);
@@ -407,11 +411,22 @@
         setBar(bar, j.percent, running);
         if (j.final) {
           clearInterval(tick);
-          if (node.getAttribute('data-reload-on-finish') === '1') setTimeout(function () { location.reload(); }, 1200);
+          // A restore signs everyone out: go to the sign-in form, unless this person has
+          // already signed in again while its files were being written.
+          if (signedOut && j.status === 'completed') {
+            setTimeout(function () {
+              getJSON(url).then(function () { location.reload(); }, function (err) {
+                if (err && err.status === 401) location.assign(signedOut); else location.reload();
+              });
+            }, 1200);
+          } else if (node.getAttribute('data-reload-on-finish') === '1') setTimeout(function () { location.reload(); }, 1200);
           return;
         }
         setTimeout(poll, 2000);
-      }).catch(function () { setTimeout(poll, 5000); });
+      }).catch(function (err) {
+        if (signedOut && err && err.status === 401) { location.assign(signedOut); return; }
+        setTimeout(poll, 5000);
+      });
     }
     setTimeout(poll, 1500);
   }
@@ -502,6 +517,192 @@
       if (open) { var f = panel.querySelector('textarea, input:not([type=hidden]), select'); if (f) f.focus(); }
     });
   });
+
+  // --- Backup uploads, sent in pieces -------------------------------------------------------
+  // One request carrying the whole file can outlast the web server's timeouts and size limits,
+  // so the file goes in pieces (8 MB at most, halved whenever the server says a piece is too
+  // large). The server keeps what has arrived, so choosing the same file again after a dropped
+  // connection or a closed page carries on from there. Without JavaScript the form sends the
+  // whole file in one request, as a plain form.
+  function fmtBytes(n) {
+    var units = ['B', 'KB', 'MB', 'GB', 'TB'], i = 0;
+    while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+    return (i === 0 ? String(Math.round(n)) : n.toFixed(1)) + ' ' + units[i];
+  }
+  function fmtLeft(s) {
+    s = Math.max(1, Math.round(s));
+    if (s < 60) return s + ' s left';
+    var m = Math.round(s / 60);
+    return m < 60 ? m + ' min left' : Math.floor(m / 60) + ' h ' + (m % 60) + ' min left';
+  }
+
+  function initChunkedUpload(form) {
+    var input = form.querySelector('input[type="file"]');
+    var box = form.querySelector('[data-upload-progress]');
+    var submit = form.querySelector('[data-upload-submit]');
+    var cancel = form.querySelector('[data-upload-cancel]');
+    var startUrl = form.getAttribute('data-start-url');
+    var bar = box.querySelector('[data-field="bar"]');
+    var MIN_PIECE = 256 * 1024;
+    var current = null;
+
+    function field(name) { return box.querySelector('[data-field="' + name + '"]'); }
+    function show(status, phase, message) {
+      box.hidden = false;
+      field('status').replaceChildren(statusChip(status));
+      field('phase').textContent = phase;
+      field('message').textContent = message;
+    }
+    function progress(u, sent) {
+      setBar(bar, Math.floor(100 * sent / Math.max(1, u.size)), true);
+      field('counts').textContent = fmtBytes(sent) + ' / ' + fmtBytes(u.size);
+      var secs = (Date.now() - u.t0) / 1000;
+      var rate = secs > 2 ? (sent - u.b0) / secs : 0;
+      field('rate').textContent = rate > 0 ? fmtBytes(rate) + '/s, ' + fmtLeft((u.size - sent) / rate) : '';
+    }
+    function warnLeave(e) { e.preventDefault(); e.returnValue = ''; }
+    function busy(on) {
+      submit.disabled = on;
+      input.disabled = on;
+      cancel.hidden = !on;
+      if (on) window.addEventListener('beforeunload', warnLeave);
+      else window.removeEventListener('beforeunload', warnLeave);
+    }
+    function failure(status) {
+      if (status === 0) return 'The server could not be reached.';
+      if (status === 401) return 'You were signed out. Sign in again, then choose the same file to carry on.';
+      if (status === 403) return 'The server refused the upload. Reload the page, then choose the same file to carry on.';
+      if (status === 413) return 'The web server refuses even small pieces. Raise client_max_body_size in its configuration (see docs/INSTALL.md).';
+      return 'The upload failed (status ' + status + ').';
+    }
+    function post(url) {
+      var data = arguments.length > 1 ? arguments[1] : {};
+      return fetch(url, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrf, Accept: 'application/json' },
+        body: new URLSearchParams(data)
+      }).then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (d) { d.httpStatus = r.status; return d; });
+      }, function () { return { httpStatus: 0 }; });
+    }
+    // One piece, by XMLHttpRequest because fetch() reports no upload progress. The offset is in
+    // the address and the CSRF token in a header, so a piece too large for PHP still reads as
+    // "too large" rather than as a form without its token.
+    function sendPiece(u, offset, length) {
+      return new Promise(function (resolve, reject) {
+        var xhr = new XMLHttpRequest();
+        u.xhr = xhr;
+        xhr.open('POST', u.base + '?offset=' + offset);
+        xhr.setRequestHeader('X-CSRF-Token', csrf);
+        xhr.setRequestHeader('Accept', 'application/json');
+        xhr.upload.onprogress = function (e) { if (e.lengthComputable) progress(u, offset + Math.min(e.loaded, length)); };
+        xhr.onload = function () {
+          var body = {};
+          try { body = JSON.parse(xhr.responseText); } catch (err) { /* an error page from the web server */ }
+          resolve({ status: xhr.status, body: body });
+        };
+        xhr.onerror = function () { resolve({ status: 0, body: {} }); };
+        xhr.onabort = function () { reject(new Error('cancelled')); };
+        var fd = new FormData();
+        fd.append('chunk', u.file.slice(offset, offset + length), 'piece');
+        xhr.send(fd);
+      });
+    }
+    function next(u) {
+      if (u.cancelled) return Promise.reject(new Error('cancelled'));
+      if (u.received >= u.size) return finish(u);
+      var length = Math.min(u.piece, u.size - u.received);
+      return sendPiece(u, u.received, length).then(function (r) {
+        var received = r.body && typeof r.body.received === 'number' ? r.body.received : null;
+        if ((r.status === 200 || r.status === 409) && received !== null) {
+          // 409: the server has a different amount (another tab, a lost reply); go on from there.
+          u.received = received;
+          if (r.status === 200) { u.failures = 0; progress(u, received); }
+          return next(u);
+        }
+        if (r.status === 413 && u.piece > MIN_PIECE) {
+          u.piece = Math.max(MIN_PIECE, Math.floor(u.piece / 2));
+          return next(u);
+        }
+        if (r.status === 0 || (r.status >= 500 && r.status !== 507)) {
+          u.failures++;
+          if (u.failures > 8) throw new Error(failure(r.status));
+          // Some servers drop the connection rather than answer "too large": smaller pieces
+          // help there, and on a poor connection too.
+          if (r.status === 0 && u.failures >= 2) u.piece = Math.max(MIN_PIECE, Math.floor(u.piece / 2));
+          var wait = Math.min(30, Math.pow(2, u.failures));
+          show('running', 'waiting', 'The connection dropped. Trying again in ' + wait + ' s.');
+          return new Promise(function (res) { setTimeout(res, wait * 1000); }).then(function () {
+            if (!u.cancelled) show('running', 'uploading', 'Keep this page open until the upload finishes.');
+            return next(u);
+          });
+        }
+        throw new Error((r.body && r.body.error) || failure(r.status));
+      });
+    }
+    function finish(u) {
+      u.checking = true;
+      show('running', 'checking', 'All of it arrived. Checking the file…');
+      setBar(bar, null, true);
+      return post(u.base + '/finish').then(function (d) {
+        if (d.httpStatus === 200 && d.name) {
+          busy(false);
+          location.assign(form.getAttribute('data-done-url'));
+          return;
+        }
+        if (d.httpStatus === 409 && typeof d.received === 'number') { u.checking = false; u.received = d.received; return next(u); }
+        throw new Error(d.error || failure(d.httpStatus));
+      });
+    }
+
+    form.addEventListener('submit', function (ev) {
+      var file = input.files && input.files[0];
+      if (!file || !window.fetch || !window.FormData || !window.Promise || !file.slice) return; // the plain form
+      ev.preventDefault();
+      if (current) return;
+      var u = current = { file: file, size: file.size, received: 0, failures: 0, cancelled: false, checking: false };
+      busy(true);
+      show('running', 'starting', 'Starting…');
+      setBar(bar, 0, true);
+      field('counts').textContent = '';
+      field('rate').textContent = '';
+      post(startUrl, { name: file.name, size: String(file.size), modified: String(file.lastModified || 0) }).then(function (d) {
+        if (d.httpStatus !== 200 || !d.id) throw new Error(d.error || failure(d.httpStatus));
+        u.base = startUrl + '/' + d.id;
+        if (u.cancelled) { post(u.base + '/discard'); throw new Error('cancelled'); }
+        u.piece = d.chunk;
+        u.received = d.received;
+        u.t0 = Date.now();
+        u.b0 = d.received;
+        show('running', 'uploading', d.received > 0
+          ? 'Carrying on from ' + fmtBytes(d.received) + ', where an earlier upload of this file stopped. Keep this page open until it finishes.'
+          : 'Keep this page open until the upload finishes.');
+        progress(u, d.received);
+        return next(u);
+      }).catch(function (err) {
+        if (u.cancelled) return;
+        current = null;
+        busy(false);
+        setBar(bar, Math.floor(100 * u.received / Math.max(1, u.size)), false);
+        field('rate').textContent = '';
+        show('failed', 'stopped', err.message + (u.base && !u.checking && u.received > 0
+          ? ' What arrived is kept on the server: choose the same file again to carry on.' : ''));
+      });
+    });
+    cancel.addEventListener('click', function () {
+      var u = current;
+      if (!u) return;
+      u.cancelled = true;
+      current = null;
+      if (u.xhr) u.xhr.abort();
+      busy(false);
+      field('rate').textContent = '';
+      show('cancelled', 'cancelled', 'Upload cancelled. What had arrived was deleted.');
+      if (u.base) post(u.base + '/discard');
+    });
+    input.addEventListener('change', function () { if (!current) box.hidden = true; });
+  }
+  document.querySelectorAll('form[data-chunked-upload]').forEach(initChunkedUpload);
 
   // --- Forms ------------------------------------------------------------------------------
   // Prevent duplicate submissions while a request is being initiated.

@@ -125,6 +125,11 @@ final class Services
         return $this->app->service(Backup::class, fn() => new Backup($this->app));
     }
 
+    public function backupUploads(): BackupUploads
+    {
+        return $this->app->service(BackupUploads::class, fn() => new BackupUploads($this->app, $this->backup()));
+    }
+
     public function supervisor(): WorkerSupervisor
     {
         return $this->app->service(WorkerSupervisor::class, fn() => new WorkerSupervisor(

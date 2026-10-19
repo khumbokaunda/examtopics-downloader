@@ -22,6 +22,7 @@ final class Auth
         private LoginAttemptRepository $attempts,
         private Logger $log,
         private Config $config,
+        private int $signedOutBefore = 0,
     ) {
     }
 
@@ -35,6 +36,12 @@ final class Auth
     {
         if ($this->user === false) {
             $id = $this->session->get('user_id');
+            // A sign-in from before the last restore is over, even if a request that was running
+            // during the restore wrote its session back (see Backup::restoredAt()).
+            if (is_int($id) && $this->signedOutBefore > 0 && (int) $this->session->get('_started_at', 0) < $this->signedOutBefore) {
+                $this->session->remove('user_id');
+                $id = null;
+            }
             $user = is_int($id) ? $this->users->find($id) : null;
             $this->user = $user !== null && ($user['status'] ?? 'active') === 'active' ? $user : null;
         }

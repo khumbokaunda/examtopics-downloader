@@ -146,6 +146,18 @@ deleted there. They hold password hashes and the email password: keep copies pri
 Not in a backup: `config/config.local.php` (copy it yourself: it has the database password),
 sign-in throttling records, pending codes and emails, job working files and logs.
 
+**Uploading** sends the file in pieces of up to 8 MB (halved whenever the web server refuses a
+piece as too large), so no single request is large or long and PHP's upload limit does not
+apply. The page shows the progress, speed and time left. The pieces collect in
+`storage/backups/uploads`; if the connection drops or the page closes, choosing the same file
+again carries on where it stopped. Unfinished uploads are listed on the page with a Discard
+button, and `bin/cleanup.php` deletes those nobody has added to for a week. The finished file
+is checked like any backup before it is listed.
+
+**Restoring** from the page runs in the background (`bin/backup.php restore --track`), like
+making a backup: the page shows its progress, and when it finishes it goes to the sign-in form.
+It cannot be cancelled half way.
+
 From the command line (for large archives and for cron):
 
 ```bash
@@ -163,7 +175,9 @@ and that it was not made by a newer version), then makes a database-only safety 
 `...-before-restore.zip` and stops if that fails. The tables are replaced in one transaction,
 so a failure changes nothing; files are then written over what is there (nothing else is
 deleted). Jobs that were running in the backup are marked failed, and everyone is signed out,
-since the accounts may differ. The Backups page shows the result of the last restore.
+since the accounts may differ: sign-ins from before the database was replaced stop working at
+that moment, even if a request that was running at the time wrote its session back. The Backups page shows the result of the
+last restore.
 
 ### Moving to a new server
 
@@ -172,7 +186,9 @@ since the accounts may differ. The Backups page shows the result of the last res
 2. On the new server, install the app as in `docs/INSTALL.md`: the code, the Go tool,
    `composer install --no-dev`, the database and user, `config/config.local.php` (copy the
    old one and change what differs), the web server and the cron file.
-3. Copy the backup over and restore it, before anyone signs in:
+3. Restore it, before anyone else signs in. Either create your account
+   (`php bin/create-user.php`), sign in, upload the backup on the Backups page and restore it
+   there, or copy it over and restore it from the command line:
 
    ```bash
    cd /srv/examtopics-downloader/web
