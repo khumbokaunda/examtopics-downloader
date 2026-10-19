@@ -72,7 +72,7 @@ final class Backup
      */
     public function create(array $options, string $by, string $suffix = '', bool $track = false): array
     {
-        $status = $track ? fn(array $s) => $this->writeStatus($s) : static fn(array $s) => null;
+        $status = $track ? fn(array $s) => $this->writeStatus($s + ['kind' => 'backup']) : static fn(array $s) => null;
         Paths::ensureDir($this->dir());
         $started = time();
         try {
@@ -230,36 +230,75 @@ final class Backup
     /**
      * Replace this system's data with an archive's.
      *
+     * With $track, progress is written to status.json as it goes, for the Backups page: the
+     * check and the safety backup are the first 10%, the database the next 30%, and writing
+     * the files the rest.
+     *
      * @return array{warnings:list<string>,safety:?string,files:int}
      */
-    public function restore(string $path, string $by, bool $safetyNet = true): array
+    public function restore(string $path, string $by, bool $safetyNet = true, bool $track = false): array
     {
-        $check = $this->inspect($path);
-        if ($check['errors'] !== []) {
-            throw new RuntimeException(implode(' ', $check['errors']));
-        }
-        $warnings = $check['warnings'];
-        $safety = null;
-        if ($safetyNet) {
-            try {
-                $safety = $this->create(['media' => false, 'documents' => false], $by, 'before-restore')['name'];
-            } catch (\Throwable $e) {
-                throw new RuntimeException('The safety backup of the current data failed, so nothing was restored: ' . $e->getMessage());
-            }
-        }
-        $zip = new ZipArchive();
-        $zip->open($path, ZipArchive::RDONLY);
+        $started = time();
+        $name = basename($path);
+        $report = $track
+            ? fn(string $phase, int $percent, string $message, ?int $done = null, ?int $total = null) => $this->writeStatus(['kind' => 'restore',
+                'status' => 'running', 'phase' => $phase, 'percent' => $percent, 'message' => $message, 'done' => $done, 'total' => $total,
+                'name' => $name, 'started_at' => $started, 'pid' => getmypid()])
+            : static fn(string $phase, int $percent, string $message, ?int $done = null, ?int $total = null) => null;
         try {
-            $this->restoreTables($zip, $warnings);
-            $files = $this->restoreFiles($zip, $warnings);
-        } finally {
-            $zip->close();
+            $report('checking the archive', 0, 'Checking ' . $name);
+            $check = $this->inspect($path);
+            if ($check['errors'] !== []) {
+                throw new RuntimeException(implode(' ', $check['errors']));
+            }
+            $warnings = $check['warnings'];
+            $safety = null;
+            if ($safetyNet) {
+                $report('saving the current data', 2, 'Making a safety backup of the current data first');
+                try {
+                    $safety = $this->create(['media' => false, 'documents' => false], $by, 'before-restore')['name'];
+                } catch (\Throwable $e) {
+                    throw new RuntimeException('The safety backup of the current data failed, so nothing was restored: ' . $e->getMessage());
+                }
+            }
+            $zip = new ZipArchive();
+            $zip->open($path, ZipArchive::RDONLY);
+            try {
+                $this->restoreTables($zip, $warnings, $report);
+                // The accounts are the backup's from here on, so every earlier sign-in ends now,
+                // not only when the files are written.
+                Paths::atomicWrite($this->dir() . '/restored-at', (string) time());
+                $files = $this->restoreFiles($zip, $warnings, $report);
+            } finally {
+                $zip->close();
+            }
+            $this->afterRestore($warnings);
+        } catch (\Throwable $e) {
+            if ($track) {
+                $this->writeStatus(['kind' => 'restore', 'status' => 'failed', 'phase' => 'failed', 'name' => $name, 'started_at' => $started, 'finished_at' => time(),
+                    'message' => 'The restore failed: ' . $e->getMessage()]);
+            }
+            throw $e;
         }
-        $this->afterRestore($warnings);
-        $this->app->logger()->info('security', 'Backup restored', ['file' => basename($path), 'by' => $by, 'safety' => $safety, 'warnings' => count($warnings)]);
+        $this->app->logger()->info('security', 'Backup restored', ['file' => $name, 'by' => $by, 'safety' => $safety, 'warnings' => count($warnings)]);
         $result = ['warnings' => $warnings, 'safety' => $safety, 'files' => $files];
-        $this->recordResult(basename($path), $result, $by);
+        $this->recordResult($name, $result, $by);
+        if ($track) {
+            $this->writeStatus(['kind' => 'restore', 'status' => 'completed', 'phase' => 'done', 'percent' => 100, 'name' => $name,
+                'message' => 'Restored ' . $name . ': ' . number_format($files) . ' files written.', 'started_at' => $started, 'finished_at' => time()]);
+        }
         return $result;
+    }
+
+    /**
+     * When the last restore replaced the accounts (0 if never). Sign-ins from before then are
+     * over, even one whose request was running during the restore and wrote its session file
+     * back after the restore removed it.
+     */
+    public function restoredAt(): int
+    {
+        $at = (int) @filemtime($this->dir() . '/restored-at');
+        return $at > time() ? 0 : $at;
     }
 
     /**
@@ -308,12 +347,16 @@ final class Backup
         $alive = $pid > 0 && function_exists('posix_kill')
             ? (@posix_kill($pid, 0) || posix_get_last_error() === 1)
             : $updated > time() - 120;
+        $kind = ($s['kind'] ?? 'backup') === 'restore' ? 'restore' : 'backup';
         if ($s['status'] === 'running' && (($pid > 0 && !$alive) || ($pid === 0 && $updated < time() - 60))) {
             $s = ['status' => 'failed', 'phase' => 'failed', 'finished_at' => $updated,
-                'message' => 'The backup stopped before it finished (the server may have restarted, or the disk is full). See storage/logs/backup.log, then try again.'] + $s;
+                'message' => $kind === 'restore'
+                    ? 'The restore stopped before it finished (the server may have restarted). See storage/logs/backup.log. The data from before it is kept as a backup named ...-before-restore.zip.'
+                    : 'The backup stopped before it finished (the server may have restarted, or the disk is full). See storage/logs/backup.log, then try again.'] + $s;
         }
         $final = $s['status'] !== 'running';
         return [
+            'kind' => $kind,
             'status' => (string) $s['status'],
             'final' => $final,
             'phase' => (string) ($s['phase'] ?? ''),
@@ -334,7 +377,8 @@ final class Backup
     public function cancel(): bool
     {
         $s = json_decode((string) @file_get_contents($this->dir() . '/status.json'), true);
-        if (!is_array($s) || ($s['status'] ?? '') !== 'running') {
+        // A restore is not stopped half way: its files would be part old, part new.
+        if (!is_array($s) || ($s['status'] ?? '') !== 'running' || ($s['kind'] ?? 'backup') === 'restore') {
             return false;
         }
         $pid = (int) ($s['pid'] ?? 0);
@@ -347,15 +391,15 @@ final class Backup
                 @unlink($left);
             }
         }
-        $this->writeStatus(['status' => 'cancelled', 'phase' => 'cancelled', 'message' => 'The backup was cancelled and its unfinished file deleted.',
+        $this->writeStatus(['kind' => 'backup', 'status' => 'cancelled', 'phase' => 'cancelled', 'message' => 'The backup was cancelled and its unfinished file deleted.',
             'started_at' => $s['started_at'] ?? time(), 'finished_at' => time()]);
         return true;
     }
 
-    /** Record that the page started a backup, before the background process has begun. */
-    public function markStarting(): void
+    /** Record that the page started a backup or a restore, before the background process has begun. */
+    public function markStarting(string $kind = 'backup', ?string $name = null): void
     {
-        $this->writeStatus(['status' => 'running', 'phase' => 'starting', 'percent' => 0, 'message' => 'Starting…', 'started_at' => time()]);
+        $this->writeStatus(['kind' => $kind, 'status' => 'running', 'phase' => 'starting', 'percent' => 0, 'message' => 'Starting…', 'name' => $name, 'started_at' => time()]);
     }
 
     /** @param array<string,mixed> $status */
@@ -460,8 +504,11 @@ final class Backup
         return $this->app->paths()->storage() . '/' . $area;
     }
 
-    /** @param list<string> $warnings */
-    private function restoreTables(ZipArchive $zip, array &$warnings): void
+    /**
+     * @param list<string> $warnings
+     * @param callable(string,int,string,?int,?int):void $report
+     */
+    private function restoreTables(ZipArchive $zip, array &$warnings, callable $report): void
     {
         $pdo = $this->app->db()->pdo();
         $mode = (string) $pdo->query('SELECT @@SESSION.sql_mode')->fetchColumn();
@@ -470,10 +517,9 @@ final class Backup
         $pdo->exec("SET SESSION sql_mode = 'NO_AUTO_VALUE_ON_ZERO'");
         $pdo->beginTransaction();
         try {
-            foreach ($this->tables() as $table) {
-                if (in_array($table, self::SKIP, true)) {
-                    continue;
-                }
+            $tables = array_values(array_diff($this->tables(), self::SKIP));
+            foreach ($tables as $i => $table) {
+                $report('restoring the database', 10 + (int) floor(30 * $i / max(1, count($tables))), 'Restoring table ' . $table, $i, count($tables));
                 $pdo->exec('DELETE FROM `' . $table . '`');
                 $json = $zip->getFromName('data/' . $table . '.json');
                 if ($json === false) {
@@ -534,11 +580,21 @@ final class Backup
         }
     }
 
-    /** @param list<string> $warnings */
-    private function restoreFiles(ZipArchive $zip, array &$warnings): int
+    /**
+     * @param list<string> $warnings
+     * @param callable(string,int,string,?int,?int):void $report
+     */
+    private function restoreFiles(ZipArchive $zip, array &$warnings, callable $report): int
     {
         $written = 0;
+        $last = -1;
         for ($i = 0; $i < $zip->numFiles; $i++) {
+            // The page is updated at most once a percent.
+            $percent = 40 + (int) floor(59 * $i / max(1, $zip->numFiles));
+            if ($percent !== $last) {
+                $last = $percent;
+                $report('writing files', $percent, 'Writing the exam data, images and documents', $i, $zip->numFiles);
+            }
             $entry = (string) $zip->getNameIndex($i);
             if (!str_starts_with($entry, 'files/') || str_ends_with($entry, '/') || !self::safeEntry($entry)) {
                 continue;

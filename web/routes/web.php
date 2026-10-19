@@ -119,6 +119,10 @@ return static function (Router $r): void {
     $r->get('/api/backups/status', [BackupController::class, 'statusJson'], can: 'backup.manage');
     $r->post('/backups/cancel', [BackupController::class, 'cancel'], can: 'backup.manage');
     $r->post('/backups/upload', [BackupController::class, 'upload'], can: 'backup.manage');
+    $r->post('/backups/uploads', [BackupController::class, 'uploadStart'], can: 'backup.manage');
+    $r->post('/backups/uploads/{id}', [BackupController::class, 'uploadChunk'], can: 'backup.manage');
+    $r->post('/backups/uploads/{id}/finish', [BackupController::class, 'uploadFinish'], can: 'backup.manage');
+    $r->post('/backups/uploads/{id}/discard', [BackupController::class, 'uploadDiscard'], can: 'backup.manage');
     $r->get('/backups/{name}/download', [BackupController::class, 'download'], can: 'backup.manage');
     $r->post('/backups/{name}/restore', [BackupController::class, 'restore'], can: 'backup.manage');
     $r->post('/backups/{name}/delete', [BackupController::class, 'delete'], can: 'backup.manage');

@@ -14,7 +14,9 @@ server {
     # allow 203.0.113.10;
     # deny all;
 
-    client_max_body_size 1m;
+    # Backups are uploaded in pieces of up to 8 MB (smaller ones if this is lower); the logo
+    # upload is far smaller.
+    client_max_body_size 10m;
 
     location /assets/ {
         try_files $uri =404;

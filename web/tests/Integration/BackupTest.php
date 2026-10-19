@@ -121,6 +121,127 @@ final class BackupTest extends HttpTestCase
         self::assertSame(404, $this->post('/backups/' . $b['name'] . '/delete')->status);
     }
 
+    /** One piece of a browser upload, as the page sends it: the offset in the address, the bytes as a file. */
+    private function piece(string $id, int $offset, string $bytes, int $error = UPLOAD_ERR_OK): \App\Core\Http\Response
+    {
+        $tmp = $this->app->paths()->storage() . '/piece-' . bin2hex(random_bytes(3));
+        file_put_contents($tmp, $bytes);
+        return $this->kernel()->handle(new \App\Core\Http\Request('POST', '/backups/uploads/' . $id, ['offset' => (string) $offset],
+            ['_csrf' => $this->session->csrfToken()], ['REMOTE_ADDR' => $this->ip, 'HTTP_ACCEPT' => 'application/json'],
+            ['chunk' => ['name' => 'piece', 'type' => 'application/octet-stream', 'tmp_name' => $tmp, 'error' => $error, 'size' => strlen($bytes)]]));
+    }
+
+    /** @return array<string,mixed> */
+    private function startUpload(string $name, int $size, int $modified = 1700000000): array
+    {
+        $r = $this->post('/backups/uploads', ['name' => $name, 'size' => (string) $size, 'modified' => (string) $modified]);
+        self::assertSame(200, $r->status, $r->body);
+        return json_decode($r->body, true);
+    }
+
+    public function testUploadsArriveInPiecesAndCarryOnWhereTheyStopped(): void
+    {
+        $b = $this->makeBackup(['documents' => '1']);
+        $bytes = (string) file_get_contents((string) $this->s->backup()->path($b['name']));
+        $this->s->backup()->delete($b['name']);
+        $half = intdiv(strlen($bytes), 2);
+
+        $start = $this->startUpload('old-server.zip', strlen($bytes));
+        self::assertSame(0, $start['received']);
+        self::assertGreaterThan(0, $start['chunk']);
+        $id = $start['id'];
+        $r = $this->piece($id, 0, substr($bytes, 0, $half));
+        self::assertSame(['received' => $half, 'size' => strlen($bytes)], json_decode($r->body, true));
+
+        // A piece for the wrong place is refused with what the server has, so the page resends from there.
+        $r = $this->piece($id, 0, substr($bytes, 0, 10));
+        self::assertSame(409, $r->status);
+        self::assertSame($half, json_decode($r->body, true)['received']);
+        // A piece PHP refused as too large, and more bytes than the file has.
+        self::assertSame(413, $this->piece($id, $half, '', UPLOAD_ERR_INI_SIZE)->status);
+        self::assertSame(422, $this->piece($id, $half, str_repeat('x', strlen($bytes)))->status);
+        // Finishing early says how much is missing.
+        $r = $this->post('/backups/uploads/' . $id . '/finish');
+        self::assertSame(409, $r->status);
+
+        // The page lists the unfinished upload; choosing the same file again carries on from the half.
+        $page = $this->get('/backups')->body;
+        self::assertStringContainsString('Unfinished uploads', $page);
+        self::assertStringContainsString('old-server.zip', $page);
+        self::assertStringContainsString('data-chunked-upload', $page);
+        self::assertSame(['id' => $id, 'received' => $half], array_intersect_key($this->startUpload('old-server.zip', strlen($bytes)), ['id' => 1, 'received' => 1]));
+        self::assertNotSame($id, $this->startUpload('old-server.zip', strlen($bytes), 1700000001)['id'], 'another file is another upload');
+
+        self::assertSame(200, $this->piece($id, $half, substr($bytes, $half))->status);
+        $this->flashes();
+        $r = $this->post('/backups/uploads/' . $id . '/finish');
+        self::assertSame(200, $r->status, $r->body);
+        $name = json_decode($r->body, true)['name'];
+        self::assertMatchesRegularExpression('/^examtopics-backup-\d{8}-\d{6}-uploaded\.zip$/', $name);
+        self::assertSame($bytes, file_get_contents((string) $this->s->backup()->path($name)));
+        self::assertStringContainsString('Uploaded as ' . $name, $this->flashes()[0]['message']);
+        self::assertSame(404, $this->post('/backups/uploads/' . $id . '/finish')->status, 'the pieces are gone');
+
+        // A file that is not a backup is refused when it is complete, and not kept.
+        $junk = $this->startUpload('junk.zip', 12);
+        $this->piece($junk['id'], 0, 'not a backup');
+        $r = $this->post('/backups/uploads/' . $junk['id'] . '/finish');
+        self::assertSame(422, $r->status);
+        self::assertStringContainsString('cannot be used', json_decode($r->body, true)['error']);
+        self::assertSame([$name], array_column($this->s->backup()->list(), 'name'));
+
+        // Someone else's upload is not reachable, and ids are checked.
+        $theirs = $this->s->backupUploads()->start(999, 'theirs.zip', 100, 1);
+        self::assertSame(404, $this->piece($theirs['id'], 0, 'x')->status);
+        self::assertSame(404, $this->piece('../../x', 0, 'x')->status);
+
+        // Discard, and the cleanup of uploads nobody has added to for a week.
+        $this->post('/backups/uploads/' . $this->startUpload('other.zip', 50, 5)['id'] . '/discard');
+        $uploads = $this->s->backupUploads();
+        self::assertSame(['old-server.zip'], array_column($uploads->pending((int) $this->s->users()->findByUsername('admin')['id']), 'name'),
+            'only the upload of the other copy is left');
+        foreach (glob($uploads->dir() . '/*') ?: [] as $f) {
+            touch($f, time() - 8 * 86400);
+        }
+        self::assertSame(2, $uploads->prune(7), 'the upload of another file, and the other person\'s');
+        self::assertSame([], glob($uploads->dir() . '/*'));
+    }
+
+    public function testRestoreFromThePageRunsInTheBackground(): void
+    {
+        $b = $this->makeBackup(['documents' => '1']);
+        $this->s->users()->create('intruder', 'intruder password', 'admin');
+        $this->configure($this->startFixture(), null, ['backup' => ['background' => true]]);
+        // Signed in before the restore: the restore ends this sign-in, wherever the session is kept.
+        $this->session->set('_started_at', time() - 10);
+
+        $r = $this->post('/backups/' . $b['name'] . '/restore', ['password' => self::PW]);
+        self::assertSame(303, $r->status);
+        self::assertStringEndsWith('/backups', $r->headers['Location']);
+        $status = null;
+        for ($i = 0; $i < 120; $i++) {
+            $status = $this->s->backup()->status();
+            if (($status['final'] ?? false) === true) {
+                break;
+            }
+            if ($i === 0) {
+                self::assertSame('restore', $status['kind']);
+                $page = $this->get('/backups')->body;
+                self::assertStringContainsString('Restoring a backup', $page);
+                self::assertStringContainsString('data-signed-out-url=', $page);
+                self::assertStringNotContainsString('/backups/cancel', $page, 'a restore is not cancelled half way');
+            }
+            usleep(250000);
+        }
+        self::assertSame(['restore', 'completed', 100], [$status['kind'], $status['status'], $status['percent']], (string) $status['message']);
+        self::assertNull($this->s->users()->findByUsername('intruder'));
+        self::assertSame(401, $this->kernel()->handle(new \App\Core\Http\Request('GET', '/api/backups/status', [], [], ['REMOTE_ADDR' => $this->ip]))->status,
+            'the page polling the progress learns that it was signed out');
+        $this->login();
+        self::assertStringContainsString('Last restore', $this->get('/backups')->body);
+        self::assertStringNotContainsString('Backup ready', $this->get('/backups')->body);
+    }
+
     public function testHostileOrUnusableArchivesAreRefused(): void
     {
         $backup = $this->s->backup();

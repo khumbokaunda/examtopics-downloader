@@ -487,6 +487,10 @@ body.dialog-open { overflow: hidden; }
 /* Backups: the actions sit in one row under each backup's details. */
 .backup-actions { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-2); padding-left: 44px; margin-top: var(--space-2); }
 .backup-actions .request-answer[open] { flex-basis: 100%; order: 3; }
+/* Unfinished backup uploads, under the upload form. */
+.upload-pending { margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--color-border); display: grid; gap: var(--space-2); }
+.upload-pending-row { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-2); }
+.upload-pending-row > .small { min-width: 0; }
 @media (max-width: 575.98px) { .backup-actions { padding-left: 0; } }
 
 /* ---- Practice mode: picking, checking and the reveal -------------------------------------- */

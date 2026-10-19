@@ -9,10 +9,11 @@ use App\Core\Http\Response;
 use App\Services\Backup;
 
 /**
- * Settings > Backups: make, download, upload, restore and delete backups. Making one runs in
- * the background (bin/backup.php), since images and PDFs can take minutes to pack. Restoring
- * needs the administrator's password again and runs in this request; large archives are
- * better restored with php bin/backup.php restore on the server.
+ * Settings > Backups: make, download, upload, restore and delete backups. Making and restoring
+ * one run in the background (bin/backup.php), since images and PDFs can take minutes to pack
+ * or unpack, and the page shows their progress. Restoring needs the administrator's password
+ * again. Uploads arrive in pieces (BackupUploads), so no single request is large or slow; the
+ * whole-file upload is kept for browsers without JavaScript.
  */
 final class BackupController extends Controller
 {
@@ -26,6 +27,7 @@ final class BackupController extends Controller
             'status' => $backup->status(),
             'sizes' => $this->areaSizes(),
             'uploadLimit' => self::uploadLimit(),
+            'pending' => $this->s->backupUploads()->pending((int) $this->auth->user()['id']),
             'zip' => class_exists(\ZipArchive::class),
             'dir' => $backup->dir(),
             'last' => $backup->lastResult(),
@@ -87,29 +89,89 @@ final class BackupController extends Controller
         return Response::download($path, $name, 'application/zip');
     }
 
+    /** The whole file in one request: the form's fallback when JavaScript is off. */
     public function upload(): Response
     {
         $file = $this->request->file('archive');
         if ($file === null || $file['error'] !== UPLOAD_ERR_OK || !is_file($file['tmp_name'])) {
             $this->flash('danger', $file !== null && in_array($file['error'], [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)
-                ? 'That file is larger than this server accepts (' . fmt_bytes(self::uploadLimit()) . '). Copy it to ' . $this->s->backup()->dir() . ' on the server instead.'
+                ? 'That file is larger than this server accepts in one piece (' . fmt_bytes(self::uploadLimit()) . '). With JavaScript on, the page sends it in pieces instead; or copy it to ' . $this->s->backup()->dir() . ' on the server.'
                 : 'Choose a backup file to upload.');
             return $this->redirect('/backups');
         }
-        $check = $this->s->backup()->inspect($file['tmp_name']);
-        if ($check['errors'] !== []) {
-            $this->flash('danger', 'That file cannot be used: ' . implode(' ', $check['errors']));
-            return $this->redirect('/backups');
-        }
-        \App\Core\Paths::ensureDir($this->s->backup()->dir());
-        $name = 'examtopics-backup-' . gmdate('Ymd-His') . '-uploaded.zip';
-        if (!@rename($file['tmp_name'], $this->s->backup()->dir() . '/' . $name) && !@copy($file['tmp_name'], $this->s->backup()->dir() . '/' . $name)) {
-            $this->flash('danger', 'The file could not be saved in ' . $this->s->backup()->dir() . '.');
-            return $this->redirect('/backups');
-        }
-        $this->app->logger()->info('security', 'Backup uploaded', ['file' => $name, 'username' => $this->auth->user()['username'] ?? null]);
-        $this->flash('success', 'Uploaded as ' . $name . '. It is listed below, ready to restore.');
+        $this->uploaded($this->s->backupUploads()->adopt($file['tmp_name']));
         return $this->redirect('/backups');
+    }
+
+    /** Start sending a file in pieces, or carry on with an unfinished upload of the same file. */
+    public function uploadStart(): Response
+    {
+        return $this->json($this->s->backupUploads()->start((int) $this->auth->user()['id'], (string) $this->request->input('name', ''),
+            (int) $this->request->input('size', '0'), (int) $this->request->input('modified', '0')));
+    }
+
+    /**
+     * One piece of the file. The offset is in the address, and the CSRF token in a header, so
+     * that a piece larger than PHP accepts is reported as too large (413) rather than as a
+     * form without its token.
+     */
+    public function uploadChunk(string $id): Response
+    {
+        $file = $this->request->file('chunk');
+        if ($file === null || in_array($file['error'], [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)) {
+            return Response::json(['error' => 'That piece is larger than the server accepts.'], 413);
+        }
+        if ($file['error'] !== UPLOAD_ERR_OK || !is_file($file['tmp_name'])) {
+            return Response::json(['error' => 'The piece did not arrive complete.'], 400);
+        }
+        $offset = (string) $this->request->query('offset', '');
+        if (!ctype_digit($offset)) {
+            return Response::json(['error' => 'The piece has no offset.'], 400);
+        }
+        return $this->json($this->s->backupUploads()->append($id, (int) $this->auth->user()['id'], (int) $offset, $file['tmp_name']));
+    }
+
+    /** The last piece arrived: check the file and list it with the other backups. */
+    public function uploadFinish(string $id): Response
+    {
+        @set_time_limit(300);
+        $result = $this->s->backupUploads()->finish($id, (int) $this->auth->user()['id']);
+        if (isset($result['name'])) {
+            $this->uploaded($result);
+        }
+        return $this->json($result);
+    }
+
+    public function uploadDiscard(string $id): Response
+    {
+        $gone = $this->s->backupUploads()->discard($id, (int) $this->auth->user()['id']);
+        if ($this->request->wantsJson()) {
+            return Response::json(['discarded' => $gone]);
+        }
+        if ($gone) {
+            $this->flash('success', 'The unfinished upload was deleted.');
+        }
+        return $this->redirect('/backups');
+    }
+
+    /** @param array{name?:string,warnings?:list<string>,error?:string} $result */
+    private function uploaded(array $result): void
+    {
+        if (isset($result['error'])) {
+            $this->flash('danger', $result['error']);
+            return;
+        }
+        $this->app->logger()->info('security', 'Backup uploaded', ['file' => $result['name'], 'username' => $this->auth->user()['username'] ?? null]);
+        $this->flash('success', 'Uploaded as ' . $result['name'] . '. It is listed below, ready to restore.'
+            . (($result['warnings'] ?? []) !== [] ? ' Note: ' . implode(' ', $result['warnings']) : ''));
+    }
+
+    /** @param array<string,mixed> $result a BackupUploads result: "http" is the status to send */
+    private function json(array $result): Response
+    {
+        $status = (int) ($result['http'] ?? 200);
+        unset($result['http']);
+        return Response::json($result, $status);
     }
 
     public function restore(string $name): Response
@@ -120,6 +182,21 @@ final class BackupController extends Controller
         if (!password_verify((string) $this->request->input('password', ''), (string) $user['password_hash'])) {
             $this->app->logger()->warning('security', 'Restore refused: wrong password', ['username' => $user['username']]);
             $this->flash('danger', 'Your password was not right, so nothing was restored.');
+            return $this->redirect('/backups');
+        }
+        if (($backup->status()['status'] ?? '') === 'running') {
+            $this->flash('warning', 'A backup or restore is already running. Its progress is shown below; try again when it has finished.');
+            return $this->redirect('/backups');
+        }
+        if ((bool) $this->app->config()->get('backup.background', true)) {
+            // The page shows the progress; when it finishes everyone, this person included, is
+            // signed out and the page goes to the sign-in form.
+            $backup->markStarting('restore', $name);
+            $this->app->logger()->info('security', 'Restore started', ['file' => $name, 'username' => $user['username']]);
+            if (!$this->s->supervisor()->launchScript('backup.php', ['restore', $path, '--yes', '--track', '--by=' . (string) $user['username']], 'backup.log')) {
+                $backup->writeStatus(['kind' => 'restore', 'status' => 'failed', 'phase' => 'failed', 'started_at' => time(), 'finished_at' => time(),
+                    'message' => 'The restore could not be started, so nothing changed. See storage/logs/app.log, or run php bin/backup.php restore on the server.']);
+            }
             return $this->redirect('/backups');
         }
         @set_time_limit(0);
