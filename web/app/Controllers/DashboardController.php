@@ -26,6 +26,26 @@ final class DashboardController extends Controller
             'recentDocuments' => $this->s->documentRepo()->recent(6),
             'jobCounts' => $jobs->countsByStatus(),
             'workerRunning' => $this->s->supervisor()->workerRunning(),
+            'activity' => $this->auth->can('activity.view') ? $this->activity() : null,
         ]);
+    }
+
+    /**
+     * The newest entries of the activity history in plain English, with failed sign-ins
+     * counted on one line rather than listed (a public site sees many).
+     *
+     * @return array{rows:list<array<string,mixed>>,failed:int}
+     */
+    private function activity(): array
+    {
+        $names = [];
+        foreach ($this->s->users()->all() as $u) {
+            $names[(int) $u['id']] = \App\Services\Access::displayName($u);
+        }
+        $audit = $this->s->audit();
+        return [
+            'rows' => array_map(static fn(array $r): array => $r + \App\Services\AuditText::describe($r, $names), $audit->recent(8)),
+            'failed' => $audit->failedSignIns(86400),
+        ];
     }
 }

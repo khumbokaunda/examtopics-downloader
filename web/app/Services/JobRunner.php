@@ -41,6 +41,8 @@ final class JobRunner
         private MediaStore $media,
         /** Called when a collection publishes an exam (closes its open requests). */
         private ?\Closure $onCollected = null,
+        /** Called with the job's final row once it has finished, however it ended. */
+        private ?\Closure $onFinished = null,
     ) {
     }
 
@@ -53,6 +55,13 @@ final class JobRunner
         } catch (Throwable $e) {
             $this->log->error('jobs', 'Job crashed', ['job_id' => $id, 'error' => $e->getMessage()]);
             $this->jobs->finish($id, 'failed', 'Internal error', 'Internal error while running the job: ' . Redactor::clean($e->getMessage()));
+        }
+        if ($this->onFinished !== null) {
+            try {
+                ($this->onFinished)((array) $this->jobs->find($id));
+            } catch (Throwable $e) {
+                $this->log->error('jobs', 'After-job step failed', ['job_id' => $id, 'error' => $e->getMessage()]);
+            }
         }
     }
 

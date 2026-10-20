@@ -24,6 +24,7 @@ final class Auth
         private Logger $log,
         private Config $config,
         private int $signedOutBefore = 0,
+        private ?AuditLog $audit = null,
     ) {
     }
 
@@ -88,7 +89,7 @@ final class Auth
         $max = (int) $this->config->get('security.login_max_attempts', 5);
         $window = (int) $this->config->get('security.login_window', 900);
         if ($this->attempts->recentFailures($ip, $window) >= $max) {
-            $this->log->warning('security', 'Login throttled', ['ip' => $ip, 'username' => $username]);
+            $this->log->warning('security', 'Login throttled', ['ip' => $ip, 'username' => IdentifierMask::mask($username)]);
             return 'Too many failed sign-in attempts. Try again in a few minutes.';
         }
 
@@ -98,15 +99,21 @@ final class Auth
         $hash = $user['password_hash'] ?? '$2y$10$usesomesillystringfore7hnbRJHxXVLeakoG8K30oukPsA.ztMG';
         $ok = password_verify($password, (string) $hash) && $user !== null;
 
-        $this->attempts->record($ip, $username, $ok);
+        // A name that matched an account is that account; anything else may be a password.
+        $shown = $user !== null ? (string) $user['username'] : IdentifierMask::mask($username);
+        $this->attempts->record($ip, $shown, $ok);
         if (!$ok) {
-            $this->log->warning('security', 'Login failed', ['ip' => $ip, 'username' => $username]);
+            $this->log->warning('security', 'Login failed', ['ip' => $ip, 'username' => $shown]);
+            // Whoever typed it is not known: a visitor, with the account it named as the subject.
+            $this->audit?->record('auth.sign_in_failed', ['identifier' => $shown, 'reason' => $user === null ? 'no such account' : 'wrong password'],
+                $user !== null ? 'user' : null, $user !== null ? (string) $user['username'] : null);
             return 'Incorrect username or password.';
         }
         // Only after the password is right does the answer say what state the account is in.
         $status = (string) ($user['status'] ?? 'active');
         if ($status !== 'active') {
             $this->log->info('security', 'Login refused: account ' . $status, ['ip' => $ip, 'username' => $user['username']]);
+            $this->audit?->record('auth.sign_in_refused', ['status' => Access::STATUSES[$status] ?? $status], 'user', (string) $user['username'], $user);
             if ($status === 'unverified') {
                 $this->unverified = (int) $user['id'];
             }
@@ -142,6 +149,7 @@ final class Auth
         $this->users->touchLogin((int) $user['id']);
         $this->user = false;
         $this->log->info('security', 'Login succeeded', ['ip' => $ip, 'username' => $user['username']]);
+        $this->audit?->record('auth.signed_in', [], 'user', (string) $user['username'], $user);
     }
 
     public function logout(string $ip): void
@@ -150,5 +158,8 @@ final class Auth
         $this->session->destroy();
         $this->user = null;
         $this->log->info('security', 'Logout', ['ip' => $ip, 'username' => $user['username'] ?? null]);
+        if ($user !== null) {
+            $this->audit?->record('auth.signed_out', [], 'user', (string) $user['username'], $user);
+        }
     }
 }

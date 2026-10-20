@@ -125,6 +125,11 @@ final class Services
         return $this->app->service(Backup::class, fn() => new Backup($this->app));
     }
 
+    public function audit(): AuditLog
+    {
+        return $this->app->service(AuditLog::class, fn() => new AuditLog($this->app));
+    }
+
     public function backupUploads(): BackupUploads
     {
         return $this->app->service(BackupUploads::class, fn() => new BackupUploads($this->app, $this->backup()));
@@ -154,7 +159,8 @@ final class Services
         return $this->app->service(JobRunner::class, fn() => new JobRunner(
             $this->app->config(), $this->app->paths(), $this->app->logger(), $this->jobs(), $this->providers(),
             $this->exams(), $this->refreshes(), $this->cache(), $this->versions(), $this->media(),
-            fn(int $providerId, string $exam) => $this->requests()->collected($providerId, $exam)));
+            fn(int $providerId, string $exam) => $this->requests()->collected($providerId, $exam),
+            fn(array $job) => $this->audit()->recordJob($job)));
     }
 
     public function media(): MediaStore

@@ -58,7 +58,10 @@ final class JobController extends Controller
     public function cancel(string $uuid): Response
     {
         $job = $this->job($uuid);
-        $this->flash('info', $this->s->jobService()->cancel((int) $job['id']));
+        $message = $this->s->jobService()->cancel((int) $job['id']);
+        $this->s->audit()->record('job.cancelled', array_filter(['type' => (string) $job['type'], 'provider' => $job['provider_slug'] ?? null,
+            'exam' => $job['exam_code'] ?? null]), 'job', (string) $job['uuid']);
+        $this->flash('info', $message);
         return $this->redirect('/jobs/' . $job['uuid']);
     }
 

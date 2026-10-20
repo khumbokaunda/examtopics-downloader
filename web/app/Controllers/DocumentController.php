@@ -30,6 +30,8 @@ final class DocumentController extends Controller
             $this->flash('danger', $ex->getMessage() . ' The cached data and other documents are unaffected.');
             return $this->redirect($back, ['version' => $v['version']]);
         }
+        $this->s->audit()->record('document.build_queued', ['provider' => provider_name($p), 'exam' => $e['code'], 'version' => $v['version'],
+            'format' => $format === 'pdf' ? 'PDF' : 'Markdown file', 'variant' => Variant::ALL[$variant]['label']], 'exam', $p['slug'] . '/' . $e['code']);
         match ($doc['status']) {
             'ready' => $this->flash('success', $doc['filename'] . ' is ready (' . fmt_bytes($doc['size_bytes']) . '). Use its Download button below.'),
             'building' => $this->flash('info', 'Building ' . $doc['filename'] . ' on the server. Its progress shows below, and it keeps going if you leave this page.'),
@@ -77,6 +79,9 @@ final class DocumentController extends Controller
         }
         $doc = $this->s->documentRepo()->findByUuid($uuid) ?? throw HttpException::notFound('Document');
         $this->s->documents()->delete($doc);
+        $this->s->audit()->record('document.deleted', ['provider' => (string) $doc['provider_slug'], 'exam' => (string) $doc['exam_code'],
+            'version' => (string) $doc['version'], 'format' => (string) $doc['format'] === 'pdf' ? 'PDF' : 'Markdown file',
+            'file' => (string) ($doc['filename'] ?? '')], 'exam', $doc['provider_slug'] . '/' . $doc['exam_code']);
         $this->flash('success', 'Document deleted. The cached exam data is unchanged and the document can be generated again.');
         return $this->redirect('/library/' . rawurlencode((string) $doc['provider_slug']) . '/' . rawurlencode((string) $doc['exam_code']),
             ['version' => (string) $doc['version']]);

@@ -30,6 +30,7 @@ $groups = [
     ],
     'System' => [
         'users' => ['/users', 'Users', 'people', 'users.manage'],
+        'activity' => ['/activity', 'Activity', 'activity', 'activity.view'],
         'branding' => ['/settings/branding', 'Branding', 'brush', 'settings.manage'],
         'backups' => ['/backups', 'Backups', 'archive', 'backup.manage'],
         'settings' => ['/settings', 'Settings', 'gear', 'settings.manage'],

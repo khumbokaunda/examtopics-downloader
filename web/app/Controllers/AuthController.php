@@ -108,6 +108,7 @@ final class AuthController extends Controller
             return $this->registerPage($form, $sendError, 503);
         }
         $this->app->logger()->info('security', 'Account created by sign-up', ['username' => $form['username'], 'ip' => $this->ip()]);
+        $this->s->audit()->record('auth.signed_up', ['email' => $form['email']], 'user', $form['username'], $user);
         $this->session->set('pending_user_id', $id);
         $this->flash('success', 'We sent a six-digit code to ' . $form['email'] . '. Type it below to finish.');
         return $this->redirect('/verify');
@@ -145,6 +146,7 @@ final class AuthController extends Controller
                 'error' => AccountCodes::message($result)], 422);
         }
         $this->session->remove('pending_user_id');
+        $this->s->audit()->record('auth.email_verified', ['email' => (string) $user['email']], 'user', (string) $user['username'], $user);
         if ($this->s->registration()->verified($user) === 'active') {
             $this->auth->signIn((array) $this->s->users()->find((int) $user['id']), $this->ip());
             $this->flash('success', 'Your email address is verified. Welcome, ' . Access::displayName($user) . '.');
@@ -194,6 +196,7 @@ final class AuthController extends Controller
             $user = $this->s->users()->findByEmail($email);
             if ($user !== null && $user['status'] === 'active') {
                 $error = $this->s->codes()->send($user, 'reset', $email);
+                $this->s->audit()->record('auth.reset_requested', $error !== null ? ['not_sent' => $error] : [], 'user', (string) $user['username'], $user);
                 if ($error !== null) {
                     $this->app->logger()->warning('security', 'Reset code not sent', ['username' => $user['username'], 'reason' => $error]);
                 }
@@ -243,6 +246,7 @@ final class AuthController extends Controller
         $this->s->users()->markEmailVerified((int) $user['id']); // the code proved the address
         $this->session->remove('reset_email');
         $this->app->logger()->info('security', 'Password reset with an emailed code', ['username' => $user['username'], 'ip' => $this->ip()]);
+        $this->s->audit()->record('auth.password_reset', [], 'user', (string) $user['username'], $user);
         $this->flash('success', 'Your password is changed. Sign in with the new one.');
         return $this->redirect('/login');
     }

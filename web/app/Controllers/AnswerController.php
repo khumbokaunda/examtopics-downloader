@@ -91,6 +91,7 @@ final class AnswerController extends Controller
             $this->s->answerEdits()->delete($examId, $key);
             $this->flash('success', ($n > 0 ? "Question $n: your" : 'Your') . ' correction was removed, so the collected answer is shown again.');
             $this->app->logger()->info('app', 'Answer correction removed', ['exam' => $e['code'], 'question' => $key]);
+            $this->s->audit()->record('answers.removed', ['provider' => provider_name($p), 'exam' => $e['code'], 'question' => $n], 'exam', $p['slug'] . '/' . $e['code']);
             return $this->backToReader($p, $e, $v, $n);
         }
         if ($q === null) {
@@ -116,6 +117,8 @@ final class AnswerController extends Controller
             default => "Question $n: note saved.",
         });
         $this->app->logger()->info('app', 'Answer corrected', ['exam' => $e['code'], 'question' => $key, 'kind' => $edit['kind'], 'answer' => $letters]);
+        $this->s->audit()->record('answers.saved', ['provider' => provider_name($p), 'exam' => $e['code'], 'question' => $n, 'kind' => $edit['kind'],
+            'answer' => $letters, 'note' => $note !== ''], 'exam', $p['slug'] . '/' . $e['code']);
         return $this->backToReader($p, $e, $v, $n);
     }
 
