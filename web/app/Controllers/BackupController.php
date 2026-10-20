@@ -11,8 +11,8 @@ use App\Services\Backup;
 /**
  * Settings > Backups: make, download, upload, restore and delete backups. Making and restoring
  * one run in the background (bin/backup.php), since images and PDFs can take minutes to pack
- * or unpack, and the page shows their progress. Restoring needs the administrator's password
- * again. Uploads arrive in pieces (BackupUploads), so no single request is large or slow; the
+ * or unpack, and the page shows their progress. Every action first needs the person to
+ * confirm it is them (their two-step code, or their password), good for ten minutes. Uploads arrive in pieces (BackupUploads), so no single request is large or slow; the
  * whole-file upload is kept for browsers without JavaScript.
  */
 final class BackupController extends Controller
@@ -31,11 +31,16 @@ final class BackupController extends Controller
             'zip' => class_exists(\ZipArchive::class),
             'dir' => $backup->dir(),
             'last' => $backup->lastResult(),
+            'confirmedFor' => $this->confirmedFor(),
+            'withCode' => $this->s->twoStep()->enabled((int) $this->auth->user()['id']),
         ]);
     }
 
     public function create(): Response
     {
+        if ($r = $this->needsConfirmation('/backups')) {
+            return $r;
+        }
         $args = ['create', '--by=' . (string) $this->auth->user()['username']];
         if ($this->request->input('media') !== '1') {
             $args[] = '--no-media';
@@ -69,6 +74,9 @@ final class BackupController extends Controller
 
     public function cancel(): Response
     {
+        if ($r = $this->needsConfirmation('/backups')) {
+            return $r;
+        }
         if ($this->s->backup()->cancel()) {
             $this->s->audit()->record('backup.cancelled');
             $this->app->logger()->info('security', 'Backup cancelled', ['username' => $this->auth->user()['username'] ?? null]);
@@ -85,6 +93,9 @@ final class BackupController extends Controller
 
     public function download(string $name): Response
     {
+        if ($r = $this->needsConfirmation('/backups')) {
+            return $r;
+        }
         $path = $this->s->backup()->path($name) ?? throw HttpException::notFound('Backup');
         $this->app->logger()->info('security', 'Backup downloaded', ['file' => $name, 'username' => $this->auth->user()['username'] ?? null]);
         $this->s->audit()->record('backup.downloaded', ['name' => $name], 'backup', $name);
@@ -94,6 +105,9 @@ final class BackupController extends Controller
     /** The whole file in one request: the form's fallback when JavaScript is off. */
     public function upload(): Response
     {
+        if ($r = $this->needsConfirmation('/backups')) {
+            return $r;
+        }
         $file = $this->request->file('archive');
         if ($file === null || $file['error'] !== UPLOAD_ERR_OK || !is_file($file['tmp_name'])) {
             $this->flash('danger', $file !== null && in_array($file['error'], [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)
@@ -108,6 +122,9 @@ final class BackupController extends Controller
     /** Start sending a file in pieces, or carry on with an unfinished upload of the same file. */
     public function uploadStart(): Response
     {
+        if ($r = $this->needsConfirmation('/backups')) {
+            return $r;
+        }
         return $this->json($this->s->backupUploads()->start((int) $this->auth->user()['id'], (string) $this->request->input('name', ''),
             (int) $this->request->input('size', '0'), (int) $this->request->input('modified', '0')));
     }
@@ -179,14 +196,12 @@ final class BackupController extends Controller
 
     public function restore(string $name): Response
     {
+        if ($r = $this->needsConfirmation('/backups')) {
+            return $r;
+        }
         $backup = $this->s->backup();
         $path = $backup->path($name) ?? throw HttpException::notFound('Backup');
         $user = (array) $this->auth->user();
-        if (!password_verify((string) $this->request->input('password', ''), (string) $user['password_hash'])) {
-            $this->app->logger()->warning('security', 'Restore refused: wrong password', ['username' => $user['username']]);
-            $this->flash('danger', 'Your password was not right, so nothing was restored.');
-            return $this->redirect('/backups');
-        }
         if (($backup->status()['status'] ?? '') === 'running') {
             $this->flash('warning', 'A backup or restore is already running. Its progress is shown below; try again when it has finished.');
             return $this->redirect('/backups');
@@ -217,6 +232,9 @@ final class BackupController extends Controller
 
     public function delete(string $name): Response
     {
+        if ($r = $this->needsConfirmation('/backups')) {
+            return $r;
+        }
         if (!$this->s->backup()->delete($name)) {
             throw HttpException::notFound('Backup');
         }

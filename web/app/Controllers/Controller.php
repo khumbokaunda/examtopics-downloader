@@ -43,6 +43,37 @@ abstract class Controller
         return $this->redirect($fallback);
     }
 
+    /**
+     * Whether the signed-in person confirmed it is them (their two-step code, or their password
+     * when two-step sign-in is off) in the last security.confirm_minutes (10). Backups and
+     * deleting accounts ask for it, so a session left open is not enough on its own.
+     */
+    protected function confirmed(): bool
+    {
+        $c = $this->session->get('_confirmed');
+        return is_array($c) && (int) ($c['user'] ?? 0) === (int) ($this->auth->user()['id'] ?? -1) && (int) ($c['until'] ?? 0) > time();
+    }
+
+    /** Seconds the confirmation has left (0 when there is none). */
+    protected function confirmedFor(): int
+    {
+        $c = $this->session->get('_confirmed');
+        return $this->confirmed() ? max(0, (int) $c['until'] - time()) : 0;
+    }
+
+    /** Before a sensitive action: null when confirmed, else the way to the "Confirm it's you" page. */
+    protected function needsConfirmation(string $back): ?Response
+    {
+        if ($this->confirmed()) {
+            return null;
+        }
+        if ($this->request->wantsJson()) {
+            return Response::json(['error' => 'Confirm it is you first: reload the page and use the Confirm button.'], 403);
+        }
+        $this->flash('info', 'Confirm it is you first, then do it again.');
+        return $this->redirect('/confirm', ['next' => $back]);
+    }
+
     protected function flash(string $type, string $message): void
     {
         $this->session->flash($type, $message);

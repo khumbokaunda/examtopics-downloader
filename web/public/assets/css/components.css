@@ -542,3 +542,16 @@ body.dialog-open { overflow: hidden; }
 /* Activity history: one sentence per entry, after a small icon in the entry's tone. */
 .activity-line { display: inline-flex; align-items: center; gap: var(--space-2); }
 .activity-line .icon-bubble { flex: none; }
+
+/* Two-step sign-in: confirm it is you, recovery codes, and the QR code to scan. */
+.confirm-card { max-width: 30rem; margin: var(--space-6) auto; }
+.recovery-card { max-width: 40rem; }
+.recovery-codes { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: var(--space-2) var(--space-4); padding-left: 2.75rem; margin-bottom: var(--space-4); font-size: var(--text-lg); }
+/* A six-digit code box beside its button, rather than the full width above it. */
+.d-flex > .code-input { width: 11rem; flex: none; }
+/* A QR code needs dark squares on white to scan, in either theme. */
+.qr-box { display: inline-block; background: #fff; padding: var(--space-2); border-radius: var(--radius-md); line-height: 0; }
+.qr-box img { width: 180px; height: 180px; image-rendering: pixelated; }
+.secret-key { font-size: var(--text-lg); letter-spacing: 0.04em; word-break: break-all; }
+.setup-steps { padding-left: 1.25rem; margin-bottom: var(--space-3); }
+.setup-steps > li { margin-bottom: var(--space-3); }

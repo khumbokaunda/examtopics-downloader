@@ -41,6 +41,10 @@ final class AuthController extends Controller
         if ($error !== null) {
             return $this->loginPage($next, $error, $username, 401);
         }
+        if ($this->auth->awaitingCode()) {
+            $this->session->set('two_step_next', $next);
+            return $this->redirect('/login/two-step');
+        }
         return $this->redirect($next);
     }
 

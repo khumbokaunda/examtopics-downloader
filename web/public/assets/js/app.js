@@ -704,6 +704,17 @@
   }
   document.querySelectorAll('form[data-chunked-upload]').forEach(initChunkedUpload);
 
+  // --- QR codes (setting up two-step sign-in) -----------------------------------------------
+  // Drawn here from the vendored qrcode-generator, loaded only on the page that needs it.
+  if (typeof window.qrcode === 'function') {
+    document.querySelectorAll('img[data-qr]').forEach(function (img) {
+      var qr = window.qrcode(0, 'M');
+      qr.addData(img.getAttribute('data-qr'));
+      qr.make();
+      img.src = qr.createDataURL(5, 4);
+    });
+  }
+
   // --- Forms ------------------------------------------------------------------------------
   // Prevent duplicate submissions while a request is being initiated.
   document.querySelectorAll('form[data-once]').forEach(function (form) {

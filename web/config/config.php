@@ -68,6 +68,9 @@ return [
         // Older switch: believe X-Forwarded-For from the one proxy directly in front, whatever
         // its address. Prefer trusted_proxies.
         'trust_forwarded_for'   => false,
+        // Backups and deleting accounts ask the person to confirm it is them (their two-step
+        // code, or their password when it is off); a confirmation lasts this many minutes.
+        'confirm_minutes'       => 10,
         'hsts'                  => true,
     ],
 

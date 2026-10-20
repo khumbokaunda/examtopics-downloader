@@ -1,7 +1,7 @@
 <?php
 /** @var list<array{name:string,size:int,modified:int,manifest:array|null}> $backups @var array<string,mixed>|null $status
  *  @var array<string,int> $sizes @var int $uploadLimit @var bool $zip @var string $dir @var array|null $last
- *  @var list<array{id:string,name:string,size:int,received:int,updated:int}> $pending */
+ *  @var list<array{id:string,name:string,size:int,received:int,updated:int}> $pending @var int $confirmedFor @var bool $withCode */
 $running = ($status['status'] ?? '') === 'running';
 $restoring = ($status['kind'] ?? 'backup') === 'restore';
 $areaLabels = ['cache' => 'Exam data', 'inventory' => 'Question links', 'branding' => 'Logo', 'media' => 'Saved images', 'documents' => 'Built documents'];
@@ -17,6 +17,27 @@ $areaLabels = ['cache' => 'Exam data', 'inventory' => 'Question links', 'brandin
     </div>
 </header>
 
+<?php if ($confirmedFor === 0): ?>
+<div class="card mb-4">
+    <div class="card-body d-flex flex-wrap align-items-end gap-3">
+        <div class="flex-grow-1">
+            <div class="fw-semibold"><?= icon('shield-lock') ?> Confirm it is you to make, download, upload, restore or delete backups</div>
+            <div class="small text-muted"><?= $withCode ? 'Type the code from your authenticator app.' : 'Type your password.' ?> It is good for the next ten minutes.</div>
+        </div>
+        <form method="post" action="<?= e(url('/confirm')) ?>" class="d-flex flex-wrap gap-2" data-once><?= csrf_field() ?>
+            <input type="hidden" name="next" value="/backups">
+            <?php if ($withCode): ?>
+                <input class="form-control code-input flex-grow-0" name="code" maxlength="20" autocomplete="one-time-code" placeholder="000000" aria-label="Code from your app" required>
+            <?php else: ?>
+                <input class="form-control w-auto" name="password" type="password" autocomplete="current-password" placeholder="Password" aria-label="Your password" required>
+            <?php endif; ?>
+            <button class="btn btn-primary" type="submit"><?= icon('check2-circle') ?>Confirm</button>
+        </form>
+    </div>
+</div>
+<?php else: ?>
+    <p class="small text-muted"><?= icon('shield-check') ?> Confirmed for <?= e(\App\Services\Auth::minutes($confirmedFor)) ?> more. After that, backups ask again.</p>
+<?php endif; ?>
 <?php if (!$zip): ?>
     <div class="alert alert-danger"><?= icon('exclamation-octagon') ?><div class="alert-body">The PHP zip extension is missing, so backups cannot be made or read. On the server: <code>apt install php-zip</code>, then restart PHP.</div></div>
 <?php endif; ?>
@@ -92,8 +113,7 @@ $areaLabels = ['cache' => 'Exam data', 'inventory' => 'Question links', 'brandin
                             <details class="request-answer">
                                 <summary class="btn btn-sm btn-outline-danger"><?= icon('arrow-counterclockwise') ?>Restore</summary>
                                 <form method="post" action="<?= e(url('/backups/' . rawurlencode($b['name']) . '/restore')) ?>" class="request-answer-body" data-once data-busy="Starting…" data-confirm="Every account, setting and exam record is replaced with the backup's. A backup of the current data is made first. Everyone, you included, is signed out." data-confirm-title="Restore this backup?" data-confirm-button="Restore" data-confirm-tone="danger"><?= csrf_field() ?>
-                                    <label class="form-label small" for="pw-<?= e(md5($b['name'])) ?>">Your password, to confirm</label>
-                                    <input class="form-control form-control-sm mb-2" id="pw-<?= e(md5($b['name'])) ?>" name="password" type="password" autocomplete="current-password" required>
+                                    <p class="small mb-2">Every account, setting and exam record is replaced with this backup's, after a safety backup of the current data.</p>
                                     <button class="btn btn-sm btn-danger" type="submit" <?= $running ? 'disabled' : '' ?>>Restore this backup</button>
                                     <div class="form-text">It runs on the server in the background, and this page shows its progress.</div>
                                 </form>

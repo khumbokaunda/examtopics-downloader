@@ -32,7 +32,7 @@ final class Kernel
     {
         $this->services = new Services($app);
         $this->auth = new Auth($session, $this->services->users(), $this->services->signInGuard(),
-            $app->logger(), $app->config(), $this->services->backup()->restoredAt(), $this->services->audit());
+            $app->logger(), $app->config(), $this->services->backup()->restoredAt(), $this->services->audit(), $this->services->twoStep());
     }
 
     public function auth(): Auth

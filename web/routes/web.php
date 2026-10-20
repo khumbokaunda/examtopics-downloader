@@ -20,6 +20,7 @@ use App\Controllers\ProviderController;
 use App\Controllers\RequestController;
 use App\Controllers\SettingsController;
 use App\Controllers\SignInsController;
+use App\Controllers\TwoStepController;
 use App\Controllers\UserController;
 use App\Controllers\ViewerController;
 use App\Core\Http\Router;
@@ -45,6 +46,19 @@ return static function (Router $r): void {
     $r->get('/reset', [AuthController::class, 'showReset'], public: true);
     $r->post('/reset', [AuthController::class, 'reset'], public: true);
     $r->post('/logout', [AuthController::class, 'logout'], can: $me);
+    $r->get('/login/two-step', [TwoStepController::class, 'show'], public: true);
+    $r->post('/login/two-step', [TwoStepController::class, 'verify'], public: true);
+    $r->post('/login/two-step/cancel', [TwoStepController::class, 'cancel'], public: true);
+    $r->get('/confirm', [TwoStepController::class, 'confirmPage'], can: $me);
+    $r->post('/confirm', [TwoStepController::class, 'confirm'], can: $me);
+    $r->post('/account/two-step/begin', [TwoStepController::class, 'begin'], can: $me);
+    $r->post('/account/two-step/confirm', [TwoStepController::class, 'confirmSetup'], can: $me);
+    $r->post('/account/two-step/cancel', [TwoStepController::class, 'cancelSetup'], can: $me);
+    $r->get('/account/two-step/codes', [TwoStepController::class, 'codes'], can: $me);
+    $r->get('/account/two-step/codes.txt', [TwoStepController::class, 'codesText'], can: $me);
+    $r->post('/account/two-step/codes/done', [TwoStepController::class, 'codesDone'], can: $me);
+    $r->post('/account/two-step/codes/new', [TwoStepController::class, 'newCodes'], can: $me);
+    $r->post('/account/two-step/off', [TwoStepController::class, 'off'], can: $me);
     $r->get('/branding/theme.css', [BrandingController::class, 'css'], public: true);
     $r->get('/branding/{file}', [BrandingController::class, 'file'], public: true);
 
@@ -145,5 +159,6 @@ return static function (Router $r): void {
     $r->get('/users/{username}', [UserController::class, 'edit'], can: 'users.manage');
     $r->post('/users/{username}', [UserController::class, 'update'], can: 'users.manage');
     $r->post('/users/{username}/delete', [UserController::class, 'delete'], can: 'users.manage');
+    $r->post('/users/{username}/two-step/off', [TwoStepController::class, 'offFor'], can: 'users.manage');
     $r->post('/users/{username}/approve', [UserController::class, 'approve'], can: 'users.manage');
 };

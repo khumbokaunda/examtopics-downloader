@@ -14,6 +14,7 @@ final class Auth
     /** @var array<string,mixed>|null|false false = not looked up yet */
     private array|null|false $user = false;
     private bool $endedByRestore = false;
+    private bool $awaitingCode = false;
     private ?int $unverified = null;
 
     public function __construct(
@@ -24,6 +25,7 @@ final class Auth
         private Config $config,
         private int $signedOutBefore = 0,
         private ?AuditLog $audit = null,
+        private ?TwoStep $twoStep = null,
     ) {
     }
 
@@ -134,10 +136,62 @@ final class Auth
                 default => 'This account is disabled. Ask an administrator if you need it again.',
             };
         }
+        $this->users->rehashIfNeeded((int) $user['id'], $password, (string) $user['password_hash']);
+        if ($this->twoStep !== null && $this->twoStep->enabled((int) $user['id'])) {
+            // The password was right; the code from the app comes next, within five minutes.
+            $this->session->regenerate();
+            $this->session->set('two_step', ['user_id' => (int) $user['id'], 'at' => time(), 'tries' => 0]);
+            $this->awaitingCode = true;
+            $this->log->info('security', 'Password accepted; waiting for the two-step code', ['ip' => $ip, 'username' => $user['username']]);
+            return null;
+        }
         $this->guard->succeeded($ip, $user);
         $this->signIn($user, $ip);
-        $this->users->rehashIfNeeded((int) $user['id'], $password, (string) $user['password_hash']);
         return null;
+    }
+
+    /** After attempt() returned null: whether the person still has to type the code from their app. */
+    public function awaitingCode(): bool
+    {
+        return $this->awaitingCode;
+    }
+
+    /**
+     * The account whose password was right and whose code is awaited, while there is still
+     * time (five minutes) and it may still sign in.
+     *
+     * @return array<string,mixed>|null
+     */
+    public function pendingSecondStep(): ?array
+    {
+        $p = $this->session->get('two_step');
+        if (!is_array($p) || !isset($p['user_id'], $p['at']) || time() - (int) $p['at'] > 300) {
+            return null;
+        }
+        $user = $this->users->find((int) $p['user_id']);
+        return $user !== null && ($user['status'] ?? '') === 'active' && SignInGuard::lockedFor($user) === null ? $user : null;
+    }
+
+    /** A wrong code at the second step: how many this sign-in has had. */
+    public function secondStepFailed(): int
+    {
+        $p = (array) $this->session->get('two_step', []);
+        $p['tries'] = (int) ($p['tries'] ?? 0) + 1;
+        $this->session->set('two_step', $p);
+        return $p['tries'];
+    }
+
+    public function cancelSecondStep(): void
+    {
+        $this->session->remove('two_step');
+    }
+
+    /** The right code: signed in. @param array<string,mixed> $user */
+    public function finishSecondStep(array $user, string $ip): void
+    {
+        $this->session->remove('two_step');
+        $this->guard->succeeded($ip, $user);
+        $this->signIn($user, $ip);
     }
 
     /** "1 minute", "15 minutes": a wait in seconds, rounded up. */
