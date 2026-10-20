@@ -1,7 +1,7 @@
 <?php
 /** @var list<array> $items @var string $kind @var int $page @var int $pages @var int $total @var int $unread */
 use App\Services\Notifier;
-$icons = ['exam_request' => 'inbox', 'request_update' => 'journal-check', 'account' => 'person-plus'];
+$icons = ['exam_request' => 'inbox', 'request_update' => 'journal-check', 'account' => 'person-plus', 'security' => 'shield-lock'];
 ?>
 <header class="page-header">
     <div class="page-header-text">

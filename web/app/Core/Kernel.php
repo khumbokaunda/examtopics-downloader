@@ -31,7 +31,7 @@ final class Kernel
     public function __construct(private App $app, private Session $session, private Router $router)
     {
         $this->services = new Services($app);
-        $this->auth = new Auth($session, $this->services->users(), $this->services->loginAttempts(),
+        $this->auth = new Auth($session, $this->services->users(), $this->services->signInGuard(),
             $app->logger(), $app->config(), $this->services->backup()->restoredAt(), $this->services->audit());
     }
 
@@ -60,8 +60,7 @@ final class Kernel
     private function dispatch(Request $request): Response
     {
         // The activity history credits what happens in this request to the signed-in person.
-        $this->services->audit()->forRequest(fn(): ?array => $this->auth->user(),
-            $request->ip((bool) $this->app->config()->get('security.trust_forwarded_for', false)));
+        $this->services->audit()->forRequest(fn(): ?array => $this->auth->user(), ClientIp::of($request->server, $this->app->config()));
         $match = $this->router->match($request->method, $request->path);
         if ($match === null) {
             throw HttpException::notFound();
@@ -89,7 +88,7 @@ final class Kernel
             $token = $request->input('_csrf') ?? $request->header('X-CSRF-Token');
             if (!$this->session->validCsrf($token)) {
                 $this->app->logger()->warning('security', 'CSRF token rejected', [
-                    'path' => $request->path, 'ip' => $request->ip((bool) $this->app->config()->get('security.trust_forwarded_for')),
+                    'path' => $request->path, 'ip' => ClientIp::of($request->server, $this->app->config()),
                 ]);
                 // The sign-in form is the one most often left open while its session ends (a long
                 // pause, a restore): show it again with a fresh token rather than an error page.

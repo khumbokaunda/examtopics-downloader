@@ -7,7 +7,6 @@ namespace App\Services;
 use App\Core\Config;
 use App\Core\Logger;
 use App\Core\Session;
-use App\Repositories\LoginAttemptRepository;
 use App\Repositories\UserRepository;
 
 final class Auth
@@ -20,7 +19,7 @@ final class Auth
     public function __construct(
         private Session $session,
         private UserRepository $users,
-        private LoginAttemptRepository $attempts,
+        private SignInGuard $guard,
         private Logger $log,
         private Config $config,
         private int $signedOutBefore = 0,
@@ -86,11 +85,11 @@ final class Auth
      */
     public function attempt(string $username, string $password, string $ip): ?string
     {
-        $max = (int) $this->config->get('security.login_max_attempts', 5);
-        $window = (int) $this->config->get('security.login_window', 900);
-        if ($this->attempts->recentFailures($ip, $window) >= $max) {
-            $this->log->warning('security', 'Login throttled', ['ip' => $ip, 'username' => IdentifierMask::mask($username)]);
-            return 'Too many failed sign-in attempts. Try again in a few minutes.';
+        // A network blocked for failing too often is refused before anything is looked up.
+        $wait = $this->guard->networkBlocked($ip);
+        if ($wait !== null) {
+            $this->log->warning('security', 'Sign-in refused: network blocked', ['ip' => $ip, 'username' => IdentifierMask::mask($username)]);
+            return 'Too many failed sign-ins came from your network. Try again in ' . self::minutes($wait) . '.';
         }
 
         $user = $username === '' ? null : $this->users->findByLogin($username);
@@ -101,18 +100,30 @@ final class Auth
 
         // A name that matched an account is that account; anything else may be a password.
         $shown = $user !== null ? (string) $user['username'] : IdentifierMask::mask($username);
-        $this->attempts->record($ip, $shown, $ok);
+        // A locked account is refused whatever the password, so guessing on stops counting.
+        $locked = $user !== null ? SignInGuard::lockedFor($user) : null;
+        if ($locked !== null) {
+            $this->guard->failed($ip, $user, $shown, SignInGuard::LOCKED);
+            $this->log->warning('security', 'Sign-in refused: account locked', ['ip' => $ip, 'username' => $shown]);
+            $this->audit?->record('auth.sign_in_failed', ['identifier' => $shown, 'reason' => SignInGuard::LOCKED], 'user', $shown);
+            return 'This account is locked after too many wrong passwords. Try again in ' . self::minutes($locked) . ', or ask an administrator to unlock it.';
+        }
         if (!$ok) {
+            $reason = $user === null ? SignInGuard::NO_ACCOUNT : SignInGuard::WRONG_PASSWORD;
+            $lockedNow = $this->guard->failed($ip, $user, $shown, $reason);
             $this->log->warning('security', 'Login failed', ['ip' => $ip, 'username' => $shown]);
             // Whoever typed it is not known: a visitor, with the account it named as the subject.
-            $this->audit?->record('auth.sign_in_failed', ['identifier' => $shown, 'reason' => $user === null ? 'no such account' : 'wrong password'],
+            $this->audit?->record('auth.sign_in_failed', ['identifier' => $shown, 'reason' => $reason],
                 $user !== null ? 'user' : null, $user !== null ? (string) $user['username'] : null);
-            return 'Incorrect username or password.';
+            return $lockedNow
+                ? 'Incorrect username or password. After too many wrong passwords the account is now locked for ' . $this->guard->lockoutMinutes() . ' minutes.'
+                : 'Incorrect username or password.';
         }
         // Only after the password is right does the answer say what state the account is in.
         $status = (string) ($user['status'] ?? 'active');
         if ($status !== 'active') {
             $this->log->info('security', 'Login refused: account ' . $status, ['ip' => $ip, 'username' => $user['username']]);
+            $this->guard->failed($ip, $user, $shown, SignInGuard::REFUSED);
             $this->audit?->record('auth.sign_in_refused', ['status' => Access::STATUSES[$status] ?? $status], 'user', (string) $user['username'], $user);
             if ($status === 'unverified') {
                 $this->unverified = (int) $user['id'];
@@ -123,9 +134,17 @@ final class Auth
                 default => 'This account is disabled. Ask an administrator if you need it again.',
             };
         }
+        $this->guard->succeeded($ip, $user);
         $this->signIn($user, $ip);
         $this->users->rehashIfNeeded((int) $user['id'], $password, (string) $user['password_hash']);
         return null;
+    }
+
+    /** "1 minute", "15 minutes": a wait in seconds, rounded up. */
+    public static function minutes(int $seconds): string
+    {
+        $m = max(1, (int) ceil($seconds / 60));
+        return $m . ' minute' . ($m === 1 ? '' : 's');
     }
 
     /** After a refused sign-in: the id of an account whose only problem is an unverified email. */

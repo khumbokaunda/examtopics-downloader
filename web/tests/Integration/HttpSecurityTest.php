@@ -73,10 +73,13 @@ final class HttpSecurityTest extends HttpTestCase
             self::assertStringContainsString('Incorrect username or password', $r->body);
         }
         $r = $this->post('/login', ['username' => 'admin', 'password' => 'correct horse battery']);
-        self::assertSame(401, $r->status, 'correct password must still be refused while throttled');
-        self::assertStringContainsString('Too many failed sign-in attempts', $r->body);
-
+        self::assertSame(401, $r->status, 'correct password must still be refused while locked');
+        self::assertStringContainsString('This account is locked after too many wrong passwords', $r->body);
+        // The lock is the account's, so another network is refused too, until it is unlocked.
         $this->ip = '198.51.100.20';
+        self::assertStringContainsString('This account is locked', $this->post('/login', ['username' => 'admin', 'password' => 'correct horse battery'])->body);
+        $this->s->signInGuard()->unlock((array) $this->s->users()->findByUsername('admin'));
+
         $r = $this->post('/login', ['username' => 'admin', 'password' => 'correct horse battery', 'next' => '//evil.example/x']);
         self::assertSame('/', $r->headers['Location'], 'protocol-relative next must not be followed');
         $this->newSession();

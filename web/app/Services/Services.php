@@ -11,7 +11,6 @@ use App\Repositories\DocumentRepository;
 use App\Repositories\ExamRepository;
 use App\Repositories\InventoryRefreshRepository;
 use App\Repositories\JobRepository;
-use App\Repositories\LoginAttemptRepository;
 use App\Repositories\MediaRepository;
 use App\Repositories\ProviderRepository;
 use App\Repositories\SettingsRepository;
@@ -27,11 +26,6 @@ final class Services
     public function users(): UserRepository
     {
         return $this->app->service(UserRepository::class, fn() => new UserRepository($this->app->db()));
-    }
-
-    public function loginAttempts(): LoginAttemptRepository
-    {
-        return $this->app->service(LoginAttemptRepository::class, fn() => new LoginAttemptRepository($this->app->db()));
     }
 
     public function providers(): ProviderRepository
@@ -128,6 +122,37 @@ final class Services
     public function audit(): AuditLog
     {
         return $this->app->service(AuditLog::class, fn() => new AuditLog($this->app));
+    }
+
+    public function signInGuard(): SignInGuard
+    {
+        return $this->app->service(SignInGuard::class, fn() => new SignInGuard($this->app->db(), $this->app->config(),
+            $this->app->logger(), $this->audit(), fn(string $event, array $d) => $this->securityNotice($event, $d)));
+    }
+
+    /**
+     * Tell people when sign-in protection acts: the owner of a locked account (in the inbox
+     * and by email), and everyone who reviews sign-ins.
+     *
+     * @param array<string,mixed> $d
+     */
+    private function securityNotice(string $event, array $d): void
+    {
+        $notifier = $this->notifier();
+        if ($event === 'account_locked') {
+            $user = (array) $d['user'];
+            $notifier->notify($user, 'security', 'Your account was locked',
+                'Someone typed the wrong password for your account ' . $this->signInGuard()->lockoutAttempts() . ' times in a row, from the address '
+                . $d['ip'] . ', so it is locked for ' . $d['minutes'] . ' minutes. If it was you, wait and try again, or reset your password from the sign-in page. '
+                . 'If it was not, change your password when you are back in.', '/account#security', null, 'locked:' . $user['id'] . ':' . time());
+            $notifier->notifyPermission('security.manage', 'security', 'Account locked: ' . Access::displayName($user),
+                Access::displayName($user) . ' (' . $user['username'] . ') was locked for ' . $d['minutes'] . ' minutes after wrong passwords from ' . $d['ip'] . '.',
+                '/security/sign-ins', null, 'locked-review:' . $user['id'] . ':' . time(), (int) $user['id']);
+        } elseif ($event === 'network_blocked') {
+            $notifier->notifyPermission('security.manage', 'security', 'Network blocked: ' . $d['ip'],
+                $d['failures'] . ' failed sign-ins came from ' . $d['ip'] . ' in a short time, so sign-ins from it are refused for ' . $d['minutes'] . ' minutes.',
+                '/security/sign-ins', null, 'blocked:' . $d['ip'] . ':' . time());
+        }
     }
 
     public function backupUploads(): BackupUploads

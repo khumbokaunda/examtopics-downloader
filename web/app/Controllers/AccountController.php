@@ -29,6 +29,8 @@ final class AccountController extends Controller
             'timezones' => \DateTimeZone::listIdentifiers(),
             'emailNotifications' => (string) ((json_decode((string) ($user['preferences'] ?? ''), true) ?: [])['email_notifications'] ?? '1') !== '0',
             'mailReady' => $this->s->mailer()->configured(),
+            'recentSignIns' => $this->s->signInGuard()->recentFor((int) $user['id'], 10),
+            'lockAttempts' => $this->s->signInGuard()->lockoutAttempts(),
         ]);
     }
 

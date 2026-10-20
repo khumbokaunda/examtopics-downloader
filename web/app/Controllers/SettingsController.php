@@ -27,7 +27,10 @@ final class SettingsController extends Controller
             'storage' => $this->app->paths()->storage(),
             'imagesDownload' => (bool) $this->app->config()->get('media.download', true),
             'imageTotals' => $this->s->media()->totals(),
-            'recentLogins' => $this->s->loginAttempts()->recent(200),
+            'lockMinutes' => $this->s->signInGuard()->lockoutMinutes(),
+            'lockAttempts' => $this->s->signInGuard()->lockoutAttempts(),
+            'networkMax' => (int) $this->app->config()->get('security.network_max_failures', 20),
+            'networkMinutes' => (int) $this->app->config()->get('security.network_block_minutes', 30),
             'system' => $this->system()->effective(),
             'timezones' => \DateTimeZone::listIdentifiers(),
         ]);

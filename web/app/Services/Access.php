@@ -44,6 +44,7 @@ final class Access
         'settings.manage' => 'Change system, email and branding settings.',
         'backup.manage' => 'Create, download and restore backups.',
         'activity.view' => 'See the activity history: sign-ins, and changes to accounts, settings, the library and backups.',
+        'security.manage' => 'Review sign-in attempts, unlock accounts and unblock networks, and be told when either is locked.',
     ];
 
     /** What each role gives. The administrator is not listed: it holds everything. */

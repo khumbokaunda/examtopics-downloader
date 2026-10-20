@@ -140,9 +140,21 @@ is public, add a network-level layer as well. Any one of these works:
   encrypted by SSH and the site is unreachable from the internet. Use this only when the site
   is bound to loopback.
 
-An obscure URL is not protection. If you put the app behind a reverse proxy you control, set
-`'security' => ['trust_forwarded_for' => true]` so login throttling sees real client IPs.
-Never enable it otherwise.
+An obscure URL is not protection.
+
+**Behind a proxy or Cloudflare.** Sign-in protection counts failures per visitor address, so it
+must see each visitor's own address, not the proxy's:
+
+- **Cloudflare**: nothing to set. Requests from Cloudflare's published ranges are read from its
+  `CF-Connecting-IP` header (turn this off with `'security' => ['trust_cloudflare' => false]`).
+- **Another proxy you control** (a load balancer, an nginx in front of this one, a tunnel on the
+  same server): list it, for example
+  `'security' => ['trusted_proxies' => ['127.0.0.1', '10.0.0.0/8']]`. Its `X-Forwarded-For` is
+  then read from the right. Never list addresses you do not control.
+
+If the Sign-in attempts page shows every attempt coming from one address, the server is behind
+a proxy it has not been told about. Private and Cloudflare addresses are never blocked, so
+nobody is locked out while that is the case.
 
 ## 10. Scheduled maintenance
 

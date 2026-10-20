@@ -26,6 +26,7 @@ final class Notifier
         'exam_request' => 'Exam requests',
         'request_update' => 'Your requests',
         'account' => 'Accounts',
+        'security' => 'Sign-in security',
     ];
 
     public function __construct(

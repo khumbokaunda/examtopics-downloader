@@ -131,9 +131,21 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
 
 - **Authentication** on every route except the login page and the branding files (the
   sign-in page shows the logo), enforced centrally in the kernel; the API answers 401.
-  People sign in with their username or email address. Passwords use `password_hash`. Logins are throttled per IP,
+  People sign in with their username or email address. Passwords use `password_hash`. Logins
   respond the same for unknown users, regenerate the session ID, and only redirect to
   same-site paths.
+- **Sign-in protection** (`App\Services\SignInGuard`, the Sign-in attempts page,
+  `security.manage`): an account locks for 15 minutes after 5 wrong passwords in a row (a
+  right one resets the count), and its owner and the reviewers are told. A network that fails
+  20 times in 15 minutes across any names is refused for 30 minutes, once, and recorded when
+  it starts; private, Cloudflare and shared addresses (three or more accounts signed in from
+  it in 30 days) are never blocked, since that would lock out everyone behind them. The
+  visitor's address (`App\Core\ClientIp`) is REMOTE_ADDR unless the request came through a
+  proxy listed in `security.trusted_proxies` or through Cloudflare, whose header is only
+  believed from its published ranges; X-Forwarded-For is read from the right. The page shows
+  whether any attempt got in (a sign-in from a network that had just guessed at that account
+  or at made-up names, or straight after a lock), with "It was them" to clear one, and unlocks
+  accounts and networks. `bin/unlock.php` does the same from the command line.
 - **Access** (`App\Services\Access`): each account has a role, administrator or member, and
   may be given extra permissions on top of it. Permissions are small named rights such as
   `library.view` or `exams.collect`, listed with a plain sentence in one catalogue; the
