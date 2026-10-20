@@ -19,6 +19,7 @@ use App\Controllers\MediaController;
 use App\Controllers\ProviderController;
 use App\Controllers\RequestController;
 use App\Controllers\SettingsController;
+use App\Controllers\SignInsController;
 use App\Controllers\UserController;
 use App\Controllers\ViewerController;
 use App\Core\Http\Router;
@@ -130,6 +131,12 @@ return static function (Router $r): void {
 
     $r->get('/users', [UserController::class, 'index'], can: 'users.manage');
     $r->get('/users/new', [UserController::class, 'create'], can: 'users.manage');
+    $r->get('/security/sign-ins', [SignInsController::class, 'index'], can: 'security.manage');
+    $r->post('/security/sign-ins/unlock', [SignInsController::class, 'unlock'], can: 'security.manage');
+    $r->post('/security/sign-ins/unblock', [SignInsController::class, 'unblock'], can: 'security.manage');
+    $r->post('/security/sign-ins/flags/clear-all', [SignInsController::class, 'clearAll'], can: 'security.manage');
+    $r->post('/security/sign-ins/flags/{id}/clear', [SignInsController::class, 'clearFlag'], can: 'security.manage');
+    $r->post('/security/sign-ins/flags/{id}/restore', [SignInsController::class, 'restoreFlag'], can: 'security.manage');
     $r->get('/activity', [ActivityController::class, 'index'], can: 'activity.view');
     $r->get('/activity.csv', [ActivityController::class, 'export'], can: 'activity.view');
     $r->post('/activity/verify', [ActivityController::class, 'verify'], can: 'activity.view');

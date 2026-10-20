@@ -89,6 +89,6 @@ abstract class Controller
 
     protected function ip(): string
     {
-        return $this->request->ip((bool) $this->app->config()->get('security.trust_forwarded_for', false));
+        return \App\Core\ClientIp::of($this->request->server, $this->app->config());
     }
 }

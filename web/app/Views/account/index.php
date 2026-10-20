@@ -1,4 +1,5 @@
 <?php
+/** @var list<array<string,mixed>> $recentSignIns @var int $lockAttempts */
 /** @var array $user @var array<string,string> $appearance @var array<string,list<string>> $appearanceOptions @var bool $customAccent
  *  @var string $systemTimezone @var string $myTimezone @var list<string> $timezones @var bool $emailNotifications @var bool $mailReady */
 use App\Services\Access;
@@ -71,6 +72,34 @@ $verified = $user['email'] !== null && $user['email_verified_at'] !== null;
         </div>
     </div>
 
+    <div class="col-12">
+        <div class="card" id="security">
+            <div class="card-header"><span class="card-title"><?= icon('shield-check') ?>Recent sign-ins</span><span class="text-muted small">Your sign-ins and failed attempts at your account</span></div>
+            <?php if ($recentSignIns === []): ?>
+                <div class="card-body"><p class="text-muted mb-0">Nothing recorded yet.</p></div>
+            <?php else: ?>
+            <div class="table-responsive">
+                <table class="table align-middle mb-0 table-stack">
+                    <thead><tr><th>When</th><th>Address</th><th>Result</th></tr></thead>
+                    <tbody>
+                    <?php foreach ($recentSignIns as $a): ?>
+                        <tr>
+                            <td class="small stack-title"><?= e(fmt_time((string) $a['attempted_at'])) ?></td>
+                            <td class="small mono" data-label="Address"><?= e((string) $a['ip']) ?></td>
+                            <td data-label="Result"><?= $a['succeeded'] ? chip('Signed in', 'success', 'check2') : match ((string) $a['reason']) {
+                                'account locked' => chip('Refused: account locked', 'warning', 'lock'),
+                                'account not active' => chip('Refused: account not active', 'neutral', 'slash-circle'),
+                                default => chip('Wrong password', 'danger', 'x'),
+                            } ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-footer small text-muted">If you see a wrong password you did not type, change your password. After <?= (int) $lockAttempts ?> in a row the account locks for a while.</div>
+            <?php endif; ?>
+        </div>
+    </div>
     <div class="col-12">
         <div class="card" id="notifications">
             <div class="card-header"><span class="card-title"><?= icon('bell') ?>Notifications</span><a class="small" href="<?= e(url('/inbox')) ?>">Open your inbox</a></div>

@@ -27,6 +27,14 @@ final class AuditText
             'auth.signed_in' => [$who . ' signed in', 'box-arrow-in-right', 'neutral'],
             'auth.sign_in_failed' => ['Failed sign-in as ' . $named('identifier') . (isset($d['reason']) ? ' (' . $d['reason'] . ')' : ''), 'shield-exclamation', 'danger'],
             'auth.sign_in_refused' => [$who . ' typed the right password but could not sign in: the account is ' . $named('status'), 'shield-lock', 'warning'],
+            'auth.account_locked' => ['The account ' . $named('username') . ' was locked for ' . (int) ($d['minutes'] ?? 0) . ' minutes after '
+                . (int) ($d['attempts'] ?? 0) . ' wrong passwords' . (isset($d['ip']) ? ' from ' . $d['ip'] : ''), 'lock', 'danger'],
+            'security.network_blocked' => ['Sign-ins from ' . $named('ip') . ' were refused for ' . (int) ($d['minutes'] ?? 0) . ' minutes after '
+                . (int) ($d['failures'] ?? 0) . ' failed attempts', 'slash-circle', 'danger'],
+            'security.account_unlocked' => [$who . ' unlocked the account ' . $named('username'), 'unlock', 'warning'],
+            'security.network_unblocked' => [$who . ' allowed sign-ins from ' . $named('ip') . ' again', 'unlock', 'warning'],
+            'security.flag_cleared' => [$who . ' marked the sign-in of ' . $named('username') . ' from ' . $named('ip') . ' as theirs', 'check2', 'neutral'],
+            'security.flag_restored' => [$who . ' flagged the sign-in of ' . $named('username') . ' from ' . $named('ip') . ' again', 'exclamation-triangle', 'warning'],
             'auth.signed_out' => [$who . ' signed out', 'box-arrow-right', 'neutral'],
             'auth.signed_up' => [$who . ' created an account by signing up', 'person-plus', 'primary'],
             'auth.email_verified' => [$who . ' verified their email address', 'envelope-check', 'success'],

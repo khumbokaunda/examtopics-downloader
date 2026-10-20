@@ -133,6 +133,37 @@ cached data.
 - **Locked out**: `php bin/create-user.php <name> --admin` re-enables the account, resets its
   password and makes it an administrator.
 
+## Sign-in protection
+
+An account locks for 15 minutes after 5 wrong passwords in a row; its owner gets an email, and
+everyone with `security.manage` an inbox notice. A network that fails 20 times in 15 minutes is
+refused for 30 minutes. The limits are in `config/config.php` under `security` (override them
+in `config.local.php`).
+
+The **Sign-in attempts** page (System menu) shows, for the last day, week or month:
+
+- **Did any attempt get in?** Sign-ins from a network that had just typed 3 or more wrong
+  passwords for that account, or tried 5 or more names that do not exist, or straight after
+  the account was locked. "It was them" clears one (it stays listed as cleared, and can be
+  flagged again); "Clear all" clears every one.
+- **Accounts tried**, with how close each is to locking, and **Unlock**.
+- **Names that do not exist** (a name that may be a password is shown as its length).
+- **Networks**, with **Unblock**. Unblocking also forgives that address's earlier failures.
+
+Locked accounts also show on the Users page, with **Unlock now** on the account. Everyone sees
+their own recent sign-ins and failed attempts on their account page.
+
+From the command line, for when the only administrator is locked out:
+
+```bash
+php bin/unlock.php list                  # locked accounts and blocked networks
+php bin/unlock.php account <username>
+php bin/unlock.php network <address>
+```
+
+Sign-in attempts older than 90 days are removed by `bin/cleanup.php`; the activity history keeps
+its own record.
+
 ## Activity history
 
 The **Activity** page (administrators, or anyone given `activity.view`) lists who did what

@@ -1,6 +1,6 @@
 <?php
 /** @var bool $toolInstalled @var string $toolPath @var bool $tokenConfigured @var bool $workerRunning
- *  @var int|null $workerPid @var bool $autostart @var float $rps @var string $storage @var bool $imagesDownload @var list<string> $toolMissing @var array{files:int,bytes:int} $imageTotals @var list<array> $recentLogins
+ *  @var int|null $workerPid @var bool $autostart @var float $rps @var string $storage @var bool $imagesDownload @var list<string> $toolMissing @var array{files:int,bytes:int} $imageTotals @var int $lockMinutes @var int $lockAttempts @var int $networkMax @var int $networkMinutes
  *  @var array{idle_timeout:int,absolute_timeout:int,timezone:string} $system @var list<string> $timezones */
 use App\Services\SystemSettings;
 ?>
@@ -82,21 +82,12 @@ use App\Services\SystemSettings;
 
     <div class="col-12">
         <div class="card">
-            <div class="card-header"><span class="card-title"><?= icon('person-lock') ?>Recent sign-in attempts</span></div>
-            <?php if ($recentLogins === []): ?>
-                <div class="card-body"><?= empty_state('person-check', 'No sign-in attempts recorded', '', null, true) ?></div>
-            <?php else: ?>
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0 table-stack" data-table="sign-ins" data-page-length="10" data-order='[[0,"desc"]]'>
-                    <thead><tr><th>Time</th><th>IP address</th><th>Username</th><th>Result</th></tr></thead>
-                    <tbody>
-                    <?php foreach ($recentLogins as $l): ?>
-                        <tr><td class="small stack-title" data-order="<?= e((string) $l['attempted_at']) ?>"><?= e(fmt_time($l['attempted_at'])) ?></td><td data-label="IP address"><code><?= e($l['ip']) ?></code></td><td class="small" data-label="Username"><?= e($l['username'] ?? '') ?></td><td data-label="Result"><?= $l['succeeded'] ? chip('signed in', 'success', 'check2') : chip('failed', 'danger', 'x') ?></td></tr>
-                    <?php endforeach; ?>
-                    </tbody>
-                </table>
+            <div class="card-header"><span class="card-title"><?= icon('person-lock') ?>Sign-in security</span></div>
+            <div class="card-body">
+                <p class="mb-2">An account locks for <?= (int) $lockMinutes ?> minutes after <?= (int) $lockAttempts ?> wrong passwords in a row, and a network that fails <?= (int) $networkMax ?> times in a short while is refused for <?= (int) $networkMinutes ?> minutes. Shared addresses and Cloudflare's are never blocked.</p>
+                <p class="small text-muted mb-3">These limits, and the proxies whose forwarded addresses are believed, are set in <code>config/config.local.php</code> on the server (docs/INSTALL.md).</p>
+                <?php if (can('security.manage')): ?><a class="btn btn-sm btn-outline-secondary" href="<?= e(url('/security/sign-ins')) ?>"><?= icon('shield-lock') ?>Review sign-in attempts</a><?php endif; ?>
             </div>
-            <?php endif; ?>
         </div>
     </div>
 </div>

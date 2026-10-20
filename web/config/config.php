@@ -50,11 +50,25 @@ return [
     'timezone' => 'UTC',
 
     'security' => [
-        'login_max_attempts' => 5,     // failed attempts per IP within the window
-        'login_window'       => 900,   // seconds
-        // Only enable if the app sits behind a reverse proxy you control.
-        'trust_forwarded_for' => false,
-        'hsts'                => true,
+        // An account locks for lockout_minutes after lockout_attempts wrong passwords in a row.
+        'lockout_attempts'      => 5,
+        'lockout_minutes'       => 15,
+        // A network (one address) that fails network_max_failures times within network_window
+        // seconds, across any names, is refused for network_block_minutes. Private, shared
+        // (3+ accounts signed in from it in 30 days) and Cloudflare addresses are never blocked.
+        'network_max_failures'  => 20,
+        'network_window'        => 900,
+        'network_block_minutes' => 30,
+        // Proxies in front of this server whose X-Forwarded-For is believed: addresses or CIDR
+        // ranges, e.g. ['127.0.0.1', '10.0.0.0/8']. Without them every visitor looks like the proxy.
+        'trusted_proxies'       => [],
+        // Behind Cloudflare, take the visitor's address from CF-Connecting-IP. Only believed on
+        // requests that arrive from Cloudflare's published ranges (or a listed proxy).
+        'trust_cloudflare'      => true,
+        // Older switch: believe X-Forwarded-For from the one proxy directly in front, whatever
+        // its address. Prefer trusted_proxies.
+        'trust_forwarded_for'   => false,
+        'hsts'                  => true,
     ],
 
     'media' => [

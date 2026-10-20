@@ -19,6 +19,15 @@ $action = $new ? url('/users') : url('/users/' . rawurlencode($account['username
 <?php if ($error !== null): ?>
     <div class="alert alert-danger" role="alert"><?= icon('exclamation-octagon') ?><div class="alert-body"><?= e($error) ?></div></div>
 <?php endif; ?>
+<?php if (!$new && ($lockedFor = \App\Services\SignInGuard::lockedFor($account)) !== null): ?>
+    <div class="alert alert-warning d-flex flex-wrap align-items-center gap-2"><?= icon('lock') ?><div class="alert-body flex-grow-1">Locked after too many wrong passwords, for <?= e(\App\Services\Auth::minutes($lockedFor)) ?> more.</div>
+        <?php if (can('security.manage')): ?>
+            <form method="post" action="<?= e(url('/security/sign-ins/unlock')) ?>"><?= csrf_field() ?><input type="hidden" name="username" value="<?= e($account['username']) ?>"><input type="hidden" name="return" value="user">
+                <button class="btn btn-sm btn-outline-secondary" type="submit"><?= icon('unlock') ?>Unlock now</button>
+            </form>
+        <?php endif; ?>
+    </div>
+<?php endif; ?>
 
 <form method="post" action="<?= e($action) ?>" data-once><?= csrf_field() ?>
 <div class="row g-4">
