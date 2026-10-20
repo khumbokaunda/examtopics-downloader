@@ -32,7 +32,7 @@ final class Kernel
     {
         $this->services = new Services($app);
         $this->auth = new Auth($session, $this->services->users(), $this->services->loginAttempts(),
-            $app->logger(), $app->config(), $this->services->backup()->restoredAt());
+            $app->logger(), $app->config(), $this->services->backup()->restoredAt(), $this->services->audit());
     }
 
     public function auth(): Auth
@@ -59,6 +59,9 @@ final class Kernel
 
     private function dispatch(Request $request): Response
     {
+        // The activity history credits what happens in this request to the signed-in person.
+        $this->services->audit()->forRequest(fn(): ?array => $this->auth->user(),
+            $request->ip((bool) $this->app->config()->get('security.trust_forwarded_for', false)));
         $match = $this->router->match($request->method, $request->path);
         if ($match === null) {
             throw HttpException::notFound();

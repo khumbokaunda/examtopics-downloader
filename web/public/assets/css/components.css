@@ -538,3 +538,7 @@ body.dialog-open { overflow: hidden; }
 /* Once revealed, a pick takes the verdict's colour: green when right, red when wrong. */
 .choice.is-picked.is-answer, .question-card.is-revealed .choice.is-answer { background: var(--color-success-soft); }
 .choice.is-wrong, .choice.is-picked.is-wrong { background: var(--color-danger-soft); }
+
+/* Activity history: one sentence per entry, after a small icon in the entry's tone. */
+.activity-line { display: inline-flex; align-items: center; gap: var(--space-2); }
+.activity-line .icon-bubble { flex: none; }

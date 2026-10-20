@@ -70,6 +70,7 @@ final class BackupController extends Controller
     public function cancel(): Response
     {
         if ($this->s->backup()->cancel()) {
+            $this->s->audit()->record('backup.cancelled');
             $this->app->logger()->info('security', 'Backup cancelled', ['username' => $this->auth->user()['username'] ?? null]);
             $this->flash('success', 'The backup was cancelled and its unfinished file deleted.');
         }
@@ -86,6 +87,7 @@ final class BackupController extends Controller
     {
         $path = $this->s->backup()->path($name) ?? throw HttpException::notFound('Backup');
         $this->app->logger()->info('security', 'Backup downloaded', ['file' => $name, 'username' => $this->auth->user()['username'] ?? null]);
+        $this->s->audit()->record('backup.downloaded', ['name' => $name], 'backup', $name);
         return Response::download($path, $name, 'application/zip');
     }
 
@@ -162,6 +164,7 @@ final class BackupController extends Controller
             return;
         }
         $this->app->logger()->info('security', 'Backup uploaded', ['file' => $result['name'], 'username' => $this->auth->user()['username'] ?? null]);
+        $this->s->audit()->record('backup.uploaded', ['name' => $result['name']], 'backup', (string) $result['name']);
         $this->flash('success', 'Uploaded as ' . $result['name'] . '. It is listed below, ready to restore.'
             . (($result['warnings'] ?? []) !== [] ? ' Note: ' . implode(' ', $result['warnings']) : ''));
     }
@@ -218,6 +221,7 @@ final class BackupController extends Controller
             throw HttpException::notFound('Backup');
         }
         $this->app->logger()->info('security', 'Backup deleted', ['file' => $name, 'username' => $this->auth->user()['username'] ?? null]);
+        $this->s->audit()->record('backup.deleted', ['name' => $name], 'backup', $name);
         $this->flash('success', 'Deleted ' . $name . '.');
         return $this->redirect('/backups');
     }

@@ -37,6 +37,7 @@ final class UserController extends Controller
         if (isset(Registration::MODES[$mode])) {
             $this->s->registration()->setMode($mode);
             $this->audit('Sign-up setting changed', (string) $this->auth->user()['username'], ['mode' => $mode]);
+            $this->s->audit()->record('users.registration_changed', ['mode' => Registration::MODES[$mode][0]]);
             $this->flash('success', 'Sign-up is now: ' . Registration::MODES[$mode][0] . '.');
         }
         return $this->redirect('/users');
@@ -58,6 +59,7 @@ final class UserController extends Controller
     private function approved(array $account): void
     {
         $this->audit('User approved', $account['username'], []);
+        $this->s->audit()->record('user.approved', ['username' => $account['username']], 'user', (string) $account['username']);
         $this->s->notifier()->resolve('account:' . (int) $account['id']);
         if ($account['email'] !== null) {
             $mailer = $this->s->mailer();
@@ -102,6 +104,8 @@ final class UserController extends Controller
             'permissions' => $form['permissions'], 'email_verified' => true,
         ]);
         $this->audit('User created', $form['username'], ['role' => $form['role'], 'status' => $form['status'], 'extra' => $form['permissions']]);
+        $this->s->audit()->record('user.created', ['username' => $form['username'], 'role' => $form['role'], 'status' => $form['status'],
+            'permissions' => $form['permissions']], 'user', $form['username']);
         $this->flash('success', 'Account "' . $form['username'] . '" created. Share the password with them privately; they can change it on their account page.');
         return $this->redirect('/users');
     }
@@ -173,6 +177,8 @@ final class UserController extends Controller
             $changes['password'] = 'set by an administrator';
         }
         $this->audit('User updated', $account['username'], $changes);
+        $this->s->audit()->record('user.updated', ['username' => $account['username'], 'changes' => self::changes($account, $form, $password !== '')],
+            'user', (string) $account['username']);
         $this->auth->refresh();
         $this->flash('success', 'Saved "' . $account['username'] . '".');
         return $this->redirect('/users');
@@ -192,6 +198,8 @@ final class UserController extends Controller
         }
         $this->s->users()->delete((int) $account['id']);
         $this->audit('User deleted', $account['username'], ['role' => $account['role']]);
+        $this->s->audit()->record('user.deleted', ['username' => $account['username'], 'role' => $account['role'],
+            'email' => (string) ($account['email'] ?? '')], 'user', (string) $account['username']);
         $this->flash('success', 'Account "' . $account['username'] . '" deleted.');
         return $this->redirect('/users');
     }
@@ -251,6 +259,34 @@ final class UserController extends Controller
             return 'This is the only active administrator. Make another account an administrator first.';
         }
         return null;
+    }
+
+    /**
+     * What an edit changed, for the activity history: field => [before, after], the extra
+     * permissions as added and removed, and that a password was set (never the password).
+     *
+     * @param array<string,mixed> $account @param array<string,mixed> $form
+     * @return array<string,mixed>
+     */
+    private static function changes(array $account, array $form, bool $password): array
+    {
+        $changes = [];
+        foreach (['display_name', 'email', 'role', 'status'] as $k) {
+            $before = (string) ($account[$k] ?? '');
+            if ($before !== (string) $form[$k]) {
+                $changes[$k] = [$k === 'role' ? (Access::ROLES[$before]['name'] ?? $before) : ($k === 'status' ? (Access::STATUSES[$before] ?? $before) : $before),
+                    $k === 'role' ? (Access::ROLES[$form[$k]]['name'] ?? $form[$k]) : ($k === 'status' ? (Access::STATUSES[$form[$k]] ?? $form[$k]) : $form[$k])];
+            }
+        }
+        $old = Access::extras($account);
+        $new = (array) $form['permissions'];
+        if (array_diff($new, $old) !== [] || array_diff($old, $new) !== []) {
+            $changes['extra_permissions'] = ['added' => array_values(array_diff($new, $old)), 'removed' => array_values(array_diff($old, $new))];
+        }
+        if ($password) {
+            $changes['password_set'] = 'by an administrator'; // a key named "password" is never stored
+        }
+        return $changes;
     }
 
     /** @param array<string,mixed> $details */

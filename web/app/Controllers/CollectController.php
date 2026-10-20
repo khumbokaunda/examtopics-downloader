@@ -79,6 +79,8 @@ final class CollectController extends Controller
             $this->flash('warning', $e->getMessage());
             return $this->redirect('/collect', ['provider' => $provider['slug'], 'exam' => $code]);
         }
+        $this->s->audit()->record('collect.queued', ['provider' => provider_name($provider), 'exam' => $code, 'source' => $options['source_mode'], 'full_scan' => $options['full_scan']],
+            'exam', $provider['slug'] . '/' . $code);
         $ahead = count(array_filter($this->s->jobs()->active(), static fn(array $j): bool => (int) $j['id'] < $id));
         $this->flash('success', $ahead > 0
             ? 'Added to the queue: ' . $ahead . ' job' . ($ahead === 1 ? '' : 's') . ' ahead of it. It starts on its own when they finish, and you can close this page.'

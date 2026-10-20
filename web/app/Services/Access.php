@@ -43,6 +43,7 @@ final class Access
         'users.manage' => 'Create, edit, approve and disable accounts, and be notified of sign-ups.',
         'settings.manage' => 'Change system, email and branding settings.',
         'backup.manage' => 'Create, download and restore backups.',
+        'activity.view' => 'See the activity history: sign-ins, and changes to accounts, settings, the library and backups.',
     ];
 
     /** What each role gives. The administrator is not listed: it holds everything. */

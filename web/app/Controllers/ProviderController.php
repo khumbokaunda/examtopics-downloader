@@ -61,6 +61,7 @@ final class ProviderController extends Controller
         }
         try {
             $id = $this->s->jobService()->enqueueInventory($provider);
+            $this->s->audit()->record('provider.refresh_queued', ['provider' => provider_name($provider)], 'provider', (string) $provider['slug']);
             $this->flash('success', 'Inventory refresh queued (job #' . $id . ').');
         } catch (ActiveJobException $e) {
             $this->flash('warning', $e->getMessage());
@@ -72,6 +73,7 @@ final class ProviderController extends Controller
     {
         try {
             $id = $this->s->jobService()->enqueueProviders();
+            $this->s->audit()->record('provider.discover_queued');
             $this->flash('success', 'Provider discovery queued (job #' . $id . ').');
         } catch (ActiveJobException $e) {
             $this->flash('warning', $e->getMessage());
@@ -90,6 +92,7 @@ final class ProviderController extends Controller
         $this->s->providers()->upsert($slug, null, 'manual');
         $provider = (array) $this->s->providers()->findBySlug($slug);
         try {
+            $this->s->audit()->record('provider.added', ['provider' => $slug], 'provider', $slug);
             $this->s->jobService()->enqueueInventory($provider);
             $this->flash('success', 'Added "' . $slug . '" and queued its inventory refresh. If the refresh fails, check the identifier.');
         } catch (ActiveJobException $e) {

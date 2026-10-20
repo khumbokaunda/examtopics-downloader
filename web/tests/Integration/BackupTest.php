@@ -319,6 +319,11 @@ final class BackupTest extends HttpTestCase
         self::assertSame(0, (int) $this->app->db()->value("SELECT COUNT(*) FROM jobs WHERE status IN ('queued','running')"));
         $names = array_column($this->s->backup()->list(), 'name');
         self::assertNotEmpty(array_filter($names, static fn($n) => str_contains($n, '-before-restore')), 'a safety backup was made first');
+        // The history is the backup's, still one unbroken chain, with the restore added to it.
+        self::assertTrue($this->s->audit()->verify()['ok']);
+        $last = $this->app->db()->one('SELECT * FROM audit_log ORDER BY id DESC LIMIT 1');
+        self::assertSame(['backup.restored', 'admin'], [$last['action'], $last['actor']]);
+        self::assertSame(0, (int) $this->app->db()->value("SELECT COUNT(*) FROM audit_log WHERE action = 'user.created' AND details LIKE '%intruder%'"));
 
         $this->newSession();
         $this->login('member', 'member password long');

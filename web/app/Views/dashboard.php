@@ -131,4 +131,37 @@ usort($recent, static fn($a, $b) => (int) $b['id'] <=> (int) $a['id']);
             <?php endif; ?>
         </div>
     </div>
+    <?php if ($activity !== null): ?>
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title"><?= icon('activity') ?>Recent activity</span>
+                <a class="small" href="<?= e(url('/activity')) ?>">All activity</a>
+            </div>
+            <?php if ($activity['rows'] === [] && $activity['failed'] === 0): ?>
+                <div class="card-body"><?= empty_state('activity', 'Nothing recorded yet', 'Sign-ins and changes to accounts, settings, the library and backups are listed here.', null, true) ?></div>
+            <?php else: ?>
+            <ul class="list-rows">
+                <?php if ($activity['failed'] > 0): ?>
+                    <li>
+                        <div class="row-main">
+                            <span class="icon-bubble" data-tone="danger"><?= icon('shield-exclamation') ?></span>
+                            <div class="row-text"><a class="row-title" href="<?= e(url('/activity', ['group' => 'signin'])) ?>"><?= number_format($activity['failed']) ?> failed sign-in<?= $activity['failed'] === 1 ? '' : 's' ?> in the last 24 hours</a></div>
+                        </div>
+                    </li>
+                <?php endif; ?>
+                <?php foreach ($activity['rows'] as $a): ?>
+                    <li>
+                        <div class="row-main">
+                            <span class="icon-bubble" data-tone="<?= e($a['tone']) ?>"><?= icon($a['icon']) ?></span>
+                            <div class="row-text"><div class="row-title text-clamp-2"><?= e($a['text']) ?></div></div>
+                        </div>
+                        <div class="row-side"><span class="row-time"><?= e(fmt_ago((string) $a['created_at'])) ?></span></div>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php endif; ?>
 </div>

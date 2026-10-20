@@ -42,11 +42,22 @@ final class SettingsController extends Controller
     public function time(): Response
     {
         try {
+            $before = $this->system()->effective();
             $this->system()->save([
                 'timezone' => (string) $this->request->input('timezone', ''),
                 'idle_timeout' => (string) $this->request->input('idle_timeout', ''),
                 'absolute_timeout' => (string) $this->request->input('absolute_timeout', ''),
             ]);
+            $after = $this->system()->effective();
+            $changes = [];
+            foreach ($after as $k => $v) {
+                if (!is_array($v) && (string) ($before[$k] ?? '') !== (string) $v) {
+                    $changes[$k] = [$before[$k] ?? null, $v];
+                }
+            }
+            if ($changes !== []) {
+                $this->s->audit()->record('settings.time_changed', ['changes' => $changes]);
+            }
             $this->flash('success', 'Time and sign-in settings saved. New timeouts apply from the next page.');
         } catch (\PDOException $e) {
             $this->flash('danger', $this->schemaMessage($e));
@@ -104,6 +115,7 @@ final class SettingsController extends Controller
     public function reconcile(): Response
     {
         $state = $this->s->supervisor()->ensure();
+        $this->s->audit()->record('settings.reconcile_run', ['result' => $state]);
         $this->flash('info', match ($state) {
             'running' => 'A worker is running; nothing needed reconciling.',
             'started' => 'Stale jobs reconciled; a worker was started for queued jobs.',

@@ -122,6 +122,8 @@ final class LibraryController extends Controller
             $this->flash('warning', $ex->getMessage());
             return $this->redirect('/library/' . rawurlencode($p['slug']) . '/' . rawurlencode($e['code']), ['version' => $v['version']]);
         }
+        $this->s->audit()->record('exam.images_queued', ['provider' => provider_name($p), 'exam' => $e['code'], 'version' => $v['version']],
+            'exam', $p['slug'] . '/' . $e['code']);
         $this->flash('success', 'Image download queued. You can close this page; the job keeps running on the server.');
         return $this->redirect('/jobs/' . (string) $this->s->jobs()->find($id)['uuid']);
     }
@@ -133,6 +135,8 @@ final class LibraryController extends Controller
         $v = $this->findVersion($e, $version);
         try {
             $this->s->cache()->deleteVersion($v, $this->s->documents());
+            $this->s->audit()->record('exam.version_deleted', ['provider' => provider_name($p), 'exam' => $e['code'], 'version' => $v['version']],
+                'exam', $p['slug'] . '/' . $e['code']);
             $this->flash('success', 'Version ' . $v['version'] . ' and its documents were deleted.');
         } catch (RuntimeException $ex) {
             $this->flash('danger', $ex->getMessage());

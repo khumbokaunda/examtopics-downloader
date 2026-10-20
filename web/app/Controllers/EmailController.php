@@ -64,12 +64,26 @@ final class EmailController extends Controller
         foreach (['host', 'port', 'encryption', 'username', 'password', 'from_address', 'from_name', 'site_url'] as $k) {
             $input[$k] = (string) $this->request->input($k, '');
         }
+        $before = $this->s->mailer()->settings();
         $error = $this->s->mailer()->save($input);
         if ($error !== null) {
             $this->flash('danger', $error);
         } else {
             // The host only: never the password.
             $this->app->logger()->info('security', 'Email settings saved', ['username' => $this->auth->user()['username'] ?? null, 'host' => $input['host']]);
+            $after = $this->s->mailer()->settings();
+            $fields = [];
+            foreach ($after as $k => $v) {
+                if ($k !== 'password' && (string) ($before[$k] ?? '') !== (string) $v) {
+                    $fields[] = $k;
+                }
+            }
+            if ($input['password'] !== '') {
+                $fields[] = 'password'; // that it changed, never what to
+            }
+            if ($fields !== []) {
+                $this->s->audit()->record('settings.email_changed', ['fields' => $fields, 'host' => $after['host']]);
+            }
             $this->flash('success', 'Email settings saved.' . ($input['password'] === '' ? ' The stored password was kept.' : ''));
         }
         return $this->redirect('/settings/email');
@@ -87,6 +101,7 @@ final class EmailController extends Controller
         $site = $mailer->settings()['site_url'];
         $ok = $mailer->send($to, 'Test message', '<p>This is a test message from ' . e($this->s->branding()->get()['name']) . '. Email is working.</p>'
             . ($site !== '' ? '<p>Links in emails will point to <a href="' . e($site) . '">' . e($site) . '</a>.</p>' : ''));
+        $this->s->audit()->record('settings.email_test_sent', ['to' => $to, 'sent' => $ok]);
         $this->flash($ok ? 'success' : 'danger', $ok
             ? 'Test message sent to ' . $to . '. If it does not arrive, look in the spam folder.'
             : 'Send failed. Check storage/logs/mail.log on the server for the SMTP error, and recheck the host, port, encryption, username and password.');

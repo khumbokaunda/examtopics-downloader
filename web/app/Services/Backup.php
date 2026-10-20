@@ -83,6 +83,10 @@ final class Backup
         }
         $status(['status' => 'completed', 'phase' => 'done', 'percent' => 100, 'name' => $result['name'],
             'message' => 'Backup ready: ' . $result['name'] . ' (' . self::bytes($result['size']) . ').', 'started_at' => $started, 'finished_at' => time()]);
+        if ($suffix !== 'before-restore') { // the restore's own entry names its safety backup
+            $this->audit('backup.created', ['name' => $result['name'], 'size' => $result['size'], 'images' => (bool) ($options['media'] ?? true),
+                'documents' => (bool) ($options['documents'] ?? true), 'scheduled' => $suffix === 'scheduled'], $result['name'], $by);
+        }
         return $result;
     }
 
@@ -274,6 +278,7 @@ final class Backup
             }
             $this->afterRestore($warnings);
         } catch (\Throwable $e) {
+            $this->audit('backup.restore_failed', ['name' => $name, 'error' => mb_substr($e->getMessage(), 0, 300)], $name, $by);
             if ($track) {
                 $this->writeStatus(['kind' => 'restore', 'status' => 'failed', 'phase' => 'failed', 'name' => $name, 'started_at' => $started, 'finished_at' => time(),
                     'message' => 'The restore failed: ' . $e->getMessage()]);
@@ -283,6 +288,7 @@ final class Backup
         $this->app->logger()->info('security', 'Backup restored', ['file' => $name, 'by' => $by, 'safety' => $safety, 'warnings' => count($warnings)]);
         $result = ['warnings' => $warnings, 'safety' => $safety, 'files' => $files];
         $this->recordResult($name, $result, $by);
+        $this->audit('backup.restored', ['name' => $name, 'safety' => $safety, 'files' => $files, 'warnings' => count($warnings)], $name, $by);
         if ($track) {
             $this->writeStatus(['kind' => 'restore', 'status' => 'completed', 'phase' => 'done', 'percent' => 100, 'name' => $name,
                 'message' => 'Restored ' . $name . ': ' . number_format($files) . ' files written.', 'started_at' => $started, 'finished_at' => time()]);
@@ -407,6 +413,27 @@ final class Backup
     {
         Paths::ensureDir($this->dir());
         Paths::atomicWrite($this->dir() . '/status.json', (string) json_encode($status + ['updated_at' => time()], JSON_UNESCAPED_SLASHES));
+    }
+
+    /**
+     * Record a backup event in the activity history, credited to the named account when it
+     * exists (the page passes its user to the background process as --by), else the system.
+     *
+     * @param array<string,mixed> $details
+     */
+    private function audit(string $action, array $details, string $name, string $by): void
+    {
+        $audit = $this->app->service(AuditLog::class, fn() => new AuditLog($this->app));
+        try {
+            $user = $this->app->db()->one('SELECT id, username FROM users WHERE username = ?', [$by]);
+        } catch (\Throwable) {
+            $user = null;
+        }
+        if ($user !== null) {
+            $audit->record($action, $details, 'backup', $name, $user);
+        } else {
+            $audit->recordBySystem($action, $details + ['by' => $by], 'backup', $name);
+        }
     }
 
     private static function bytes(int $n): string

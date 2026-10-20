@@ -70,6 +70,7 @@ final class RequestController extends Controller
         if ($error !== null) {
             $this->flash('warning', $error);
         } else {
+            $this->s->audit()->record('request.created', ['provider' => provider_name($provider), 'exam' => strtolower(trim($exam))], 'exam', $provider['slug'] . '/' . strtolower(trim($exam)));
             $this->flash('success', 'Requested ' . strtoupper(trim($exam)) . '. You will be notified here' . (\App\Services\Notifier::wantsEmail((array) $this->auth->user()) ? ' and by email' : '') . ' when it is collected.');
         }
         return $this->redirect($back);
@@ -88,6 +89,9 @@ final class RequestController extends Controller
             return $this->redirect('/requests');
         }
         $this->s->requests()->answer($request, $status, (string) $this->request->input('response', ''), (array) $this->auth->user());
+        $this->s->audit()->record('request.answered', ['provider' => provider_name(['name' => $request['provider_name'], 'slug' => $request['provider_slug']]),
+            'exam' => (string) $request['exam_code'], 'status' => $status === 'collected' ? 'collected' : 'declined',
+            'requester' => (string) ($request['display_name'] ?: $request['username'])], 'exam', $request['provider_slug'] . '/' . $request['exam_code']);
         $this->flash('success', $status === 'collected'
             ? 'Marked as collected. Everyone who asked for ' . strtoupper((string) $request['exam_code']) . ' has been told.'
             : 'Request declined. ' . ($request['display_name'] ?: $request['username']) . ' has been told.');
@@ -101,6 +105,8 @@ final class RequestController extends Controller
             throw HttpException::notFound('Request');
         }
         $this->s->requests()->cancel($request);
+        $this->s->audit()->record('request.cancelled', ['provider' => provider_name(['name' => $request['provider_name'], 'slug' => $request['provider_slug']]),
+            'exam' => (string) $request['exam_code']], 'exam', $request['provider_slug'] . '/' . $request['exam_code']);
         $this->flash('success', 'Request cancelled.');
         return $this->redirect('/requests');
     }

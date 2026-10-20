@@ -49,6 +49,11 @@ final class AccountController extends Controller
         } else {
             $users->update((int) $user['id'], ['display_name' => $name, 'email' => $email]);
             $this->auth->refresh();
+            $fields = array_keys(array_filter(['name' => $name !== (string) ($user['display_name'] ?? ''), 'email address' => $email !== (string) ($user['email'] ?? '')]));
+            if ($fields !== []) {
+                $this->s->audit()->record('account.profile_changed', ['fields' => $fields] + ($email !== (string) ($user['email'] ?? '') ? ['email' => [(string) ($user['email'] ?? ''), $email]] : []),
+                    'user', (string) $user['username']);
+            }
             if ($email !== (string) ($user['email'] ?? '')) {
                 $this->app->logger()->info('security', 'Email address changed', ['username' => $user['username']]);
                 $this->s->codes()->forget((int) $user['id'], 'verify');
@@ -82,6 +87,7 @@ final class AccountController extends Controller
         if ($result === 'ok') {
             $this->s->users()->markEmailVerified((int) $user['id']);
             $this->app->logger()->info('security', 'Email address verified', ['username' => $user['username']]);
+            $this->s->audit()->record('account.email_verified', ['email' => (string) $user['email']], 'user', (string) $user['username']);
             $this->flash('success', 'Your email address is verified.');
         } else {
             $this->flash('danger', AccountCodes::message($result));
@@ -114,6 +120,7 @@ final class AccountController extends Controller
             $this->s->users()->setPassword((int) $user['id'], $new);
             $this->session->regenerate();
             $this->app->logger()->info('security', 'Password changed', ['username' => $user['username']]);
+            $this->s->audit()->record('account.password_changed', [], 'user', (string) $user['username']);
             $this->flash('success', 'Password changed.');
         }
         return $this->redirect('/account#password');

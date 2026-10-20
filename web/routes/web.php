@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Controllers\AccountController;
+use App\Controllers\ActivityController;
 use App\Controllers\AnswerController;
 use App\Controllers\AuthController;
 use App\Controllers\BackupController;
@@ -129,6 +130,9 @@ return static function (Router $r): void {
 
     $r->get('/users', [UserController::class, 'index'], can: 'users.manage');
     $r->get('/users/new', [UserController::class, 'create'], can: 'users.manage');
+    $r->get('/activity', [ActivityController::class, 'index'], can: 'activity.view');
+    $r->get('/activity.csv', [ActivityController::class, 'export'], can: 'activity.view');
+    $r->post('/activity/verify', [ActivityController::class, 'verify'], can: 'activity.view');
     $r->post('/users/registration', [UserController::class, 'registration'], can: 'users.manage');
     $r->post('/users', [UserController::class, 'store'], can: 'users.manage');
     $r->get('/users/{username}', [UserController::class, 'edit'], can: 'users.manage');

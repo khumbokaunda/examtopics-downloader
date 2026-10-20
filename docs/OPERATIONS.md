@@ -133,6 +133,25 @@ cached data.
 - **Locked out**: `php bin/create-user.php <name> --admin` re-enables the account, resets its
   password and makes it an administrator.
 
+## Activity history
+
+The **Activity** page (administrators, or anyone given `activity.view`) lists who did what
+and when, newest first, with filters for dates, person and kind, and **Download as CSV** for
+every matching entry. The dashboard shows the newest entries and counts failed sign-ins of
+the last day on one line.
+
+**Check the history** walks every entry and says whether any was changed or removed after
+it was written. The same from the command line, with an exit code for scripts:
+
+```bash
+php bin/verify-audit.php          # "Intact: N entries checked" and the last hash, or where it breaks
+php bin/verify-audit.php --json
+```
+
+Keeping the last hash somewhere off the server lets you prove later that nothing before it
+was rewritten. A backup carries the history; restoring one brings back the backup's history
+and adds the restore to it. The rows are small and are kept indefinitely.
+
 ## Backups
 
 The **Backups** page (administrators, `backup.manage`) makes one zip file holding everything:

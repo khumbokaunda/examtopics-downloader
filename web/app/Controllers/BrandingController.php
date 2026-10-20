@@ -24,6 +24,7 @@ final class BrandingController extends Controller
     public function save(): Response
     {
         $branding = $this->s->branding();
+        $before = $branding->get();
         $error = $branding->save([
             'name' => $this->request->input('name', ''),
             'tagline' => $this->request->input('tagline', ''),
@@ -43,6 +44,18 @@ final class BrandingController extends Controller
             $this->app->logger()->info('security', 'Branding updated', [
                 'username' => $user['username'], 'accent' => $b['accent'], 'color' => $b['color'], 'logo' => $upload !== null,
             ]);
+            $fields = [];
+            foreach ($b as $k => $v) {
+                if (!is_array($v) && !is_array($before[$k] ?? null) && (string) ($before[$k] ?? '') !== (string) $v) {
+                    $fields[] = $k;
+                }
+            }
+            if ($upload !== null && !in_array('logo', $fields, true)) {
+                $fields[] = 'logo';
+            }
+            if ($fields !== []) {
+                $this->s->audit()->record('settings.branding_changed', ['fields' => $fields, 'name' => $b['name']]);
+            }
             $this->flash('success', 'Branding saved.');
         }
         return $this->redirect('/settings/branding');
@@ -52,6 +65,7 @@ final class BrandingController extends Controller
     {
         $this->s->branding()->removeLogo();
         $this->app->logger()->info('security', 'Branding logo removed', ['username' => $this->auth->user()['username'] ?? null]);
+        $this->s->audit()->record('settings.logo_removed');
         $this->flash('success', 'Logo removed. The name stands alone.');
         return $this->redirect('/settings/branding');
     }

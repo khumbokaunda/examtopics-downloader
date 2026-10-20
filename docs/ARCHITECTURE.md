@@ -198,6 +198,16 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
   read, so an archive cannot write outside its storage area. A restore needs the
   administrator's password again, makes a safety backup first, replaces the tables in one
   transaction and ends every session. See docs/OPERATIONS.md.
+- **Activity history** (`App\Services\AuditLog`, the Activity page, `activity.view`): who
+  did what and when, in the `audit_log` table. Sign-ins (failed ones too, with anything typed
+  into the username box that may be a password kept as its length only), changes to accounts,
+  settings and branding, collections, corrections, documents, requests and backups. Work the
+  system finishes by itself (a collection, a scheduled backup) is credited to the system, not
+  to whoever opened the page. `AuditText` turns each entry into a sentence. Rows are only
+  added: each carries the hash of the one before it, written on its own connection under a
+  named lock so two requests never chain off the same row, and "Check the history" (or
+  `bin/verify-audit.php`) names the first entry changed or removed afterwards. Detail keys
+  that look like secrets are never stored.
 - **Sessions** end after a period without activity (4 hours by default) and, if set, a fixed
   time after signing in; both are chosen under Settings > Time and sign-in. Session files are
   kept in `storage/sessions`, so the system's own session cleanup (on Debian, every 24 idle
