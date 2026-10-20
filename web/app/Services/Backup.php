@@ -633,9 +633,16 @@ final class Backup
         if ($logo !== '' && !is_file($this->app->paths()->brandingRoot() . '/' . $logo)) {
             $warnings[] = 'The branding settings name a logo file that is not on disk (' . $logo . '). Upload the logo again on Settings > Branding.';
         }
-        // Accounts may have changed, so nobody stays signed in as someone else.
+        // Accounts may have changed, so nobody stays signed in as someone else: sign-ins from
+        // before the accounts were replaced already end (restoredAt()), and their session files
+        // go. Sessions used since then stay: someone sent to the sign-in form part way through
+        // a long restore holds the form's token there, and deleting it would refuse the form.
+        $replaced = $this->restoredAt() ?: time();
+        clearstatcache();
         foreach (glob($this->app->paths()->storage() . '/sessions/sess_*') ?: [] as $file) {
-            @unlink($file);
+            if ((int) @filemtime($file) < $replaced) {
+                @unlink($file);
+            }
         }
         // New pending migrations are applied by php bin/migrate.php; the data is in place.
         if ((new Migrator($db, dirname(__DIR__, 2) . '/database/migrations'))->pending() !== []) {

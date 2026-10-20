@@ -235,6 +235,7 @@ final class BackupTest extends HttpTestCase
         }
         self::assertSame(['restore', 'completed', 100], [$status['kind'], $status['status'], $status['percent']], (string) $status['message']);
         self::assertNull($this->s->users()->findByUsername('intruder'));
+        self::assertSame('/login?restored=1&next=%2Fbackups', $this->get('/backups')->headers['Location'], 'the sign-in form says why');
         self::assertSame(401, $this->kernel()->handle(new \App\Core\Http\Request('GET', '/api/backups/status', [], [], ['REMOTE_ADDR' => $this->ip]))->status,
             'the page polling the progress learns that it was signed out');
         $this->login();
@@ -292,6 +293,13 @@ final class BackupTest extends HttpTestCase
             }
         }
 
+        // Session files: one last used before the restore, one used since the accounts were
+        // replaced (someone sent to the sign-in form while the files were still being written).
+        $sessions = $this->app->paths()->storage() . '/sessions';
+        @mkdir($sessions, 0700, true);
+        touch($sessions . '/sess_before', time() - 100);
+        touch($sessions . '/sess_since', time() + 30);
+
         $this->flashes();
         self::assertSame(303, $this->post('/backups/' . $b['name'] . '/restore', ['password' => 'wrong password'])->status);
         self::assertStringContainsString('password was not right', $this->flashes()[0]['message']);
@@ -303,6 +311,8 @@ final class BackupTest extends HttpTestCase
         self::assertStringContainsString('restored from a backup', $this->get('/login', ['restored' => '1'])->body);
 
         self::assertNull($this->s->users()->findByUsername('intruder'));
+        self::assertFileDoesNotExist($sessions . '/sess_before');
+        self::assertFileExists($sessions . '/sess_since', 'a sign-in form opened part way through still works');
         self::assertSame((int) $member['id'], (int) $this->s->users()->findByUsername('member')['id'], 'ids are kept');
         self::assertSame('Kaunda Exams', $this->s->settings()->get('brand.name'));
         self::assertNotEmpty(glob($this->app->paths()->cacheRoot() . '/huawei/h12-811/*'), 'the exam files are back');
