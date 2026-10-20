@@ -30,6 +30,8 @@ final class AccountController extends Controller
             'emailNotifications' => (string) ((json_decode((string) ($user['preferences'] ?? ''), true) ?: [])['email_notifications'] ?? '1') !== '0',
             'mailReady' => $this->s->mailer()->configured(),
             'recentSignIns' => $this->s->signInGuard()->recentFor((int) $user['id'], 10),
+            'twoStep' => $twoStep = $this->s->twoStep()->status((int) $user['id']),
+            'twoStepUri' => $twoStep['pending'] !== null ? \App\Services\TwoStep::uri($twoStep['pending'], (string) $user['username'], $brand['name']) : null,
             'lockAttempts' => $this->s->signInGuard()->lockoutAttempts(),
         ]);
     }

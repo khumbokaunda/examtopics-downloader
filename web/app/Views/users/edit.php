@@ -1,4 +1,5 @@
 <?php
+/** @var bool $twoStepOn */
 /** @var array|null $account @var array{username:string,display_name:string,email:string,role:string,status:string,permissions:list<string>} $form
  *  @var string|null $error @var bool $self */
 use App\Services\Access;
@@ -93,6 +94,16 @@ $action = $new ? url('/users') : url('/users/' . rawurlencode($account['username
 </div>
 </form>
 
+<?php if (!$new && !$self && ($twoStepOn ?? false)): ?>
+<div class="card mt-4">
+    <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div><strong><?= icon('phone') ?> Two-step sign-in is on</strong><div class="small text-muted">If they lost their phone and their recovery codes, turn it off so they can sign in with their password, then set it up again.</div></div>
+        <form method="post" action="<?= e(url('/users/' . rawurlencode($account['username']) . '/two-step/off')) ?>" data-confirm="They are told by email, and can turn it on again from their account page." data-confirm-title="Turn off two-step sign-in for <?= e($account['username']) ?>?" data-confirm-button="Turn off" data-confirm-tone="danger"><?= csrf_field() ?>
+            <button class="btn btn-outline-danger" type="submit">Turn off two-step sign-in</button>
+        </form>
+    </div>
+</div>
+<?php endif; ?>
 <?php if (!$new && !$self): ?>
 <div class="card mt-4 border-danger-subtle">
     <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">

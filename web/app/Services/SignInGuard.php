@@ -33,6 +33,7 @@ final class SignInGuard
     public const NO_ACCOUNT = 'no such account';
     public const LOCKED = 'account locked';
     public const REFUSED = 'account not active';
+    public const WRONG_CODE = 'wrong two-step code';
 
     public function __construct(
         private Database $db,

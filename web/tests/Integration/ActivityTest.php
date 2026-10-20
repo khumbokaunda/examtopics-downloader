@@ -58,6 +58,7 @@ final class ActivityTest extends HttpTestCase
             'status' => 'active', 'password' => 'reader password long']);
         $this->post('/users/reader', ['display_name' => 'Ruth Reader', 'email' => 'r@example.com', 'role' => 'member', 'status' => 'disabled',
             'permissions' => ['documents.build'], 'password' => 'a new password for ruth']);
+        $this->post('/confirm', ['password' => self::PW, 'next' => '/users']); // deleting an account asks for this first
         $this->post('/users/reader/delete');
         self::assertSame('admin created the account reader (Member)', $this->text($this->entries('user.created')[0]));
         $updated = $this->text($this->entries('user.updated')[0]);

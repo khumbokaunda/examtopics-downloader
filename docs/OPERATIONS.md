@@ -133,6 +133,28 @@ cached data.
 - **Locked out**: `php bin/create-user.php <name> --admin` re-enables the account, resets its
   password and makes it an administrator.
 
+## Two-step sign-in
+
+Anyone can turn it on from their account page: scan the QR code with an authenticator app
+(Google Authenticator, Microsoft Authenticator, Authy, a password manager), type the code it
+shows, and save the ten recovery codes, which are shown once. Signing in then asks for the
+code after the password. Recommended for every administrator.
+
+- **Lost phone, codes at hand**: sign in with a recovery code (each works once), then turn it
+  off and on again with the new phone, or make new codes.
+- **Lost phone and codes**: an administrator opens the person's page on Users and uses **Turn
+  off two-step sign-in**. The person is told by email.
+- **The only administrator is locked out**: `php bin/unlock.php two-step <username>`.
+
+Wrong codes: five per sign-in, then the password again; ten per account in fifteen minutes,
+then none for a while. Reaching ten means someone typed the right password, so the owner is
+told to change it and the reviewers are told too.
+
+**Confirm it is you.** Making, downloading, uploading, restoring and deleting backups, deleting
+an account and turning off someone else's two-step sign-in first ask for the code from the
+app (or the password, when two-step sign-in is off). One confirmation lasts 10 minutes
+(`security.confirm_minutes`).
+
 ## Sign-in protection
 
 An account locks for 15 minutes after 5 wrong passwords in a row; its owner gets an email, and
@@ -159,6 +181,7 @@ From the command line, for when the only administrator is locked out:
 php bin/unlock.php list                  # locked accounts and blocked networks
 php bin/unlock.php account <username>
 php bin/unlock.php network <address>
+php bin/unlock.php two-step <username>   # turn off two-step sign-in
 ```
 
 Sign-in attempts older than 90 days are removed by `bin/cleanup.php`; the activity history keeps

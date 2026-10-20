@@ -124,6 +124,7 @@ final class UserController extends Controller
             ],
             'error' => null,
             'self' => (int) $account['id'] === (int) $this->auth->user()['id'],
+            'twoStepOn' => $this->s->twoStep()->enabled((int) $account['id']),
         ]);
     }
 
@@ -186,6 +187,9 @@ final class UserController extends Controller
 
     public function delete(string $username): Response
     {
+        if ($r = $this->needsConfirmation('/users/' . rawurlencode($username))) {
+            return $r;
+        }
         $account = $this->find($username);
         if ((int) $account['id'] === (int) $this->auth->user()['id']) {
             $this->flash('danger', 'You cannot delete your own account.');

@@ -28,6 +28,13 @@ final class Throttle
         return true;
     }
 
+    /** How many events were recorded in the window, without recording one. */
+    public function count(string $bucket, string $subject, int $windowSeconds): int
+    {
+        return (int) $this->db->value('SELECT COUNT(*) FROM throttle_events WHERE bucket = ? AND subject = ? AND created_at > ?',
+            [$bucket, hash('sha256', $subject), gmdate('Y-m-d H:i:s', time() - $windowSeconds)]);
+    }
+
     /** Seconds since the last event, or null if there was none in the last day. */
     public function since(string $bucket, string $subject): ?int
     {

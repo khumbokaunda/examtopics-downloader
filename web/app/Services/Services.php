@@ -124,6 +124,11 @@ final class Services
         return $this->app->service(AuditLog::class, fn() => new AuditLog($this->app));
     }
 
+    public function twoStep(): TwoStep
+    {
+        return $this->app->service(TwoStep::class, fn() => new TwoStep($this->app->db()));
+    }
+
     public function signInGuard(): SignInGuard
     {
         return $this->app->service(SignInGuard::class, fn() => new SignInGuard($this->app->db(), $this->app->config(),

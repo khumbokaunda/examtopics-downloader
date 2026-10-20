@@ -146,6 +146,16 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
   whether any attempt got in (a sign-in from a network that had just guessed at that account
   or at made-up names, or straight after a lock), with "It was them" to clear one, and unlocks
   accounts and networks. `bin/unlock.php` does the same from the command line.
+- **Two-step sign-in** (`App\Services\TwoStep`): RFC 6238 codes (SHA-1, six digits, 30
+  seconds, one step of leeway either side) from an authenticator app, after the password.
+  Each code works once (the step it matched is remembered); ten one-time recovery codes are
+  stored only as hashes and shown once. The pending sign-in lasts five minutes; wrong codes
+  are limited per sign-in (5) and per account (10 in 15 minutes, which also tells the owner
+  that their password is known). The QR code is drawn in the browser by the vendored
+  qrcode-generator from a data attribute, so the page needs no inline script. Sensitive
+  actions (backups, deleting accounts, turning off someone's two-step sign-in) need a fresh
+  confirmation (`Controller::needsConfirmation`): the code, or the password when two-step
+  sign-in is off, good for ten minutes.
 - **Access** (`App\Services\Access`): each account has a role, administrator or member, and
   may be given extra permissions on top of it. Permissions are small named rights such as
   `library.view` or `exams.collect`, listed with a plain sentence in one catalogue; the
@@ -208,7 +218,7 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
   manifest, every table as JSON (except installation-specific or short-lived ones) and the
   storage areas. Archive entry names are checked against a strict pattern before anything is
   read, so an archive cannot write outside its storage area. A restore needs the
-  administrator's password again, makes a safety backup first, replaces the tables in one
+  person to confirm it is them first, makes a safety backup first, replaces the tables in one
   transaction and ends every session. See docs/OPERATIONS.md.
 - **Activity history** (`App\Services\AuditLog`, the Activity page, `activity.view`): who
   did what and when, in the `audit_log` table. Sign-ins (failed ones too, with anything typed

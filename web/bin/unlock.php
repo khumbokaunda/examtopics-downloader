@@ -8,6 +8,7 @@ declare(strict_types=1);
 //   php bin/unlock.php list                 locked accounts and blocked networks
 //   php bin/unlock.php account <username>   unlock an account
 //   php bin/unlock.php network <address>    allow sign-ins from an address again
+//   php bin/unlock.php two-step <username>  turn off two-step sign-in (a lost phone and codes)
 
 if (PHP_SAPI !== 'cli') {
     exit(1);
@@ -56,7 +57,21 @@ switch ($command) {
         echo $guard->unblock($target) ? "Sign-ins from {$target} are allowed again.\n" : "{$target} was not blocked; its failures no longer count.\n";
         exit(0);
 
+    case 'two-step':
+        $user = $s->users()->findByUsername($target);
+        if ($user === null) {
+            fwrite(STDERR, "No account named \"{$target}\".\n");
+            exit(1);
+        }
+        if ($s->twoStep()->disable((int) $user['id'])) {
+            $s->audit()->recordBySystem('security.two_step_disabled', ['username' => $target, 'by' => 'command line'], 'user', $target);
+            echo "Two-step sign-in is off for {$target}. They sign in with their password, and can turn it on again.\n";
+        } else {
+            echo "{$target} did not have two-step sign-in on.\n";
+        }
+        exit(0);
+
     default:
-        fwrite(STDERR, "usage: php bin/unlock.php list | account <username> | network <address>\n");
+        fwrite(STDERR, "usage: php bin/unlock.php list | account <username> | network <address> | two-step <username>\n");
         exit(64);
 }

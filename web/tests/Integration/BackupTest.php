@@ -20,12 +20,19 @@ final class BackupTest extends HttpTestCase
         $this->configure($this->startFixture());
         $this->newSession();
         $this->login();
+        $this->confirmIt();
         $this->s->users()->create('member', 'member password long', Access::MEMBER, ['email' => 'm@example.com', 'email_verified' => true]);
         $this->s->jobService()->enqueueInventory($this->provider('huawei'));
         $this->drain();
         $this->s->jobService()->enqueueCollect($this->provider('huawei'), 'h12-811', ['source_mode' => 'live', 'rps' => 50.0]);
         $this->drain();
         $this->post('/settings/branding', ['name' => 'Kaunda Exams', 'accent' => 'teal']);
+    }
+
+    /** Backups ask the person to confirm it is them; here that was just done. */
+    private function confirmIt(): void
+    {
+        $this->session->set('_confirmed', ['user' => (int) $this->s->users()->findByUsername('admin')['id'], 'until' => time() + 3600]);
     }
 
     private function makeBackup(array $options = ['media' => '1', 'documents' => '1']): array
@@ -301,9 +308,11 @@ final class BackupTest extends HttpTestCase
         touch($sessions . '/sess_since', time() + 30);
 
         $this->flashes();
-        self::assertSame(303, $this->post('/backups/' . $b['name'] . '/restore', ['password' => 'wrong password'])->status);
-        self::assertStringContainsString('password was not right', $this->flashes()[0]['message']);
+        // Not confirmed (it ran out): sent to confirm it is them, and nothing is restored.
+        $this->session->set('_confirmed', ['user' => (int) $this->s->users()->findByUsername('admin')['id'], 'until' => time() - 1]);
+        self::assertSame('/confirm?next=%2Fbackups', $this->post('/backups/' . $b['name'] . '/restore')->headers['Location']);
         self::assertNotNull($this->s->users()->findByUsername('intruder'), 'nothing restored');
+        $this->confirmIt();
 
         $r = $this->post('/backups/' . $b['name'] . '/restore', ['password' => self::PW]);
         self::assertSame('/login?restored=1', $r->headers['Location']);

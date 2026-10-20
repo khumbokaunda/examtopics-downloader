@@ -1,5 +1,5 @@
 <?php
-/** @var list<array<string,mixed>> $recentSignIns @var int $lockAttempts */
+/** @var list<array<string,mixed>> $recentSignIns @var int $lockAttempts @var array{enabled:bool,since:?string,pending:?string,codes_left:int} $twoStep @var string|null $twoStepUri */
 /** @var array $user @var array<string,string> $appearance @var array<string,list<string>> $appearanceOptions @var bool $customAccent
  *  @var string $systemTimezone @var string $myTimezone @var list<string> $timezones @var bool $emailNotifications @var bool $mailReady */
 use App\Services\Access;
@@ -73,6 +73,57 @@ $verified = $user['email'] !== null && $user['email_verified_at'] !== null;
     </div>
 
     <div class="col-12">
+        <div class="card" id="two-step">
+            <div class="card-header"><span class="card-title"><?= icon('phone') ?>Two-step sign-in</span>
+                <?= $twoStep['enabled'] ? chip('On', 'success', 'shield-check') : ($twoStep['pending'] !== null ? chip('Being set up', 'warning') : chip('Off', 'neutral')) ?></div>
+            <div class="card-body">
+            <?php if ($twoStep['enabled']): ?>
+                <p>Signing in needs the code from your authenticator app as well as your password. On since <?= e(fmt_time((string) $twoStep['since'])) ?>.
+                    <?= (int) $twoStep['codes_left'] ?> recovery code<?= (int) $twoStep['codes_left'] === 1 ? '' : 's' ?> left<?= (int) $twoStep['codes_left'] <= 3 ? ': make new ones soon.' : '.' ?></p>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <form method="post" action="<?= e(url('/account/two-step/codes/new')) ?>" data-once><?= csrf_field() ?>
+                            <label class="form-label small" for="codes-code">Make new recovery codes (the old ones stop working)</label>
+                            <div class="d-flex gap-2"><input class="form-control code-input flex-grow-0" id="codes-code" name="code" inputmode="numeric" maxlength="7" autocomplete="one-time-code" placeholder="000000" required>
+                                <button class="btn btn-outline-secondary" type="submit">Make new codes</button></div>
+                        </form>
+                    </div>
+                    <div class="col-md-6">
+                        <form method="post" action="<?= e(url('/account/two-step/off')) ?>" data-once data-confirm="Signing in will need only your password." data-confirm-title="Turn off two-step sign-in?" data-confirm-button="Turn off" data-confirm-tone="danger"><?= csrf_field() ?>
+                            <label class="form-label small" for="off-code">Turn it off (a code from your app, or a recovery code)</label>
+                            <div class="d-flex gap-2"><input class="form-control code-input flex-grow-0" id="off-code" name="code" maxlength="20" autocomplete="one-time-code" placeholder="000000" required>
+                                <button class="btn btn-outline-danger" type="submit">Turn off</button></div>
+                        </form>
+                    </div>
+                </div>
+            <?php elseif ($twoStep['pending'] !== null): ?>
+                <ol class="setup-steps">
+                    <li>Install an authenticator app on your phone, if you have none: Google Authenticator, Microsoft Authenticator, Authy, or the one in your password manager.</li>
+                    <li>In the app, add an account and scan this code.
+                        <div class="d-flex flex-wrap align-items-center gap-4 my-3">
+                            <span class="qr-box"><img data-qr="<?= e((string) $twoStepUri) ?>" alt="QR code for your authenticator app" width="180" height="180"></span>
+                            <div><div class="small text-muted">Cannot scan? Type this key instead:</div><div class="secret-key mono"><?= e(\App\Services\TwoStep::grouped($twoStep['pending'])) ?></div><div class="small text-muted">Time-based, 6 digits.</div></div>
+                        </div>
+                    </li>
+                    <li>Type the six-digit code the app shows:
+                        <form method="post" action="<?= e(url('/account/two-step/confirm')) ?>" class="d-flex flex-wrap gap-2 mt-2" data-once><?= csrf_field() ?>
+                            <input class="form-control code-input flex-grow-0" name="code" inputmode="numeric" pattern="[0-9 ]{6,7}" maxlength="7" autocomplete="one-time-code" placeholder="000000" aria-label="Code from the app" required>
+                            <button class="btn btn-primary" type="submit"><?= icon('shield-check') ?>Turn on</button>
+                        </form>
+                    </li>
+                </ol>
+                <form method="post" action="<?= e(url('/account/two-step/cancel')) ?>"><?= csrf_field() ?><button class="btn btn-link btn-sm px-0" type="submit">Cancel setting up</button></form>
+                <script src="<?= e(asset('/assets/vendor/qrcode-generator/qrcode.js')) ?>"></script>
+            <?php else: ?>
+                <p>Ask for a code from an app on your phone as well as your password when you sign in, so a stolen password is not enough on its own.</p>
+                <form method="post" action="<?= e(url('/account/two-step/begin')) ?>"><?= csrf_field() ?>
+                    <button class="btn btn-outline-primary" type="submit"><?= icon('phone') ?>Set up two-step sign-in</button>
+                </form>
+            <?php endif; ?>
+            </div>
+        </div>
+    </div>
+    <div class="col-12">
         <div class="card" id="security">
             <div class="card-header"><span class="card-title"><?= icon('shield-check') ?>Recent sign-ins</span><span class="text-muted small">Your sign-ins and failed attempts at your account</span></div>
             <?php if ($recentSignIns === []): ?>
@@ -89,6 +140,7 @@ $verified = $user['email'] !== null && $user['email_verified_at'] !== null;
                             <td data-label="Result"><?= $a['succeeded'] ? chip('Signed in', 'success', 'check2') : match ((string) $a['reason']) {
                                 'account locked' => chip('Refused: account locked', 'warning', 'lock'),
                                 'account not active' => chip('Refused: account not active', 'neutral', 'slash-circle'),
+                                'wrong two-step code' => chip('Wrong two-step code', 'danger', 'phone'),
                                 default => chip('Wrong password', 'danger', 'x'),
                             } ?></td>
                         </tr>
