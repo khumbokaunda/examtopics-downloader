@@ -68,7 +68,8 @@ final class Kernel
                 return Response::json(['error' => 'Authentication required.'], 401);
             }
             $next = $request->method === 'GET' ? $request->path : '/';
-            return Response::redirect($this->url('/login', ['next' => $next]));
+            // Signed out by a restore: the sign-in form says so.
+            return Response::redirect($this->url('/login', ($this->auth->endedByRestore() ? ['restored' => '1'] : []) + ['next' => $next]));
         }
         if (!$match['public']) {
             $needed = $match['can'];
@@ -87,6 +88,12 @@ final class Kernel
                 $this->app->logger()->warning('security', 'CSRF token rejected', [
                     'path' => $request->path, 'ip' => $request->ip((bool) $this->app->config()->get('security.trust_forwarded_for')),
                 ]);
+                // The sign-in form is the one most often left open while its session ends (a long
+                // pause, a restore): show it again with a fresh token rather than an error page.
+                if ($request->path === '/login' && !$request->wantsJson()) {
+                    $this->session->flash('warning', 'The sign-in form had expired, so nothing was sent. Please sign in again.');
+                    return Response::redirect($this->url('/login', array_filter(['next' => (string) $request->input('next', '')])));
+                }
                 throw new HttpException(403, 'Your session expired or the form was submitted from another site. Reload the page and try again.');
             }
         }

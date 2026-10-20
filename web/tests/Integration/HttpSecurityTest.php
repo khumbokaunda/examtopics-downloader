@@ -54,9 +54,14 @@ final class HttpSecurityTest extends HttpTestCase
         self::assertSame(0, (int) $this->app->db()->value('SELECT COUNT(*) FROM jobs'));
         self::assertSame(303, $this->post('/providers/discover')->status);
         self::assertSame(1, (int) $this->app->db()->value('SELECT COUNT(*) FROM jobs'));
-        // A login POST without a token is refused too (login CSRF).
+        // A login POST without a token is refused too (login CSRF): nobody is signed in, and the
+        // form comes back with a fresh token and a note, rather than an error page.
         $this->newSession();
-        self::assertSame(403, $this->post('/login', ['username' => 'admin', 'password' => 'x'], withCsrf: false)->status);
+        $r = $this->post('/login', ['username' => 'admin', 'password' => 'correct horse battery', 'next' => '/library'], withCsrf: false);
+        self::assertSame(303, $r->status);
+        self::assertSame('/login?next=%2Flibrary', $r->headers['Location']);
+        self::assertStringContainsString('sign-in form had expired', $this->session->takeFlashes()[0]['message']);
+        self::assertSame(303, $this->get('/library')->status, 'not signed in');
     }
 
     public function testLoginThrottlingAndSafeRedirects(): void

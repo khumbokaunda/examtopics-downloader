@@ -14,6 +14,7 @@ final class Auth
 {
     /** @var array<string,mixed>|null|false false = not looked up yet */
     private array|null|false $user = false;
+    private bool $endedByRestore = false;
     private ?int $unverified = null;
 
     public function __construct(
@@ -41,11 +42,19 @@ final class Auth
             if (is_int($id) && $this->signedOutBefore > 0 && (int) $this->session->get('_started_at', 0) < $this->signedOutBefore) {
                 $this->session->remove('user_id');
                 $id = null;
+                $this->endedByRestore = true;
             }
             $user = is_int($id) ? $this->users->find($id) : null;
             $this->user = $user !== null && ($user['status'] ?? 'active') === 'active' ? $user : null;
         }
         return $this->user;
+    }
+
+    /** Did this request find its sign-in ended by a restore? The sign-in form then says why. */
+    public function endedByRestore(): bool
+    {
+        $this->user();
+        return $this->endedByRestore;
     }
 
     public function check(): bool
