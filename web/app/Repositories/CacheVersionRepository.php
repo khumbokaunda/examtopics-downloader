@@ -85,14 +85,15 @@ final class CacheVersionRepository
             $where[] = 'p.slug = ?';
             $params[] = $filters['provider'];
         }
-        if (($filters['q'] ?? '') !== '') {
-            $where[] = '(e.code LIKE ? OR e.name LIKE ?)';
-            $like = '%' . addcslashes((string) $filters['q'], '%_\\') . '%';
-            $params[] = $like;
-            $params[] = $like;
+        // Every word must match the code, the name or the provider: "aws saa" finds SAA-C03.
+        foreach (array_slice(preg_split('/\s+/', trim((string) ($filters['q'] ?? '')), -1, PREG_SPLIT_NO_EMPTY) ?: [], 0, 6) as $word) {
+            $where[] = '(e.code LIKE ? OR e.name LIKE ? OR p.slug LIKE ? OR p.name LIKE ?)';
+            $like = '%' . addcslashes($word, '%_\\') . '%';
+            array_push($params, $like, $like, $like, $like);
         }
         $rows = $this->db->all(
-            "SELECT e.id AS exam_id, e.code, e.name, e.reported_count, e.latest_version_id, p.slug AS provider_slug, p.name AS provider_name,
+            "SELECT e.id AS exam_id, e.code, e.name, e.reported_count, e.latest_version_id, e.edition_group, e.edition_first,
+                    p.slug AS provider_slug, p.name AS provider_name,
                     (SELECT COUNT(*) FROM cache_versions cv WHERE cv.exam_id = e.id) AS version_count,
                     (SELECT COUNT(*) FROM documents d JOIN cache_versions cv ON cv.id = d.cache_version_id
                         WHERE cv.exam_id = e.id AND d.status = 'ready') AS document_count,

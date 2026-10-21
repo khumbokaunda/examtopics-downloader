@@ -284,6 +284,24 @@ php bin/rebuild-index.php              # re-index every cached version from its 
 reports) anything corrupted. Job history and inventories are not recoverable from files.
 Refresh the inventories from the Providers page.
 
+## The library
+
+The library opens on shelves: a card per exam with its editions together, Read and Practice
+on the card, and a warning only when something needs attention (a partial version, a refresh
+running). The Table button switches to one row per exam with every column; the choice is
+remembered per person. In the table, an exam collected more than `library.stale_days` (90 by
+default, in `config/config.php`) ago is marked "older than 90 days" for those who collect.
+
+Editions are grouped by name. When two different exams end up on one card, or two editions of
+one exam stay apart, open the exam (its Documents link) and use the Editions card, which needs
+`library.manage`:
+
+- **Show separately** gives the exam a card of its own.
+- **Group with another exam** puts it on one card with an exam you pick.
+- **Group by name again** undoes either of those.
+- **Show this edition first** chooses which edition the card leads with; by default it is the
+  one whose code sorts highest (SAA-C03 before SAA-C02).
+
 ## Retention
 
 - **Versions** are kept until you delete them (Library > exam > Version history). The latest

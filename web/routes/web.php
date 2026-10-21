@@ -89,6 +89,7 @@ return static function (Router $r): void {
     $r->get('/library/{provider}/{exam}/view', [ViewerController::class, 'show'], can: $read);
     $r->get('/library/{provider}/{exam}/corrections', [AnswerController::class, 'index'], can: 'answers.edit');
     $r->post('/library/{provider}/{exam}/answers', [AnswerController::class, 'save'], can: 'answers.edit');
+    $r->post('/library/{provider}/{exam}/editions', [LibraryController::class, 'editions'], can: 'library.manage');
     $r->get('/library/{provider}/{exam}/{version}/json', [LibraryController::class, 'downloadJson'], can: $read);
     $r->post('/library/{provider}/{exam}/{version}/delete', [LibraryController::class, 'deleteVersion'], can: 'library.manage');
     $r->post('/library/{provider}/{exam}/{version}/documents', [DocumentController::class, 'generate'], can: 'documents.build');

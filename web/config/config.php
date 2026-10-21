@@ -49,6 +49,12 @@ return [
     // own under Settings > Time and sign-in. Any PHP timezone name, such as Africa/Blantyre.
     'timezone' => 'UTC',
 
+    'library' => [
+        // In the library's table view, collectors see "older than N days" beside an exam
+        // collected longer ago than this, as a hint to collect a fresh version.
+        'stale_days' => 90,
+    ],
+
     'security' => [
         // An account locks for lockout_minutes after lockout_attempts wrong passwords in a row.
         'lockout_attempts'      => 5,

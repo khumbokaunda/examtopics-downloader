@@ -8,6 +8,7 @@ use App\Core\Http\HttpException;
 use App\Core\Http\Response;
 use App\Core\View;
 use App\Services\Documents\QuestionView;
+use App\Services\Editions;
 use RuntimeException;
 
 /**
@@ -53,7 +54,7 @@ final class AnswerController extends Controller
         }
         usort($rows, static fn(array $a, array $b) => ($a['number'] ?? PHP_INT_MAX) <=> ($b['number'] ?? PHP_INT_MAX));
         return $this->render('library/corrections', [
-            'title' => strtoupper((string) $e['code']) . ' corrections',
+            'title' => Editions::shortCode((string) $e['code']) . ' corrections',
             'nav' => 'library',
             'provider' => $p,
             'exam' => $e,

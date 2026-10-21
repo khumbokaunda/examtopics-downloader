@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Core\Http\HttpException;
 use App\Core\Http\Response;
 use App\Services\Documents\QuestionView;
+use App\Services\Editions;
 use App\Services\MediaStore;
 use RuntimeException;
 
@@ -63,7 +64,7 @@ final class ViewerController extends Controller
         }
         return $this->render('viewer/show', [
             'localImages' => $this->localImages(MediaStore::urlsOf(['questions' => $slice])),
-            'title' => strtoupper((string) $e['code']) . ($mode === 'practice' ? ' practice' : ' study'),
+            'title' => Editions::shortCode((string) $e['code']) . ($mode === 'practice' ? ' practice' : ' study'),
             'nav' => 'library',
             'provider' => $p,
             'exam' => $e,

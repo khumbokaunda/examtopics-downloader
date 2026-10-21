@@ -3,6 +3,7 @@
  *  @var string $q @var int $page @var int $pages @var int $total @var int $all @var array<string,string> $localImages
  *  @var bool $review @var int $toCheck */
 use App\Services\Documents\QuestionView;
+use App\Services\Editions;
 
 $base = '/library/' . rawurlencode($provider['slug']) . '/' . rawurlencode($exam['code']);
 $editor = can('answers.edit');
@@ -18,14 +19,14 @@ $img = static function (string $url, string $alt) use ($localImages): string {
 ?>
 <nav aria-label="breadcrumb"><ol class="breadcrumb">
     <li class="breadcrumb-item"><a href="<?= e(url('/library')) ?>">Library</a></li>
-    <li class="breadcrumb-item"><a href="<?= e(url($base, ['version' => $version['version']])) ?>"><?= e(strtoupper($exam['code'])) ?></a></li>
+    <li class="breadcrumb-item"><a href="<?= e(url($base, ['version' => $version['version']])) ?>" title="<?= e(strtoupper((string) $exam['code'])) ?>"><?= e(Editions::shortCode((string) $exam['code'])) ?></a></li>
     <li class="breadcrumb-item active" aria-current="page"><?= $practice ? 'Practice' : 'Study' ?></li>
 </ol></nav>
 
 <div class="reader">
 <header class="page-header">
     <div class="page-header-text">
-        <h1 class="page-title"><?= e(strtoupper($exam['code'])) ?></h1>
+        <h1 class="page-title"><?= e(Editions::title($exam)) ?></h1>
         <p class="page-subtitle"><?= $review ? $total . ' answers to check, of ' . $all . ' questions' : $total . ' of ' . $all . ' questions' ?> · version <?= e(fmt_time($version['collected_at'])) ?></p>
         <?php if ($version['status'] === 'partial'): ?><div class="mt-2"><?= chip('Partial version: some questions could not be collected', 'warning', 'exclamation-triangle') ?></div><?php endif; ?>
     </div>
