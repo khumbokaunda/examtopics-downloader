@@ -52,7 +52,10 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
    each exam is `study_places`, and the exams they saved are `saved_exams`. From these come the
    "Continue studying" and "Saved" shelves, the reader's "My mistakes" filter (questions whose
    latest answer was wrong), `/progress`, and, with `progress.view_all` (administrators),
-   `/progress/everyone`. Picks that were not revealed stay in the browser only.
+   `/progress/everyone`. Picks that were not revealed stay in the browser only. Each person's
+   days are logged in `study_days` (answers checked, how many right, reader pages opened), on
+   the date in their own timezone; the dashboard's week, its 14-day chart and the streak (days
+   in a row with any of those, still alive until the end of today) are read from it.
 4. **Document generation**: Markdown and PDF built from one validated version, recorded in
    `documents` with options, size and checksum, and reused when unchanged. PDFs are built by
    a detached process that records its progress, so the page shows it and no request waits.

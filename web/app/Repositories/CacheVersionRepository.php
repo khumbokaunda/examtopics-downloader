@@ -127,6 +127,25 @@ final class CacheVersionRepository
         return ['exams' => count($rows), 'questions' => array_sum(array_map(static fn($r) => (int) $r['collected_count'], $rows))];
     }
 
+    /**
+     * Exams with a version published since $since (UTC), newest first: one row per exam with
+     * its latest such version, and when its first version ever was published (so "added" can be
+     * told from "updated").
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function publishedSince(string $since, int $limit = 300): array
+    {
+        return $this->db->all(
+            'SELECT e.id AS exam_id, e.code, e.name, p.slug AS provider_slug, p.name AS provider_name,
+                    MAX(v.published_at) AS published_at, MAX(v.collected_count) AS collected_count,
+                    (SELECT MIN(v2.published_at) FROM cache_versions v2 WHERE v2.exam_id = e.id) AS first_at
+             FROM cache_versions v JOIN exams e ON e.id = v.exam_id JOIN providers p ON p.id = e.provider_id
+             WHERE v.published_at >= ?
+             GROUP BY e.id, e.code, e.name, p.slug, p.name
+             ORDER BY published_at DESC LIMIT ' . max(1, min(1000, $limit)), [$since]);
+    }
+
     /** @return list<array<string,mixed>> */
     public function recent(int $limit = 5): array
     {

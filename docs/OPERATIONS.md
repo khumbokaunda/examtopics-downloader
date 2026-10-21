@@ -311,6 +311,14 @@ in practice mode shows only the questions whose latest answer was wrong; answeri
 takes it off. The library shows **Continue studying** (the last page opened in each exam) and
 **Saved** (the bookmark on a card) above the provider shelves.
 
+The **dashboard** is each person's own study page: where to continue, their streak (days in
+a row on which they read a page or checked an answer, counted in their own timezone), this
+week's answers and how many were right, a 14-day chart, mistakes to go over, saved exams,
+what is new in the library grouped by provider and day, and their exam requests. Those who
+collect, see the activity history or see everyone's progress get a "Running the library"
+section below it: totals, jobs, documents, who studied this week and recent activity, with
+sign-ins counted on one line instead of listed.
+
 Administrators see everyone's progress under My progress > **Everyone**, and can give a member
 the same view with the `progress.view_all` permission (Users > the account > extra
 permissions). Members are told on their progress page and on each exam page that

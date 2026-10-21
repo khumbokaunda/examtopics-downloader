@@ -84,6 +84,14 @@ final class SystemSettings
         $this->cache = null;
     }
 
+    /** The timezone a person's times and days are shown in: theirs if they chose one, else the system's. */
+    public function timezoneFor(?array $user): string
+    {
+        $prefs = json_decode((string) ($user['preferences'] ?? ''), true);
+        $mine = is_array($prefs) ? (string) ($prefs['timezone'] ?? '') : '';
+        return $mine !== '' && self::validTimezone($mine) ? $mine : $this->effective()['timezone'];
+    }
+
     public static function validTimezone(string $tz): bool
     {
         return $tz === 'UTC' || in_array($tz, DateTimeZone::listIdentifiers(), true);

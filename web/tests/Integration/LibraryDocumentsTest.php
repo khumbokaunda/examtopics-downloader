@@ -57,7 +57,7 @@ final class LibraryDocumentsTest extends HttpTestCase
         self::assertStringContainsString($this->version['version'], $exam->body);
         self::assertStringContainsString('latest complete', $exam->body);
         $dash = $this->get('/');
-        self::assertStringContainsString('Cached questions', $dash->body);
+        self::assertStringContainsString('Exams in the library', $dash->body);
         self::assertMatchesRegularExpression('#kpi-value d-block">5<#', $dash->body, 'dashboard totals come from stored data');
     }
 

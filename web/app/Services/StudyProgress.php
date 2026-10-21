@@ -14,6 +14,9 @@ use App\Core\Database;
  * Questions are identified by QuestionView::key, so progress carries over when an exam is
  * collected again. "Mistakes" are the questions whose latest answer was wrong: answering one
  * right takes it off the list.
+ *
+ * Each day is logged too (study_days, in the person's own timezone): answers checked, how many
+ * were right, and pages opened. A day with any of those counts towards the streak.
  */
 final class StudyProgress
 {
@@ -21,8 +24,8 @@ final class StudyProgress
     {
     }
 
-    /** Record a checked answer. $picked is the letters chosen, e.g. "BE". */
-    public function record(int $userId, int $examId, string $key, int $number, string $picked, bool $correct): void
+    /** Record a checked answer. $picked is the letters chosen, e.g. "BE"; $day is the person's today (Y-m-d). */
+    public function record(int $userId, int $examId, string $key, int $number, string $picked, bool $correct, string $day): void
     {
         $now = Database::now();
         $this->db->run(
@@ -32,16 +35,123 @@ final class StudyProgress
                  attempts = attempts + 1, wrong_count = wrong_count + VALUES(wrong_count), last_at = VALUES(last_at)',
             [$userId, $examId, $key, $number, $picked, $correct ? 1 : 0, $correct ? 0 : 1, $now, $now]
         );
+        $this->db->run(
+            'INSERT INTO study_days (user_id, day, answered, correct, pages) VALUES (?, ?, 1, ?, 0)
+             ON DUPLICATE KEY UPDATE answered = answered + 1, correct = correct + VALUES(correct)',
+            [$userId, $day, $correct ? 1 : 0]
+        );
     }
 
-    /** Remember the page a person opened, to continue from. */
-    public function remember(int $userId, int $examId, string $mode, int $page): void
+    /** Remember the page a person opened, to continue from, and count it on their day ($day: Y-m-d). */
+    public function remember(int $userId, int $examId, string $mode, int $page, string $day): void
     {
         $this->db->run(
             'INSERT INTO study_places (user_id, exam_id, mode, page, updated_at) VALUES (?, ?, ?, ?, ?)
              ON DUPLICATE KEY UPDATE mode = VALUES(mode), page = VALUES(page), updated_at = VALUES(updated_at)',
             [$userId, $examId, $mode === 'practice' ? 'practice' : 'study', max(1, $page), Database::now()]
         );
+        $this->db->run('INSERT INTO study_days (user_id, day, answered, correct, pages) VALUES (?, ?, 0, 0, 1)
+                        ON DUPLICATE KEY UPDATE pages = pages + 1', [$userId, $day]);
+    }
+
+    /**
+     * One person's days from $from to $to (Y-m-d, both included), every day present, oldest
+     * first; a day with nothing done is zeros.
+     *
+     * @return array<string,array{answered:int,correct:int,pages:int}>
+     */
+    public function days(int $userId, string $from, string $to): array
+    {
+        $out = [];
+        for ($d = new \DateTimeImmutable($from); $d->format('Y-m-d') <= $to; $d = $d->modify('+1 day')) {
+            $out[$d->format('Y-m-d')] = ['answered' => 0, 'correct' => 0, 'pages' => 0];
+        }
+        foreach ($this->db->all('SELECT day, answered, correct, pages FROM study_days WHERE user_id = ? AND day BETWEEN ? AND ?', [$userId, $from, $to]) as $r) {
+            $out[(string) $r['day']] = ['answered' => (int) $r['answered'], 'correct' => (int) $r['correct'], 'pages' => (int) $r['pages']];
+        }
+        return $out;
+    }
+
+    /**
+     * The streak: days in a row with something studied. It is still alive when the last day
+     * was yesterday (there is time left today); it is broken by a whole day missed.
+     *
+     * @return array{current:int,best:int,today:bool}
+     */
+    public function streak(int $userId, string $today): array
+    {
+        $days = array_map('strval', array_column($this->db->all(
+            'SELECT day FROM study_days WHERE user_id = ? AND (answered > 0 OR pages > 0) AND day <= ? ORDER BY day', [$userId, $today]), 'day'));
+        return self::countStreak($days, $today);
+    }
+
+    /**
+     * @param list<string> $days active days, Y-m-d, oldest first
+     * @return array{current:int,best:int,today:bool}
+     */
+    public static function countStreak(array $days, string $today): array
+    {
+        $best = 0;
+        $run = 0;
+        $previous = null;
+        foreach ($days as $day) {
+            $run = $previous !== null && (new \DateTimeImmutable($previous))->modify('+1 day')->format('Y-m-d') === $day ? $run + 1 : 1;
+            $best = max($best, $run);
+            $previous = $day;
+        }
+        $yesterday = (new \DateTimeImmutable($today))->modify('-1 day')->format('Y-m-d');
+        $current = $previous === $today || $previous === $yesterday ? $run : 0;
+        return ['current' => $current, 'best' => $best, 'today' => $previous === $today];
+    }
+
+    /**
+     * Who studied since $from (Y-m-d), most answers first, for administrators.
+     *
+     * @return list<array<string,mixed>> user rows with answered, correct and days (active days)
+     */
+    public function activeSince(string $from, int $limit = 5): array
+    {
+        return $this->db->all(
+            'SELECT u.id, u.username, u.display_name, SUM(d.answered) AS answered, SUM(d.correct) AS correct, COUNT(*) AS days
+             FROM study_days d JOIN users u ON u.id = d.user_id
+             WHERE d.day >= ? AND (d.answered > 0 OR d.pages > 0)
+             GROUP BY u.id, u.username, u.display_name
+             ORDER BY answered DESC, days DESC, u.username LIMIT ' . max(1, min(100, $limit)), [$from]);
+    }
+
+    /** @return array<string,true> the providers (slugs) of the exams a person studied or saved */
+    public function providerSlugs(int $userId): array
+    {
+        $out = [];
+        foreach ($this->db->all(
+            'SELECT DISTINCT p.slug FROM exams e JOIN providers p ON p.id = e.provider_id
+             WHERE e.id IN (SELECT exam_id FROM study_places WHERE user_id = ?
+                            UNION SELECT exam_id FROM study_answers WHERE user_id = ?
+                            UNION SELECT exam_id FROM saved_exams WHERE user_id = ?)', [$userId, $userId, $userId]) as $r) {
+            $out[(string) $r['slug']] = true;
+        }
+        return $out;
+    }
+
+    /** How many people studied since $from (Y-m-d). */
+    public function activeCount(string $from): int
+    {
+        return (int) $this->db->value('SELECT COUNT(DISTINCT user_id) FROM study_days WHERE day >= ? AND (answered > 0 OR pages > 0)', [$from]);
+    }
+
+    /**
+     * Exams with mistakes to go over, most first.
+     *
+     * @return array<int,int> exam id => mistakes
+     */
+    public function mistakeCounts(int $userId, int $limit = 4): array
+    {
+        $out = [];
+        foreach ($this->db->all('SELECT exam_id, COUNT(*) AS n FROM study_answers WHERE user_id = ? AND correct = 0
+                                 GROUP BY exam_id ORDER BY n DESC, MAX(last_at) DESC LIMIT ' . max(1, min(50, $limit)), [$userId]) as $r) {
+            $out[(int) $r['exam_id']] = (int) $r['n'];
+        }
+        return $out;
     }
 
     /**
