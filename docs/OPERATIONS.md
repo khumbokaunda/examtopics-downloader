@@ -302,6 +302,22 @@ one exam stay apart, open the exam (its Documents link) and use the Editions car
 - **Show this edition first** chooses which edition the card leads with; by default it is the
   one whose code sorts highest (SAA-C03 before SAA-C02).
 
+## Study progress
+
+Every answer someone checks in practice mode (picked, then revealed) is graded on the server
+and counted: **My progress** in the sidebar lists each exam they read or practised, how many
+questions they answered, how many were right, and how many to go over again. **My mistakes**
+in practice mode shows only the questions whose latest answer was wrong; answering one right
+takes it off. The library shows **Continue studying** (the last page opened in each exam) and
+**Saved** (the bookmark on a card) above the provider shelves.
+
+Administrators see everyone's progress under My progress > **Everyone**, and can give a member
+the same view with the `progress.view_all` permission (Users > the account > extra
+permissions). Members are told on their progress page and on each exam page that
+administrators can see it. Only the person can clear their own progress in an exam (the exam
+page's Your progress card); that is recorded in the activity history. Deleting an account
+deletes its progress. Backups include it.
+
 ## Retention
 
 - **Versions** are kept until you delete them (Library > exam > Version history). The latest

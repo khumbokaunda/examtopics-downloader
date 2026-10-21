@@ -43,6 +43,16 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
    ("aws-certified-solutions-architect-associate-saa-c03" as SAA-C03), with the full code on
    hover. An administrator can correct the grouping from the exam page (`exams.edition_group`:
    `solo` or a group key; `exams.edition_first`); each change is in the activity history.
+   **Study progress** (`App\Services\StudyProgress`): when someone reveals an answer they
+   picked in practice mode, the page posts the letters to
+   `/api/library/<provider>/<exam>/<version>/questions/<n>/attempt`. The server grades them
+   against the answer the reader shows (corrections included) and keeps the latest result per
+   person and question (`study_answers`, keyed by `QuestionView::key` so it survives a new
+   collection), with counts of attempts and wrong answers. The page a person last opened in
+   each exam is `study_places`, and the exams they saved are `saved_exams`. From these come the
+   "Continue studying" and "Saved" shelves, the reader's "My mistakes" filter (questions whose
+   latest answer was wrong), `/progress`, and, with `progress.view_all` (administrators),
+   `/progress/everyone`. Picks that were not revealed stay in the browser only.
 4. **Document generation**: Markdown and PDF built from one validated version, recorded in
    `documents` with options, size and checksum, and reused when unchanged. PDFs are built by
    a detached process that records its progress, so the page shows it and no request waits.

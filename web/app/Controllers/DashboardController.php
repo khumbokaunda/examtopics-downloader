@@ -27,7 +27,32 @@ final class DashboardController extends Controller
             'jobCounts' => $jobs->countsByStatus(),
             'workerRunning' => $this->s->supervisor()->workerRunning(),
             'activity' => $this->auth->can('activity.view') ? $this->activity() : null,
+            'studying' => $this->studying(),
         ]);
+    }
+
+    /**
+     * The exams this person studied most recently, with where they were and how they are doing.
+     *
+     * @return list<array{exam:array<string,mixed>,provider:array<string,mixed>,place:array<string,mixed>,progress:array<string,mixed>,questions:int}>
+     */
+    private function studying(): array
+    {
+        $userId = (int) ($this->auth->user()['id'] ?? 0);
+        $progress = $this->s->progress();
+        $totals = $progress->byExam($userId);
+        $out = [];
+        foreach ($progress->recent($userId, 4) as $place) {
+            $exam = $this->s->exams()->findById($place['exam_id']);
+            $provider = $exam === null ? null : $this->s->providers()->find((int) $exam['provider_id']);
+            $best = $exam === null ? null : $this->s->versions()->bestForExam((int) $exam['id']);
+            if ($provider === null || $best === null) {
+                continue;
+            }
+            $out[] = ['exam' => $exam, 'provider' => $provider, 'place' => $place, 'questions' => (int) $best['collected_count'],
+                'progress' => $totals[(int) $exam['id']] ?? ['answered' => 0, 'correct' => 0, 'mistakes' => 0, 'last_at' => null]];
+        }
+        return $out;
     }
 
     /**

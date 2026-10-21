@@ -749,6 +749,35 @@
     sel.addEventListener('change', function () { if (sel.form) sel.form.submit(); });
   });
 
+  // --- Save an exam to your own shelf without leaving the page --------------------------------
+  // Without JavaScript the form posts and the page comes back with a message.
+  document.addEventListener('submit', function (e) {
+    var form = e.target.closest ? e.target.closest('form[data-save-toggle]') : null;
+    if (!form) return;
+    e.preventDefault();
+    var btn = form.querySelector('button');
+    btn.disabled = true;
+    fetch(form.action, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrf, Accept: 'application/json' },
+      body: new URLSearchParams(new FormData(form))
+    }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).then(function (d) {
+      var on = !!d.saved;
+      btn.classList.toggle('is-saved', on);
+      btn.setAttribute('aria-pressed', String(on));
+      btn.title = on ? 'Saved. Remove from your shelf' : 'Save to your shelf';
+      var i = btn.querySelector('.bi');
+      if (i) i.className = 'bi bi-' + (on ? 'bookmark-fill' : 'bookmark');
+      var label = btn.querySelector('.label');
+      if (label) label.textContent = on ? 'Saved' : 'Save';
+    }).catch(function () {
+      showFlash('danger', 'That could not be saved. Reload the page and try again.');
+    }).finally(function () { btn.disabled = false; });
+  });
+
   // --- Library shelves: the search box narrows the cards as you type -------------------------
   // Every word typed must appear in a card's names, codes or provider. A shelf with nothing
   // left is hidden; Enter still searches on the server.
@@ -970,6 +999,22 @@
       return ok;
     };
 
+    // A checked answer is graded again on the server and added to this person's progress.
+    var progressLine = practice.querySelector('[data-field="progress"]');
+    var recordAttempt = function (card, picked) {
+      var url = card.getAttribute('data-attempt-url');
+      if (!url || !picked.length) return;
+      fetch(url, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrf, Accept: 'application/json' },
+        body: new URLSearchParams({ picks: picked.join('') })
+      }).then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (progressLine) progressLine.textContent = d && d.line ? d.line : 'This answer could not be added to your progress.';
+        })
+        .catch(function () { if (progressLine) progressLine.textContent = 'This answer could not be added to your progress.'; });
+    };
+
     var open = function (card, d, remember) {
       var btn = card.querySelector('[data-reveal-url]');
       var target = card.querySelector('.reveal-target');
@@ -985,6 +1030,7 @@
         var n = card.getAttribute('data-q');
         store[n] = { p: picksOf(card), r: 1, ok: ok };
         save();
+        if (ok !== null) recordAttempt(card, picksOf(card));
       }
       updateClear(card);
     };

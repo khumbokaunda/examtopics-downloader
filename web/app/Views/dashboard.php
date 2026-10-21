@@ -1,7 +1,11 @@
 <?php
 /** @var array{exams:int,questions:int} $totals @var int $providerCount @var list<array> $active
  *  @var list<array> $recentVersions @var list<array> $recentCompleted @var list<array> $recentFailed
- *  @var list<array> $recentDocuments @var array<string,int> $jobCounts @var bool $workerRunning */
+ *  @var list<array> $recentDocuments @var array<string,int> $jobCounts @var bool $workerRunning
+ *  @var list<array> $studying the exams this person studied most recently */
+use App\Services\Editions;
+use App\Services\StudyProgress;
+
 $failed = (int) ($jobCounts['failed'] ?? 0);
 $collector = can('exams.collect');
 $recent = array_merge($recentCompleted, $recentFailed);
@@ -48,6 +52,33 @@ usort($recent, static fn($a, $b) => (int) $b['id'] <=> (int) $a['id']);
             </div>
         <?php endforeach; endif; ?>
     </div>
+</div>
+<?php endif; ?>
+
+<?php if ($studying !== []): ?>
+<div class="card mb-4">
+    <div class="card-header">
+        <span class="card-title"><?= icon('play-circle') ?>Continue studying</span>
+        <a class="small" href="<?= e(url('/progress')) ?>">My progress</a>
+    </div>
+    <ul class="list-rows">
+        <?php foreach ($studying as $st): $path = '/library/' . rawurlencode((string) $st['provider']['slug']) . '/' . rawurlencode((string) $st['exam']['code']);
+            $t = $st['progress']; $practice = $st['place']['mode'] === 'practice'; ?>
+            <li>
+                <div class="row-main">
+                    <span class="icon-bubble" data-tone="primary"><?= icon($practice ? 'patch-question' : 'book') ?></span>
+                    <div class="row-text">
+                        <a class="row-title" href="<?= e(url($path)) ?>"><?= e(Editions::title($st['exam'])) ?></a>
+                        <div class="row-meta"><?= $practice ? 'Practice' : 'Study' ?>, page <?= (int) $st['place']['page'] ?><?php if ($t['answered'] > 0): ?> · <?= number_format(min($t['answered'], max(1, $st['questions']))) ?> of <?= number_format($st['questions']) ?> answered, <?= (int) StudyProgress::percent($t['correct'], $t['answered']) ?>% right<?php endif; ?></div>
+                    </div>
+                </div>
+                <div class="row-side">
+                    <span class="row-time"><?= e(fmt_ago($st['place']['updated_at'])) ?></span>
+                    <a class="btn btn-sm btn-primary" href="<?= e(url($path . '/view', ['mode' => $practice ? 'practice' : '', 'page' => (string) $st['place']['page']])) ?>"><?= icon('play-fill') ?>Continue</a>
+                </div>
+            </li>
+        <?php endforeach; ?>
+    </ul>
 </div>
 <?php endif; ?>
 
