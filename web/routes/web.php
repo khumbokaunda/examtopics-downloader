@@ -16,6 +16,7 @@ use App\Controllers\InboxController;
 use App\Controllers\JobController;
 use App\Controllers\LibraryController;
 use App\Controllers\MediaController;
+use App\Controllers\ProgressController;
 use App\Controllers\ProviderController;
 use App\Controllers\RequestController;
 use App\Controllers\SettingsController;
@@ -90,12 +91,18 @@ return static function (Router $r): void {
     $r->get('/library/{provider}/{exam}/corrections', [AnswerController::class, 'index'], can: 'answers.edit');
     $r->post('/library/{provider}/{exam}/answers', [AnswerController::class, 'save'], can: 'answers.edit');
     $r->post('/library/{provider}/{exam}/editions', [LibraryController::class, 'editions'], can: 'library.manage');
+    $r->get('/progress', [ProgressController::class, 'mine'], can: $read);
+    $r->get('/progress/everyone', [ProgressController::class, 'everyone'], can: 'progress.view_all');
+    $r->get('/progress/people/{username}', [ProgressController::class, 'person'], can: 'progress.view_all');
+    $r->post('/library/{provider}/{exam}/save', [LibraryController::class, 'save'], can: $read);
+    $r->post('/library/{provider}/{exam}/progress/reset', [LibraryController::class, 'resetProgress'], can: $read);
     $r->get('/library/{provider}/{exam}/{version}/json', [LibraryController::class, 'downloadJson'], can: $read);
     $r->post('/library/{provider}/{exam}/{version}/delete', [LibraryController::class, 'deleteVersion'], can: 'library.manage');
     $r->post('/library/{provider}/{exam}/{version}/documents', [DocumentController::class, 'generate'], can: 'documents.build');
     $r->post('/library/{provider}/{exam}/{version}/images', [LibraryController::class, 'downloadImages'], can: $collect);
     $r->get('/api/library/{provider}/{exam}/{version}/questions/{number}', [ViewerController::class, 'reveal'], can: $read);
     $r->get('/api/library/{provider}/{exam}/{version}/answers', [ViewerController::class, 'answers'], can: $read);
+    $r->post('/api/library/{provider}/{exam}/{version}/questions/{number}/attempt', [ViewerController::class, 'attempt'], can: $read);
     $r->get('/media/{hash}', [MediaController::class, 'show'], can: $read);
 
     $r->get('/documents/{uuid}/download', [DocumentController::class, 'download'], can: $read);

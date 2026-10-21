@@ -124,6 +124,11 @@ final class Services
         return $this->app->service(AuditLog::class, fn() => new AuditLog($this->app));
     }
 
+    public function progress(): StudyProgress
+    {
+        return $this->app->service(StudyProgress::class, fn() => new StudyProgress($this->app->db()));
+    }
+
     public function twoStep(): TwoStep
     {
         return $this->app->service(TwoStep::class, fn() => new TwoStep($this->app->db()));

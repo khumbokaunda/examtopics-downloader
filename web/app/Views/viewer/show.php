@@ -1,13 +1,15 @@
 <?php
 /** @var array $provider @var array $exam @var array $version @var list<array> $questions @var string $mode
  *  @var string $q @var int $page @var int $pages @var int $total @var int $all @var array<string,string> $localImages
- *  @var bool $review @var int $toCheck */
+ *  @var bool $review @var int $toCheck @var bool $mistakes
+ *  @var array{answered:int,correct:int,mistakes:int,last_at:?string} $progress this person's progress in the exam */
 use App\Services\Documents\QuestionView;
 use App\Services\Editions;
+use App\Services\StudyProgress;
 
 $base = '/library/' . rawurlencode($provider['slug']) . '/' . rawurlencode($exam['code']);
 $editor = can('answers.edit');
-$params = ['version' => $version['version'], 'mode' => $mode === 'practice' ? 'practice' : '', 'q' => $q, 'review' => $review ? '1' : ''];
+$params = ['version' => $version['version'], 'mode' => $mode === 'practice' ? 'practice' : '', 'q' => $q, 'review' => $review ? '1' : '', 'mistakes' => $mistakes ? '1' : ''];
 $practice = $mode === 'practice';
 $img = static function (string $url, string $alt) use ($localImages): string {
     // The copy saved on this server when there is one, else the original address.
@@ -27,7 +29,7 @@ $img = static function (string $url, string $alt) use ($localImages): string {
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title"><?= e(Editions::title($exam)) ?></h1>
-        <p class="page-subtitle"><?= $review ? $total . ' answers to check, of ' . $all . ' questions' : $total . ' of ' . $all . ' questions' ?> · version <?= e(fmt_time($version['collected_at'])) ?></p>
+        <p class="page-subtitle"><?= $review ? $total . ' answers to check, of ' . $all . ' questions' : ($mistakes ? $total . ' of your mistakes, of ' . $all . ' questions' : $total . ' of ' . $all . ' questions') ?> · version <?= e(fmt_time($version['collected_at'])) ?></p>
         <?php if ($version['status'] === 'partial'): ?><div class="mt-2"><?= chip('Partial version: some questions could not be collected', 'warning', 'exclamation-triangle') ?></div><?php endif; ?>
     </div>
     <div class="page-actions">
@@ -42,12 +44,18 @@ $img = static function (string $url, string $alt) use ($localImages): string {
     <input type="hidden" name="version" value="<?= e($version['version']) ?>">
     <?php if ($practice): ?><input type="hidden" name="mode" value="practice"><?php endif; ?>
     <?php if ($review): ?><input type="hidden" name="review" value="1"><?php endif; ?>
+    <?php if ($mistakes): ?><input type="hidden" name="mistakes" value="1"><?php endif; ?>
     <div class="search-field"><?= icon('search') ?><input class="form-control" type="search" name="q" value="<?= e($q) ?>" placeholder="Search question and answer-choice text" aria-label="Search questions"></div>
     <button class="btn btn-outline-secondary" type="submit">Search</button>
-    <?php if ($q === '' && !$review): ?>
+    <?php if ($q === '' && !$review && !$mistakes): ?>
         <input class="form-control jump-input" type="number" min="1" max="<?= (int) $all ?>" name="jump" placeholder="Go to #" aria-label="Go to question number">
     <?php elseif ($q !== ''): ?>
-        <a class="btn btn-link" href="<?= e(url($base . '/view', ['version' => $version['version'], 'mode' => $practice ? 'practice' : '', 'review' => $review ? '1' : ''])) ?>">Clear search</a>
+        <a class="btn btn-link" href="<?= e(url($base . '/view', ['version' => $version['version'], 'mode' => $practice ? 'practice' : '', 'review' => $review ? '1' : '', 'mistakes' => $mistakes ? '1' : ''])) ?>">Clear search</a>
+    <?php endif; ?>
+    <?php if ($mistakes): ?>
+        <a class="btn btn-outline-secondary" href="<?= e(url($base . '/view', ['version' => $version['version'], 'mode' => 'practice'])) ?>"><?= icon('list-ol') ?>All questions</a>
+    <?php elseif ($practice && $progress['mistakes'] > 0): ?>
+        <a class="btn btn-outline-secondary" href="<?= e(url($base . '/view', ['version' => $version['version'], 'mode' => 'practice', 'mistakes' => '1'])) ?>" title="The questions you last answered wrong"><?= icon('arrow-repeat') ?>My mistakes (<?= (int) $progress['mistakes'] ?>)</a>
     <?php endif; ?>
     <?php if ($review): ?>
         <a class="btn btn-outline-secondary" href="<?= e(url($base . '/view', ['version' => $version['version']])) ?>"><?= icon('list-ol') ?>All questions</a>
@@ -59,20 +67,23 @@ $img = static function (string $url, string $alt) use ($localImages): string {
 <?php if ($questions === []): ?>
     <div class="card"><div class="card-body"><?= $review && $q === ''
         ? empty_state('check2-all', 'Nothing left to check', 'Every answer that looked doubtful has been corrected or checked.', null, true)
-        : empty_state('search', 'No questions match', 'Search looks in question and answer-choice text. Try fewer words.', null, true) ?></div></div>
+        : ($mistakes && $q === ''
+            ? empty_state('check2-all', 'No mistakes to go over', 'Every question you checked, you last answered right.', ['Practise all questions', url($base . '/view', ['mode' => 'practice'])], true)
+            : empty_state('search', 'No questions match', 'Search looks in question and answer-choice text. Try fewer words.', null, true)) ?></div></div>
 <?php endif; ?>
 
 <?php if ($practice && $questions !== []): ?>
     <div class="practice-bar" data-practice="<?= e($provider['slug'] . '/' . $exam['code'] . '/' . $version['version']) ?>"
          data-answers-url="<?= e(url('/api/library/' . rawurlencode($provider['slug']) . '/' . rawurlencode($exam['code']) . '/' . rawurlencode($version['version']) . '/answers')) ?>">
         <span class="practice-score"><?= icon('ui-checks') ?><span data-field="score">Pick an answer, then reveal it to check yourself.</span></span>
+        <span class="practice-progress" data-field="progress" data-all="<?= (int) $all ?>"><?= e(StudyProgress::line($progress, (int) $all)) ?></span>
         <button class="btn btn-sm btn-outline-secondary" type="button" data-action="practice-clear-all" hidden><?= icon('arrow-counterclockwise') ?>Clear all my choices</button>
     </div>
 <?php endif; ?>
 
 <?php foreach ($questions as $item): $n = (int) $item['number'];
     $answerLetters = (!$practice && preg_match('/^[A-Z]+$/', trim((string) ($item['answer'] ?? ''))) === 1) ? str_split(trim((string) $item['answer'])) : []; ?>
-    <article class="card question-card" id="question-<?= $n ?>"<?= $practice ? ' data-q="' . $n . '" data-picks="' . (int) ($item['picks'] ?? 1) . '"' : '' ?>>
+    <article class="card question-card" id="question-<?= $n ?>"<?= $practice ? ' data-q="' . $n . '" data-picks="' . (int) ($item['picks'] ?? 1) . '" data-attempt-url="' . e(url('/api/library/' . rawurlencode($provider['slug']) . '/' . rawurlencode($exam['code']) . '/' . rawurlencode($version['version']) . '/questions/' . $n . '/attempt')) . '"' : '' ?>>
         <div class="card-body">
             <div class="q-head">
                 <h2 class="q-number"><span class="num">Question <?= $n ?></span><?php $kind = QuestionView::kind($item); if ($kind !== null): ?><?= chip($kind === 'drag-drop' ? 'Drag and drop' : 'Hot area', 'info', $kind === 'drag-drop' ? 'arrows-move' : 'cursor') ?><?php endif; ?></h2>

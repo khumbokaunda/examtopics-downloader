@@ -79,6 +79,7 @@ final class AuditText
                 'join' => 'put ' . $exam() . ' on one card with ' . strtoupper((string) ($d['with'] ?? '')),
                 default => 'changed how ' . $exam() . ' is grouped',
             }, 'collection', 'neutral'],
+            'exam.progress_reset' => [$who . ' cleared their own progress in ' . $exam() . (isset($d['answers']) ? ' (' . (int) $d['answers'] . ' answer' . ((int) $d['answers'] === 1 ? '' : 's') . ')' : ''), 'arrow-counterclockwise', 'neutral'],
             'exam.images_queued' => [$who . ' started downloading the images of ' . $exam(), 'images', 'neutral'],
             'answers.saved' => [$who . ' ' . match ((string) ($d['kind'] ?? '')) {
                 'corrected' => 'corrected the answer to question ' . (int) ($d['question'] ?? 0) . ' of ' . $exam() . ' to ' . $named('answer'),

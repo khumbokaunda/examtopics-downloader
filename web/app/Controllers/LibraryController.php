@@ -38,6 +38,10 @@ final class LibraryController extends Controller
         }
         $providers = array_values(array_filter($this->s->providers()->allWithStats(), static fn(array $p): bool => isset($counts[$p['slug']])));
         usort($providers, static fn(array $a, array $b): int => strcasecmp(provider_name($a), provider_name($b)));
+        $view = $this->libraryView();
+        $userId = (int) ($this->auth->user()['id'] ?? 0);
+        $saved = $this->s->progress()->saved($userId);
+        $unfiltered = $filters['provider'] === '' && $filters['q'] === '' && $filters['status'] === '';
         return $this->render('library/index', [
             'title' => 'Library',
             'nav' => 'library',
@@ -46,9 +50,77 @@ final class LibraryController extends Controller
             'providers' => $providers,
             'counts' => $counts,
             'total' => count($all),
-            'view' => $this->libraryView(),
+            'view' => $view,
             'staleDays' => max(1, (int) $this->app->config()->get('library.stale_days', 90)),
+            'progress' => $this->s->progress()->byExam($userId),
+            'saved' => $saved,
+            'personal' => $view === 'shelves' && $unfiltered ? $this->personalShelves($userId, $all, $saved) : [],
+            'back' => '/library' . (($query = http_build_query(array_filter($filters, static fn(string $v): bool => $v !== ''))) !== '' ? '?' . $query : ''),
         ]);
+    }
+
+    /**
+     * The person's own shelves above the library: the exams they studied most recently, with
+     * where they were, and the exams they saved.
+     *
+     * @param list<array<string,mixed>> $rows every library row
+     * @param array<int,string> $saved
+     * @return list<array{name:string,icon:string,cards:list<array{row:array<string,mixed>,place:?array<string,mixed>}>}>
+     */
+    private function personalShelves(int $userId, array $rows, array $saved): array
+    {
+        $byId = [];
+        foreach ($rows as $r) {
+            $byId[(int) $r['exam_id']] = $r;
+        }
+        $continue = [];
+        foreach ($this->s->progress()->recent($userId, 4) as $place) {
+            if (isset($byId[$place['exam_id']])) {
+                $continue[] = ['row' => $byId[$place['exam_id']], 'place' => $place];
+            }
+        }
+        $mine = [];
+        foreach (array_keys($saved) as $id) {
+            if (isset($byId[$id])) {
+                $mine[] = ['row' => $byId[$id], 'place' => null];
+            }
+        }
+        return array_values(array_filter([
+            ['name' => 'Continue studying', 'icon' => 'play-circle', 'cards' => $continue],
+            ['name' => 'Saved', 'icon' => 'bookmark', 'cards' => $mine],
+        ], static fn(array $shelf): bool => $shelf['cards'] !== []));
+    }
+
+    /**
+     * Save an exam to the person's own shelf, or take it off. A page that asks for JSON gets
+     * the new state; a plain form goes back to the page it came from.
+     */
+    public function save(string $provider, string $exam): Response
+    {
+        $p = $this->findProvider($provider);
+        $e = $this->findExam($p, $exam);
+        $now = $this->s->progress()->toggleSaved((int) ($this->auth->user()['id'] ?? 0), (int) $e['id']);
+        if ($this->request->wantsJson()) {
+            return Response::json(['saved' => $now]);
+        }
+        $this->flash('success', strtoupper((string) $e['code']) . ($now ? ' is saved to your shelf.' : ' is no longer on your shelf.'));
+        $back = (string) $this->request->input('back', '');
+        // Only back to a page of the library, never to another site ("//host").
+        return preg_match('#^/library(?:[/?]|$)#', $back) === 1 && !str_contains($back, '//')
+            ? $this->redirect($back)
+            : $this->redirect('/library/' . rawurlencode((string) $p['slug']) . '/' . rawurlencode((string) $e['code']));
+    }
+
+    /** Forget the person's own answers and place in one exam. */
+    public function resetProgress(string $provider, string $exam): Response
+    {
+        $p = $this->findProvider($provider);
+        $e = $this->findExam($p, $exam);
+        $n = $this->s->progress()->reset((int) ($this->auth->user()['id'] ?? 0), (int) $e['id']);
+        $this->s->audit()->record('exam.progress_reset', ['provider' => provider_name($p), 'exam' => (string) $e['code'], 'answers' => $n],
+            'exam', $p['slug'] . '/' . $e['code']);
+        $this->flash('success', 'Your progress in ' . strtoupper((string) $e['code']) . ' was cleared.');
+        return $this->redirect('/library/' . rawurlencode((string) $p['slug']) . '/' . rawurlencode((string) $e['code']));
     }
 
     /** The view asked for (and remembered for next time), or the one this person last chose. */
@@ -177,6 +249,7 @@ final class LibraryController extends Controller
         } catch (RuntimeException) {
             $images = $answers = null; // the data file is missing or damaged; the page says so elsewhere
         }
+        $userId = (int) ($this->auth->user()['id'] ?? 0);
         return $this->render('library/exam', [
             'title' => Editions::shortCode((string) $e['code']),
             'nav' => 'library',
@@ -190,6 +263,9 @@ final class LibraryController extends Controller
             'answers' => $answers,
             'jobs' => $this->s->jobs()->list(['provider_id' => (int) $p['id'], 'exam_code' => (string) $e['code']], 20),
             'editions' => $this->editionsOf($p, $e),
+            'progress' => $this->s->progress()->forExam($userId, (int) $e['id']),
+            'place' => $this->s->progress()->placeOf($userId, (int) $e['id']),
+            'isSaved' => isset($this->s->progress()->saved($userId)[(int) $e['id']]),
             'activeJob' => $this->activeCollectFor($p, $e),
         ]);
     }

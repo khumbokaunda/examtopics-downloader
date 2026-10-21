@@ -603,3 +603,26 @@ body.dialog-open { overflow: hidden; }
 
 /* A table cell whose text may run to two lines (tables keep cells on one line otherwise). */
 .table .cell-wrap { white-space: normal; min-width: 12rem; max-width: 28rem; }
+
+/* ---- Study progress: a meter for answered questions, saved exams, the practice bar line ---- */
+.exam-card-head { display: flex; align-items: flex-start; gap: var(--space-2); }
+.exam-card-head .exam-card-title { flex: 1 1 auto; min-width: 0; }
+.save-toggle { flex: none; margin: -4px -6px 0 0; }
+.save-toggle .icon-btn { width: 32px; height: 32px; }
+.icon-btn.is-saved, .btn.is-saved .bi { color: var(--color-primary); }
+.shelf--mine .shelf-title .bi { color: var(--color-primary); }
+
+/* A plain bar: the answered share in the primary colour on a neutral track. */
+.study-meter {
+  -webkit-appearance: none; appearance: none; display: block; width: 100%; height: 6px;
+  border: 0; border-radius: 999px; overflow: hidden; background: var(--color-surface-alt); color: var(--color-primary);
+}
+.study-meter::-webkit-progress-bar { background: var(--color-surface-alt); border-radius: 999px; }
+.study-meter::-webkit-progress-value { background: var(--color-primary); border-radius: 999px; }
+.study-meter::-moz-progress-bar { background: var(--color-primary); border-radius: 999px; }
+.study-meter--lg { height: 8px; margin-bottom: var(--space-3); }
+.exam-card-progress { margin-top: var(--space-3); font-size: var(--text-xs); color: var(--color-text-muted); }
+.exam-card-progress .study-meter { margin-bottom: 4px; }
+.progress-cell { display: flex; align-items: center; gap: var(--space-2); min-width: 9rem; }
+.progress-cell .study-meter { width: 5rem; flex: none; }
+.practice-progress { margin-right: auto; font-size: var(--text-sm); color: var(--color-text-muted); }

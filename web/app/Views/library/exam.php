@@ -3,8 +3,10 @@
  *  @var array<string,array> $variants @var array{total:int,saved:int,failed:int,skipped:int,pending:int}|null $images
  *  @var list<array> $jobs @var array|null $activeJob
  *  @var array{check:int,corrected:int,checked:int,fingerprint:?string}|null $answers
- *  @var array{others:list<array>,first:bool,override:?string,candidates:list<array>} $editions */
+ *  @var array{others:list<array>,first:bool,override:?string,candidates:list<array>} $editions
+ *  @var array{answered:int,correct:int,mistakes:int,last_at:?string} $progress @var array|null $place @var bool $isSaved */
 use App\Services\Editions;
+use App\Services\StudyProgress;
 
 $base = '/library/' . rawurlencode($provider['slug']) . '/' . rawurlencode($exam['code']);
 $vBase = $base . '/' . rawurlencode($selected['version']);
@@ -29,6 +31,10 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
         <p class="page-subtitle"><?php if (Editions::codeLabel($exam) !== null): ?><span class="code-tag" title="<?= e(strtoupper((string) $exam['code'])) ?>"><?= e(Editions::shortCode((string) $exam['code'])) ?></span> · <?php endif; ?><?= e(provider_name($provider)) ?></p>
     </div>
     <div class="page-actions">
+        <form method="post" action="<?= e(url($base . '/save')) ?>" data-save-toggle><?= csrf_field() ?>
+            <input type="hidden" name="back" value="<?= e($base) ?>">
+            <button class="btn btn-outline-secondary<?= $isSaved ? ' is-saved' : '' ?>" type="submit" aria-pressed="<?= $isSaved ? 'true' : 'false' ?>" title="<?= $isSaved ? 'Saved. Remove from your shelf' : 'Save to your shelf' ?>"><?= icon($isSaved ? 'bookmark-fill' : 'bookmark') ?><span class="label"><?= $isSaved ? 'Saved' : 'Save' ?></span></button>
+        </form>
         <?php if (can('exams.collect')): ?><a class="btn btn-outline-secondary" href="<?= e(url('/collect', ['provider' => $provider['slug'], 'exam' => $exam['code']])) ?>"><?= icon('arrow-clockwise') ?>Refresh…</a><?php endif; ?>
         <a class="btn btn-outline-primary" href="<?= e(url($base . '/view', ['version' => $selected['version'], 'mode' => 'practice'])) ?>"><?= icon('patch-question') ?>Practice</a>
         <a class="btn btn-primary" href="<?= e(url($base . '/view', ['version' => $selected['version']])) ?>"><?= icon('book') ?>Read</a>
@@ -177,6 +183,32 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
     </div>
 
     <div class="col-xl-4">
+        <div class="card mb-4">
+            <div class="card-header"><span class="card-title"><?= icon('graph-up') ?>Your progress</span></div>
+            <div class="card-body">
+                <?php $count = (int) $selected['collected_count']; ?>
+                <?php if ($progress['answered'] > 0): ?>
+                    <progress class="study-meter study-meter--lg" max="<?= max(1, $count) ?>" value="<?= min($progress['answered'], max(1, $count)) ?>" aria-label="Questions answered"></progress>
+                    <p class="mb-2"><strong><?= number_format(min($progress['answered'], max($count, 1))) ?></strong> of <?= number_format($count) ?> questions answered, <strong><?= (int) StudyProgress::percent($progress['correct'], $progress['answered']) ?>%</strong> right.</p>
+                    <p class="small text-muted mb-3"><?= $progress['mistakes'] > 0 ? number_format($progress['mistakes']) . ' to go over again (your last answer was wrong).' : 'No mistakes to go over.' ?> Last studied <?= e(fmt_ago($progress['last_at'])) ?>.</p>
+                <?php else: ?>
+                    <p class="text-muted small mb-3">Pick an answer in practice mode and reveal it: each one you check counts here.</p>
+                <?php endif; ?>
+                <div class="d-flex flex-wrap gap-2">
+                    <?php if ($place !== null): ?>
+                        <a class="btn btn-sm btn-primary" href="<?= e(url($base . '/view', ['mode' => $place['mode'] === 'practice' ? 'practice' : '', 'page' => (string) $place['page']])) ?>"><?= icon('play-fill') ?>Continue, page <?= (int) $place['page'] ?></a>
+                    <?php endif; ?>
+                    <?php if ($progress['mistakes'] > 0): ?>
+                        <a class="btn btn-sm btn-outline-secondary" href="<?= e(url($base . '/view', ['mode' => 'practice', 'mistakes' => '1'])) ?>"><?= icon('arrow-repeat') ?>Practise my mistakes</a>
+                    <?php endif; ?>
+                    <?php if ($progress['answered'] > 0 || $place !== null): ?>
+                        <form method="post" action="<?= e(url($base . '/progress/reset')) ?>" data-confirm="Your checked answers and your place in this exam are forgotten. This cannot be undone." data-confirm-title="Clear your progress?" data-confirm-button="Clear" data-confirm-tone="danger"><?= csrf_field() ?>
+                            <button class="btn btn-sm btn-link btn-link-danger" type="submit">Clear my progress</button></form>
+                    <?php endif; ?>
+                </div>
+                <p class="small text-muted mt-3 mb-0"><?= icon('eye') ?> Administrators can see your progress.</p>
+            </div>
+        </div>
         <div class="card mb-4">
             <div class="card-header"><span class="card-title"><?= icon('layers') ?>Version history</span></div>
             <ul class="list-rows">

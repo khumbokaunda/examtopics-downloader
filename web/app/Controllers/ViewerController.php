@@ -9,12 +9,17 @@ use App\Core\Http\Response;
 use App\Services\Documents\QuestionView;
 use App\Services\Editions;
 use App\Services\MediaStore;
+use App\Services\StudyProgress;
 use RuntimeException;
 
 /**
  * Read-only, paginated question viewer. In practice mode the page contains no answers,
  * explanations, votes or comments, not even hidden in the HTML or in script data. Each is
  * fetched for one question at a time from reveal(), only when the user asks.
+ *
+ * A checked answer is sent to attempt(), which grades it against the answer on the server and
+ * adds it to the person's study progress. The page a person opens is remembered, so the library
+ * can offer to continue from it.
  */
 final class ViewerController extends Controller
 {
@@ -41,6 +46,14 @@ final class ViewerController extends Controller
         if ($review) {
             $questions = array_values(array_filter($questions, static fn(array $item) => QuestionView::doubts($item) !== []));
         }
+        // Practice mode can show only the questions this person last answered wrong.
+        $userId = (int) ($this->auth->user()['id'] ?? 0);
+        $progress = $this->s->progress()->forExam($userId, (int) $e['id']);
+        $mistakes = $mode === 'practice' && $this->request->query('mistakes') === '1';
+        if ($mistakes) {
+            $wrong = array_flip($this->s->progress()->mistakes($userId, (int) $e['id']));
+            $questions = array_values(array_filter($questions, static fn(array $item) => isset($wrong[QuestionView::key($item)])));
+        }
         if ($q !== '') {
             $needle = mb_strtolower($q);
             $questions = array_values(array_filter($questions, static function (array $item) use ($needle): bool {
@@ -55,8 +68,11 @@ final class ViewerController extends Controller
         $pages = max(1, (int) ceil($total / $perPage));
         $page = max(1, min($pages, (int) $this->request->query('page', '1')));
         $jump = (int) $this->request->query('jump', '0');
-        if ($jump > 0 && $q === '' && !$review) {
+        if ($jump > 0 && $q === '' && !$review && !$mistakes) {
             $page = max(1, min($pages, (int) ceil($jump / $perPage)));
+        }
+        if ($q === '' && !$review && !$mistakes && $userId > 0) {
+            $this->s->progress()->remember($userId, (int) $e['id'], $mode, $page);
         }
         $slice = array_slice($questions, ($page - 1) * $perPage, $perPage);
         if ($mode === 'practice') {
@@ -72,6 +88,8 @@ final class ViewerController extends Controller
             'questions' => $slice,
             'mode' => $mode,
             'review' => $review,
+            'mistakes' => $mistakes,
+            'progress' => $progress,
             'toCheck' => $toCheck,
             'q' => $q,
             'page' => $page,
@@ -89,6 +107,67 @@ final class ViewerController extends Controller
         }
         $answers = $this->answersFor($provider, $exam, $version, [(int) $number]);
         return Response::json($answers[(int) $number] ?? throw HttpException::notFound('Question'));
+    }
+
+    /**
+     * Grade a checked answer and add it to the person's study progress. The letters picked
+     * arrive as "picks" ("BE"); the answer they are graded against is the one the reader shows,
+     * corrections included. Questions with no answer letters (pictures) cannot be graded.
+     */
+    public function attempt(string $provider, string $exam, string $version, string $number): Response
+    {
+        if (!ctype_digit($number)) {
+            throw HttpException::notFound('Question');
+        }
+        $p = $this->findProvider($provider);
+        $e = $this->findExam($p, $exam);
+        $v = $this->findVersion($e, $version);
+        $picked = self::letters((string) $this->request->input('picks', ''));
+        if ($picked === []) {
+            throw HttpException::badRequest('Pick an answer first.');
+        }
+        try {
+            $data = $this->s->cache()->load($v);
+        } catch (RuntimeException $ex) {
+            throw new HttpException(409, $ex->getMessage());
+        }
+        $q = null;
+        foreach ((array) ($data['questions'] ?? []) as $item) {
+            if (is_array($item) && (int) ($item['number'] ?? 0) === (int) $number) {
+                $q = QuestionView::normalize($item);
+            }
+        }
+        if ($q === null) {
+            throw HttpException::notFound('Question');
+        }
+        $q = QuestionView::applyEdit($q, $this->s->answerEdits()->forExam((int) $e['id'])[QuestionView::key($q)] ?? null);
+        $right = self::answerLetters($q);
+        if ($right === []) {
+            return Response::json(['recorded' => false, 'error' => 'This answer is not a set of letters, so it cannot be checked.'], 422);
+        }
+        sort($right);
+        $correct = $picked === $right;
+        $userId = (int) ($this->auth->user()['id'] ?? 0);
+        $this->s->progress()->record($userId, (int) $e['id'], QuestionView::key($q), (int) $number, implode('', $picked), $correct);
+        $totals = $this->s->progress()->forExam($userId, (int) $e['id']);
+        return Response::json(['recorded' => true, 'correct' => $correct, 'totals' => $totals,
+            'line' => StudyProgress::line($totals, count((array) ($data['questions'] ?? [])))]);
+    }
+
+    /** @return list<string> distinct capital letters, sorted: " b,e " gives ["B", "E"] */
+    private static function letters(string $text): array
+    {
+        $letters = array_values(array_unique(str_split((string) preg_replace('/[^A-Z]/', '', strtoupper(substr($text, 0, 64))))));
+        $letters = array_values(array_filter($letters, static fn(string $l): bool => $l !== ''));
+        sort($letters);
+        return array_slice($letters, 0, 16);
+    }
+
+    /** @param array<string,mixed> $q @return list<string> the answer's letters, or none when it is not letters */
+    private static function answerLetters(array $q): array
+    {
+        $answer = trim((string) ($q['answer'] ?? ''));
+        return preg_match('/^[A-Z]+$/', $answer) === 1 ? str_split($answer) : [];
     }
 
     /**
@@ -149,7 +228,7 @@ final class ViewerController extends Controller
             'number' => (int) $q['number'],
             'answer' => QuestionView::answerLine($q),
             // The choices to mark as the answer, as study mode does.
-            'letters' => preg_match('/^[A-Z]+$/', trim((string) ($q['answer'] ?? ''))) === 1 ? str_split(trim((string) $q['answer'])) : [],
+            'letters' => self::answerLetters($q),
             'answer_note' => QuestionView::pictureAnswerNote($q),
             'note' => ($q['edit']['note'] ?? '') !== '' ? $q['edit']['note'] : null,
             'votes' => QuestionView::votesLine($q),

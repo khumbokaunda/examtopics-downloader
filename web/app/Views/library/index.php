@@ -1,6 +1,8 @@
 <?php
 /** @var list<array> $rows @var array{provider:string,q:string,status:string} $filters @var list<array> $providers
- *  @var array<string,int> $counts @var int $total @var string $view @var int $staleDays */
+ *  @var array<string,int> $counts @var int $total @var string $view @var int $staleDays @var string $back
+ *  @var array<int,array> $progress this person's totals by exam id @var array<int,string> $saved exam id => when saved
+ *  @var list<array{name:string,icon:string,cards:list<array{row:array,place:?array}>}> $personal their own shelves */
 use App\Services\Editions;
 
 $filtered = $filters['provider'] !== '' || $filters['q'] !== '' || $filters['status'] !== '';
@@ -46,43 +48,25 @@ $examHref = static fn(array $r): string => url($examPath($r));
             ? empty_state('journal-bookmark', 'Your library is empty', 'Collect an exam to start your library. It is stored on this server and read from here.', ['Collect an exam', url('/collect')])
             : empty_state('journal-bookmark', 'The library is empty', 'Collected exams appear here.' . (can('exams.request') ? ' <a href="' . e(url('/requests')) . '">Request an exam</a>.' : ''))) ?></div></div>
 
-<?php elseif ($view === 'shelves'): ?>
+<?php elseif ($view === 'shelves'):
+    $card = static fn(array $editions, array $shelf, ?array $place = null): string => \App\Core\View::current()->partial('library/card',
+        ['editions' => $editions, 'shelf' => $shelf, 'progress' => $progress, 'saved' => $saved, 'place' => $place, 'back' => $back]); ?>
+    <?php foreach ($personal as $mine): ?>
+    <section class="shelf shelf--mine" data-shelf>
+        <h2 class="shelf-title"><?= icon($mine['icon']) ?><?= e($mine['name']) ?> <span class="shelf-count" data-shelf-count><?= count($mine['cards']) ?></span></h2>
+        <div class="shelf-grid">
+        <?php foreach ($mine['cards'] as $c): ?>
+            <?= $card([$c['row']], ['name' => provider_name($c['row'], 'provider_name', 'provider_slug'), 'slug' => (string) $c['row']['provider_slug']], $c['place']) ?>
+        <?php endforeach; ?>
+        </div>
+    </section>
+    <?php endforeach; ?>
     <?php foreach (Editions::shelves($rows) as $shelf): ?>
     <section class="shelf" data-shelf>
         <h2 class="shelf-title"><?= e($shelf['name']) ?> <span class="shelf-count" data-shelf-count><?= array_sum(array_map('count', $shelf['cards'])) ?></span></h2>
         <div class="shelf-grid">
-        <?php foreach ($shelf['cards'] as $editions): $r = $editions[0]; $href = $examHref($r); $b = $r['best'];
-            $label = Editions::codeLabel($r);
-            $haystack = [];
-            foreach ($editions as $ed) {
-                array_push($haystack, (string) $ed['code'], Editions::shortCode((string) $ed['code']), (string) ($ed['name'] ?? ''));
-            }
-            $haystack[] = $shelf['name'];
-            $haystack[] = $shelf['slug']; ?>
-            <article class="card exam-card" data-shelf-card data-count="<?= count($editions) ?>" data-search="<?= e(mb_strtolower(implode(' ', $haystack))) ?>">
-                <div class="exam-card-body">
-                    <h3 class="exam-card-title text-clamp-2"><a href="<?= e($href) ?>"><?= e(Editions::title($r)) ?></a></h3>
-                    <div class="exam-card-meta">
-                        <?php if ($label !== null): ?><span class="code-tag" title="<?= e(strtoupper((string) $r['code'])) ?>"><?= e($label) ?></span><?php endif; ?>
-                        <span><?= number_format((int) ($b['collected_count'] ?? 0)) ?> questions</span>
-                        <span>Updated <?= e(fmt_ago($b['collected_at'] ?? null)) ?></span>
-                        <?php if ($r['cache_status'] !== 'complete'): ?><?= chip('Partial', 'warning', 'exclamation-triangle') ?><?php endif; ?>
-                        <?php if ($r['active_job_uuid']): ?><?= chip('Refreshing', 'primary', 'arrow-repeat') ?><?php endif; ?>
-                    </div>
-                    <?php if (count($editions) > 1): ?>
-                        <div class="exam-card-editions"><span class="text-muted">Other editions:</span>
-                            <?php foreach (array_slice($editions, 1) as $ed): ?>
-                                <a class="edition-link" href="<?= e($examHref($ed)) ?>" title="<?= e(Editions::title($ed)) ?>"><?= e(Editions::shortCode((string) $ed['code'])) ?></a>
-                            <?php endforeach; ?>
-                        </div>
-                    <?php endif; ?>
-                </div>
-                <div class="exam-card-foot">
-                    <a class="btn btn-sm btn-primary" href="<?= e($href . '/view') ?>"><?= icon('book') ?>Read</a>
-                    <a class="btn btn-sm btn-outline-secondary" href="<?= e(url($examPath($r) . '/view', ['mode' => 'practice'])) ?>"><?= icon('patch-question') ?>Practice</a>
-                    <a class="btn btn-sm btn-link ms-auto" href="<?= e($href) ?>" title="Documents, versions and details">Documents</a>
-                </div>
-            </article>
+        <?php foreach ($shelf['cards'] as $editions): ?>
+            <?= $card($editions, $shelf) ?>
         <?php endforeach; ?>
         </div>
     </section>
