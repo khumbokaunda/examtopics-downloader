@@ -118,6 +118,18 @@ final class DashboardTest extends HttpTestCase
         self::assertStringContainsString('Answer 1', $admin);
     }
 
+    /**
+     * Cards are as tall as what they hold: none is stretched to match a neighbour (h-100), and
+     * an empty card says so in one line rather than with a large empty state.
+     */
+    public function testCardsAreNeverStretchedOrPaddedOut(): void
+    {
+        $template = (string) file_get_contents(dirname(__DIR__, 2) . '/app/Views/dashboard.php');
+        self::assertStringNotContainsString('h-100', $template);
+        self::assertStringNotContainsString('empty_state(', $template);
+        self::assertStringContainsString('class="card-note"', $this->get('/')->body, 'a new member\'s empty cards use the one-line note');
+    }
+
     public function testAdministratorsSeeTheSystemBelowTheirOwnStudying(): void
     {
         $this->get('/library/huawei/h12-811/view', ['mode' => 'practice']);

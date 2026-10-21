@@ -30,6 +30,11 @@ $summary = match (true) {
     $studying !== [] => 'Nothing answered yet this week. Pick up where you left off below.',
     default => 'Find an exam and practise it: every answer you check counts here.',
 };
+// What a card says when it has nothing in it yet: one line, so an empty card stays small.
+$note = static fn(string $iconName, string $title, string $body, ?array $action = null): string =>
+    '<div class="card-note"><span class="icon-bubble" data-tone="neutral">' . icon($iconName) . '</span>'
+    . '<div class="card-note-text"><div class="card-note-title">' . e($title) . '</div><div class="card-note-body">' . e($body) . '</div></div>'
+    . ($action !== null ? '<a class="btn btn-sm btn-outline-secondary" href="' . e($action[1]) . '">' . e($action[0]) . '</a>' : '') . '</div>';
 ?>
 <header class="page-header">
     <div class="page-header-text">
@@ -39,8 +44,8 @@ $summary = match (true) {
     <?php if ($collector): ?><div class="page-actions"><a class="btn btn-primary" href="<?= e(url('/collect')) ?>"><?= icon('cloud-arrow-down') ?>Collect an exam</a></div><?php endif; ?>
 </header>
 
-<div class="row g-4 mb-4">
-    <div class="col-xl-8">
+<div class="row g-4">
+    <div class="col-xl-8 dash-col">
         <?php if ($studying !== []): $lead = $studying[0]; $t = $lead['progress']; $path = $examPath($lead); $practice = $lead['place']['mode'] === 'practice';
             $label = Editions::codeLabel($lead['exam']); ?>
         <div class="card">
@@ -116,12 +121,12 @@ $summary = match (true) {
         </div>
         <?php endif; ?>
         <?php if ($studying !== [] || $mistakes !== [] || $saved !== []): ?>
-        <div class="row g-4 mt-0">
+        <div class="row g-4">
     <div class="col-md-6">
-        <div class="card h-100">
+        <div class="card">
             <div class="card-header"><span class="card-title"><?= icon('arrow-repeat') ?>Mistakes to go over</span></div>
             <?php if ($mistakes === []): ?>
-                <div class="card-body"><?= empty_state('check2-all', 'Nothing to go over', 'Answers you get wrong in practice mode collect here until you get them right.', null, true) ?></div>
+                <?= $note('check2-all', 'Nothing to go over', 'Answers you get wrong in practice mode collect here until you get them right.') ?>
             <?php else: ?>
             <ul class="list-rows">
                 <?php foreach ($mistakes as $m): $p = $examPath($m); ?>
@@ -141,10 +146,10 @@ $summary = match (true) {
         </div>
     </div>
     <div class="col-md-6">
-        <div class="card h-100">
+        <div class="card">
             <div class="card-header"><span class="card-title"><?= icon('bookmark') ?>Saved</span><a class="small" href="<?= e(url('/library')) ?>">Library</a></div>
             <?php if ($saved === []): ?>
-                <div class="card-body"><?= empty_state('bookmark', 'Nothing saved yet', 'Use the bookmark on an exam in the library to keep it here.', null, true) ?></div>
+                <?= $note('bookmark', 'Nothing saved yet', 'Use the bookmark on an exam in the library to keep it here.') ?>
             <?php else: ?>
             <ul class="list-rows">
                 <?php foreach ($saved as $sv): $p = $examPath($sv); ?>
@@ -165,10 +170,34 @@ $summary = match (true) {
     </div>
 </div>
         <?php endif; ?>
+        <div class="card">
+            <div class="card-header"><span class="card-title"><?= icon('stars') ?>New in the library</span><a class="small" href="<?= e(url('/library')) ?>">View library</a></div>
+            <?php if ($news === []): ?>
+                <?= $note('journal-plus', 'Nothing new in the last two weeks', 'Exams added or collected again show here, grouped by provider.', $collector ? ['Collect an exam', url('/collect')] : null) ?>
+            <?php else: ?>
+            <ul class="list-rows">
+                <?php foreach ($news as $n): ?>
+                    <li>
+                        <div class="row-main">
+                            <span class="icon-bubble" data-tone="<?= $n['mine'] ? 'primary' : 'neutral' ?>"><?= icon('collection') ?></span>
+                            <div class="row-text">
+                                <div class="row-title"><a href="<?= e(url('/library', ['provider' => $n['slug']])) ?>"><?= e($n['name']) ?></a><?php if ($n['mine']): ?> <?= chip('You study this', 'primary') ?><?php endif; ?></div>
+                                <?php foreach (['added' => 'added', 'updated' => 'updated'] as $kind => $verb): $list = $n[$kind]; if ($list === []) { continue; } ?>
+                                    <div class="row-meta news-line"><?= count($list) ?> exam<?= count($list) === 1 ? '' : 's' ?> <?= $verb ?>:
+                                        <?php foreach (array_slice($list, 0, 3) as $i => $r): ?><?= $i > 0 ? ', ' : '' ?><a href="<?= e(url('/library/' . rawurlencode((string) $r['provider_slug']) . '/' . rawurlencode((string) $r['code']))) ?>"><?= e(Editions::title($r)) ?></a><?php endforeach; ?><?= count($list) > 3 ? ' and ' . (count($list) - 3) . ' more' : '' ?></div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                        <div class="row-side"><span class="row-time row-time--words"><?= e($n['when']) ?></span></div>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+            <?php endif; ?>
+        </div>
     </div>
 
-    <div class="col-xl-4">
-        <div class="card h-100">
+    <div class="col-xl-4 dash-col">
+        <div class="card">
             <div class="card-header"><span class="card-title"><?= icon('fire') ?>Your streak</span></div>
             <div class="card-body">
                 <div class="streak-hero<?= $streak['current'] > 0 ? ' is-on' : '' ?>">
@@ -191,47 +220,16 @@ $summary = match (true) {
                 <?= \App\Core\View::current()->partial('partials/study_chart', ['days' => $days]) ?>
             </div>
         </div>
-    </div>
-</div>
-
-<div class="row g-4">
-    <div class="col-lg-<?= $requests !== null ? 7 : 12 ?>">
-        <div class="card h-100">
-            <div class="card-header"><span class="card-title"><?= icon('stars') ?>New in the library</span><a class="small" href="<?= e(url('/library')) ?>">View library</a></div>
-            <?php if ($news === []): ?>
-                <div class="card-body"><?= empty_state('journal-plus', 'Nothing new in the last two weeks', 'Exams added or collected again show here, grouped by provider.', $collector ? ['Collect an exam', url('/collect')] : null, true) ?></div>
-            <?php else: ?>
-            <ul class="list-rows">
-                <?php foreach ($news as $n): ?>
-                    <li>
-                        <div class="row-main">
-                            <span class="icon-bubble" data-tone="<?= $n['mine'] ? 'primary' : 'neutral' ?>"><?= icon('collection') ?></span>
-                            <div class="row-text">
-                                <div class="row-title"><a href="<?= e(url('/library', ['provider' => $n['slug']])) ?>"><?= e($n['name']) ?></a><?php if ($n['mine']): ?> <?= chip('You study this', 'primary') ?><?php endif; ?></div>
-                                <?php foreach (['added' => 'added', 'updated' => 'updated'] as $kind => $verb): $list = $n[$kind]; if ($list === []) { continue; } ?>
-                                    <div class="row-meta news-line"><?= count($list) ?> exam<?= count($list) === 1 ? '' : 's' ?> <?= $verb ?>:
-                                        <?php foreach (array_slice($list, 0, 3) as $i => $r): ?><?= $i > 0 ? ', ' : '' ?><a href="<?= e(url('/library/' . rawurlencode((string) $r['provider_slug']) . '/' . rawurlencode((string) $r['code']))) ?>"><?= e(Editions::title($r)) ?></a><?php endforeach; ?><?= count($list) > 3 ? ' and ' . (count($list) - 3) . ' more' : '' ?></div>
-                                <?php endforeach; ?>
-                            </div>
-                        </div>
-                        <div class="row-side"><span class="row-time row-time--words"><?= e($n['when']) ?></span></div>
-                    </li>
-                <?php endforeach; ?>
-            </ul>
-            <?php endif; ?>
-        </div>
-    </div>
-    <?php if ($requests !== null): $statusChip = ['open' => ['Waiting', 'warning', 'hourglass-split'], 'collected' => ['In the library', 'success', 'check2'], 'declined' => ['Declined', 'neutral', null], 'cancelled' => ['Cancelled', 'neutral', null]]; ?>
-    <div class="col-lg-5">
-        <div class="card h-100">
+        <?php if ($requests !== null): $statusChip = ['open' => ['Waiting', 'warning', 'hourglass-split'], 'collected' => ['In the library', 'success', 'check2'], 'declined' => ['Declined', 'neutral', null], 'cancelled' => ['Cancelled', 'neutral', null]]; ?>
+        <div class="card">
             <div class="card-header">
                 <span class="card-title"><?= icon('inbox') ?><?= $requests['manager'] ? 'Requests waiting' : 'Your requests' ?></span>
                 <a class="small" href="<?= e(url('/requests')) ?>"><?= $requests['manager'] ? ($requests['open'] > 0 ? 'Answer ' . number_format($requests['open']) : 'All requests') : 'Request an exam' ?></a>
             </div>
             <?php if ($requests['rows'] === []): ?>
-                <div class="card-body"><?= $requests['manager']
-                    ? empty_state('inbox', 'No requests waiting', 'Exams members ask for show here until they are collected or declined.', null, true)
-                    : empty_state('inbox', 'No requests yet', 'Ask for an exam that is not in the library yet, and you will be told when it is.', ['Request an exam', url('/requests')], true) ?></div>
+                <?= $requests['manager']
+                    ? $note('inbox', 'No requests waiting', 'Exams members ask for show here until they are collected or declined.')
+                    : $note('inbox', 'No requests yet', 'Ask for an exam that is not in the library, and you will be told when it is.') ?>
             <?php else: ?>
             <ul class="list-rows">
                 <?php foreach ($requests['rows'] as $rq): [$text, $tone, $ic] = $statusChip[$rq['status']] ?? [$rq['status'], 'neutral', null];
@@ -251,8 +249,8 @@ $summary = match (true) {
             </ul>
             <?php endif; ?>
         </div>
+        <?php endif; ?>
     </div>
-    <?php endif; ?>
 </div>
 
 <?php if ($system):
@@ -281,29 +279,31 @@ $summary = match (true) {
         <span class="card-title"><?= icon('activity') ?>Active jobs</span>
         <?= $workerRunning ? chip('Worker running', 'success', 'cpu') : chip('Worker idle', 'neutral', 'cpu') ?>
     </div>
+    <?php if ($active === []): ?>
+        <?= $note('cup-hot', 'Nothing is running', 'Collections and inventory refreshes show here while they run, and keep running if you close the page.') ?>
+    <?php else: ?>
     <div class="card-body">
-        <?php if ($active === []): ?>
-            <?= empty_state('cup-hot', 'Nothing is running', 'Collections and inventory refreshes show here while they run. They keep running if you close the page.', null, true) ?>
-        <?php else: foreach ($active as $job): ?>
+        <?php foreach ($active as $job): ?>
             <div class="job-item">
                 <div class="job-item-title"><a href="<?= e(url('/jobs/' . $job['uuid'])) ?>">#<?= (int) $job['id'] ?> · <?= e(job_label($job)) ?></a></div>
                 <?= \App\Core\View::current()->partial('partials/job_progress', ['job' => $job, 'reload' => true]) ?>
             </div>
-        <?php endforeach; endif; ?>
+        <?php endforeach; ?>
     </div>
+    <?php endif; ?>
 </div>
 <?php endif; ?>
 
 <div class="row g-4">
     <?php if ($members !== null): ?>
     <div class="col-lg-<?= $collector ? 6 : 12 ?>">
-        <div class="card h-100">
+        <div class="card">
             <div class="card-header">
                 <span class="card-title"><?= icon('people') ?>Studying this week</span>
                 <a class="small" href="<?= e(url('/progress/everyone')) ?>">Everyone's progress</a>
             </div>
             <?php if ($members['people'] === []): ?>
-                <div class="card-body"><?= empty_state('people', 'Nobody studied this week', 'Members who read or practise an exam are listed here.', null, true) ?></div>
+                <?= $note('people', 'Nobody studied this week', 'Members who read or practise an exam are listed here.') ?>
             <?php else: ?>
             <div class="card-body pb-0 flex-grow-0"><p class="small text-muted mb-0"><?= number_format($members['count']) ?> <?= $members['count'] === 1 ? 'person' : 'people' ?> studied in the last 7 days.</p></div>
             <ul class="list-rows">
@@ -325,13 +325,13 @@ $summary = match (true) {
     <?php endif; ?>
     <?php if ($collector): ?>
     <div class="col-lg-<?= $members !== null ? 6 : 12 ?>">
-        <div class="card h-100">
+        <div class="card">
             <div class="card-header">
                 <span class="card-title"><?= icon('clock-history') ?>Recent jobs</span>
                 <a class="small" href="<?= e(url('/jobs')) ?>">All jobs</a>
             </div>
             <?php if ($recent === []): ?>
-                <div class="card-body"><?= empty_state('clock', 'No finished jobs yet', 'Finished collections and inventory refreshes are listed here.', null, true) ?></div>
+                <?= $note('clock', 'No finished jobs yet', 'Finished collections and inventory refreshes are listed here.') ?>
             <?php else: ?>
             <ul class="list-rows">
                 <?php foreach (array_slice($recent, 0, 6) as $j): [$tone, $iconName] = status_style($j['status']); ?>
@@ -354,7 +354,7 @@ $summary = match (true) {
         <div class="card">
             <div class="card-header"><span class="card-title"><?= icon('file-earmark-text') ?>Recently generated documents</span></div>
             <?php if ($recentDocuments === []): ?>
-                <div class="card-body"><?= empty_state('file-earmark-plus', 'No documents yet', 'Open an exam in the library to generate Markdown or PDF study documents.', null, true) ?></div>
+                <?= $note('file-earmark-plus', 'No documents yet', 'Open an exam in the library to generate Markdown or PDF study documents.') ?>
             <?php else: ?>
             <ul class="list-rows">
                 <?php foreach ($recentDocuments as $d): $pdf = $d['format'] === 'pdf'; ?>
@@ -382,7 +382,7 @@ $summary = match (true) {
                 <a class="small" href="<?= e(url('/activity')) ?>">All activity</a>
             </div>
             <?php if ($activity['rows'] === [] && $activity['failed'] === 0 && $activity['signIns']['count'] === 0): ?>
-                <div class="card-body"><?= empty_state('activity', 'Nothing recorded yet', 'Sign-ins and changes to accounts, settings, the library and backups are listed here.', null, true) ?></div>
+                <?= $note('activity', 'Nothing recorded yet', 'Sign-ins and changes to accounts, settings, the library and backups are listed here.') ?>
             <?php else: ?>
             <ul class="list-rows">
                 <?php if ($activity['failed'] > 0): ?>

@@ -7,10 +7,10 @@
  *
  * @var array<string,array{answered:int,correct:int,pages:int}> $days oldest first, ending today
  */
-$slot = 20;
-$bar = 12;
-$top = 14;           // room for the peak's label
-$plot = 50;          // tallest column
+$slot = 24;
+$bar = 14;
+$top = 12;           // room for the peak's label
+$plot = 40;          // tallest column
 $base = $top + $plot;
 $max = max(array_merge([0], array_column($days, 'answered')));
 $peak = $max > 0 ? array_key_last(array_filter($days, static fn(array $d): bool => $d['answered'] === $max)) : null;
