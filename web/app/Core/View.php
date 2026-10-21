@@ -88,10 +88,7 @@ final class View
     /** The reader's timezone: their own choice, else the system default. */
     public function timezone(): string
     {
-        $prefs = json_decode((string) ($this->user['preferences'] ?? ''), true);
-        $mine = is_array($prefs) ? (string) ($prefs['timezone'] ?? '') : '';
-        return $mine !== '' && \App\Services\SystemSettings::validTimezone($mine)
-            ? $mine : $this->app->service(\App\Services\SystemSettings::class, fn() => new \App\Services\SystemSettings($this->app))->effective()['timezone'];
+        return $this->app->service(\App\Services\SystemSettings::class, fn() => new \App\Services\SystemSettings($this->app))->timezoneFor($this->user);
     }
 
     /** The installation's name, logo and colour. */

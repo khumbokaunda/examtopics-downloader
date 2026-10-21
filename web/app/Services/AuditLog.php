@@ -223,15 +223,25 @@ final class AuditLog
      *
      * @return list<array<string,mixed>>
      */
+    /** The newest entries, without sign-ins and sign-outs (the dashboard counts sign-ins on a line of their own). */
     public function recent(int $limit = 8): array
     {
-        return $this->app->db()->all("SELECT * FROM audit_log WHERE action <> 'auth.sign_in_failed' ORDER BY id DESC LIMIT " . max(1, $limit));
+        return $this->app->db()->all("SELECT * FROM audit_log WHERE action NOT IN ('auth.sign_in_failed', 'auth.signed_in', 'auth.signed_out')
+                                      ORDER BY id DESC LIMIT " . max(1, $limit));
     }
 
     public function failedSignIns(int $seconds): int
     {
         return (int) $this->app->db()->value("SELECT COUNT(*) FROM audit_log WHERE action = 'auth.sign_in_failed' AND created_at >= ?",
             [gmdate('Y-m-d H:i:s', time() - $seconds)]);
+    }
+
+    /** @return array{count:int,people:int} sign-ins in the last $seconds, and how many different accounts */
+    public function signIns(int $seconds): array
+    {
+        $row = $this->app->db()->one("SELECT COUNT(*) AS n, COUNT(DISTINCT user_id) AS people FROM audit_log WHERE action = 'auth.signed_in' AND created_at >= ?",
+            [gmdate('Y-m-d H:i:s', time() - $seconds)]);
+        return ['count' => (int) ($row['n'] ?? 0), 'people' => (int) ($row['people'] ?? 0)];
     }
 
     /**

@@ -25,6 +25,19 @@ abstract class Controller
     ) {
     }
 
+    /** The signed-in person's timezone: theirs if they chose one, else the system's. */
+    protected function timezone(): string
+    {
+        return $this->app->service(\App\Services\SystemSettings::class, fn() => new \App\Services\SystemSettings($this->app))
+            ->timezoneFor($this->auth->user());
+    }
+
+    /** Today's date (Y-m-d) where the signed-in person is. */
+    protected function today(): string
+    {
+        return (new \DateTimeImmutable('now', new \DateTimeZone($this->timezone())))->format('Y-m-d');
+    }
+
     /** @param array<string,mixed> $vars */
     protected function render(string $template, array $vars = [], int $status = 200): Response
     {

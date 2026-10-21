@@ -1,34 +1,274 @@
 <?php
-/** @var array{exams:int,questions:int} $totals @var int $providerCount @var list<array> $active
- *  @var list<array> $recentVersions @var list<array> $recentCompleted @var list<array> $recentFailed
- *  @var list<array> $recentDocuments @var array<string,int> $jobCounts @var bool $workerRunning
- *  @var list<array> $studying the exams this person studied most recently */
+/**
+ * The dashboard: the person's own studying first, then (for those who run it) the system.
+ *
+ * @var string $greeting @var string $firstName @var string $today
+ * @var list<array> $studying the exams studied most recently, with place and progress
+ * @var list<array> $suggestions exams to start with, when nothing was studied yet
+ * @var array<string,array{answered:int,correct:int,pages:int}> $days the last 14 days
+ * @var array{answered:int,correct:int,mistakes:int} $week @var array{current:int,best:int,today:bool} $streak
+ * @var list<array> $mistakes @var list<array> $saved @var list<array> $news
+ * @var array{manager:bool,rows:list<array>,open:int}|null $requests
+ * @var bool $system @var array{exams:int,questions:int}|null $totals @var int $providerCount @var list<array> $active
+ * @var list<array> $recentCompleted @var list<array> $recentFailed @var list<array> $recentDocuments
+ * @var array<string,int> $jobCounts @var bool $workerRunning
+ * @var array{people:list<array>,count:int}|null $members @var array|null $activity
+ */
+use App\Services\Access;
 use App\Services\Editions;
 use App\Services\StudyProgress;
 
-$failed = (int) ($jobCounts['failed'] ?? 0);
 $collector = can('exams.collect');
-$recent = array_merge($recentCompleted, $recentFailed);
-usort($recent, static fn($a, $b) => (int) $b['id'] <=> (int) $a['id']);
+$examPath = static fn(array $card): string => '/library/' . rawurlencode((string) $card['provider']['slug']) . '/' . rawurlencode((string) $card['exam']['code']);
+$answeredLine = static function (array $t, int $questions): string {
+    return number_format($questions > 0 ? min($t['answered'], $questions) : $t['answered']) . ' of ' . number_format($questions)
+        . ' answered, ' . (int) StudyProgress::percent($t['correct'], $t['answered']) . '% right';
+};
+$weekPercent = StudyProgress::percent($week['correct'], $week['answered']);
+$summary = match (true) {
+    $week['answered'] > 0 => 'This week: ' . number_format($week['answered']) . ' answer' . ($week['answered'] === 1 ? '' : 's') . ' checked, ' . $weekPercent . '% right.',
+    $studying !== [] => 'Nothing answered yet this week. Pick up where you left off below.',
+    default => 'Find an exam and practise it: every answer you check counts here.',
+};
 ?>
 <header class="page-header">
     <div class="page-header-text">
-        <h1 class="page-title">Dashboard</h1>
-        <p class="page-subtitle"><?= $collector ? 'Your private exam library at a glance.' : 'The exam library at a glance.' ?></p>
+        <h1 class="page-title"><?= e($greeting) ?><?= $firstName !== '' ? ', ' . e($firstName) : '' ?></h1>
+        <p class="page-subtitle"><?= e($summary) ?></p>
     </div>
-    <div class="page-actions">
-        <a class="btn btn-outline-secondary" href="<?= e(url('/library')) ?>"><?= icon('journal-bookmark') ?>Open library</a>
-        <?php if ($collector): ?><a class="btn btn-primary" href="<?= e(url('/collect')) ?>"><?= icon('cloud-arrow-down') ?>Collect an exam</a><?php endif; ?>
-    </div>
+    <?php if ($collector): ?><div class="page-actions"><a class="btn btn-primary" href="<?= e(url('/collect')) ?>"><?= icon('cloud-arrow-down') ?>Collect an exam</a></div><?php endif; ?>
 </header>
 
+<div class="row g-4 mb-4">
+    <div class="col-xl-8">
+        <?php if ($studying !== []): $lead = $studying[0]; $t = $lead['progress']; $path = $examPath($lead); $practice = $lead['place']['mode'] === 'practice';
+            $label = Editions::codeLabel($lead['exam']); ?>
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title"><?= icon('play-circle') ?>Continue studying</span>
+                <a class="small" href="<?= e(url('/progress')) ?>">My progress</a>
+            </div>
+            <div class="card-body continue-lead">
+                <div class="continue-meta"><?php if ($label !== null): ?><span class="code-tag" title="<?= e(strtoupper((string) $lead['exam']['code'])) ?>"><?= e($label) ?></span> <?php endif; ?><?= e(provider_name($lead['provider'])) ?> · <?= $practice ? 'Practice' : 'Study' ?>, page <?= (int) $lead['place']['page'] ?> · <?= e(fmt_ago($lead['place']['updated_at'])) ?></div>
+                <h2 class="continue-title"><a href="<?= e(url($path)) ?>"><?= e(Editions::title($lead['exam'])) ?></a></h2>
+                <?php if ($t['answered'] > 0): ?>
+                    <progress class="study-meter study-meter--lg" max="<?= max(1, $lead['questions']) ?>" value="<?= min($t['answered'], max(1, $lead['questions'])) ?>" aria-label="Questions answered"></progress>
+                    <p class="small text-muted mb-3"><?= e($answeredLine($t, $lead['questions'])) ?><?= $t['mistakes'] > 0 ? ' · ' . number_format($t['mistakes']) . ' to go over' : '' ?></p>
+                <?php else: ?>
+                    <p class="small text-muted mb-3"><?= number_format($lead['questions']) ?> questions. In practice mode, pick an answer and reveal it to count it.</p>
+                <?php endif; ?>
+                <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-primary" href="<?= e(url($path . '/view', ['mode' => $practice ? 'practice' : '', 'page' => (string) $lead['place']['page']])) ?>"><?= icon('play-fill') ?>Continue</a>
+                    <?php if ($t['mistakes'] > 0): ?>
+                        <a class="btn btn-outline-secondary" href="<?= e(url($path . '/view', ['mode' => 'practice', 'mistakes' => '1'])) ?>"><?= icon('arrow-repeat') ?>Go over <?= number_format($t['mistakes']) ?> mistake<?= $t['mistakes'] === 1 ? '' : 's' ?></a>
+                    <?php elseif (!$practice): ?>
+                        <a class="btn btn-outline-secondary" href="<?= e(url($path . '/view', ['mode' => 'practice'])) ?>"><?= icon('patch-question') ?>Practise</a>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php if (count($studying) > 1): ?>
+            <div class="continue-more">
+                <div class="section-heading">Also studying</div>
+                <ul class="list-rows">
+                    <?php foreach (array_slice($studying, 1) as $st): $p = $examPath($st); $mode = $st['place']['mode'] === 'practice'; ?>
+                        <li>
+                            <div class="row-main">
+                                <span class="icon-bubble" data-tone="primary"><?= icon($mode ? 'patch-question' : 'book') ?></span>
+                                <div class="row-text">
+                                    <a class="row-title" href="<?= e(url($p)) ?>"><?= e(Editions::title($st['exam'])) ?></a>
+                                    <div class="row-meta"><?= $st['progress']['answered'] > 0 ? e($answeredLine($st['progress'], $st['questions'])) : ($mode ? 'Practice' : 'Study') . ', page ' . (int) $st['place']['page'] ?></div>
+                                </div>
+                            </div>
+                            <a class="btn btn-sm btn-outline-secondary" href="<?= e(url($p . '/view', ['mode' => $mode ? 'practice' : '', 'page' => (string) $st['place']['page']])) ?>">Continue</a>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+            <?php endif; ?>
+        </div>
+        <?php else: ?>
+        <div class="card">
+            <div class="card-header"><span class="card-title"><?= icon('compass') ?>Start studying</span></div>
+            <div class="card-body">
+                <p class="mb-3">Find an exam, open it in practice mode, pick an answer and reveal it. Every answer you check counts towards your week and your streak.</p>
+                <form class="library-search mb-4" method="get" action="<?= e(url('/library')) ?>" role="search">
+                    <span class="library-search-icon"><?= icon('search') ?></span>
+                    <input class="form-control" type="search" name="q" placeholder="Search by name, code or provider" aria-label="Search the library">
+                </form>
+                <?php if ($suggestions !== []): ?>
+                    <div class="section-heading">Try one of these</div>
+                    <ul class="list-rows">
+                        <?php foreach ($suggestions as $sg): $p = $examPath($sg); ?>
+                            <li>
+                                <div class="row-main">
+                                    <span class="icon-bubble" data-tone="primary"><?= icon('journal-text') ?></span>
+                                    <div class="row-text">
+                                        <a class="row-title" href="<?= e(url($p)) ?>"><?= e(Editions::title($sg['exam'])) ?></a>
+                                        <div class="row-meta"><?= e(provider_name($sg['provider'])) ?> · <?= number_format($sg['questions']) ?> questions</div>
+                                    </div>
+                                </div>
+                                <a class="btn btn-sm btn-outline-secondary" href="<?= e(url($p . '/view', ['mode' => 'practice'])) ?>"><?= icon('patch-question') ?>Practise</a>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php endif; ?>
+        <?php if ($studying !== [] || $mistakes !== [] || $saved !== []): ?>
+        <div class="row g-4 mt-0">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header"><span class="card-title"><?= icon('arrow-repeat') ?>Mistakes to go over</span></div>
+            <?php if ($mistakes === []): ?>
+                <div class="card-body"><?= empty_state('check2-all', 'Nothing to go over', 'Answers you get wrong in practice mode collect here until you get them right.', null, true) ?></div>
+            <?php else: ?>
+            <ul class="list-rows">
+                <?php foreach ($mistakes as $m): $p = $examPath($m); ?>
+                    <li>
+                        <div class="row-main">
+                            <span class="icon-bubble" data-tone="warning"><?= icon('arrow-repeat') ?></span>
+                            <div class="row-text">
+                                <a class="row-title" href="<?= e(url($p)) ?>"><?= e(Editions::title($m['exam'])) ?></a>
+                                <div class="row-meta"><?= number_format($m['mistakes']) ?> to go over<?= $m['progress'] !== null ? ' · ' . (int) StudyProgress::percent($m['progress']['correct'], $m['progress']['answered']) . '% right so far' : '' ?></div>
+                            </div>
+                        </div>
+                        <a class="btn btn-sm btn-outline-secondary" href="<?= e(url($p . '/view', ['mode' => 'practice', 'mistakes' => '1'])) ?>">Go over</a>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+            <?php endif; ?>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header"><span class="card-title"><?= icon('bookmark') ?>Saved</span><a class="small" href="<?= e(url('/library')) ?>">Library</a></div>
+            <?php if ($saved === []): ?>
+                <div class="card-body"><?= empty_state('bookmark', 'Nothing saved yet', 'Use the bookmark on an exam in the library to keep it here.', null, true) ?></div>
+            <?php else: ?>
+            <ul class="list-rows">
+                <?php foreach ($saved as $sv): $p = $examPath($sv); ?>
+                    <li>
+                        <div class="row-main">
+                            <span class="icon-bubble" data-tone="primary"><?= icon('bookmark-fill') ?></span>
+                            <div class="row-text">
+                                <a class="row-title" href="<?= e(url($p)) ?>"><?= e(Editions::title($sv['exam'])) ?></a>
+                                <div class="row-meta"><?= e(provider_name($sv['provider'])) ?> · <?= $sv['progress'] !== null && $sv['progress']['answered'] > 0 ? e($answeredLine($sv['progress'], $sv['questions'])) : number_format($sv['questions']) . ' questions' ?></div>
+                            </div>
+                        </div>
+                        <a class="btn btn-sm btn-outline-secondary" href="<?= e(url($p . '/view', ['mode' => 'practice'])) ?>"><?= icon('patch-question') ?>Practise</a>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+            <?php endif; ?>
+        </div>
+    </div>
+</div>
+        <?php endif; ?>
+    </div>
+
+    <div class="col-xl-4">
+        <div class="card h-100">
+            <div class="card-header"><span class="card-title"><?= icon('fire') ?>Your streak</span></div>
+            <div class="card-body">
+                <div class="streak-hero<?= $streak['current'] > 0 ? ' is-on' : '' ?>">
+                    <span class="streak-flame"><?= icon('fire') ?></span>
+                    <span class="streak-value"><?= number_format($streak['current']) ?></span>
+                    <span class="streak-unit">day<?= $streak['current'] === 1 ? '' : 's' ?> in a row</span>
+                </div>
+                <p class="streak-note"><?= e(match (true) {
+                    $streak['current'] === 0 && $streak['best'] === 0 => 'Study today to start a streak: read a page or check an answer.',
+                    $streak['current'] === 0 => 'Study today to start a new one. Your best is ' . $streak['best'] . ' day' . ($streak['best'] === 1 ? '' : 's') . '.',
+                    !$streak['today'] => 'Study today to keep it going. Your best is ' . $streak['best'] . ' day' . ($streak['best'] === 1 ? '' : 's') . '.',
+                    $streak['current'] >= $streak['best'] && $streak['current'] > 1 => 'Done for today, and your best yet.',
+                    default => 'Done for today. Your best is ' . $streak['best'] . ' day' . ($streak['best'] === 1 ? '' : 's') . '.',
+                }) ?></p>
+                <dl class="week-stats">
+                    <div><dt>This week</dt><dd><?= number_format($week['answered']) ?></dd><dd class="week-stat-note">answers</dd></div>
+                    <div><dt>Right</dt><dd><?= $weekPercent === null ? 'n/a' : $weekPercent . '%' ?></dd><dd class="week-stat-note">this week</dd></div>
+                    <div><dt>To go over</dt><dd><?= number_format($week['mistakes']) ?></dd><dd class="week-stat-note">mistakes</dd></div>
+                </dl>
+                <?= \App\Core\View::current()->partial('partials/study_chart', ['days' => $days]) ?>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-<?= $requests !== null ? 7 : 12 ?>">
+        <div class="card h-100">
+            <div class="card-header"><span class="card-title"><?= icon('stars') ?>New in the library</span><a class="small" href="<?= e(url('/library')) ?>">View library</a></div>
+            <?php if ($news === []): ?>
+                <div class="card-body"><?= empty_state('journal-plus', 'Nothing new in the last two weeks', 'Exams added or collected again show here, grouped by provider.', $collector ? ['Collect an exam', url('/collect')] : null, true) ?></div>
+            <?php else: ?>
+            <ul class="list-rows">
+                <?php foreach ($news as $n): ?>
+                    <li>
+                        <div class="row-main">
+                            <span class="icon-bubble" data-tone="<?= $n['mine'] ? 'primary' : 'neutral' ?>"><?= icon('collection') ?></span>
+                            <div class="row-text">
+                                <div class="row-title"><a href="<?= e(url('/library', ['provider' => $n['slug']])) ?>"><?= e($n['name']) ?></a><?php if ($n['mine']): ?> <?= chip('You study this', 'primary') ?><?php endif; ?></div>
+                                <?php foreach (['added' => 'added', 'updated' => 'updated'] as $kind => $verb): $list = $n[$kind]; if ($list === []) { continue; } ?>
+                                    <div class="row-meta news-line"><?= count($list) ?> exam<?= count($list) === 1 ? '' : 's' ?> <?= $verb ?>:
+                                        <?php foreach (array_slice($list, 0, 3) as $i => $r): ?><?= $i > 0 ? ', ' : '' ?><a href="<?= e(url('/library/' . rawurlencode((string) $r['provider_slug']) . '/' . rawurlencode((string) $r['code']))) ?>"><?= e(Editions::title($r)) ?></a><?php endforeach; ?><?= count($list) > 3 ? ' and ' . (count($list) - 3) . ' more' : '' ?></div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                        <div class="row-side"><span class="row-time row-time--words"><?= e($n['when']) ?></span></div>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php if ($requests !== null): $statusChip = ['open' => ['Waiting', 'warning', 'hourglass-split'], 'collected' => ['In the library', 'success', 'check2'], 'declined' => ['Declined', 'neutral', null], 'cancelled' => ['Cancelled', 'neutral', null]]; ?>
+    <div class="col-lg-5">
+        <div class="card h-100">
+            <div class="card-header">
+                <span class="card-title"><?= icon('inbox') ?><?= $requests['manager'] ? 'Requests waiting' : 'Your requests' ?></span>
+                <a class="small" href="<?= e(url('/requests')) ?>"><?= $requests['manager'] ? ($requests['open'] > 0 ? 'Answer ' . number_format($requests['open']) : 'All requests') : 'Request an exam' ?></a>
+            </div>
+            <?php if ($requests['rows'] === []): ?>
+                <div class="card-body"><?= $requests['manager']
+                    ? empty_state('inbox', 'No requests waiting', 'Exams members ask for show here until they are collected or declined.', null, true)
+                    : empty_state('inbox', 'No requests yet', 'Ask for an exam that is not in the library yet, and you will be told when it is.', ['Request an exam', url('/requests')], true) ?></div>
+            <?php else: ?>
+            <ul class="list-rows">
+                <?php foreach ($requests['rows'] as $rq): [$text, $tone, $ic] = $statusChip[$rq['status']] ?? [$rq['status'], 'neutral', null];
+                    $code = strtoupper((string) $rq['exam_code']); $prov = provider_name(['name' => $rq['provider_name'], 'slug' => $rq['provider_slug']]); ?>
+                    <li>
+                        <div class="row-main">
+                            <div class="row-text">
+                                <?php if ($rq['status'] === 'collected'): ?>
+                                    <a class="row-title" href="<?= e(url('/library/' . rawurlencode((string) $rq['provider_slug']) . '/' . rawurlencode((string) $rq['exam_code']))) ?>"><?= e($code) ?></a>
+                                <?php else: ?><span class="row-title"><?= e($code) ?></span><?php endif; ?>
+                                <div class="row-meta"><?= e($prov) ?><?= $requests['manager'] ? ' · ' . e(Access::displayName($rq)) : '' ?></div>
+                            </div>
+                        </div>
+                        <div class="row-side"><?= chip($text, $tone, $ic) ?><span class="row-time"><?= e(fmt_ago((string) ($rq['resolved_at'] ?? $rq['created_at']))) ?></span></div>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+</div>
+
+<?php if ($system):
+    $failed = (int) ($jobCounts['failed'] ?? 0);
+    $recent = array_merge($recentCompleted, $recentFailed);
+    usort($recent, static fn($a, $b) => (int) $b['id'] <=> (int) $a['id']); ?>
+<h2 class="dashboard-section">Running the library</h2>
+
+<?php if ($collector && $totals !== null): ?>
 <div class="kpi-strip">
     <?php foreach ([
-        ['Cached exams', number_format($totals['exams']), url('/library'), 'journal-bookmark', 'primary'],
-        ['Cached questions', number_format($totals['questions']), url('/library'), 'patch-question', 'info'],
+        ['Exams in the library', number_format($totals['exams']), url('/library'), 'journal-bookmark', 'primary'],
+        ['Questions', number_format($totals['questions']), url('/library'), 'patch-question', 'info'],
         ['Providers', number_format($providerCount), url('/providers'), 'buildings', 'neutral'],
         ['Failed jobs', number_format($failed), url('/jobs', ['status' => 'failed']), 'x-circle', $failed > 0 ? 'danger' : 'neutral'],
-    ] as $i => [$label, $value, $href, $iconName, $tone]): if ($i === 3 && !$collector) { continue; } ?>
+    ] as [$label, $value, $href, $iconName, $tone]): ?>
         <a class="kpi" href="<?= e($href) ?>" data-tone="<?= e($tone) ?>">
             <span class="kpi-icon"><?= icon($iconName) ?></span>
             <span class="kpi-text"><span class="kpi-value d-block"><?= e($value) ?></span><span class="kpi-label d-block"><?= e($label) ?></span></span>
@@ -36,7 +276,6 @@ usort($recent, static fn($a, $b) => (int) $b['id'] <=> (int) $a['id']);
     <?php endforeach; ?>
 </div>
 
-<?php if ($collector): ?>
 <div class="card mb-4">
     <div class="card-header">
         <span class="card-title"><?= icon('activity') ?>Active jobs</span>
@@ -55,64 +294,37 @@ usort($recent, static fn($a, $b) => (int) $b['id'] <=> (int) $a['id']);
 </div>
 <?php endif; ?>
 
-<?php if ($studying !== []): ?>
-<div class="card mb-4">
-    <div class="card-header">
-        <span class="card-title"><?= icon('play-circle') ?>Continue studying</span>
-        <a class="small" href="<?= e(url('/progress')) ?>">My progress</a>
-    </div>
-    <ul class="list-rows">
-        <?php foreach ($studying as $st): $path = '/library/' . rawurlencode((string) $st['provider']['slug']) . '/' . rawurlencode((string) $st['exam']['code']);
-            $t = $st['progress']; $practice = $st['place']['mode'] === 'practice'; ?>
-            <li>
-                <div class="row-main">
-                    <span class="icon-bubble" data-tone="primary"><?= icon($practice ? 'patch-question' : 'book') ?></span>
-                    <div class="row-text">
-                        <a class="row-title" href="<?= e(url($path)) ?>"><?= e(Editions::title($st['exam'])) ?></a>
-                        <div class="row-meta"><?= $practice ? 'Practice' : 'Study' ?>, page <?= (int) $st['place']['page'] ?><?php if ($t['answered'] > 0): ?> · <?= number_format(min($t['answered'], max(1, $st['questions']))) ?> of <?= number_format($st['questions']) ?> answered, <?= (int) StudyProgress::percent($t['correct'], $t['answered']) ?>% right<?php endif; ?></div>
-                    </div>
-                </div>
-                <div class="row-side">
-                    <span class="row-time"><?= e(fmt_ago($st['place']['updated_at'])) ?></span>
-                    <a class="btn btn-sm btn-primary" href="<?= e(url($path . '/view', ['mode' => $practice ? 'practice' : '', 'page' => (string) $st['place']['page']])) ?>"><?= icon('play-fill') ?>Continue</a>
-                </div>
-            </li>
-        <?php endforeach; ?>
-    </ul>
-</div>
-<?php endif; ?>
-
 <div class="row g-4">
+    <?php if ($members !== null): ?>
     <div class="col-lg-<?= $collector ? 6 : 12 ?>">
         <div class="card h-100">
             <div class="card-header">
-                <span class="card-title"><?= icon('journal-check') ?>Recently collected</span>
-                <a class="small" href="<?= e(url('/library')) ?>">View library</a>
+                <span class="card-title"><?= icon('people') ?>Studying this week</span>
+                <a class="small" href="<?= e(url('/progress/everyone')) ?>">Everyone's progress</a>
             </div>
-            <?php if ($recentVersions === []): ?>
-                <div class="card-body"><?= ($collector
-                    ? empty_state('journal-plus', 'No exams collected yet', 'Pick a provider and an exam to build your library.', ['Collect an exam', url('/collect')], true)
-                    : empty_state('journal-plus', 'No exams collected yet', 'Collected exams appear here.', null, true)) ?></div>
+            <?php if ($members['people'] === []): ?>
+                <div class="card-body"><?= empty_state('people', 'Nobody studied this week', 'Members who read or practise an exam are listed here.', null, true) ?></div>
             <?php else: ?>
+            <div class="card-body pb-0 flex-grow-0"><p class="small text-muted mb-0"><?= number_format($members['count']) ?> <?= $members['count'] === 1 ? 'person' : 'people' ?> studied in the last 7 days.</p></div>
             <ul class="list-rows">
-                <?php foreach ($recentVersions as $v): ?>
+                <?php foreach ($members['people'] as $pp): $pct = StudyProgress::percent((int) $pp['correct'], (int) $pp['answered']); ?>
                     <li>
                         <div class="row-main">
-                            <span class="icon-bubble" data-tone="primary"><?= icon('journal-text') ?></span>
+                            <span class="avatar" aria-hidden="true"><?= e(initials(Access::displayName($pp))) ?></span>
                             <div class="row-text">
-                                <a class="row-title" href="<?= e(url('/library/' . rawurlencode($v['provider_slug']) . '/' . rawurlencode($v['exam_code']))) ?>"><?= e(strtoupper($v['exam_code'])) ?></a>
-                                <div class="row-meta"><?= e($v['provider_slug']) ?> · <?= number_format((int) $v['collected_count']) ?> questions</div>
+                                <a class="row-title" href="<?= e(url('/progress/people/' . rawurlencode((string) $pp['username']))) ?>"><?= e(Access::displayName($pp)) ?></a>
+                                <div class="row-meta"><?= number_format((int) $pp['answered']) ?> answer<?= (int) $pp['answered'] === 1 ? '' : 's' ?><?= $pct !== null ? ', ' . $pct . '% right' : '' ?> · <?= (int) $pp['days'] ?> day<?= (int) $pp['days'] === 1 ? '' : 's' ?></div>
                             </div>
                         </div>
-                        <div class="row-side"><?= status_badge($v['status']) ?><span class="row-time"><?= e(fmt_ago($v['published_at'])) ?></span></div>
                     </li>
                 <?php endforeach; ?>
             </ul>
             <?php endif; ?>
         </div>
     </div>
+    <?php endif; ?>
     <?php if ($collector): ?>
-    <div class="col-lg-6">
+    <div class="col-lg-<?= $members !== null ? 6 : 12 ?>">
         <div class="card h-100">
             <div class="card-header">
                 <span class="card-title"><?= icon('clock-history') ?>Recent jobs</span>
@@ -138,7 +350,6 @@ usort($recent, static fn($a, $b) => (int) $b['id'] <=> (int) $a['id']);
             <?php endif; ?>
         </div>
     </div>
-    <?php endif; ?>
     <div class="col-12">
         <div class="card">
             <div class="card-header"><span class="card-title"><?= icon('file-earmark-text') ?>Recently generated documents</span></div>
@@ -162,6 +373,7 @@ usort($recent, static fn($a, $b) => (int) $b['id'] <=> (int) $a['id']);
             <?php endif; ?>
         </div>
     </div>
+    <?php endif; ?>
     <?php if ($activity !== null): ?>
     <div class="col-12">
         <div class="card">
@@ -169,7 +381,7 @@ usort($recent, static fn($a, $b) => (int) $b['id'] <=> (int) $a['id']);
                 <span class="card-title"><?= icon('activity') ?>Recent activity</span>
                 <a class="small" href="<?= e(url('/activity')) ?>">All activity</a>
             </div>
-            <?php if ($activity['rows'] === [] && $activity['failed'] === 0): ?>
+            <?php if ($activity['rows'] === [] && $activity['failed'] === 0 && $activity['signIns']['count'] === 0): ?>
                 <div class="card-body"><?= empty_state('activity', 'Nothing recorded yet', 'Sign-ins and changes to accounts, settings, the library and backups are listed here.', null, true) ?></div>
             <?php else: ?>
             <ul class="list-rows">
@@ -178,6 +390,14 @@ usort($recent, static fn($a, $b) => (int) $b['id'] <=> (int) $a['id']);
                         <div class="row-main">
                             <span class="icon-bubble" data-tone="danger"><?= icon('shield-exclamation') ?></span>
                             <div class="row-text"><a class="row-title" href="<?= e(url('/activity', ['group' => 'signin'])) ?>"><?= number_format($activity['failed']) ?> failed sign-in<?= $activity['failed'] === 1 ? '' : 's' ?> in the last 24 hours</a></div>
+                        </div>
+                    </li>
+                <?php endif; ?>
+                <?php if ($activity['signIns']['count'] > 0): $si = $activity['signIns']; ?>
+                    <li>
+                        <div class="row-main">
+                            <span class="icon-bubble" data-tone="neutral"><?= icon('box-arrow-in-right') ?></span>
+                            <div class="row-text"><a class="row-title" href="<?= e(url('/activity', ['group' => 'signin'])) ?>"><?= number_format($si['count']) ?> sign-in<?= $si['count'] === 1 ? '' : 's' ?> by <?= number_format($si['people']) ?> <?= $si['people'] === 1 ? 'person' : 'people' ?> in the last 24 hours</a></div>
                         </div>
                     </li>
                 <?php endif; ?>
@@ -196,3 +416,4 @@ usort($recent, static fn($a, $b) => (int) $b['id'] <=> (int) $a['id']);
     </div>
     <?php endif; ?>
 </div>
+<?php endif; ?>

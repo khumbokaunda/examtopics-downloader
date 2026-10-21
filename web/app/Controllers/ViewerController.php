@@ -72,7 +72,7 @@ final class ViewerController extends Controller
             $page = max(1, min($pages, (int) ceil($jump / $perPage)));
         }
         if ($q === '' && !$review && !$mistakes && $userId > 0) {
-            $this->s->progress()->remember($userId, (int) $e['id'], $mode, $page);
+            $this->s->progress()->remember($userId, (int) $e['id'], $mode, $page, $this->today());
         }
         $slice = array_slice($questions, ($page - 1) * $perPage, $perPage);
         if ($mode === 'practice') {
@@ -148,7 +148,7 @@ final class ViewerController extends Controller
         sort($right);
         $correct = $picked === $right;
         $userId = (int) ($this->auth->user()['id'] ?? 0);
-        $this->s->progress()->record($userId, (int) $e['id'], QuestionView::key($q), (int) $number, implode('', $picked), $correct);
+        $this->s->progress()->record($userId, (int) $e['id'], QuestionView::key($q), (int) $number, implode('', $picked), $correct, $this->today());
         $totals = $this->s->progress()->forExam($userId, (int) $e['id']);
         return Response::json(['recorded' => true, 'correct' => $correct, 'totals' => $totals,
             'line' => StudyProgress::line($totals, count((array) ($data['questions'] ?? [])))]);

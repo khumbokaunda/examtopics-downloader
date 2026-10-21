@@ -626,3 +626,42 @@ body.dialog-open { overflow: hidden; }
 .progress-cell { display: flex; align-items: center; gap: var(--space-2); min-width: 9rem; }
 .progress-cell .study-meter { width: 5rem; flex: none; }
 .practice-progress { margin-right: auto; font-size: var(--text-sm); color: var(--color-text-muted); }
+
+/* ---- Dashboard: continue studying, the streak, the 14-day chart ---------------------------- */
+.continue-meta { font-size: var(--text-sm); color: var(--color-text-muted); margin-bottom: var(--space-1); }
+.continue-title { font-size: var(--text-xl); line-height: var(--lh-xl); font-weight: var(--weight-semibold); margin: 0 0 var(--space-3); }
+.continue-title a { color: var(--color-text); text-decoration: none; }
+.continue-title a:hover { color: var(--color-primary); }
+.continue-title .code-tag { vertical-align: 3px; }
+.continue-more { border-top: 1px solid var(--color-border); padding-top: var(--space-4); }
+.continue-more > .section-heading { padding: 0 var(--space-5); }
+
+/* The one hero figure on the page: the streak. */
+.streak-hero { display: flex; align-items: baseline; gap: var(--space-2); }
+.streak-flame { font-size: 28px; line-height: 1; color: var(--color-text-subtle); align-self: center; }
+.streak-hero.is-on .streak-flame { color: var(--color-warning); }
+.streak-value { font-size: 48px; line-height: 1; font-weight: var(--weight-semibold); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.streak-unit { font-size: var(--text-md); color: var(--color-text-muted); }
+.streak-note { font-size: var(--text-sm); color: var(--color-text-muted); margin: var(--space-2) 0 var(--space-4); }
+.week-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); margin: 0 0 var(--space-4); padding: var(--space-3) 0; border-top: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); }
+.week-stats dt { font-size: var(--text-xs); font-weight: var(--weight-medium); color: var(--color-text-muted); }
+.week-stats dd { margin: 0; font-size: var(--text-xl); line-height: var(--lh-xl); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; }
+.week-stats dd.week-stat-note { font-size: var(--text-xs); line-height: var(--lh-xs); font-weight: var(--weight-regular); color: var(--color-text-subtle); }
+
+/* One series: columns in the primary colour, today at full strength, earlier days softer. */
+.study-chart-title { font-size: var(--text-xs); color: var(--color-text-muted); margin-bottom: var(--space-2); }
+.study-chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.study-chart-axis { stroke: var(--color-border-strong); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.study-chart-hit { fill: transparent; pointer-events: all; }
+.study-chart-bar { fill: var(--color-primary); fill-opacity: .45; transition: fill-opacity var(--dur-xs) var(--ease-out); }
+.study-chart-day.is-today .study-chart-bar, .study-chart-day:hover .study-chart-bar { fill-opacity: 1; }
+.study-chart-empty { fill: var(--color-border-strong); }
+.study-chart-empty.is-read { fill: var(--color-primary); fill-opacity: .45; }
+.study-chart-peak { fill: var(--color-text-muted); font-family: var(--font-sans); font-size: 9px; font-weight: var(--weight-medium); }
+.study-chart-axis-labels { display: flex; justify-content: space-between; margin-top: var(--space-1); font-size: var(--text-xs); color: var(--color-text-subtle); }
+
+.news-line a { color: var(--color-text); }
+.news-line a:hover { color: var(--color-primary); }
+.list-rows .news-line { white-space: normal; }
+.dashboard-section { font-size: var(--text-lg); line-height: var(--lh-lg); font-weight: var(--weight-semibold); margin: var(--space-8) 0 var(--space-4); padding-top: var(--space-6); border-top: 1px solid var(--color-border); }
+.list-rows .row-time--words { font-family: var(--font-sans); }
