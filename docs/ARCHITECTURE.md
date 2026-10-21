@@ -34,7 +34,15 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
    page (search results or links); those are fetched with `-links-only`.
 3. **Exam library**: canonical JSON datasets in `storage/cache/<provider>/<exam>/`, one
    immutable file per version plus a manifest. MySQL indexes them (`cache_versions`) and can be
-   rebuilt from the manifests.
+   rebuilt from the manifests. The library page shows them on shelves (one per provider) or as
+   a table, and remembers which view each person chose (`users.preferences.library_view`).
+   On shelves, editions of one exam share a card: `App\Services\Editions` groups exams of a
+   provider whose names match once version numbers and years are taken out ("... SAA-C02" and
+   "... SAA-C03", "Veeam Certified Engineer v12" and "... 2021"), newest code first. An exam
+   with no name of its own is never grouped. Long ExamTopics codes are shown by their tail
+   ("aws-certified-solutions-architect-associate-saa-c03" as SAA-C03), with the full code on
+   hover. An administrator can correct the grouping from the exam page (`exams.edition_group`:
+   `solo` or a group key; `exams.edition_first`); each change is in the activity history.
 4. **Document generation**: Markdown and PDF built from one validated version, recorded in
    `documents` with options, size and checksum, and reused when unchanged. PDFs are built by
    a detached process that records its progress, so the page shows it and no request waits.
@@ -74,7 +82,7 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
   A unit test fails if a template or stylesheet names another host or a referenced asset is
   missing. Asset URLs carry the file's modification time, so a deploy is never served stale.
 - **Data tables**: every list (providers, a provider's exams, the collect picker, the
-  library, jobs, sign-in attempts) is a `table[data-table]` enhanced by `js/data-table.js`:
+  library's table view, jobs, sign-in attempts) is a `table[data-table]` enhanced by `js/data-table.js`:
   search, sorting (Shift+click adds a second column), page sizes, a pager, a status line,
   column visibility, CSV export and copy. Each table's state is saved in the browser per page
   and table, and restored on the next visit. Without JavaScript the table is a complete list.

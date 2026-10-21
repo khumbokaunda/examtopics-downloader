@@ -749,6 +749,35 @@
     sel.addEventListener('change', function () { if (sel.form) sel.form.submit(); });
   });
 
+  // --- Library shelves: the search box narrows the cards as you type -------------------------
+  // Every word typed must appear in a card's names, codes or provider. A shelf with nothing
+  // left is hidden; Enter still searches on the server.
+  var shelfSearch = document.querySelector('[data-shelf-search]');
+  if (shelfSearch) {
+    var shelves = Array.prototype.slice.call(document.querySelectorAll('[data-shelf]'));
+    var shelfEmpty = document.querySelector('[data-shelf-empty]');
+    var filterShelves = function () {
+      var words = shelfSearch.value.toLowerCase().split(/\s+/).filter(Boolean);
+      var shown = 0;
+      shelves.forEach(function (shelf) {
+        var n = 0;
+        shelf.querySelectorAll('[data-shelf-card]').forEach(function (card) {
+          var hay = card.getAttribute('data-search') || '';
+          var match = words.every(function (w) { return hay.indexOf(w) !== -1; });
+          card.hidden = !match;
+          if (match) n += Number(card.getAttribute('data-count')) || 1; // exams, editions included
+        });
+        shelf.hidden = n === 0;
+        var count = shelf.querySelector('[data-shelf-count]');
+        if (count) count.textContent = String(n);
+        shown += n;
+      });
+      if (shelfEmpty) shelfEmpty.hidden = shown > 0;
+    };
+    shelfSearch.addEventListener('input', filterShelves);
+    if (shelfSearch.value) filterShelves();
+  }
+
   // --- Practice mode: reveal one question's answer on demand ---------------------------------
   // Text as paragraphs (blank lines separate them), keeping single line breaks, like the
   // server's QuestionView::paragraphs().

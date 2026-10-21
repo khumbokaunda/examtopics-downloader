@@ -2,7 +2,10 @@
 /** @var array $provider @var array $exam @var list<array> $versions @var array $selected @var list<array> $documents
  *  @var array<string,array> $variants @var array{total:int,saved:int,failed:int,skipped:int,pending:int}|null $images
  *  @var list<array> $jobs @var array|null $activeJob
- *  @var array{check:int,corrected:int,checked:int,fingerprint:?string}|null $answers */
+ *  @var array{check:int,corrected:int,checked:int,fingerprint:?string}|null $answers
+ *  @var array{others:list<array>,first:bool,override:?string,candidates:list<array>} $editions */
+use App\Services\Editions;
+
 $base = '/library/' . rawurlencode($provider['slug']) . '/' . rawurlencode($exam['code']);
 $vBase = $base . '/' . rawurlencode($selected['version']);
 $isLatest = (int) $exam['latest_version_id'] === (int) $selected['id'];
@@ -17,13 +20,13 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
 <nav aria-label="breadcrumb"><ol class="breadcrumb">
     <li class="breadcrumb-item"><a href="<?= e(url('/library')) ?>">Library</a></li>
     <li class="breadcrumb-item"><?= e(provider_name($provider)) ?></li>
-    <li class="breadcrumb-item active" aria-current="page"><?= e(strtoupper($exam['code'])) ?></li>
+    <li class="breadcrumb-item active" aria-current="page"><?= e(Editions::shortCode((string) $exam['code'])) ?></li>
 </ol></nav>
 
 <header class="page-header">
     <div class="page-header-text">
-        <h1 class="page-title"><?= e(strtoupper($exam['code'])) ?></h1>
-        <p class="page-subtitle"><?= $exam['name'] && strtolower($exam['name']) !== $exam['code'] ? e($exam['name']) . ' · ' : '' ?><?= e(provider_name($provider)) ?></p>
+        <h1 class="page-title"><?= e(Editions::title($exam)) ?></h1>
+        <p class="page-subtitle"><?php if (Editions::codeLabel($exam) !== null): ?><span class="code-tag" title="<?= e(strtoupper((string) $exam['code'])) ?>"><?= e(Editions::shortCode((string) $exam['code'])) ?></span> · <?php endif; ?><?= e(provider_name($provider)) ?></p>
     </div>
     <div class="page-actions">
         <?php if (can('exams.collect')): ?><a class="btn btn-outline-secondary" href="<?= e(url('/collect', ['provider' => $provider['slug'], 'exam' => $exam['code']])) ?>"><?= icon('arrow-clockwise') ?>Refresh…</a><?php endif; ?>
@@ -194,6 +197,57 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
                 <?php endforeach; ?>
             </ul>
         </div>
+        <?php $manager = can('library.manage'); if ($editions['others'] !== [] || $manager): $editAction = url($base . '/editions'); ?>
+        <div class="card mb-4">
+            <div class="card-header"><span class="card-title"><?= icon('collection') ?>Editions</span></div>
+            <?php if ($editions['others'] === []): ?>
+                <div class="card-body pb-0"><p class="text-muted small mb-0"><?= $editions['override'] === 'solo' ? 'Shown on a card of its own, by an administrator\'s choice.' : 'No other editions of this exam are in the library.' ?></p></div>
+            <?php else: ?>
+            <ul class="list-rows">
+                <?php foreach ($editions['others'] as $o): ?>
+                    <li>
+                        <div class="row-text">
+                            <a class="row-title" href="<?= e(url('/library/' . rawurlencode((string) $o['provider_slug']) . '/' . rawurlencode((string) $o['code']))) ?>"><?= e(Editions::shortCode((string) $o['code'])) ?></a>
+                            <div class="row-meta"><?= e(Editions::title($o)) ?> · <?= number_format((int) ($o['best']['collected_count'] ?? 0)) ?> questions</div>
+                        </div>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+            <div class="card-body pt-2 pb-0"><p class="text-muted small mb-0">The library shows these on one card<?= $editions['first'] ? ', with this edition first' : '' ?>.</p></div>
+            <?php endif; ?>
+            <?php if ($manager): ?>
+            <div class="card-body d-flex flex-column gap-2">
+                <?php if ($editions['others'] !== [] || $editions['override'] !== null): ?>
+                <div class="d-flex flex-wrap gap-2">
+                    <?php if ($editions['others'] !== [] && !$editions['first']): ?>
+                        <form method="post" action="<?= e($editAction) ?>"><?= csrf_field() ?><input type="hidden" name="action" value="first">
+                            <button class="btn btn-sm btn-outline-secondary" type="submit"><?= icon('star') ?>Show this edition first</button></form>
+                    <?php endif; ?>
+                    <?php if ($editions['others'] !== []): ?>
+                        <form method="post" action="<?= e($editAction) ?>"><?= csrf_field() ?><input type="hidden" name="action" value="separate">
+                            <button class="btn btn-sm btn-outline-secondary" type="submit"><?= icon('box-arrow-up-right') ?>Show separately</button></form>
+                    <?php endif; ?>
+                    <?php if ($editions['override'] !== null): ?>
+                        <form method="post" action="<?= e($editAction) ?>"><?= csrf_field() ?><input type="hidden" name="action" value="auto">
+                            <button class="btn btn-sm btn-outline-secondary" type="submit"><?= icon('arrow-counterclockwise') ?>Group by name again</button></form>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
+                <?php if ($editions['candidates'] !== []): ?>
+                <form class="d-flex gap-2" method="post" action="<?= e($editAction) ?>"><?= csrf_field() ?><input type="hidden" name="action" value="join">
+                    <select class="form-select form-select-sm" name="with" aria-label="Exam to group with" required>
+                        <option value="">Group with another exam…</option>
+                        <?php foreach ($editions['candidates'] as $c): ?>
+                            <option value="<?= e((string) $c['code']) ?>"><?= e(Editions::shortCode((string) $c['code'])) ?><?= Editions::title($c) !== Editions::shortCode((string) $c['code']) ? ' · ' . e(Editions::title($c)) : '' ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <button class="btn btn-sm btn-outline-secondary" type="submit">Group</button>
+                </form>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
         <?php if (can('exams.collect')): ?>
         <div class="card">
             <div class="card-header"><span class="card-title"><?= icon('clock-history') ?>Job history</span></div>

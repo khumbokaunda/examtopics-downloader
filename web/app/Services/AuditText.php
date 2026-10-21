@@ -72,6 +72,13 @@ final class AuditText
                 . (isset($d['message']) ? ': ' . $d['message'] : ''), 'x-circle', 'danger'],
             'job.cancelled' => [$who . ' cancelled a ' . str_replace('_', ' ', $named('type')) . ' job' . (isset($d['exam']) ? ' for ' . $exam() : ''), 'slash-circle', 'warning'],
             'exam.version_deleted' => [$who . ' deleted version ' . $named('version') . ' of ' . $exam(), 'trash3', 'danger'],
+            'exam.editions_changed' => [$who . ' ' . match ((string) ($d['change'] ?? '')) {
+                'separate' => 'gave ' . $exam() . ' a card of its own',
+                'auto' => 'let ' . $exam() . ' be grouped with its editions by name again',
+                'first' => 'made ' . $exam() . ' the edition shown first on its card',
+                'join' => 'put ' . $exam() . ' on one card with ' . strtoupper((string) ($d['with'] ?? '')),
+                default => 'changed how ' . $exam() . ' is grouped',
+            }, 'collection', 'neutral'],
             'exam.images_queued' => [$who . ' started downloading the images of ' . $exam(), 'images', 'neutral'],
             'answers.saved' => [$who . ' ' . match ((string) ($d['kind'] ?? '')) {
                 'corrected' => 'corrected the answer to question ' . (int) ($d['question'] ?? 0) . ' of ' . $exam() . ' to ' . $named('answer'),

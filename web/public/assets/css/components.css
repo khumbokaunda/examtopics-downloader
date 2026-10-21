@@ -555,3 +555,51 @@ body.dialog-open { overflow: hidden; }
 .secret-key { font-size: var(--text-lg); letter-spacing: 0.04em; word-break: break-all; }
 .setup-steps { padding-left: 1.25rem; margin-bottom: var(--space-3); }
 .setup-steps > li { margin-bottom: var(--space-3); }
+
+/* ---- Library: one search box, a view switch, provider chips, and shelves of exam cards ----- */
+.library-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-bottom: var(--space-3); }
+.library-search { position: relative; flex: 1 1 260px; max-width: 560px; min-width: 0; }
+.library-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--color-text-subtle); pointer-events: none; line-height: 1; }
+.library-search .form-control { padding-left: 36px; }
+/* The chosen view is a tint, not a grey fill. */
+.view-switch { margin-left: auto; }
+.view-switch .btn.active { --bs-btn-active-bg: var(--color-primary-soft); --bs-btn-active-color: var(--color-primary); --bs-btn-active-border-color: var(--color-border-strong); }
+
+.filter-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-5); }
+.filter-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px;
+  background: var(--color-surface-alt); color: var(--color-text); font-size: var(--text-sm); line-height: var(--lh-sm);
+  text-decoration: none; white-space: nowrap;
+  transition: background-color var(--dur-xs) var(--ease-out), color var(--dur-xs) var(--ease-out);
+}
+.filter-chip:hover { background: var(--color-border); color: var(--color-text); text-decoration: none; }
+.filter-chip.is-active, .filter-chip.is-active:hover { background: var(--color-primary-soft); color: var(--color-primary); font-weight: var(--weight-medium); }
+.filter-chip:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
+.filter-chip-count { font-size: var(--text-xs); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.filter-chip.is-active .filter-chip-count { color: inherit; opacity: .8; }
+
+.shelf + .shelf { margin-top: var(--space-6); }
+.shelf-title { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-lg); line-height: var(--lh-lg); font-weight: var(--weight-semibold); margin: 0 0 var(--space-3); }
+.shelf-count { padding: 0 8px; border-radius: 999px; background: var(--color-surface-alt); color: var(--color-text-muted); font-size: var(--text-xs); line-height: 1.6; font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; }
+/* min() keeps one card inside a phone screen instead of forcing a sideways scroll. */
+.shelf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: var(--space-4); }
+
+.exam-card { display: flex; flex-direction: column; height: 100%; transition: box-shadow var(--dur-sm) var(--ease-out), border-color var(--dur-sm) var(--ease-out); }
+.exam-card:hover { box-shadow: var(--shadow-md); border-color: var(--color-border-strong); }
+.exam-card-body { flex: 1 1 auto; padding: var(--space-4) var(--space-4) var(--space-3); min-width: 0; }
+.exam-card-title { font-size: var(--text-md); line-height: var(--lh-md); font-weight: var(--weight-semibold); margin: 0 0 var(--space-2); overflow-wrap: anywhere; }
+.exam-card-title a { color: var(--color-text); text-decoration: none; }
+.exam-card-title a:hover { color: var(--color-primary); }
+.exam-card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--space-3); font-size: var(--text-sm); color: var(--color-text-muted); }
+.code-tag {
+  display: inline-block; max-width: 100%; padding: 1px 6px; border-radius: var(--radius-xs);
+  background: var(--color-surface-alt); color: var(--color-text); font-family: var(--font-mono); font-size: var(--text-xs);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle;
+}
+.exam-card-editions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--space-2); margin-top: var(--space-2); font-size: var(--text-sm); }
+.edition-link { font-family: var(--font-mono); font-size: var(--text-xs); padding: 1px 6px; border-radius: var(--radius-xs); background: var(--color-primary-soft); color: var(--color-primary); text-decoration: none; }
+.edition-link:hover { text-decoration: underline; }
+.exam-card-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-top: 1px solid var(--color-border); }
+
+/* A table cell whose text may run to two lines (tables keep cells on one line otherwise). */
+.table .cell-wrap { white-space: normal; min-width: 12rem; max-width: 28rem; }

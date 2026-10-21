@@ -61,6 +61,41 @@ final class LibraryDocumentsTest extends HttpTestCase
         self::assertMatchesRegularExpression('#kpi-value d-block">5<#', $dash->body, 'dashboard totals come from stored data');
     }
 
+    public function testTheExamPageListsItsEditions(): void
+    {
+        $exam = $this->get($this->base())->body;
+        self::assertStringContainsString('<h1 class="page-title">HCIA-Datacom V1.0</h1>', $exam, 'the name as the title');
+        self::assertStringContainsString('No other editions of this exam are in the library.', $exam);
+
+        // A second edition (listed from the database alone) shares the card.
+        $pid = (int) $this->provider('huawei')['id'];
+        $eid = $this->s->exams()->ensure($pid, 'h12-821', 'HCIA-Datacom V2.0');
+        $this->app->db()->run("INSERT INTO cache_versions (exam_id, version, status, source, collected_at, published_at, collected_count, checksum, size_bytes, schema_version)
+            VALUES (?, '20260101T000000Z-abcdef', 'complete', 'live', UTC_TIMESTAMP(), UTC_TIMESTAMP(), 9, ?, 10, 1)", [$eid, str_repeat('b', 64)]);
+        $this->s->exams()->setLatestVersion($eid, $this->app->db()->lastId());
+        $exam = $this->get($this->base())->body;
+        self::assertStringContainsString('href="/library/huawei/h12-821">H12-821</a>', $exam);
+        self::assertStringContainsString('Show this edition first', $exam, 'H12-821 sorts first, so this one can be put first');
+        self::assertStringContainsString('Show separately', $exam);
+        self::assertStringNotContainsString('Group by name again', $exam, 'nothing to undo yet');
+
+        $this->post($this->base() . '/editions', ['action' => 'first']);
+        $exam = $this->get($this->base())->body;
+        self::assertStringContainsString('with this edition first', $exam);
+        self::assertStringNotContainsString('Show this edition first', $exam);
+        self::assertStringNotContainsString('Group by name again', $exam, 'the order is not a grouping: choosing another edition first changes it back');
+        self::assertSame(['h12-811', 'h12-821'], array_column(\App\Services\Editions::shelves($this->s->versions()->library())[0]['cards'][0], 'code'));
+
+        // Someone who only reads sees the editions, not the controls.
+        $this->s->users()->create('reader', 'reader password long', \App\Services\Access::MEMBER);
+        $this->newSession();
+        $this->login('reader', 'reader password long');
+        $exam = $this->get($this->base())->body;
+        self::assertStringContainsString('href="/library/huawei/h12-821">H12-821</a>', $exam);
+        self::assertStringNotContainsString('Show separately', $exam);
+        self::assertStringNotContainsString('/editions', $exam);
+    }
+
     public function testPracticeModeDoesNotExposeAnswersInPageSource(): void
     {
         $data = $this->s->cache()->load($this->version);

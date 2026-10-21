@@ -1,6 +1,8 @@
 <?php
 /** @var array $provider @var array $exam @var array $version
  *  @var list<array{key:string,number:?int,text:string,kind:string,collected:?string,answer:string,note:string,updated_at:string}> $rows */
+use App\Services\Editions;
+
 $base = '/library/' . rawurlencode($provider['slug']) . '/' . rawurlencode($exam['code']);
 $counts = array_count_values(array_column($rows, 'kind'));
 $summary = array_filter([
@@ -11,7 +13,7 @@ $summary = array_filter([
 ?>
 <nav aria-label="breadcrumb"><ol class="breadcrumb">
     <li class="breadcrumb-item"><a href="<?= e(url('/library')) ?>">Library</a></li>
-    <li class="breadcrumb-item"><a href="<?= e(url($base, ['version' => $version['version']])) ?>"><?= e(strtoupper($exam['code'])) ?></a></li>
+    <li class="breadcrumb-item"><a href="<?= e(url($base, ['version' => $version['version']])) ?>" title="<?= e(strtoupper((string) $exam['code'])) ?>"><?= e(Editions::shortCode((string) $exam['code'])) ?></a></li>
     <li class="breadcrumb-item active" aria-current="page">Corrections</li>
 </ol></nav>
 

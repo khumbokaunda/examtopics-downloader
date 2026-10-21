@@ -38,7 +38,7 @@ final class Access
         'documents.build' => 'Build and delete PDF and Markdown documents.',
         'answers.edit' => 'Correct answers and mark them as checked.',
         'exams.collect' => 'Collect exams, refresh any provider, add providers, download images and see jobs.',
-        'library.manage' => 'Delete cached versions of an exam.',
+        'library.manage' => 'Delete cached versions of an exam, and choose which exams share a card as editions.',
         'requests.manage' => 'See and answer every exam request, and be notified of new ones.',
         'users.manage' => 'Create, edit, approve and disable accounts, and be notified of sign-ups.',
         'settings.manage' => 'Change system, email and branding settings.',
