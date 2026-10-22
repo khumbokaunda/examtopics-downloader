@@ -93,7 +93,7 @@ return static function (Router $r): void {
     $r->post('/library/{provider}/{exam}/editions', [LibraryController::class, 'editions'], can: 'library.manage');
     $r->get('/progress', [ProgressController::class, 'mine'], can: $read);
     $r->get('/progress/everyone', [ProgressController::class, 'everyone'], can: 'progress.view_all');
-    $r->get('/progress/people/{username}', [ProgressController::class, 'person'], can: 'progress.view_all');
+    $r->get('/progress/people/{ref}', [ProgressController::class, 'person'], can: 'progress.view_all');
     $r->post('/library/{provider}/{exam}/save', [LibraryController::class, 'save'], can: $read);
     $r->post('/library/{provider}/{exam}/progress/reset', [LibraryController::class, 'resetProgress'], can: $read);
     $r->get('/library/{provider}/{exam}/{version}/json', [LibraryController::class, 'downloadJson'], can: $read);
@@ -164,9 +164,9 @@ return static function (Router $r): void {
     $r->post('/activity/verify', [ActivityController::class, 'verify'], can: 'activity.view');
     $r->post('/users/registration', [UserController::class, 'registration'], can: 'users.manage');
     $r->post('/users', [UserController::class, 'store'], can: 'users.manage');
-    $r->get('/users/{username}', [UserController::class, 'edit'], can: 'users.manage');
-    $r->post('/users/{username}', [UserController::class, 'update'], can: 'users.manage');
-    $r->post('/users/{username}/delete', [UserController::class, 'delete'], can: 'users.manage');
-    $r->post('/users/{username}/two-step/off', [TwoStepController::class, 'offFor'], can: 'users.manage');
-    $r->post('/users/{username}/approve', [UserController::class, 'approve'], can: 'users.manage');
+    $r->get('/users/{ref}', [UserController::class, 'edit'], can: 'users.manage');
+    $r->post('/users/{ref}', [UserController::class, 'update'], can: 'users.manage');
+    $r->post('/users/{ref}/delete', [UserController::class, 'delete'], can: 'users.manage');
+    $r->post('/users/{ref}/two-step/off', [TwoStepController::class, 'offFor'], can: 'users.manage');
+    $r->post('/users/{ref}/approve', [UserController::class, 'approve'], can: 'users.manage');
 };

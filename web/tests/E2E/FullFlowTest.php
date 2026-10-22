@@ -111,9 +111,13 @@ final class FullFlowTest extends WorkflowTestCase
         self::fail("job $id did not finish: " . json_encode($j));
     }
 
+    /** The job a form just started: named in the redirect, or (collect stays on its page) the newest. */
     private function jobIdFrom(array $r): int
     {
         self::assertSame(303, $r['status']);
+        if (str_starts_with((string) $r['headers']['location'], '/collect?')) {
+            return (int) $this->app->db()->value('SELECT MAX(id) FROM jobs');
+        }
         self::assertMatchesRegularExpression('#^/jobs/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$#', $r['headers']['location'], 'job URLs use UUIDs');
         return (int) $this->app->db()->value('SELECT id FROM jobs WHERE uuid = ?', [basename($r['headers']['location'])]);
     }
@@ -172,9 +176,10 @@ final class FullFlowTest extends WorkflowTestCase
         // 11. A second exam joins the queue behind the first; the same exam twice is refused.
         $first = $this->jobIdFrom($c->post('/collect', ['provider' => 'huawei', 'exam' => 'h19-301', 'source_mode' => 'live', 'rps' => '1'],
             '/collect?provider=huawei&exam=h19-301'));
-        $second = $this->jobIdFrom($c->post('/collect', ['provider' => 'huawei', 'exam' => 'h12-811-v2-0', 'source_mode' => 'live'], '/collect?provider=huawei&exam=h12-811-v2-0'));
+        $queued = $c->post('/collect', ['provider' => 'huawei', 'exam' => 'h12-811-v2-0', 'source_mode' => 'live'], '/collect?provider=huawei&exam=h12-811-v2-0');
+        $second = $this->jobIdFrom($queued);
         self::assertGreaterThan($first, $second);
-        self::assertStringContainsString('Added to the queue: 1 job ahead of it', $c->get('/jobs/' . $this->uuidOf($second))['body']);
+        self::assertStringContainsString('is in the queue, with 1 job ahead of it', $c->get($queued['headers']['location'])['body']);
         $again = $c->post('/collect', ['provider' => 'huawei', 'exam' => 'h19-301', 'source_mode' => 'live'], '/collect?provider=huawei&exam=h19-301');
         self::assertStringContainsString('exam=h19-301', $again['headers']['location']);
         self::assertStringContainsString('This exam is already', $c->get($again['headers']['location'])['body']);

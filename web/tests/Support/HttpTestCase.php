@@ -47,6 +47,19 @@ abstract class HttpTestCase extends WorkflowTestCase
     }
 
     /**
+     * A POST as the page's script sends it (asking for JSON), decoded.
+     *
+     * @param array<string,string> $data
+     * @return array{status:int,json:array<string,mixed>}
+     */
+    protected function postJson(string $path, array $data = []): array
+    {
+        $data['_csrf'] = $this->session->csrfToken();
+        $r = $this->kernel()->handle(new Request('POST', $path, [], $data, ['REMOTE_ADDR' => $this->ip, 'HTTP_ACCEPT' => 'application/json']));
+        return ['status' => $r->status, 'json' => (array) json_decode($r->body, true)];
+    }
+
+    /**
      * A POST with uploaded files.
      *
      * @param array<string,string> $data @param array<string,array{name:string,tmp_name:string,size:int,error:int}> $files

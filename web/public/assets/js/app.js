@@ -432,6 +432,91 @@
   }
   document.querySelectorAll('[data-job-progress]').forEach(initJob);
 
+  // --- Job chips: a job's status where the button that started it was ------------------------
+  // "In the queue", "Running, 54%", then "Done" or "Failed". The text comes from the server
+  // (job.chip), so the page and the chip it builds read the same.
+  var FINAL_JOB = ['completed', 'failed', 'cancelled'];
+  function updateJobChip(node, job) {
+    var chip = job.chip || { text: job.status, icon: 'circle' };
+    node.setAttribute('data-status', job.status);
+    node.querySelector('[data-field="text"]').textContent = chip.text;
+    node.querySelector('[data-field="icon"]').replaceChildren(icon(chip.icon, job.status === 'running' ? 'spin' : ''));
+  }
+  function initJobChip(node) {
+    if (FINAL_JOB.indexOf(node.getAttribute('data-status')) !== -1) return;
+    var url = node.getAttribute('data-status-url');
+    var poll = function () {
+      getJSON(url).then(function (job) {
+        updateJobChip(node, job);
+        if (!job.final) setTimeout(poll, 2500);
+      }).catch(function () { setTimeout(poll, 6000); });
+    };
+    setTimeout(poll, 1500);
+  }
+  function buildJobChip(answer, block) {
+    var n = el(answer.job_url ? 'a' : 'span', 'job-chip' + (block ? ' job-chip--block' : ''));
+    n.setAttribute('data-job-chip', '');
+    n.setAttribute('data-status-url', answer.status_url);
+    if (answer.job_url) { n.href = answer.job_url; n.title = 'Open the job to follow it'; }
+    var ic = el('span', 'job-chip-icon');
+    ic.setAttribute('data-field', 'icon');
+    var tx = el('span', 'job-chip-text');
+    tx.setAttribute('data-field', 'text');
+    n.appendChild(ic);
+    n.appendChild(tx);
+    if (answer.job_url) {
+      var go = el('span', 'job-chip-go', 'View');
+      go.appendChild(icon('arrow-right-short'));
+      n.appendChild(go);
+    }
+    updateJobChip(n, answer.job);
+    return n;
+  }
+  document.querySelectorAll('[data-job-chip]').forEach(initJobChip);
+
+  // A form that starts a job (collect, refresh an inventory) stays on the page: the job shows
+  // in place of its button, so several can be started one after another. Without JavaScript
+  // the form posts and the server brings you back to this page.
+  document.addEventListener('submit', function (e) {
+    var form = e.target.closest ? e.target.closest('form[data-job-form]') : null;
+    if (!form || e.defaultPrevented) return;
+    e.preventDefault();
+    var btn = form.querySelector('button[type="submit"]');
+    var spinner = el('span', 'spinner-border spinner-border-sm');
+    if (btn) { btn.disabled = true; btn.insertAdjacentElement('afterbegin', spinner); }
+    var done = function () { if (btn) { btn.disabled = false; spinner.remove(); } };
+    fetch(form.action, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrf, Accept: 'application/json' },
+      body: new URLSearchParams(new FormData(form))
+    }).then(function (r) {
+      return r.json().catch(function () { return { ok: false, tone: 'danger', message: 'The server did not answer as expected. Reload the page and try again.' }; });
+    }).then(function (answer) {
+      if (answer.job) {
+        var slot = form.querySelector('[data-job-slot]') || form;
+        var chip = buildJobChip(answer, form.hasAttribute('data-job-block'));
+        slot.replaceWith(chip);
+        initJobChip(chip);
+        // Focus goes where the button was, not back to the top of the page.
+        if (!chip.href) chip.setAttribute('tabindex', '-1');
+        chip.focus({ preventScroll: true });
+        // The same exam marked in a list on the page (the collect page's exam list).
+        var mark = answer.mark ? document.querySelector('[data-queue-mark="' + CSS.escape(answer.mark) + '"]') : null;
+        if (mark) {
+          var small = buildJobChip(answer, false);
+          mark.replaceChildren(small);
+          initJobChip(small);
+        }
+      } else {
+        done();
+      }
+      if (!answer.ok) showFlash(answer.tone || 'warning', answer.message || 'That could not be started.');
+    }).catch(function () {
+      done();
+      showFlash('danger', 'The server did not respond. Check the connection and try again.');
+    });
+  });
+
   // --- Top bar "job running" chip and the sidebar worker line ---------------------------------
   var indicator = document.getElementById('active-indicator');
   var workerDot = document.querySelector('[data-worker-dot]');

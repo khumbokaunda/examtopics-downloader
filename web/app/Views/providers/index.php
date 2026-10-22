@@ -50,9 +50,12 @@ $first = can('inventory.first');
                         <?php else: ?><span class="text-muted">never</span><?php endif; ?>
                     </span></td>
                     <td class="text-end stack-actions">
-                        <?php if ($mayRefresh): ?>
-                        <form method="post" action="<?= e(url('/providers/' . rawurlencode($p['slug']) . '/refresh')) ?>" data-once><?= csrf_field() ?>
-                            <button class="btn btn-sm btn-outline-secondary" type="submit" <?= $job ? 'disabled' : '' ?>><?= icon('arrow-clockwise') ?><?= $collector ? 'Refresh inventory' : 'Load exam list' ?></button>
+                        <?php if ($job): ?>
+                            <?= \App\Core\View::current()->partial('partials/job_chip', ['job' => $job]) ?>
+                        <?php elseif ($mayRefresh): ?>
+                        <form method="post" action="<?= e(url('/providers/' . rawurlencode($p['slug']) . '/refresh')) ?>" data-job-form><?= csrf_field() ?>
+                            <input type="hidden" name="back" value="/providers">
+                            <button class="btn btn-sm btn-outline-secondary" type="submit"><?= icon('arrow-clockwise') ?><?= $collector ? 'Refresh inventory' : 'Load exam list' ?></button>
                         </form>
                         <?php endif; ?>
                     </td>

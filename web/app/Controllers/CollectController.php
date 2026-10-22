@@ -35,6 +35,7 @@ final class CollectController extends Controller
                 $best = $this->s->versions()->bestForExam((int) $exam['id']);
             }
         }
+        $queue = $this->s->jobs()->active();
         return $this->render('collect/index', [
             'title' => 'Collect exam',
             'nav' => 'collect',
@@ -48,7 +49,10 @@ final class CollectController extends Controller
             'documents' => $best !== null ? $this->s->documentRepo()->forVersion((int) $best['id']) : [],
             // This exam's own collection or image download, if one is queued or running.
             'activeCollect' => $exam !== null ? $this->s->jobs()->findBySlot(\App\Services\JobService::examSlot((int) $provider['id'], (string) $exam['code'])) : null,
-            'queue' => $this->s->jobs()->active(),
+            'queue' => $queue,
+            // Exams of this provider being collected or waiting, marked in the list.
+            'queuedExams' => $provider === null ? [] : array_column(array_filter($queue, static fn(array $j): bool =>
+                (int) $j['provider_id'] === (int) $provider['id'] && $j['exam_code'] !== null && in_array($j['type'], ['collect', 'images'], true)), null, 'exam_code'),
             'allowedRps' => (array) $this->app->config()->get('tool.allowed_rps', [0.25, 0.5, 1.0]),
             'defaultRps' => (float) $this->app->config()->get('tool.default_rps', 1.0),
             'lastRefresh' => $provider !== null ? $this->s->refreshes()->latest((int) $provider['id']) : null,
@@ -62,30 +66,30 @@ final class CollectController extends Controller
         $provider = $this->findProvider((string) $this->request->input('provider', ''));
         $code = (string) $this->request->input('exam', '');
         $exam = $this->findExam($provider, $code);
+        // Back to this exam on the collect page (keeping the list's search), so another exam can
+        // be picked and queued straight away; the job shows in place of the button.
+        $back = ['provider' => (string) $provider['slug'], 'exam' => $code, 'q' => mb_substr(trim((string) $this->request->input('q', '')), 0, 100)];
+        $mark = ['mark' => $code];
         if ((int) $exam['in_inventory'] !== 1 && $exam['latest_version_id'] === null && $this->links()->added((string) $provider['slug'], $code) === []) {
-            $this->flash('danger', 'This exam is not in the current inventory. Refresh the provider inventory first.');
-            return $this->redirect('/collect', ['provider' => $provider['slug']]);
+            return $this->jobStarted(null, false, 'This exam is not in the current inventory. Refresh the provider inventory first.', '/collect', $back, ['tone' => 'danger']);
         }
         $hasCache = $this->s->versions()->bestForExam((int) $exam['id']) !== null;
         if ($hasCache && $this->request->input('confirm_refresh') !== '1') {
-            $this->flash('warning', 'This exam is already in your library. Tick "Collect a fresh version" to refresh it; the current version stays available until the new one passes validation.');
-            return $this->redirect('/collect', ['provider' => $provider['slug'], 'exam' => $code]);
+            return $this->jobStarted(null, false, 'This exam is already in your library. Tick "Collect a fresh version" to refresh it; the current version stays available until the new one passes validation.', '/collect', $back);
         }
         $options = $this->s->jobService()->collectOptions($this->request->input('source_mode'), $this->request->input('rps'),
             $this->request->input('full_scan') === '1');
         try {
             $id = $this->s->jobService()->enqueueCollect($provider, $code, $options);
         } catch (ActiveJobException $e) {
-            $this->flash('warning', $e->getMessage());
-            return $this->redirect('/collect', ['provider' => $provider['slug'], 'exam' => $code]);
+            return $this->jobStarted($e->job, false, $e->getMessage(), '/collect', $back, $mark);
         }
         $this->s->audit()->record('collect.queued', ['provider' => provider_name($provider), 'exam' => $code, 'source' => $options['source_mode'], 'full_scan' => $options['full_scan']],
             'exam', $provider['slug'] . '/' . $code);
         $ahead = count(array_filter($this->s->jobs()->active(), static fn(array $j): bool => (int) $j['id'] < $id));
-        $this->flash('success', $ahead > 0
-            ? 'Added to the queue: ' . $ahead . ' job' . ($ahead === 1 ? '' : 's') . ' ahead of it. It starts on its own when they finish, and you can close this page.'
-            : 'Collection queued. You can close this page; the job keeps running on the server.');
-        return $this->redirect('/jobs/' . (string) $this->s->jobs()->find($id)['uuid']);
+        return $this->jobStarted($this->s->jobs()->find($id), true, strtoupper($code) . ($ahead > 0
+            ? ' is in the queue, with ' . $ahead . ' job' . ($ahead === 1 ? '' : 's') . ' ahead of it. It starts on its own; pick another exam to queue it too.'
+            : ' is queued and starts shortly. Pick another exam to queue it too.'), '/collect', $back, $mark);
     }
 
     /**

@@ -59,14 +59,16 @@ final class ProviderController extends Controller
         if (!$this->mayRefresh($provider)) {
             throw new HttpException(403, "This provider's exam list has already been loaded. An administrator keeps it up to date.");
         }
+        // Back to the page the button was on (the providers list or this provider), so several
+        // can be refreshed one after another.
+        $back = $this->returnTo('/providers/' . rawurlencode($slug), '/providers');
         try {
             $id = $this->s->jobService()->enqueueInventory($provider);
             $this->s->audit()->record('provider.refresh_queued', ['provider' => provider_name($provider)], 'provider', (string) $provider['slug']);
-            $this->flash('success', 'Inventory refresh queued (job #' . $id . ').');
+            return $this->jobStarted($this->s->jobs()->find($id), true, 'Inventory refresh for ' . provider_name($provider) . ' queued.', $back);
         } catch (ActiveJobException $e) {
-            $this->flash('warning', $e->getMessage());
+            return $this->jobStarted($e->job, false, $e->getMessage(), $back);
         }
-        return $this->redirect('/providers/' . rawurlencode($slug));
     }
 
     public function discover(): Response

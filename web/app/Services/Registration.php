@@ -62,7 +62,7 @@ final class Registration
         $this->users->markEmailVerified((int) $user['id']);
         $this->users->update((int) $user['id'], ['status' => $status]);
         $name = Access::displayName($user) . ' (' . $user['email'] . ')';
-        $link = '/users/' . rawurlencode((string) $user['username']);
+        $link = '/users/' . rawurlencode((string) ($this->users->find((int) $user['id'])['uuid'] ?? $user['username']));
         if ($status === 'pending') {
             $this->notifier->notifyPermission('users.manage', 'account', 'Account waiting for approval: ' . Access::displayName($user),
                 $name . ' signed up and verified their email address. Open the account and approve it, or disable it.',

@@ -28,7 +28,7 @@ $studying = count(array_filter($people, static fn(array $p): bool => $p['last_at
             </tr></thead>
             <tbody>
             <?php foreach ($people as $p): $pct = StudyProgress::percent((int) $p['correct'], (int) $p['answered']);
-                $href = (int) $p['id'] === $me ? url('/progress') : url('/progress/people/' . rawurlencode((string) $p['username'])); ?>
+                $href = (int) $p['id'] === $me ? url('/progress') : url('/progress/people/' . $p['uuid']); ?>
                 <tr>
                     <td class="stack-title" data-order="<?= e(strtolower(Access::displayName($p))) ?>">
                         <a class="table-row-link" href="<?= e($href) ?>"><?= e(Access::displayName($p)) ?></a>

@@ -655,6 +655,11 @@ final class Backup
         if ($stuck > 0) {
             $warnings[] = $stuck . ' job(s) that were queued or running in the backup were marked failed; start them again if needed.';
         }
+        // Accounts from a backup made before accounts had public ids get one now.
+        $users = $this->app->service(\App\Repositories\UserRepository::class, fn() => new \App\Repositories\UserRepository($db));
+        if ($users->hasColumn('uuid')) {
+            $users->fillMissingUuids();
+        }
         // The logo the settings name must be on disk.
         $logo = (string) $db->value("SELECT value FROM settings WHERE name = 'brand.logo'");
         if ($logo !== '' && !is_file($this->app->paths()->brandingRoot() . '/' . $logo)) {

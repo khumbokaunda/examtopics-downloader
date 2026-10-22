@@ -42,13 +42,13 @@ $waiting = count(array_filter($users, static fn(array $u): bool => $u['status'] 
             <?php foreach ($users as $u): $extras = Access::extras($u); ?>
                 <tr>
                     <td class="stack-title" data-order="<?= e(strtolower(Access::displayName($u))) ?>">
-                        <a class="table-row-link" href="<?= e(url('/users/' . rawurlencode($u['username']))) ?>"><?= e(Access::displayName($u)) ?></a>
+                        <a class="table-row-link" href="<?= e(url('/users/' . $u['uuid'])) ?>"><?= e(Access::displayName($u)) ?></a>
                         <div class="cell-sub"><?= e($u['username']) ?><?= (int) $u['id'] === $me ? ' · you' : '' ?></div>
                     </td>
                     <td class="small" data-label="Email"><?php if ($u['email'] !== null): ?><?= e($u['email']) ?><?= $u['email_verified_at'] === null ? ' <span class="text-warning" title="Not verified">' . icon('exclamation-circle') . '</span>' : '' ?><?php else: ?><span class="text-muted">none</span><?php endif; ?></td>
                     <td data-label="Role"><span class="chip-group"><?= chip(Access::roleName($u['role']), $u['role'] === 'admin' ? 'primary' : 'neutral', 'shield') ?><?php if ($extras !== []): ?><?= chip('+' . count($extras), 'info') ?><?php endif; ?></span></td>
                     <td data-label="Status"><span class="chip-group"><?= chip(Access::STATUSES[$u['status']] ?? $u['status'], $statusTone[$u['status']] ?? 'neutral') ?><?= \App\Services\SignInGuard::lockedFor($u) !== null ? chip('Locked', 'warning', 'lock') : '' ?>
-                        <?php if ($u['status'] === 'pending'): ?><form method="post" action="<?= e(url('/users/' . rawurlencode($u['username']) . '/approve')) ?>" class="d-inline" data-once><?= csrf_field() ?><button class="btn btn-sm btn-success py-0" type="submit"><?= icon('check2') ?>Approve</button></form><?php endif; ?></span></td>
+                        <?php if ($u['status'] === 'pending'): ?><form method="post" action="<?= e(url('/users/' . $u['uuid'] . '/approve')) ?>" class="d-inline" data-once><?= csrf_field() ?><button class="btn btn-sm btn-success py-0" type="submit"><?= icon('check2') ?>Approve</button></form><?php endif; ?></span></td>
                     <td class="small" data-label="Last sign-in" data-order="<?= e((string) ($u['last_login_at'] ?? '')) ?>"><?= $u['last_login_at'] ? e(fmt_ago($u['last_login_at'])) : '<span class="text-muted">never</span>' ?></td>
                     <td class="small" data-label="Created" data-order="<?= e((string) $u['created_at']) ?>"><?= e(fmt_time($u['created_at'])) ?></td>
                 </tr>

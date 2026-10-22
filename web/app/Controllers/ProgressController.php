@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
-use App\Core\Http\HttpException;
 use App\Core\Http\Response;
 use App\Services\Access;
 use App\Services\StudyProgress;
@@ -35,11 +34,14 @@ final class ProgressController extends Controller
         ]);
     }
 
-    public function person(string $username): Response
+    public function person(string $ref): Response
     {
-        $person = $this->s->users()->findByUsername($username) ?? throw HttpException::notFound('User');
+        $person = $this->findAccount($ref);
         if ((int) $person['id'] === (int) ($this->auth->user()['id'] ?? 0)) {
             return $this->redirect('/progress');
+        }
+        if ($ref !== $person['uuid']) {
+            return $this->redirect(self::accountPath($person, '/progress/people/')); // an old link by username
         }
         return $this->render('progress/index', [
             'title' => Access::displayName($person) . '\'s progress',

@@ -104,7 +104,11 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
 - **Behaviour** lives in `js/app.js`: sidebar collapse and the phone drawer, the user menu,
   the Ctrl K command palette (pages, plus cached exams and providers from `/api/palette`), the
   confirmation dialog that replaces `window.confirm`, live job progress and practice-mode
-  reveals. Every dynamic value is inserted with DOM APIs, never `innerHTML`.
+  reveals. Every dynamic value is inserted with DOM APIs, never `innerHTML`. Forms that start
+  a job (`form[data-job-form]`: collect an exam, refresh an inventory) are sent in the
+  background and the job's live status takes the button's place, so several can be started
+  without leaving the page; without JavaScript the server brings the person back to the same
+  page (`back`, checked to be a page of this site).
 - **PDFs** are laid out as study guides in the app's own type and colours: Poppins and
   JetBrains Mono (TrueType copies in `web/resources/fonts`, embedded as subsets), the teal
   accent with a deep teal-navy for titles and answers, and amber only for warnings.
@@ -255,8 +259,10 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
   time after signing in; both are chosen under Settings > Time and sign-in. Session files are
   kept in `storage/sessions`, so the system's own session cleanup (on Debian, every 24 idle
   minutes) cannot sign anyone out early.
-- **Identifiers in URLs**: jobs and documents are addressed by a random UUID, not their row
-  number; exams, providers and versions by their validated codes.
+- **Identifiers in URLs**: jobs, documents and accounts are addressed by a random UUID, not
+  their row number or (for accounts) their username, so a username stays out of browser
+  history, server logs and shared screens; an old link by username redirects to the id.
+  Exams, providers and versions use their validated codes.
 - **CSRF** tokens on every POST, including login.
 - **Headers**: CSP `default-src 'self'` with no inline scripts or styles, frame denial,
   `no-referrer`, `Cache-Control: no-store`, HSTS on HTTPS.

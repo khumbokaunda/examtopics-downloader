@@ -34,6 +34,14 @@ All commands run from `web/` as the web server user, for example
 Logs are JSON Lines and are redacted: tokens, authorization headers, cookies and the
 database password never appear in them. Rotate them with `deploy/examtopics.logrotate`.
 
+## Starting several jobs
+
+Collecting an exam and refreshing a provider's inventory keep you on the page. The button is
+replaced by the job's status ("In the queue", "Running, 54%", then "Done" or "Failed"), which
+opens the job when clicked. On the collect page every exam waiting or running is marked in the
+list, so you can pick the next one and queue it straight away; jobs run one at a time in the
+order they were queued.
+
 ## Recovery procedures
 
 ### A job looks stuck

@@ -120,7 +120,26 @@ final class JobController extends Controller
             'elapsed_seconds' => $started ? max(0, ($finished ?: time()) - $started) : null,
             'heartbeat_at' => $job['heartbeat_at'],
             'cancel_requested' => (bool) $job['cancel_requested'],
+            'chip' => self::chipState((string) $job['status'], ($done !== null && $total !== null && $total > 0) ? min(100, (int) floor($done * 100 / $total)) : null),
         ];
+    }
+
+    /**
+     * What the small job status shown in place of a button says, and its icon.
+     *
+     * @return array{text:string,icon:string}
+     */
+    public static function chipState(string $status, ?int $percent): array
+    {
+        [$text, $icon] = match ($status) {
+            'queued' => ['In the queue', 'hourglass-split'],
+            'running' => [$percent !== null ? 'Running, ' . $percent . '%' : 'Running', 'arrow-repeat'],
+            'completed' => ['Done', 'check2-circle'],
+            'failed' => ['Failed', 'x-circle'],
+            'cancelled' => ['Cancelled', 'slash-circle'],
+            default => [ucfirst($status), 'circle'],
+        };
+        return ['text' => $text, 'icon' => $icon];
     }
 
     /** @return array<string,mixed> */

@@ -165,9 +165,10 @@ final class TwoStepTest extends HttpTestCase
 
         // An administrator, for someone who lost their phone: confirm it is them first.
         $this->login('admin', self::PW);
-        self::assertStringContainsString('Two-step sign-in is on', $this->get('/users/ruth')->body);
-        $r = $this->post('/users/ruth/two-step/off');
-        self::assertSame('/confirm?next=%2Fusers%2Fruth', $r->headers['Location']);
+        $ruth = '/users/' . $this->s->users()->findByUsername('ruth')['uuid'];
+        self::assertStringContainsString('Two-step sign-in is on', $this->get($ruth)->body);
+        $r = $this->post($ruth . '/two-step/off');
+        self::assertSame('/confirm?next=' . rawurlencode($ruth), $r->headers['Location']);
         self::assertTrue($this->s->twoStep()->enabled($this->id('ruth')));
         self::assertStringContainsString('Type your password', $this->get('/confirm', ['next' => '/users/ruth'])->body);
         self::assertSame(422, $this->post('/confirm', ['password' => 'wrong', 'next' => '/users/ruth'])->status);
@@ -213,7 +214,8 @@ final class TwoStepTest extends HttpTestCase
             ['REMOTE_ADDR' => $this->ip, 'HTTP_ACCEPT' => 'application/json']));
         self::assertSame(403, $json->status);
         self::assertStringContainsString('Confirm it is you first', $json->body);
-        self::assertSame('/confirm?next=%2Fusers%2Fruth', $this->post('/users/ruth/delete')->headers['Location']);
+        $ruth = '/users/' . $this->s->users()->findByUsername('ruth')['uuid'];
+        self::assertSame('/confirm?next=' . rawurlencode($ruth), $this->post('/users/ruth/delete')->headers['Location'], 'an old link by username still works');
         self::assertNotNull($this->s->users()->findByUsername('ruth'));
 
         $this->post('/confirm', ['password' => self::PW, 'next' => '/backups']);

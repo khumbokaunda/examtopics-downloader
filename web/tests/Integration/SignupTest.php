@@ -70,7 +70,7 @@ final class SignupTest extends HttpTestCase
         // The administrator hears about it in the inbox and by email.
         $n = $this->app->db()->one("SELECT * FROM notifications WHERE kind = 'account'");
         self::assertStringContainsString('Chikondi Banda', $n['title']);
-        self::assertSame('/users/chikondi', $n['link']);
+        self::assertSame('/users/' . $this->s->users()->findByUsername('chikondi')['uuid'], $n['link'], 'by its id, not the username');
         self::assertSame('owner@example.com', $this->app->db()->value('SELECT to_email FROM mail_queue'));
 
         // A code works once.

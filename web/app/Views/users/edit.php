@@ -4,7 +4,7 @@
  *  @var string|null $error @var bool $self */
 use App\Services\Access;
 $new = $account === null;
-$action = $new ? url('/users') : url('/users/' . rawurlencode($account['username']));
+$action = $new ? url('/users') : url('/users/' . $account['uuid']);
 ?>
 <nav aria-label="breadcrumb"><ol class="breadcrumb">
     <li class="breadcrumb-item"><a href="<?= e(url('/users')) ?>">Users</a></li>
@@ -98,7 +98,7 @@ $action = $new ? url('/users') : url('/users/' . rawurlencode($account['username
 <div class="card mt-4">
     <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
         <div><strong><?= icon('phone') ?> Two-step sign-in is on</strong><div class="small text-muted">If they lost their phone and their recovery codes, turn it off so they can sign in with their password, then set it up again.</div></div>
-        <form method="post" action="<?= e(url('/users/' . rawurlencode($account['username']) . '/two-step/off')) ?>" data-confirm="They are told by email, and can turn it on again from their account page." data-confirm-title="Turn off two-step sign-in for <?= e($account['username']) ?>?" data-confirm-button="Turn off" data-confirm-tone="danger"><?= csrf_field() ?>
+        <form method="post" action="<?= e(url('/users/' . $account['uuid'] . '/two-step/off')) ?>" data-confirm="They are told by email, and can turn it on again from their account page." data-confirm-title="Turn off two-step sign-in for <?= e($account['username']) ?>?" data-confirm-button="Turn off" data-confirm-tone="danger"><?= csrf_field() ?>
             <button class="btn btn-outline-danger" type="submit">Turn off two-step sign-in</button>
         </form>
     </div>
@@ -108,7 +108,7 @@ $action = $new ? url('/users') : url('/users/' . rawurlencode($account['username
 <div class="card mt-4 border-danger-subtle">
     <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
         <div><strong>Delete this account</strong><div class="small text-muted">Their requests and notifications go with it. To keep them, set the status to Disabled instead.</div></div>
-        <form method="post" action="<?= e(url('/users/' . rawurlencode($account['username']) . '/delete')) ?>" data-confirm="This cannot be undone." data-confirm-title="Delete <?= e($account['username']) ?>?" data-confirm-button="Delete"><?= csrf_field() ?>
+        <form method="post" action="<?= e(url('/users/' . $account['uuid'] . '/delete')) ?>" data-confirm="This cannot be undone." data-confirm-title="Delete <?= e($account['username']) ?>?" data-confirm-button="Delete"><?= csrf_field() ?>
             <button class="btn btn-outline-danger" type="submit"><?= icon('trash') ?>Delete account</button>
         </form>
     </div>

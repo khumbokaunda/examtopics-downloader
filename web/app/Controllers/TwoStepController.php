@@ -200,10 +200,10 @@ final class TwoStepController extends Controller
     }
 
     /** An administrator turns it off for someone who lost their phone and their recovery codes. */
-    public function offFor(string $username): Response
+    public function offFor(string $ref): Response
     {
-        $account = $this->s->users()->findByUsername($username) ?? throw HttpException::notFound('Account');
-        if ($r = $this->needsConfirmation('/users/' . rawurlencode($username))) {
+        $account = $this->findAccount($ref);
+        if ($r = $this->needsConfirmation(self::accountPath($account))) {
             return $r;
         }
         if ((int) $account['id'] === (int) $this->auth->user()['id']) {
@@ -213,7 +213,7 @@ final class TwoStepController extends Controller
             $this->turnedOff($account, 'administrator');
             $this->flash('success', 'Two-step sign-in is off for ' . $account['username'] . '. They have been told by email, and can turn it on again from their account page.');
         }
-        return $this->redirect('/users/' . rawurlencode($username));
+        return $this->redirect(self::accountPath($account));
     }
 
     /** @param array<string,mixed> $account */

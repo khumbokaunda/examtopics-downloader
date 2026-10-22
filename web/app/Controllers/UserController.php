@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
-use App\Core\Http\HttpException;
 use App\Core\Http\Response;
 use App\Repositories\UserRepository;
 use App\Services\Access;
@@ -44,9 +43,9 @@ final class UserController extends Controller
     }
 
     /** Approve an account waiting for approval. */
-    public function approve(string $username): Response
+    public function approve(string $ref): Response
     {
-        $account = $this->find($username);
+        $account = $this->findAccount($ref);
         if ($account['status'] === 'pending') {
             $this->s->users()->update((int) $account['id'], ['status' => 'active']);
             $this->approved($account);
@@ -110,9 +109,12 @@ final class UserController extends Controller
         return $this->redirect('/users');
     }
 
-    public function edit(string $username): Response
+    public function edit(string $ref): Response
     {
-        $account = $this->find($username);
+        $account = $this->findAccount($ref);
+        if ($ref !== $account['uuid']) {
+            return $this->redirect(self::accountPath($account)); // an old link by username
+        }
         return $this->render('users/edit', [
             'title' => Access::displayName($account),
             'nav' => 'users',
@@ -128,9 +130,9 @@ final class UserController extends Controller
         ]);
     }
 
-    public function update(string $username): Response
+    public function update(string $ref): Response
     {
-        $account = $this->find($username);
+        $account = $this->findAccount($ref);
         $self = (int) $account['id'] === (int) $this->auth->user()['id'];
         $form = $this->form();
         $form['username'] = $account['username'];
@@ -185,20 +187,20 @@ final class UserController extends Controller
         return $this->redirect('/users');
     }
 
-    public function delete(string $username): Response
+    public function delete(string $ref): Response
     {
-        if ($r = $this->needsConfirmation('/users/' . rawurlencode($username))) {
+        $account = $this->findAccount($ref);
+        if ($r = $this->needsConfirmation(self::accountPath($account))) {
             return $r;
         }
-        $account = $this->find($username);
         if ((int) $account['id'] === (int) $this->auth->user()['id']) {
             $this->flash('danger', 'You cannot delete your own account.');
-            return $this->redirect('/users/' . rawurlencode($username));
+            return $this->redirect(self::accountPath($account));
         }
         $guard = $this->lastAdminGuard($account, 'member', 'disabled');
         if ($guard !== null) {
             $this->flash('danger', $guard);
-            return $this->redirect('/users/' . rawurlencode($username));
+            return $this->redirect(self::accountPath($account));
         }
         $this->s->users()->delete((int) $account['id']);
         $this->audit('User deleted', $account['username'], ['role' => $account['role']]);
@@ -206,15 +208,6 @@ final class UserController extends Controller
             'email' => (string) ($account['email'] ?? '')], 'user', (string) $account['username']);
         $this->flash('success', 'Account "' . $account['username'] . '" deleted.');
         return $this->redirect('/users');
-    }
-
-    /** @return array<string,mixed> */
-    private function find(string $username): array
-    {
-        if (!UserRepository::validUsername($username)) {
-            throw HttpException::notFound('User');
-        }
-        return $this->s->users()->findByUsername($username) ?? throw HttpException::notFound('User');
     }
 
     /**
