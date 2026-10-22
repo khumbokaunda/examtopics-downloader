@@ -453,8 +453,9 @@
     };
     setTimeout(poll, 1500);
   }
-  function buildJobChip(answer, block) {
-    var n = el(answer.job_url ? 'a' : 'span', 'job-chip' + (block ? ' job-chip--block' : ''));
+  // kind: 'block' (full width), 'compact' (status only, for a table cell) or '' (a chip with "View").
+  function buildJobChip(answer, kind) {
+    var n = el(answer.job_url ? 'a' : 'span', 'job-chip' + (kind ? ' job-chip--' + kind : ''));
     n.setAttribute('data-job-chip', '');
     n.setAttribute('data-status-url', answer.status_url);
     if (answer.job_url) { n.href = answer.job_url; n.title = 'Open the job to follow it'; }
@@ -464,7 +465,7 @@
     tx.setAttribute('data-field', 'text');
     n.appendChild(ic);
     n.appendChild(tx);
-    if (answer.job_url) {
+    if (answer.job_url && kind !== 'compact') {
       var go = el('span', 'job-chip-go', 'View');
       go.appendChild(icon('arrow-right-short'));
       n.appendChild(go);
@@ -494,7 +495,7 @@
     }).then(function (answer) {
       if (answer.job) {
         var slot = form.querySelector('[data-job-slot]') || form;
-        var chip = buildJobChip(answer, form.hasAttribute('data-job-block'));
+        var chip = buildJobChip(answer, form.hasAttribute('data-job-block') ? 'block' : '');
         slot.replaceWith(chip);
         initJobChip(chip);
         // Focus goes where the button was, not back to the top of the page.
@@ -503,7 +504,7 @@
         // The same exam marked in a list on the page (the collect page's exam list).
         var mark = answer.mark ? document.querySelector('[data-queue-mark="' + CSS.escape(answer.mark) + '"]') : null;
         if (mark) {
-          var small = buildJobChip(answer, false);
+          var small = buildJobChip(answer, 'compact');
           mark.replaceChildren(small);
           initJobChip(small);
         }

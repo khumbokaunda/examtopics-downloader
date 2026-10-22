@@ -692,3 +692,6 @@ a.job-chip:hover { text-decoration: none; filter: brightness(.96); }
 .job-chip--block .job-chip-go { margin-left: auto; }
 .queue-mark:empty { display: none; }
 .job-chip:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+/* In a table cell: the same size as the other chips, so a row with a job is as tall as the rest. */
+.job-chip--compact { padding: 2px 8px; line-height: 1.4; gap: 4px; }
+.job-chip--compact .bi { font-size: 11px; }

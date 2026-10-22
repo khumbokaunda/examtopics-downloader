@@ -5,13 +5,14 @@
  * app.js keeps it up to date (and builds the same thing when a form starts a job in place).
  *
  * @var array<string,mixed> $job a jobs row @var bool $block full width
+ * @var bool $compact status only, for a table cell (the whole chip still opens the job)
  */
 $p = \App\Controllers\JobController::present($job);
 $link = can('exams.collect');
 $tag = $link ? 'a' : 'span';
 ?>
-<<?= $tag ?> class="job-chip<?= !empty($block) ? ' job-chip--block' : '' ?>" data-job-chip data-status="<?= e($p['status']) ?>" data-status-url="<?= e(url('/api/jobs/' . $p['uuid'])) ?>"<?= $link ? ' href="' . e(url('/jobs/' . $p['uuid'])) . '" title="Open the job to follow it"' : '' ?>>
+<<?= $tag ?> class="job-chip<?= !empty($block) ? ' job-chip--block' : '' ?><?= !empty($compact) ? ' job-chip--compact' : '' ?>" data-job-chip data-status="<?= e($p['status']) ?>" data-status-url="<?= e(url('/api/jobs/' . $p['uuid'])) ?>"<?= $link ? ' href="' . e(url('/jobs/' . $p['uuid'])) . '" title="Open the job to follow it"' : '' ?>>
     <span class="job-chip-icon" data-field="icon"><?= icon($p['chip']['icon'], $p['status'] === 'running' ? 'spin' : '') ?></span>
     <span class="job-chip-text" data-field="text"><?= e($p['chip']['text']) ?></span>
-    <?php if ($link): ?><span class="job-chip-go">View<?= icon('arrow-right-short') ?></span><?php endif; ?>
+    <?php if ($link && empty($compact)): ?><span class="job-chip-go">View<?= icon('arrow-right-short') ?></span><?php endif; ?>
 </<?= $tag ?>>

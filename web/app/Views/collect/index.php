@@ -60,7 +60,10 @@ $examUrl = static fn(array $p, array $e): string => url('/library/' . rawurlenco
                                 <?php $exName = $ex['name'] && strtolower($ex['name']) !== $ex['code'] ? (string) $ex['name'] : ''; ?>
                                 <td data-order="<?= e($ex['code']) ?>" data-export="<?= e(strtoupper($ex['code'])) ?>" data-search="<?= e($exName) ?>"><a class="table-row-link" href="<?= e(url('/collect', ['provider' => $provider['slug'], 'exam' => $ex['code'], 'q' => $q])) ?>"<?= $sel ? ' aria-current="true"' : '' ?>><?= e(strtoupper($ex['code'])) ?></a><?php if ($exName !== ''): ?><span class="cell-sub truncate is-narrow" title="<?= e($exName) ?>"><?= e($exName) ?></span><?php endif; ?></td>
                                 <td class="text-end" data-order="<?= $ex['reported_count'] === null ? -1 : (int) $ex['reported_count'] ?>"><?= $ex['reported_count'] === null ? '<span class="text-muted">n/a</span>' : number_format((int) $ex['reported_count']) ?></td>
-                                <td data-order="<?= $ex['latest_version'] ? 1 : 0 ?>"><span class="chip-group"><?= $ex['latest_version'] ? chip('cached', 'success', 'check2-circle') : '<span class="small text-muted">not cached</span>' ?><span class="queue-mark" data-queue-mark="<?= e($ex['code']) ?>"><?= isset($queuedExams[$ex['code']]) ? \App\Core\View::current()->partial('partials/job_chip', ['job' => $queuedExams[$ex['code']]]) : '' ?></span></span></td>
+                                <?php // One line per row: while the exam waits or runs, its job replaces the cached state. ?>
+                                <td data-order="<?= $ex['latest_version'] ? 1 : 0 ?>"><span class="queue-mark" data-queue-mark="<?= e($ex['code']) ?>"><?= isset($queuedExams[$ex['code']])
+                                    ? \App\Core\View::current()->partial('partials/job_chip', ['job' => $queuedExams[$ex['code']], 'compact' => true])
+                                    : ($ex['latest_version'] ? chip('cached', 'success', 'check2-circle') : '<span class="small text-muted">not cached</span>') ?></span></td>
                             </tr>
                         <?php endforeach; ?>
                         </tbody>
