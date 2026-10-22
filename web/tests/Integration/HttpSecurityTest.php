@@ -22,7 +22,7 @@ final class HttpSecurityTest extends HttpTestCase
         $router = new Router();
         (require dirname(__DIR__, 2) . '/routes/web.php')($router);
         $samples = ['slug' => 'huawei', 'provider' => 'huawei', 'exam' => 'h12-811', 'version' => '20261012T083000Z-abcdef',
-            'uuid' => '1', 'number' => '1', 'hash' => str_repeat('ab', 32), 'username' => 'someone', 'file' => 'logo.png', 'id' => '1', 'name' => 'examtopics-backup-20261014-000000.zip'];
+            'uuid' => '1', 'number' => '1', 'hash' => str_repeat('ab', 32), 'username' => 'someone', 'ref' => '00000000-0000-4000-8000-000000000000', 'file' => 'logo.png', 'id' => '1', 'name' => 'examtopics-backup-20261014-000000.zip'];
         $paths = [];
         foreach ($router->routes() as $route) {
             if ($route['public']) {
