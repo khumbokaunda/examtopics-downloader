@@ -112,10 +112,10 @@ final class StudyProgress
     public function activeSince(string $from, int $limit = 5): array
     {
         return $this->db->all(
-            'SELECT u.id, u.username, u.display_name, SUM(d.answered) AS answered, SUM(d.correct) AS correct, COUNT(*) AS days
+            'SELECT u.id, u.uuid, u.username, u.display_name, SUM(d.answered) AS answered, SUM(d.correct) AS correct, COUNT(*) AS days
              FROM study_days d JOIN users u ON u.id = d.user_id
              WHERE d.day >= ? AND (d.answered > 0 OR d.pages > 0)
-             GROUP BY u.id, u.username, u.display_name
+             GROUP BY u.id, u.uuid, u.username, u.display_name
              ORDER BY answered DESC, days DESC, u.username LIMIT ' . max(1, min(100, $limit)), [$from]);
     }
 
@@ -240,7 +240,7 @@ final class StudyProgress
     public function people(): array
     {
         return $this->db->all(
-            'SELECT u.id, u.username, u.display_name, u.role, u.status,
+            'SELECT u.id, u.uuid, u.username, u.display_name, u.role, u.status,
                     COALESCE(a.exams, 0) AS exams, COALESCE(a.answered, 0) AS answered, COALESCE(a.correct, 0) AS correct,
                     NULLIF(GREATEST(COALESCE(a.last_at, \'1000-01-01 00:00:00\'), COALESCE(p.last_at, \'1000-01-01 00:00:00\')),
                            \'1000-01-01 00:00:00\') AS last_at

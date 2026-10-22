@@ -1,7 +1,8 @@
 <?php
 /** @var list<array> $providers @var array|null $provider @var list<array> $exams @var string $q @var array|null $exam
  *  @var list<array> $versions @var array|null $best @var list<array> $documents @var array|null $activeCollect @var list<array> $queue
- *  @var list<float> $allowedRps @var float $defaultRps @var array|null $lastRefresh @var array|null $knownLinks @var int $addedLinks */
+ *  @var list<float> $allowedRps @var float $defaultRps @var array|null $lastRefresh @var array|null $knownLinks @var int $addedLinks
+ *  @var array<string,array> $queuedExams exam code => its active job, for this provider */
 $examUrl = static fn(array $p, array $e): string => url('/library/' . rawurlencode($p['slug']) . '/' . rawurlencode($e['code']));
 ?>
 <header class="page-header">
@@ -59,7 +60,7 @@ $examUrl = static fn(array $p, array $e): string => url('/library/' . rawurlenco
                                 <?php $exName = $ex['name'] && strtolower($ex['name']) !== $ex['code'] ? (string) $ex['name'] : ''; ?>
                                 <td data-order="<?= e($ex['code']) ?>" data-export="<?= e(strtoupper($ex['code'])) ?>" data-search="<?= e($exName) ?>"><a class="table-row-link" href="<?= e(url('/collect', ['provider' => $provider['slug'], 'exam' => $ex['code'], 'q' => $q])) ?>"<?= $sel ? ' aria-current="true"' : '' ?>><?= e(strtoupper($ex['code'])) ?></a><?php if ($exName !== ''): ?><span class="cell-sub truncate is-narrow" title="<?= e($exName) ?>"><?= e($exName) ?></span><?php endif; ?></td>
                                 <td class="text-end" data-order="<?= $ex['reported_count'] === null ? -1 : (int) $ex['reported_count'] ?>"><?= $ex['reported_count'] === null ? '<span class="text-muted">n/a</span>' : number_format((int) $ex['reported_count']) ?></td>
-                                <td data-order="<?= $ex['latest_version'] ? 1 : 0 ?>"><?= $ex['latest_version'] ? chip('cached', 'success', 'check2-circle') : '<span class="small text-muted">not cached</span>' ?></td>
+                                <td data-order="<?= $ex['latest_version'] ? 1 : 0 ?>"><span class="chip-group"><?= $ex['latest_version'] ? chip('cached', 'success', 'check2-circle') : '<span class="small text-muted">not cached</span>' ?><span class="queue-mark" data-queue-mark="<?= e($ex['code']) ?>"><?= isset($queuedExams[$ex['code']]) ? \App\Core\View::current()->partial('partials/job_chip', ['job' => $queuedExams[$ex['code']]]) : '' ?></span></span></td>
                             </tr>
                         <?php endforeach; ?>
                         </tbody>
@@ -117,10 +118,11 @@ $examUrl = static fn(array $p, array $e): string => url('/library/' . rawurlenco
                         </div>
                     <?php endif; ?>
 
-                    <form method="post" action="<?= e(url('/collect')) ?>" data-once>
+                    <form method="post" action="<?= e(url('/collect')) ?>" data-job-form data-job-block>
                         <?= csrf_field() ?>
                         <input type="hidden" name="provider" value="<?= e($provider['slug']) ?>">
                         <input type="hidden" name="exam" value="<?= e($exam['code']) ?>">
+                        <input type="hidden" name="q" value="<?= e($q) ?>">
                         <div class="option-box">
                             <h3 class="section-heading"><?= $best ? 'Refresh' : 'Collection options' ?></h3>
                             <div class="mb-3">
@@ -157,11 +159,10 @@ $examUrl = static fn(array $p, array $e): string => url('/library/' . rawurlenco
                                 </div>
                             <?php endif; ?>
                             <?php if ($activeCollect): ?>
-                                <a class="btn btn-outline-secondary w-100" href="<?= e(url('/jobs/' . $activeCollect['uuid'])) ?>"><?= icon('hourglass-split') ?><?= $activeCollect['status'] === 'running'
-                                    ? (($activeCollect['type'] ?? '') === 'images' ? 'Its images are downloading: view progress' : 'Being collected now: view progress')
-                                    : 'Already in the queue: view it' ?></a>
+                                <?= \App\Core\View::current()->partial('partials/job_chip', ['job' => $activeCollect, 'block' => true]) ?>
+                                <?php if (($activeCollect['type'] ?? '') === 'images'): ?><p class="form-text mb-0 mt-2">Its images are downloading. Collect it again once that has finished.</p><?php endif; ?>
                             <?php else: ?>
-                            <button class="btn <?= $best ? 'btn-outline-primary' : 'btn-primary' ?> w-100" type="submit">
+                            <button class="btn <?= $best ? 'btn-outline-primary' : 'btn-primary' ?> w-100" type="submit" data-job-slot>
                                 <?= icon($best ? 'arrow-clockwise' : 'cloud-arrow-down') ?><?= $queue !== [] ? ($best ? 'Add a refresh to the queue' : 'Add to the queue') : ($best ? 'Refresh this exam' : 'Start collection') ?></button>
                             <?php endif; ?>
                             <p class="form-text mb-0 mt-2">Comments are always collected. Choose whether to include them when you generate documents.</p>

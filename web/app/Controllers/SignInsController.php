@@ -38,7 +38,7 @@ final class SignInsController extends Controller
             ? 'Unlocked ' . $account['username'] . '. They can sign in again now.'
             : $account['username'] . ' was not locked.');
         if ($this->request->input('return') === 'user') {
-            return $this->redirect('/users/' . rawurlencode((string) $account['username']));
+            return $this->redirect(self::accountPath($account));
         }
         return $this->back();
     }

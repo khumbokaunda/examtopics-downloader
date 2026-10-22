@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repositories;
 
 use App\Core\Database;
+use App\Core\Ids;
 
 final class UserRepository
 {
@@ -36,6 +37,22 @@ final class UserRepository
         return $this->db->one('SELECT * FROM users WHERE id = ?', [$id]);
     }
 
+    /** @return array<string,mixed>|null the account with this public id (the one in its URLs) */
+    public function findByUuid(string $uuid): ?array
+    {
+        return Ids::isUuid($uuid) ? $this->db->one('SELECT * FROM users WHERE uuid = ?', [$uuid]) : null;
+    }
+
+    /** Give every account without a public id one (accounts restored from an older backup). Returns how many. */
+    public function fillMissingUuids(): int
+    {
+        $n = 0;
+        foreach ($this->db->all('SELECT id FROM users WHERE uuid IS NULL') as $r) {
+            $n += $this->db->run('UPDATE users SET uuid = ? WHERE id = ? AND uuid IS NULL', [Ids::uuid(), (int) $r['id']])->rowCount();
+        }
+        return $n;
+    }
+
     /**
      * @param array{display_name?:?string,email?:?string,status?:string,email_verified?:bool,permissions?:list<string>} $fields
      */
@@ -43,10 +60,10 @@ final class UserRepository
     {
         $email = isset($fields['email']) && $fields['email'] !== '' ? self::normalizeEmail((string) $fields['email']) : null;
         $this->db->run(
-            'INSERT INTO users (username, display_name, email, email_verified_at, role, permissions, status, password_hash, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            'INSERT INTO users (uuid, username, display_name, email, email_verified_at, role, permissions, status, password_hash, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [
-                $username, self::blankToNull($fields['display_name'] ?? null), $email,
+                Ids::uuid(), $username, self::blankToNull($fields['display_name'] ?? null), $email,
                 ($fields['email_verified'] ?? false) && $email !== null ? Database::now() : null,
                 $role, json_encode($fields['permissions'] ?? []), $fields['status'] ?? 'active',
                 password_hash($password, PASSWORD_DEFAULT), Database::now(),

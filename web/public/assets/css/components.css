@@ -673,3 +673,22 @@ body.dialog-open { overflow: hidden; }
 .card-note-title { font-weight: var(--weight-semibold); font-size: var(--text-sm); line-height: var(--lh-sm); }
 .card-note-body { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--color-text-muted); margin-top: 2px; }
 .card-note .btn { flex: none; }
+
+/* ---- Job chip: a job's live status in place of the button that started it ---------------- */
+.job-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
+  font-size: var(--text-xs); line-height: 1.5; font-weight: var(--weight-medium); white-space: nowrap; text-decoration: none;
+  background: var(--color-surface-alt); color: var(--color-text-muted);
+  transition: filter var(--dur-xs) var(--ease-out);
+}
+a.job-chip:hover { text-decoration: none; filter: brightness(.96); }
+.job-chip .bi { font-size: 12px; line-height: 1; }
+.job-chip[data-status="running"] { background: var(--color-primary-soft); color: var(--color-primary); }
+.job-chip[data-status="completed"] { background: var(--color-success-soft); color: var(--color-success-ink); }
+.job-chip[data-status="failed"] { background: var(--color-danger-soft); color: var(--color-danger-ink); }
+.job-chip-go { display: inline-flex; align-items: center; gap: 2px; padding-left: 6px; margin-left: 2px; border-left: 1px solid currentColor; opacity: .75; }
+/* Full width, where a full-width button was (the collect panel). */
+.job-chip--block { display: flex; width: 100%; justify-content: center; padding: 8px 12px; border-radius: var(--radius-sm); font-size: var(--text-sm); }
+.job-chip--block .job-chip-go { margin-left: auto; }
+.queue-mark:empty { display: none; }
+.job-chip:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }

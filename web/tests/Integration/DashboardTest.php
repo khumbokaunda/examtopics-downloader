@@ -141,7 +141,7 @@ final class DashboardTest extends HttpTestCase
         self::assertStringContainsString('Running the library', $dash);
         self::assertStringContainsString('Exams in the library', $dash);
         self::assertStringContainsString('Studying this week', $dash);
-        self::assertStringContainsString('href="/progress/people/member">Mercy Banda</a>', $dash);
+        self::assertStringContainsString('href="/progress/people/' . $this->s->users()->findByUsername('member')['uuid'] . '">Mercy Banda</a>', $dash);
         self::assertStringContainsString('1 answer, 0% right', $dash);
         self::assertMatchesRegularExpression('#\d+ sign-ins? by \d+ (person|people) in the last 24 hours#', $dash, 'sign-ins on one line');
         self::assertStringNotContainsString('admin signed in</div>', $dash, 'not one row each');

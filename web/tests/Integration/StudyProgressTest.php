@@ -156,9 +156,11 @@ final class StudyProgressTest extends HttpTestCase
         $this->login();
         $everyone = $this->get('/progress/everyone')->body;
         self::assertStringContainsString('Mercy Member', $everyone);
-        self::assertStringContainsString('href="/progress/people/member"', $everyone);
+        $member = '/progress/people/' . $this->s->users()->findByUsername('member')['uuid'];
+        self::assertStringContainsString('href="' . $member . '"', $everyone, 'by id, not username');
         self::assertStringContainsString('1 of 2 accounts have read or practised an exam', $everyone);
-        $theirs = $this->get('/progress/people/member')->body;
+        self::assertSame($member, $this->get('/progress/people/member')->headers['Location'], 'an old link by username moves to the id');
+        $theirs = $this->get($member)->body;
         self::assertStringContainsString('Mercy Member\'s progress', $theirs);
         self::assertStringContainsString('2 of 5', $theirs);
         self::assertStringNotContainsString('>Continue</a>', $theirs, 'read only');

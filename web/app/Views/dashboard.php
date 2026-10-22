@@ -312,7 +312,7 @@ $note = static fn(string $iconName, string $title, string $body, ?array $action 
                         <div class="row-main">
                             <span class="avatar" aria-hidden="true"><?= e(initials(Access::displayName($pp))) ?></span>
                             <div class="row-text">
-                                <a class="row-title" href="<?= e(url('/progress/people/' . rawurlencode((string) $pp['username']))) ?>"><?= e(Access::displayName($pp)) ?></a>
+                                <a class="row-title" href="<?= e(url('/progress/people/' . $pp['uuid'])) ?>"><?= e(Access::displayName($pp)) ?></a>
                                 <div class="row-meta"><?= number_format((int) $pp['answered']) ?> answer<?= (int) $pp['answered'] === 1 ? '' : 's' ?><?= $pct !== null ? ', ' . $pct . '% right' : '' ?> · <?= (int) $pp['days'] ?> day<?= (int) $pp['days'] === 1 ? '' : 's' ?></div>
                             </div>
                         </div>

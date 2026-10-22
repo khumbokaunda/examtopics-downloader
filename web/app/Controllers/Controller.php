@@ -92,6 +92,68 @@ abstract class Controller
         $this->session->flash($type, $message);
     }
 
+    /**
+     * The answer to a form that starts a job. The page's script asks for JSON and shows the job
+     * in place of the button, so several can be started without leaving the page; a plain form
+     * goes back to $back with the message. $job is the job started, or the one already holding
+     * its place when $ok is false.
+     *
+     * @param array<string,mixed>|null $job @param array<string,string> $query @param array<string,mixed> $extra
+     */
+    protected function jobStarted(?array $job, bool $ok, string $message, string $back, array $query = [], array $extra = []): Response
+    {
+        if ($this->request->wantsJson()) {
+            $base = (string) $this->app->config()->get('base_path', '');
+            $data = ['ok' => $ok, 'message' => $message, 'tone' => $ok ? 'success' : 'warning'] + $extra;
+            if ($job !== null) {
+                $data['job'] = JobController::present($job);
+                $data['status_url'] = View::buildUrl($base, '/api/jobs/' . $job['uuid']);
+                $data['job_url'] = $this->auth->can('exams.collect') ? View::buildUrl($base, '/jobs/' . $job['uuid']) : null;
+            }
+            return Response::json($data, $ok ? 200 : ($job !== null ? 409 : 422));
+        }
+        $this->flash($ok ? 'success' : (string) ($extra['tone'] ?? 'warning'), $message);
+        return $this->redirect($back, $query);
+    }
+
+    /**
+     * The page a form says to return to, when it is a page of this site under one of $prefixes;
+     * otherwise $fallback. Never another site ("//host", "https://").
+     */
+    protected function returnTo(string $fallback, string ...$prefixes): string
+    {
+        $back = (string) $this->request->input('back', '');
+        if (preg_match('#^/(?![/\\\\])[^\s]*$#', $back) !== 1) {
+            return $fallback;
+        }
+        foreach ($prefixes as $prefix) {
+            if ($back === $prefix || str_starts_with($back, $prefix . '/') || str_starts_with($back, $prefix . '?')) {
+                return $back;
+            }
+        }
+        return $fallback;
+    }
+
+    /**
+     * An account from its address: the public id in /users/<id> and /progress/people/<id>, or,
+     * for links made before accounts had ids, its username.
+     *
+     * @return array<string,mixed>
+     */
+    protected function findAccount(string $ref): array
+    {
+        $users = $this->s->users();
+        $account = Ids::isUuid($ref) ? $users->findByUuid($ref)
+            : (\App\Repositories\UserRepository::validUsername($ref) ? $users->findByUsername($ref) : null);
+        return $account ?? throw HttpException::notFound('Account');
+    }
+
+    /** Where an account's page is: by its public id, never its username. @param array<string,mixed> $account */
+    protected static function accountPath(array $account, string $prefix = '/users/'): string
+    {
+        return $prefix . rawurlencode((string) ($account['uuid'] ?? $account['username']));
+    }
+
     /** @return array<string,mixed> */
     protected function findProvider(string $slug): array
     {

@@ -12,10 +12,13 @@ $requester = can('exams.request');
         <h1 class="page-title"><?= e($name) ?></h1>
         <p class="page-subtitle"><code><?= e($provider['slug']) ?></code> · exams with discussions on ExamTopics<?php if (!$collector && $requester && $exams !== []): ?> · not in the library yet? <strong>Request</strong> it<?php elseif (!$collector && $requester): ?> · <a href="<?= e(url('/requests', ['provider' => $provider['slug']])) ?>#new">request an exam by its code</a><?php endif; ?></p>
     </div>
-    <?php if ($mayRefresh): ?>
+    <?php if ($activeJob): ?>
+    <div class="page-actions"><?= \App\Core\View::current()->partial('partials/job_chip', ['job' => $activeJob]) ?></div>
+    <?php elseif ($mayRefresh): ?>
     <div class="page-actions">
-        <form method="post" action="<?= e(url('/providers/' . rawurlencode($provider['slug']) . '/refresh')) ?>" data-once><?= csrf_field() ?>
-            <button class="btn btn-outline-primary" type="submit" <?= $activeJob ? 'disabled' : '' ?>><?= icon('arrow-clockwise') ?><?= $collector ? 'Refresh inventory' : 'Load exam list' ?></button>
+        <form method="post" action="<?= e(url('/providers/' . rawurlencode($provider['slug']) . '/refresh')) ?>" data-job-form><?= csrf_field() ?>
+            <input type="hidden" name="back" value="<?= e('/providers/' . rawurlencode($provider['slug'])) ?>">
+            <button class="btn btn-outline-primary" type="submit"><?= icon('arrow-clockwise') ?><?= $collector ? 'Refresh inventory' : 'Load exam list' ?></button>
         </form>
     </div>
     <?php endif; ?>

@@ -90,9 +90,10 @@ final class SignInProtectionTest extends HttpTestCase
         $page = $this->get('/security/sign-ins')->body;
         self::assertStringContainsString('Locked until', $page);
         self::assertStringContainsString('Locked', $this->get('/users')->body);
-        self::assertStringContainsString('Unlock now', $this->get('/users/ruth')->body);
+        $ruth = '/users/' . $this->s->users()->findByUsername('ruth')['uuid'];
+        self::assertStringContainsString('Unlock now', $this->get($ruth)->body);
         $r = $this->post('/security/sign-ins/unlock', ['username' => 'ruth', 'return' => 'user']);
-        self::assertSame('/users/ruth', $r->headers['Location']);
+        self::assertSame($ruth, $r->headers['Location']);
         $this->ip = '93.184.216.34';
         self::assertNull($this->signIn('ruth', self::RUTH));
         self::assertSame(1, (int) $this->app->db()->value("SELECT COUNT(*) FROM audit_log WHERE action = 'security.account_unlocked'"));
