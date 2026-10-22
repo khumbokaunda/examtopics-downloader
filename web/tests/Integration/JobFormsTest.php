@@ -80,6 +80,8 @@ final class JobFormsTest extends HttpTestCase
         // The page marks every exam waiting or running, and shows the job in place of the button.
         $page = $this->get('/collect', ['provider' => 'huawei', 'exam' => 'h12-811'])->body;
         self::assertSame(4, substr_count($page, 'data-job-chip'), 'three in the list, one in the panel');
+        self::assertSame(3, substr_count($page, 'job-chip job-chip--compact'), 'in the list, a compact chip in place of the cached state, so each row stays one line');
+        self::assertSame(0, substr_count($page, 'not cached'), 'the three waiting exams show their job, not their cached state');
         self::assertStringContainsString('job-chip job-chip--block', $page);
         self::assertStringNotContainsString('Add to the queue</button>', $page);
 
