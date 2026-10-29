@@ -13,6 +13,33 @@ final class MediaRepository
     {
     }
 
+    /** A short mark that changes whenever any image's status changes, or one is added or removed. */
+    public function mark(): string
+    {
+        return md5((string) json_encode($this->db->all(
+            'SELECT status, COUNT(*) AS n, MAX(updated_at) AS last FROM media GROUP BY status ORDER BY status')));
+    }
+
+    /**
+     * How many of these addresses are known in each status, counted by the database rather than
+     * by reading every row.
+     *
+     * @param list<string> $urls
+     * @return array<string,int> status => count
+     */
+    public function statusCounts(array $urls): array
+    {
+        $out = [];
+        foreach (array_chunk(array_values(array_unique($urls)), 1000) as $chunk) {
+            $hashes = array_map(static fn(string $u) => hash('sha256', $u), $chunk);
+            $marks = implode(',', array_fill(0, count($hashes), '?'));
+            foreach ($this->db->all("SELECT status, COUNT(*) AS n FROM media WHERE url_hash IN ($marks) GROUP BY status", $hashes) as $row) {
+                $out[(string) $row['status']] = ($out[(string) $row['status']] ?? 0) + (int) $row['n'];
+            }
+        }
+        return $out;
+    }
+
     /**
      * Rows for the given addresses, keyed by address. Unknown addresses are absent.
      *

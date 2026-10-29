@@ -84,6 +84,7 @@ abstract class WorkflowTestCase extends DbTestCase
             ],
             'worker' => ['autostart' => false],
             'documents' => ['background' => false], // built in the request, so tests see the result
+            'integrity' => ['background' => false], // worked out in the request, for the same reason
             'php_cli' => PHP_BINARY,
         ], $overrides);
         $this->configFile = sys_get_temp_dir() . '/examtopics-test-config-' . getmypid() . '.php';

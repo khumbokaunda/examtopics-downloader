@@ -77,7 +77,11 @@ final class Services
     public function integrity(): IntegrityChecks
     {
         return $this->app->service(IntegrityChecks::class, fn() => new IntegrityChecks(
-            $this->app->db(), $this->versions(), $this->cache(), $this->corrections(), $this->media(), $this->documentRepo()));
+            $this->app->db(), $this->versions(), $this->cache(), $this->corrections(), $this->media(), $this->documentRepo(),
+            $this->app->paths()->storage() . '/integrity.lock',
+            (bool) $this->app->config()->get('integrity.background', true)
+                ? fn(): bool => $this->supervisor()->launchScript('integrity.php', [], 'integrity.log')
+                : null));
     }
 
     public function settings(): SettingsRepository

@@ -88,11 +88,15 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
    checking: answers that look doubtful, questions ExamTopics lists that were not collected,
    images not saved, documents made before the latest corrections or images, partial
    collections and unreadable data files, each linked to where it is fixed. Reading an exam's
-   questions is the slow part, so `App\Services\IntegrityChecks` keeps those figures in
-   `exam_checks` and works them out again only when the exam's best version or its corrections
-   change; a first visit works out as many exams as fit in `integrity.budget_seconds` (10 by
-   default) and lists the rest as not checked yet. Images and documents are looked up on every
-   visit.
+   questions is the slow part (a quarter of a second or more for a large exam), so it never
+   happens while the page waits: `App\Services\IntegrityChecks` keeps the figures in
+   `exam_checks`, and when an exam's best version or corrections change, the page starts
+   `bin/integrity.php` (detached, one at a time, like PDF builds) and shows the figures it has,
+   marked as updating, until `/api/integrity` says nothing is left and the page reloads. An
+   exam whose data cannot be read is recorded with the reason and tried again when its data
+   file changes. Image counts are kept too and counted again only after the media table changes
+   (a download); documents are looked up on every visit. With `integrity.background` false the
+   figures are worked out in the request instead (the test suite does this).
 
 ## The interface
 
