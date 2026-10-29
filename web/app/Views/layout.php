@@ -28,6 +28,7 @@ $groups = [
     'Collect' => [
         'collect' => ['/collect', 'Collect exam', 'cloud-arrow-down', 'exams.collect'],
         'jobs' => ['/jobs', 'Jobs & history', 'clock-history', 'exams.collect'],
+        'integrity' => ['/integrity', 'Integrity', 'clipboard-check', 'answers.edit'],
     ],
     'System' => [
         'users' => ['/users', 'Users', 'people', 'users.manage'],

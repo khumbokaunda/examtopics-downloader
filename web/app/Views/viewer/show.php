@@ -86,7 +86,7 @@ $img = static function (string $url, string $alt) use ($localImages): string {
     <article class="card question-card" id="question-<?= $n ?>"<?= $practice ? ' data-q="' . $n . '" data-picks="' . (int) ($item['picks'] ?? 1) . '" data-attempt-url="' . e(url('/api/library/' . rawurlencode($provider['slug']) . '/' . rawurlencode($exam['code']) . '/' . rawurlencode($version['version']) . '/questions/' . $n . '/attempt')) . '"' : '' ?>>
         <div class="card-body">
             <div class="q-head">
-                <h2 class="q-number"><span class="num">Question <?= $n ?></span><?php $kind = QuestionView::kind($item); if ($kind !== null): ?><?= chip($kind === 'drag-drop' ? 'Drag and drop' : 'Hot area', 'info', $kind === 'drag-drop' ? 'arrows-move' : 'cursor') ?><?php endif; ?></h2>
+                <h2 class="q-number"><span class="num">Question <?= $n ?></span><?php $kind = QuestionView::kind($item); if ($kind !== null): ?><?= chip($kind === 'drag-drop' ? 'Drag and drop' : 'Hot area', 'info', $kind === 'drag-drop' ? 'arrows-move' : 'cursor') ?><?php endif; ?><?php if (!$practice && isset($item['question_edit'])): ?><?= chip('edited', 'primary', 'pencil') ?><?php endif; ?></h2>
                 <span class="q-meta"><?= e(QuestionView::meta($item)) ?></span>
             </div>
             <?php $qImages = QuestionView::questionImages($item); foreach (QuestionView::questionSegments($item) as $seg): ?>
@@ -172,6 +172,8 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                         <?php endif; ?>
                     </div>
                 </details>
+                <?= \App\Core\View::current()->partial('viewer/question_edit', ['item' => $item, 'base' => $base, 'version' => $version,
+                    'page' => $page, 'q' => $q, 'review' => $review, 'localImages' => $localImages]) ?>
                 <?php endif; ?>
                 <?php foreach ((array) ($item['answer_images'] ?? []) as $i => $u): ?><?= $img((string) $u, 'Answer image ' . ($i + 1)) ?><?php endforeach; ?>
                 <?php if (trim((string) ($item['explanation'] ?? '')) !== ''): ?>

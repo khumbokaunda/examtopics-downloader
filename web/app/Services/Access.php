@@ -36,7 +36,7 @@ final class Access
         'exams.request' => 'Request exams that have not been collected yet.',
         'inventory.first' => 'Load the exam list of a provider that has never been fetched.',
         'documents.build' => 'Build and delete PDF and Markdown documents.',
-        'answers.edit' => 'Correct answers and mark them as checked.',
+        'answers.edit' => 'Correct answers and questions, add pictures, and see the integrity page.',
         'exams.collect' => 'Collect exams, refresh any provider, add providers, download images and see jobs.',
         'library.manage' => 'Delete cached versions of an exam, and choose which exams share a card as editions.',
         'requests.manage' => 'See and answer every exam request, and be notified of new ones.',

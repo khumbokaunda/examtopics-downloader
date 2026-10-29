@@ -74,6 +74,25 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
    question number), so they apply to every version and survive refreshes. They are shown over
    the collected data, which is never changed; documents record them in their options, so one
    made before a correction is offered for rebuilding.
+8. **Question edits**: the reader also lets the same people fix a question's wording, its
+   choices and its pictures (remove a broken one, upload a better one). Edits are stored per
+   exam question in `question_edits`, holding only the fields that changed, and are applied
+   before answer corrections by `App\Services\Corrections`, the one place the reader, answer
+   checks, the integrity page and documents read corrected questions from. A `[picture]` line in
+   the editor stands for the dataset's `//IMG//` mark, so a picture keeps its place when the
+   wording changes. Uploaded pictures are checked like downloaded ones (PNG, JPEG, GIF or WebP,
+   within `media.max_bytes`) and kept apart in `storage/uploads` (`uploaded_images`), addressed
+   as `upload:<sha256>` and served from `/media/<hash>` like saved images. Image cleanup never
+   touches them, and every backup includes them, since they cannot be fetched again.
+9. **Integrity page** (`/integrity`, `answers.edit`): one table across every exam of what needs
+   checking: answers that look doubtful, questions ExamTopics lists that were not collected,
+   images not saved, documents made before the latest corrections or images, partial
+   collections and unreadable data files, each linked to where it is fixed. Reading an exam's
+   questions is the slow part, so `App\Services\IntegrityChecks` keeps those figures in
+   `exam_checks` and works them out again only when the exam's best version or its corrections
+   change; a first visit works out as many exams as fit in `integrity.budget_seconds` (10 by
+   default) and lists the rest as not checked yet. Images and documents are looked up on every
+   visit.
 
 ## The interface
 

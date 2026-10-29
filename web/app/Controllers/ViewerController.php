@@ -37,9 +37,7 @@ final class ViewerController extends Controller
         } catch (RuntimeException $ex) {
             throw new HttpException(409, $ex->getMessage());
         }
-        $questions = QuestionView::applyEdits(
-            array_map([QuestionView::class, 'normalize'], array_values(array_filter((array) ($data['questions'] ?? []), 'is_array'))),
-            $this->s->answerEdits()->forExam((int) $e['id']));
+        $questions = $this->s->corrections()->apply((int) $e['id'], (array) ($data['questions'] ?? []));
         // Answers that look doubtful and nobody has checked yet (study mode only).
         $review = $mode === 'study' && $this->request->query('review') === '1';
         $toCheck = $mode === 'study' ? count(array_filter($questions, static fn(array $item) => QuestionView::doubts($item) !== [])) : 0;
@@ -131,16 +129,8 @@ final class ViewerController extends Controller
         } catch (RuntimeException $ex) {
             throw new HttpException(409, $ex->getMessage());
         }
-        $q = null;
-        foreach ((array) ($data['questions'] ?? []) as $item) {
-            if (is_array($item) && (int) ($item['number'] ?? 0) === (int) $number) {
-                $q = QuestionView::normalize($item);
-            }
-        }
-        if ($q === null) {
-            throw HttpException::notFound('Question');
-        }
-        $q = QuestionView::applyEdit($q, $this->s->answerEdits()->forExam((int) $e['id'])[QuestionView::key($q)] ?? null);
+        $q = $this->s->corrections()->apply((int) $e['id'], array_values(array_filter((array) ($data['questions'] ?? []),
+            static fn($item) => is_array($item) && (int) ($item['number'] ?? 0) === (int) $number)))[0] ?? throw HttpException::notFound('Question');
         $right = self::answerLetters($q);
         if ($right === []) {
             return Response::json(['recorded' => false, 'error' => 'This answer is not a set of letters, so it cannot be checked.'], 422);
@@ -205,14 +195,9 @@ final class ViewerController extends Controller
             throw new HttpException(409, $ex->getMessage());
         }
         $wanted = array_flip($numbers);
-        $edits = $this->s->answerEdits()->forExam((int) $e['id']);
         $out = [];
-        foreach ((array) ($data['questions'] ?? []) as $item) {
-            if (!is_array($item) || !isset($wanted[(int) ($item['number'] ?? 0)])) {
-                continue;
-            }
-            $q = QuestionView::normalize($item);
-            $q = QuestionView::applyEdit($q, $edits[QuestionView::key($q)] ?? null);
+        foreach ($this->s->corrections()->apply((int) $e['id'], array_filter((array) ($data['questions'] ?? []),
+            static fn($item) => is_array($item) && isset($wanted[(int) ($item['number'] ?? 0)]))) as $q) {
             $out[(int) $q['number']] = $this->revealData($q);
         }
         return $out;

@@ -16,8 +16,9 @@ use ZipArchive;
  *   manifest.json         what it holds: format, when, by whom, migrations, row counts, files
  *   data/<table>.json     every row of each table, as JSON
  *   files/<area>/...      storage areas: cache (the exam data), inventory (known question
- *                         links), branding (the logo), and optionally media (saved images)
- *                         and documents (built PDFs and Markdown)
+ *                         links), branding (the logo), uploads (pictures added by hand,
+ *                         which cannot be fetched again), and optionally media (saved
+ *                         images) and documents (built PDFs and Markdown)
  *
  * Restoring takes a database-only safety backup first and refuses to go on if that fails.
  * Every table is then replaced in one transaction (DELETE, not TRUNCATE, so it can roll back),
@@ -33,13 +34,13 @@ final class Backup
 {
     public const FORMAT = 1;
     /** Installation-specific or short-lived tables: never exported, never replaced. */
-    public const SKIP = ['schema_migrations', 'login_attempts', 'throttle_events', 'account_codes', 'mail_queue'];
+    public const SKIP = ['schema_migrations', 'login_attempts', 'throttle_events', 'account_codes', 'mail_queue', 'exam_checks'];
     /** Storage areas, and whether a backup includes them unless told otherwise. */
-    public const AREAS = ['cache' => true, 'inventory' => true, 'branding' => true, 'media' => true, 'documents' => true];
+    public const AREAS = ['cache' => true, 'inventory' => true, 'branding' => true, 'uploads' => true, 'media' => true, 'documents' => true];
     /** Areas that can be left out, and the table whose rows describe their files. */
     public const OPTIONAL = ['media' => 'media', 'documents' => 'documents'];
     private const NAME_RE = '/^examtopics-backup-\d{8}-\d{6}(?:-[a-z]+(?:-[a-z]+)*)?\.zip$/';
-    private const ENTRY_RE = '#^(?:manifest\.json|data/[a-z0-9_]{1,64}\.json|files/(cache|inventory|branding|media|documents)/[A-Za-z0-9._@+=-]+(?:/[A-Za-z0-9._@+=-]+)*)$#';
+    private const ENTRY_RE = '#^(?:manifest\.json|data/[a-z0-9_]{1,64}\.json|files/(cache|inventory|branding|uploads|media|documents)/[A-Za-z0-9._@+=-]+(?:/[A-Za-z0-9._@+=-]+)*)$#';
 
     public function __construct(private App $app)
     {

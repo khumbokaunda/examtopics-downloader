@@ -2,7 +2,7 @@
 /** @var array $provider @var array $exam @var list<array> $versions @var array $selected @var list<array> $documents
  *  @var array<string,array> $variants @var array{total:int,saved:int,failed:int,skipped:int,pending:int}|null $images
  *  @var list<array> $jobs @var array|null $activeJob
- *  @var array{check:int,corrected:int,checked:int,fingerprint:?string}|null $answers
+ *  @var array{check:int,corrected:int,checked:int,edited:int,fingerprint:?string}|null $answers
  *  @var array{others:list<array>,first:bool,override:?string,candidates:list<array>} $editions
  *  @var array{answered:int,correct:int,mistakes:int,last_at:?string} $progress @var array|null $place @var bool $isSaved */
 use App\Services\Editions;
@@ -85,7 +85,8 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
                         <?php if ($answers['check'] > 0): ?>
                             <a class="btn btn-sm btn-outline-warning me-2" href="<?= e(url($base . '/view', ['version' => $selected['version'], 'review' => '1'])) ?>"><?= icon('exclamation-triangle') ?><?= $answers['check'] ?> to check</a>
                         <?php endif; ?>
-                        <?php $done = array_filter([$answers['corrected'] > 0 ? $answers['corrected'] . ' corrected' : null, $answers['checked'] > 0 ? $answers['checked'] . ' checked' : null]); ?>
+                        <?php $done = array_filter([$answers['corrected'] > 0 ? $answers['corrected'] . ' corrected' : null, $answers['checked'] > 0 ? $answers['checked'] . ' checked' : null,
+                            $answers['edited'] > 0 ? $answers['edited'] . ' ' . ($answers['edited'] === 1 ? 'question' : 'questions') . ' edited' : null]); ?>
                         <span class="<?= $answers['check'] > 0 ? 'text-muted' : '' ?>"><?= $done !== [] ? e(implode(', ', $done)) : ($answers['check'] > 0 ? 'Doubtful answers can be corrected in the reader.' : 'None look doubtful') ?></span>
                         <?php if ($answers['fingerprint'] !== null): ?>
                             <a class="ms-2" href="<?= e(url($base . '/corrections', ['version' => $selected['version']])) ?>"><?= icon('list-check') ?> Review corrections</a>
@@ -141,16 +142,10 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
                                     $failed = $failures[0] ?? null;
                                     $ready = array_filter($docIndex[$key][$fmt] ?? [], static fn($d) => $d['status'] === 'ready');
                                     $building = array_filter($docIndex[$key][$fmt] ?? [], static fn($d) => $d['status'] === 'building') !== [];
-                                    // A PDF built before more images were saved can be rebuilt with them, and any
-                                    // document made before answers were corrected, with the corrections.
-                                    $staleImages = $fmt === 'pdf' && $ready !== [] && $images !== null
-                                        && max(array_map(static fn($d) => (int) (json_decode((string) $d['options'], true)['images'] ?? 0), $ready)) < $images['saved'];
-                                    $staleEdits = $ready !== [] && $answers !== null
-                                        && !in_array($answers['fingerprint'], array_map(static fn($d) => json_decode((string) $d['options'], true)['edits'] ?? null, $ready), true);
-                                    // Made with an older layout than the current one.
-                                    $staleLayout = $ready !== [] && max(array_map(static fn($d) => (int) (json_decode((string) $d['options'], true)['renderer'] ?? 0), $ready))
-                                        < \App\Services\DocumentStore::RENDERER_VERSION;
-                                    $stale = $staleImages || $staleEdits || $staleLayout;
+                                    // Made with an older layout, before corrections, or (a PDF) before more images were saved.
+                                    $staleWhy = \App\Services\DocumentStore::staleReason(array_values($ready), $fmt, $answers['fingerprint'] ?? null,
+                                        $images['saved'] ?? null, $answers !== null);
+                                    $stale = $staleWhy !== null;
                                     ?>
                                     <?php if (!$builder): ?>
                                         <?php if ($ready === [] && !$building): ?><span class="small text-muted">Not built yet</span><?php endif; ?>
@@ -159,7 +154,7 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
                                         <?php if ($ready === [] || $stale): ?>
                                         <form method="post" action="<?= e(url($vBase . '/documents')) ?>" data-once data-busy="Generating…"><?= csrf_field() ?>
                                             <input type="hidden" name="variant" value="<?= e($key) ?>"><input type="hidden" name="format" value="<?= $fmt ?>">
-                                            <button class="btn btn-sm btn-outline-primary" type="submit"><?= icon($stale ? 'arrow-repeat' : ($failed !== null ? 'arrow-clockwise' : 'plus-lg')) ?><?= $staleEdits ? 'Rebuild with your corrections' : ($staleImages ? 'Rebuild with new images' : ($staleLayout ? 'Rebuild with the latest layout' : ($failed !== null ? 'Retry' : 'Generate'))) ?></button>
+                                            <button class="btn btn-sm btn-outline-primary" type="submit"><?= icon($stale ? 'arrow-repeat' : ($failed !== null ? 'arrow-clockwise' : 'plus-lg')) ?><?= match ($staleWhy) { 'edits' => 'Rebuild with your corrections', 'images' => 'Rebuild with new images', 'layout' => 'Rebuild with the latest layout', default => $failed !== null ? 'Retry' : 'Generate' } ?></button>
                                         </form>
                                         <?php endif; ?>
                                         <?php if ($failed !== null): $why = trim((string) $failed['error']) ?: 'No reason was recorded.'; ?>

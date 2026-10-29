@@ -13,6 +13,7 @@ use App\Repositories\InventoryRefreshRepository;
 use App\Repositories\JobRepository;
 use App\Repositories\MediaRepository;
 use App\Repositories\ProviderRepository;
+use App\Repositories\QuestionEditRepository;
 use App\Repositories\SettingsRepository;
 use App\Repositories\UserRepository;
 
@@ -61,6 +62,22 @@ final class Services
     public function answerEdits(): AnswerEditRepository
     {
         return $this->app->service(AnswerEditRepository::class, fn() => new AnswerEditRepository($this->app->db()));
+    }
+
+    public function questionEdits(): QuestionEditRepository
+    {
+        return $this->app->service(QuestionEditRepository::class, fn() => new QuestionEditRepository($this->app->db()));
+    }
+
+    public function corrections(): Corrections
+    {
+        return $this->app->service(Corrections::class, fn() => new Corrections($this->answerEdits(), $this->questionEdits()));
+    }
+
+    public function integrity(): IntegrityChecks
+    {
+        return $this->app->service(IntegrityChecks::class, fn() => new IntegrityChecks(
+            $this->app->db(), $this->versions(), $this->cache(), $this->corrections(), $this->media(), $this->documentRepo()));
     }
 
     public function settings(): SettingsRepository
@@ -209,7 +226,7 @@ final class Services
     {
         return $this->app->service(DocumentStore::class, fn() => new DocumentStore(
             $this->app->config(), $this->app->paths(), $this->app->logger(), $this->documentRepo(), $this->cache(), $this->media(),
-            $this->answerEdits(),
+            $this->corrections(),
             fn(string $uuid): bool => $this->supervisor()->launchScript('build-document.php', [$uuid], 'documents-build.log')));
     }
 }

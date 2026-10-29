@@ -569,7 +569,8 @@ final class PdfRenderer
             if ($im['file'] !== null) {
                 $out[] = '<div class="fig"><img src="' . $h($im['file']) . '" alt="' . $h($label . ' ' . ($i + 1)) . '"></div>';
             } else {
-                $shown = (string) preg_replace('#^https?://(www\.)?#i', '', $im['url']);
+                $shown = \App\Services\MediaStore::isUpload($im['url']) ? 'a picture added by hand, missing from this server'
+                    : (string) preg_replace('#^https?://(www\.)?#i', '', $im['url']);
                 $out[] = '<div class="fig-missing"><span class="badge">FIGURE MISSING</span> ' . $h($label . ' ' . ($i + 1)) . ': ' . $h($shown) . '</div>';
             }
         }

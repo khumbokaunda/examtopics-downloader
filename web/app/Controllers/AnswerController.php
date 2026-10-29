@@ -6,7 +6,6 @@ namespace App\Controllers;
 
 use App\Core\Http\HttpException;
 use App\Core\Http\Response;
-use App\Core\View;
 use App\Services\Documents\QuestionView;
 use App\Services\Editions;
 use RuntimeException;
@@ -52,7 +51,20 @@ final class AnswerController extends Controller
                 'updated_at' => (string) $edit['updated_at'],
             ];
         }
-        usort($rows, static fn(array $a, array $b) => ($a['number'] ?? PHP_INT_MAX) <=> ($b['number'] ?? PHP_INT_MAX));
+        $edited = [];
+        foreach ($this->s->questionEdits()->forExam((int) $e['id']) as $key => $edit) {
+            $q = isset($byKey[$key]) ? QuestionView::applyQuestionEdit(QuestionView::normalize($byKey[$key]), $edit) : null;
+            $edited[] = [
+                'key' => (string) $key,
+                'number' => $q !== null ? (int) ($q['number'] ?? 0) : null,
+                'text' => $q !== null ? (string) ($q['text'] ?? '') : (string) ($edit['text'] ?? ''),
+                'changes' => self::changes($edit),
+                'updated_at' => $edit['updated_at'],
+            ];
+        }
+        $order = static fn(array $a, array $b) => ($a['number'] ?? PHP_INT_MAX) <=> ($b['number'] ?? PHP_INT_MAX);
+        usort($rows, $order);
+        usort($edited, $order);
         return $this->render('library/corrections', [
             'title' => Editions::shortCode((string) $e['code']) . ' corrections',
             'nav' => 'library',
@@ -60,7 +72,26 @@ final class AnswerController extends Controller
             'exam' => $e,
             'version' => $v,
             'rows' => $rows,
+            'edited' => $edited,
         ]);
+    }
+
+    /**
+     * What a question edit changed, in words: "wording", "choices B, C", "2 question pictures".
+     *
+     * @param array<string,mixed> $edit
+     * @return list<string>
+     */
+    private static function changes(array $edit): array
+    {
+        $count = static fn(?array $list, string $what): ?string => $list === null ? null
+            : (count($list) === 0 ? "no $what pictures" : count($list) . " $what " . (count($list) === 1 ? 'picture' : 'pictures'));
+        return array_values(array_filter([
+            $edit['text'] !== null ? 'wording' : null,
+            $edit['choices'] !== null ? (count($edit['choices']) === 1 ? 'choice ' : 'choices ') . implode(', ', array_keys($edit['choices'])) : null,
+            $count($edit['question_images'], 'question'),
+            $count($edit['answer_images'], 'answer'),
+        ]));
     }
 
     public function save(string $provider, string $exam): Response
@@ -121,33 +152,5 @@ final class AnswerController extends Controller
         $this->s->audit()->record('answers.saved', ['provider' => provider_name($p), 'exam' => $e['code'], 'question' => $n, 'kind' => $edit['kind'],
             'answer' => $letters, 'note' => $note !== ''], 'exam', $p['slug'] . '/' . $e['code']);
         return $this->backToReader($p, $e, $v, $n);
-    }
-
-    /**
-     * The reader page the form was on, at the question.
-     *
-     * @param array<string,mixed> $p
-     * @param array<string,mixed> $e
-     * @param array<string,mixed> $v
-     */
-    private function backToReader(array $p, array $e, array $v, int $n): Response
-    {
-        $query = ['version' => (string) $v['version']];
-        if ($this->request->input('return') === 'corrections') {
-            return $this->redirect('/library/' . rawurlencode((string) $p['slug']) . '/' . rawurlencode((string) $e['code']) . '/corrections', $query);
-        }
-        $page = (int) $this->request->input('page', '1');
-        if ($page > 1) {
-            $query['page'] = (string) $page;
-        }
-        $search = mb_substr(trim((string) $this->request->input('q', '')), 0, 100);
-        if ($search !== '') {
-            $query['q'] = $search;
-        }
-        if ($this->request->input('review') === '1') {
-            $query['review'] = '1';
-        }
-        $path = '/library/' . rawurlencode((string) $p['slug']) . '/' . rawurlencode((string) $e['code']) . '/view';
-        return Response::redirect(View::buildUrl((string) $this->app->config()->get('base_path', ''), $path, $query) . '#question-' . $n);
     }
 }

@@ -56,6 +56,18 @@ final class MediaRepository
         return $this->db->one("SELECT * FROM media WHERE sha256 = ? AND status = 'saved' LIMIT 1", [$sha256]);
     }
 
+    /** @return array<string,mixed>|null a picture uploaded by hand, by content hash */
+    public function findUpload(string $sha256): ?array
+    {
+        return $this->db->one('SELECT * FROM uploaded_images WHERE sha256 = ?', [$sha256]);
+    }
+
+    public function recordUpload(string $sha256, string $mime, int $bytes, ?int $userId): void
+    {
+        $this->db->run('INSERT IGNORE INTO uploaded_images (sha256, mime, bytes, user_id, created_at) VALUES (?, ?, ?, ?, ?)',
+            [$sha256, $mime, $bytes, $userId, Database::now()]);
+    }
+
     /** @return list<array{url:string,sha256:?string,mime:?string}> every recorded address */
     public function all(): array
     {

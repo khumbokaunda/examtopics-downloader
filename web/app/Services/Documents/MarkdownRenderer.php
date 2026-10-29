@@ -186,6 +186,10 @@ final class MarkdownRenderer
 
     private static function image(string $url, string $alt): string
     {
+        if (\App\Services\MediaStore::isUpload($url)) {
+            // Kept on this server only, so a Markdown file cannot link to it.
+            return '*[' . self::inline($alt) . ': a picture added by hand; it is in the PDF and the reader]*';
+        }
         $safe = QuestionView::safeImageUrl($url);
         if ($safe === null) {
             return '*[' . self::inline($alt) . ': ' . self::inline($url) . ']*';
