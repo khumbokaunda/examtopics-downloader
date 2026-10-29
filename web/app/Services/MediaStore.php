@@ -15,6 +15,10 @@ use App\Services\Documents\ImageSource;
  * (only from ExamTopics, paced like page requests); import() checks each file again and
  * keeps it once, named by its content hash. The reader serves saved images from /media/<hash>
  * and PDFs embed them, so neither depends on ExamTopics serving images to the browser.
+ *
+ * Pictures uploaded by hand (storeUpload) are kept apart, under storage/uploads, and are
+ * addressed as "upload:<sha256>" in corrected questions. They are served and embedded the same
+ * way, but they are never pruned and every backup includes them: they cannot be fetched again.
  */
 final class MediaStore
 {
@@ -65,7 +69,7 @@ final class MediaStore
     {
         $known = $this->media->lookup($urls);
         return array_values(array_filter($urls, static fn(string $u) =>
-            !isset($known[$u]) || $known[$u]['status'] === 'failed'));
+            !self::isUpload($u) && (!isset($known[$u]) || $known[$u]['status'] === 'failed')));
     }
 
     /**
@@ -74,17 +78,65 @@ final class MediaStore
      */
     public function summary(array $urls): array
     {
-        $known = $this->media->lookup($urls);
+        $known = $this->media->lookup(array_values(array_filter($urls, static fn(string $u): bool => !self::isUpload($u))));
         $s = ['total' => count($urls), 'saved' => 0, 'failed' => 0, 'skipped' => 0, 'pending' => 0];
         foreach ($urls as $u) {
-            $status = $known[$u]['status'] ?? 'pending';
+            // A picture added by hand is saved, or (its file gone) cannot be fetched again.
+            $status = self::isUpload($u)
+                ? ($this->file(substr($u, strlen(self::UPLOAD_PREFIX))) !== null ? 'saved' : 'skipped')
+                : ($known[$u]['status'] ?? 'pending');
             $s[isset($s[$status]) ? $status : 'pending']++;
         }
         return $s;
     }
 
+    /** The address of a picture uploaded by hand: "upload:<sha256>". */
+    public const UPLOAD_PREFIX = 'upload:';
+
+    public static function isUpload(string $url): bool
+    {
+        return preg_match('/^upload:[0-9a-f]{64}$/', $url) === 1;
+    }
+
     /**
-     * Content hashes of the saved copies, keyed by address.
+     * Keep a picture uploaded by hand, checked like a downloaded one (a PNG, JPEG, GIF or WebP
+     * image, within the size limit). Returns its address, or why it was refused.
+     *
+     * @return array{url:string,sha256:string}|string
+     */
+    public function storeUpload(string $tmpPath, ?int $userId): array|string
+    {
+        if (!is_file($tmpPath) || is_link($tmpPath)) {
+            return 'The upload did not arrive.';
+        }
+        $bytes = (int) filesize($tmpPath);
+        if ($bytes === 0 || $bytes > $this->maxBytes) {
+            return 'Pictures can be up to ' . intdiv($this->maxBytes, 1048576) . ' MB.';
+        }
+        $info = @getimagesize($tmpPath);
+        $mime = is_array($info) ? (string) ($info['mime'] ?? '') : '';
+        $ext = self::TYPES[$mime] ?? null;
+        if ($ext === null) {
+            return 'Only PNG, JPEG, GIF and WebP pictures can be added.';
+        }
+        $sha = (string) hash_file('sha256', $tmpPath);
+        $target = $this->paths->uploadFile($sha, $ext);
+        if (!is_file($target)) {
+            Paths::ensureDir(dirname($target));
+            $tmp = $target . '.tmp-' . bin2hex(random_bytes(4));
+            if (!copy($tmpPath, $tmp) || !rename($tmp, $target)) {
+                @unlink($tmp);
+                return 'The picture could not be stored.';
+            }
+            @chmod($target, 0640);
+        }
+        $this->media->recordUpload($sha, $mime, $bytes, $userId);
+        return ['url' => self::UPLOAD_PREFIX . $sha, 'sha256' => $sha];
+    }
+
+    /**
+     * Content hashes of the saved copies, keyed by address. Uploaded pictures count as saved
+     * when their file is there.
      *
      * @param list<string> $urls
      * @return array<string,string>
@@ -92,6 +144,12 @@ final class MediaStore
     public function savedHashes(array $urls): array
     {
         $out = [];
+        foreach ($urls as $url) {
+            if (self::isUpload($url) && $this->file(substr($url, strlen(self::UPLOAD_PREFIX))) !== null) {
+                $out[$url] = substr($url, strlen(self::UPLOAD_PREFIX));
+            }
+        }
+        $urls = array_values(array_filter($urls, static fn(string $u): bool => !self::isUpload($u)));
         foreach ($this->media->lookup($urls) as $url => $row) {
             if ($row['status'] === 'saved' && is_string($row['sha256']) && $this->file((string) $row['sha256']) !== null) {
                 $out[$url] = (string) $row['sha256'];
@@ -100,21 +158,25 @@ final class MediaStore
         return $out;
     }
 
-    /** @return array{path:string,mime:string,bytes:int}|null a saved image by content hash */
+    /** @return array{path:string,mime:string,bytes:int}|null a saved image (downloaded or uploaded) by content hash */
     public function file(string $sha256): ?array
     {
         if (!preg_match('/^[0-9a-f]{64}$/', $sha256)) {
             return null;
         }
-        $row = $this->media->findSaved($sha256);
-        $ext = self::TYPES[(string) ($row['mime'] ?? '')] ?? null;
-        if ($row === null || $ext === null) {
-            return null;
+        foreach ([[$this->media->findSaved($sha256), $this->paths->mediaRoot(), 'mediaFile'],
+                  [$this->media->findUpload($sha256), $this->paths->uploadsRoot(), 'uploadFile']] as [$row, $root, $method]) {
+            $ext = self::TYPES[(string) ($row['mime'] ?? '')] ?? null;
+            if ($row === null || $ext === null) {
+                continue;
+            }
+            $path = $this->paths->{$method}($sha256, $ext);
+            $real = Paths::resolveInside($root, substr($path, strlen($root) + 1));
+            if ($real !== null && is_file($real)) {
+                return ['path' => $real, 'mime' => (string) $row['mime'], 'bytes' => (int) filesize($real)];
+            }
         }
-        $path = $this->paths->mediaFile($sha256, $ext);
-        $rel = substr($path, strlen($this->paths->mediaRoot()) + 1);
-        $real = Paths::resolveInside($this->paths->mediaRoot(), $rel);
-        return $real !== null && is_file($real) ? ['path' => $real, 'mime' => (string) $row['mime'], 'bytes' => (int) filesize($real)] : null;
+        return null;
     }
 
     /**

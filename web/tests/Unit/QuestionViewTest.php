@@ -166,4 +166,26 @@ final class QuestionViewTest extends TestCase
         // Without marks, pictures follow the text as before.
         self::assertSame([['text' => 'Q?'], ['image' => 0]], QuestionView::questionSegments(['text' => 'Q?', 'question_images' => ['a.png']]));
     }
+
+    public function testQuestionEditsApplyOverTheCollectedQuestion(): void
+    {
+        $q = QuestionView::normalize(['number' => 1, 'question_number' => 1, 'text' => "Look.//IMG//Which one?",
+            'question_images' => ['https://x/a.png'], 'answer_images' => [],
+            'choices' => [['letter' => 'A', 'text' => 'One'], ['letter' => 'B', 'text' => 'Two']]]);
+
+        // The editor shows a picture's place as a line of its own, and keeps it there.
+        $editor = QuestionView::editorText($q);
+        self::assertSame("Look.\n\n[picture]\n\nWhich one?", $editor);
+        self::assertSame("Look.\n\n//IMG//\n\nWhich one?", QuestionView::fromEditorText(str_replace("\n", "\r\n", $editor) . "\n\n\n"));
+
+        $edited = QuestionView::applyQuestionEdit($q, ['text' => "Look closely.\n\n//IMG//\n\nWhich one is it?", 'choices' => ['B' => 'Two (2)', 'Z' => 'no such choice'],
+            'question_images' => null, 'answer_images' => ['upload:' . str_repeat('a', 64)], 'updated_at' => '2026-10-29 10:00:00']);
+        self::assertSame(['Look closely.', 'Which one is it?'], $edited['text_parts']);
+        self::assertSame("Look closely.\n\nWhich one is it?", $edited['text']);
+        self::assertSame(['One', 'Two (2)'], array_column($edited['choices'], 'text'));
+        self::assertSame(['https://x/a.png'], $edited['question_images'], 'left as collected');
+        self::assertSame(['text', 'choices', 'answer_images'], $edited['question_edit']['fields']);
+        self::assertSame([['text' => 'Look closely.'], ['image' => 0], ['text' => 'Which one is it?']], QuestionView::questionSegments($edited));
+        self::assertSame($q, QuestionView::applyQuestionEdit($q, null));
+    }
 }

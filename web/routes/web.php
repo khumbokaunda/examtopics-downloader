@@ -13,11 +13,13 @@ use App\Controllers\DashboardController;
 use App\Controllers\DocumentController;
 use App\Controllers\EmailController;
 use App\Controllers\InboxController;
+use App\Controllers\IntegrityController;
 use App\Controllers\JobController;
 use App\Controllers\LibraryController;
 use App\Controllers\MediaController;
 use App\Controllers\ProgressController;
 use App\Controllers\ProviderController;
+use App\Controllers\QuestionController;
 use App\Controllers\RequestController;
 use App\Controllers\SettingsController;
 use App\Controllers\SignInsController;
@@ -77,6 +79,7 @@ return static function (Router $r): void {
     $r->post('/collect/links', [CollectController::class, 'addLinks'], can: $collect);
     $r->post('/collect/links/clear', [CollectController::class, 'clearLinks'], can: $collect);
 
+    $r->get('/integrity', [IntegrityController::class, 'index'], can: 'answers.edit');
     $r->get('/jobs', [JobController::class, 'index'], can: $collect);
     $r->get('/jobs/{uuid}', [JobController::class, 'show'], can: $collect);
     $r->post('/jobs/{uuid}/cancel', [JobController::class, 'cancel'], can: $collect);
@@ -90,6 +93,7 @@ return static function (Router $r): void {
     $r->get('/library/{provider}/{exam}/view', [ViewerController::class, 'show'], can: $read);
     $r->get('/library/{provider}/{exam}/corrections', [AnswerController::class, 'index'], can: 'answers.edit');
     $r->post('/library/{provider}/{exam}/answers', [AnswerController::class, 'save'], can: 'answers.edit');
+    $r->post('/library/{provider}/{exam}/questions', [QuestionController::class, 'save'], can: 'answers.edit');
     $r->post('/library/{provider}/{exam}/editions', [LibraryController::class, 'editions'], can: 'library.manage');
     $r->get('/progress', [ProgressController::class, 'mine'], can: $read);
     $r->get('/progress/everyone', [ProgressController::class, 'everyone'], can: 'progress.view_all');

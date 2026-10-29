@@ -85,7 +85,14 @@ return [
         // from ExamTopics, paced like page requests) and they are kept in storage/media.
         // The reader and PDFs then use the saved copies.
         'download'  => true,
-        'max_bytes' => 5 * 1024 * 1024,   // per image, the tool's own limit
+        'max_bytes' => 5 * 1024 * 1024,   // per image, the tool's own limit; also for pictures added in the reader
+    ],
+
+    'integrity' => [
+        // The integrity page keeps each exam's figures until the exam changes. On a first
+        // visit it works out as many exams as fit in this many seconds; the rest follow on the
+        // next visit.
+        'budget_seconds' => 10,
     ],
 
     'documents' => [

@@ -193,6 +193,34 @@ abstract class Controller
         return $this->s->versions()->bestForExam((int) $exam['id']) ?? throw HttpException::notFound('Cached data for this exam');
     }
 
+    /**
+     * The reader page the form was on, at the question.
+     *
+     * @param array<string,mixed> $p
+     * @param array<string,mixed> $e
+     * @param array<string,mixed> $v
+     */
+    protected function backToReader(array $p, array $e, array $v, int $n): Response
+    {
+        $query = ['version' => (string) $v['version']];
+        if ($this->request->input('return') === 'corrections') {
+            return $this->redirect('/library/' . rawurlencode((string) $p['slug']) . '/' . rawurlencode((string) $e['code']) . '/corrections', $query);
+        }
+        $page = (int) $this->request->input('page', '1');
+        if ($page > 1) {
+            $query['page'] = (string) $page;
+        }
+        $search = mb_substr(trim((string) $this->request->input('q', '')), 0, 100);
+        if ($search !== '') {
+            $query['q'] = $search;
+        }
+        if ($this->request->input('review') === '1') {
+            $query['review'] = '1';
+        }
+        $path = '/library/' . rawurlencode((string) $p['slug']) . '/' . rawurlencode((string) $e['code']) . '/view';
+        return Response::redirect(View::buildUrl((string) $this->app->config()->get('base_path', ''), $path, $query) . '#question-' . $n);
+    }
+
     protected function ip(): string
     {
         return \App\Core\ClientIp::of($this->request->server, $this->app->config());

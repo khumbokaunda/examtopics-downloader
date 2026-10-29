@@ -4,7 +4,7 @@
  *  @var list<array{id:string,name:string,size:int,received:int,updated:int}> $pending @var int $confirmedFor @var bool $withCode */
 $running = ($status['status'] ?? '') === 'running';
 $restoring = ($status['kind'] ?? 'backup') === 'restore';
-$areaLabels = ['cache' => 'Exam data', 'inventory' => 'Question links', 'branding' => 'Logo', 'media' => 'Saved images', 'documents' => 'Built documents'];
+$areaLabels = ['cache' => 'Exam data', 'inventory' => 'Question links', 'branding' => 'Logo', 'uploads' => 'Pictures added by hand', 'media' => 'Saved images', 'documents' => 'Built documents'];
 ?>
 <nav aria-label="breadcrumb"><ol class="breadcrumb">
     <li class="breadcrumb-item"><a href="<?= e(url('/settings')) ?>">Settings</a></li>
@@ -135,7 +135,7 @@ $areaLabels = ['cache' => 'Exam data', 'inventory' => 'Question links', 'brandin
             <div class="card-header"><span class="card-title"><?= icon('plus-circle') ?>Make a backup</span></div>
             <div class="card-body">
                 <form method="post" action="<?= e(url('/backups')) ?>" data-once data-busy="Starting…"><?= csrf_field() ?>
-                    <p class="small text-muted mb-2">Always included: accounts, settings, requests, <?= e(strtolower($areaLabels['cache'])) ?> (<?= e(fmt_bytes($sizes['cache'] ?? 0)) ?>), <?= e(strtolower($areaLabels['inventory'])) ?> and the logo.</p>
+                    <p class="small text-muted mb-2">Always included: accounts, settings, requests, <?= e(strtolower($areaLabels['cache'])) ?> (<?= e(fmt_bytes($sizes['cache'] ?? 0)) ?>), <?= e(strtolower($areaLabels['inventory'])) ?>, <?= e(strtolower($areaLabels['uploads'])) ?> (<?= e(fmt_bytes($sizes['uploads'] ?? 0)) ?>) and the logo.</p>
                     <?php foreach (['media', 'documents'] as $area): ?>
                         <div class="form-check mb-2">
                             <input class="form-check-input" type="checkbox" id="opt-<?= $area ?>" name="<?= $area ?>" value="1" checked>

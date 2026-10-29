@@ -68,6 +68,20 @@ final class Paths
         return $this->mediaRoot() . '/' . substr($sha256, 0, 2) . '/' . $sha256 . '.' . $ext;
     }
 
+    public function uploadsRoot(): string
+    {
+        return $this->storage . '/uploads';
+    }
+
+    /** A picture uploaded by hand: uploads/<first two hex digits>/<sha256>.<ext>. */
+    public function uploadFile(string $sha256, string $ext): string
+    {
+        if (!preg_match('/^[0-9a-f]{64}$/', $sha256) || !in_array($ext, ['png', 'jpg', 'gif', 'webp'], true)) {
+            throw new RuntimeException('Invalid upload identifier');
+        }
+        return $this->uploadsRoot() . '/' . substr($sha256, 0, 2) . '/' . $sha256 . '.' . $ext;
+    }
+
     public function examCacheDir(string $provider, string $exam): string
     {
         self::assertIds($provider, $exam);

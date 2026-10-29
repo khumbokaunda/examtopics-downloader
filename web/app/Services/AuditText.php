@@ -87,6 +87,8 @@ final class AuditText
                 default => 'added a note to question ' . (int) ($d['question'] ?? 0) . ' of ' . $exam(),
             }, 'pencil-square', 'primary'],
             'answers.removed' => [$who . ' removed the correction to question ' . (int) ($d['question'] ?? 0) . ' of ' . $exam(), 'pencil-square', 'neutral'],
+            'questions.edited' => [$who . ' edited question ' . (int) ($d['question'] ?? 0) . ' of ' . $exam() . self::questionChanges($d), 'pencil', 'primary'],
+            'questions.reset' => [$who . ' put question ' . (int) ($d['question'] ?? 0) . ' of ' . $exam() . ' back as collected', 'pencil', 'neutral'],
             'document.build_queued' => [$who . ' built a ' . $named('format') . ' of ' . $exam() . (isset($d['variant']) ? ': ' . $d['variant'] : ''), 'file-earmark-text', 'neutral'],
             'document.deleted' => [$who . ' deleted a ' . $named('format') . ' of ' . $exam(), 'trash3', 'warning'],
             'request.created' => [$who . ' requested ' . $exam(), 'inbox', 'primary'],
@@ -158,6 +160,13 @@ final class AuditText
             }
         }
         return $parts === [] ? 'no change' : implode('; ', $parts);
+    }
+
+    /** @param array<string,mixed> $d what a question edit changed, as saved in its details */
+    private static function questionChanges(array $d): string
+    {
+        $changed = array_values(array_filter(array_map('strval', (array) ($d['changed'] ?? []))));
+        return $changed === [] ? '' : ' (' . implode(', ', $changed) . ')';
     }
 
     private static function value(mixed $v): string

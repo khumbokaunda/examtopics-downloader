@@ -219,7 +219,8 @@ and adds the restore to it. The rows are small and are kept indefinitely.
 The **Backups** page (administrators, `backup.manage`) makes one zip file holding everything:
 every table (accounts, settings, providers, exams, versions, requests, notifications,
 corrections), `storage/cache` (the exam data, **the one thing you cannot regenerate without
-scraping again**), the known question links, the logo and, if ticked, the saved images
+scraping again**), the known question links, the logo, the pictures added by hand in the
+reader (`storage/uploads`, always included) and, if ticked, the saved images
 (`storage/media`) and built documents (`storage/documents`). Backups are kept in
 `storage/backups`, outside the web root; they can be downloaded, uploaded, restored and
 deleted there. They hold password hashes and the email password: keep copies private.
@@ -310,6 +311,32 @@ one exam stay apart, open the exam (its Documents link) and use the Editions car
 - **Show this edition first** chooses which edition the card leads with; by default it is the
   one whose code sorts highest (SAA-C03 before SAA-C02).
 
+## Checking and correcting
+
+The **Integrity** page (in the Collect section of the menu, for anyone who may correct answers)
+lists every exam that needs checking, with the problems counted at the top:
+
+- **Answers to check** opens the reader on just the doubtful answers of that exam.
+- **Questions missing** means ExamTopics lists more questions than were collected; Collect
+  again fetches them.
+- **Images not saved** can be downloaded from the page; the job shows in place of the button.
+- **Documents to rebuild** were made before the latest corrections or images; the exam page
+  rebuilds them.
+- **Partly collected** and **Data unreadable** (the data file is missing or damaged) appear as
+  filters only while some exam has them.
+
+The figures are kept per exam and worked out again when the exam is collected again or
+corrected. On a large library the first visit may list some exams as not checked yet; open the
+page again to check more (raise `integrity.budget_seconds` in `config/config.local.php` to do
+more at once).
+
+In the reader (study mode), **Edit this question** fixes the wording and each choice, removes
+pictures and adds new ones (PNG, JPEG, GIF or WebP, up to `media.max_bytes`, 5 MB by default;
+PHP's `upload_max_filesize` must allow it too). A line that says `[picture]` marks where a
+picture sits. Edits show in every version of the exam, survive collecting it again, appear in
+documents made after them, and are listed on the exam's Corrections page, where each can be
+put back as collected.
+
 ## Study progress
 
 Every answer someone checks in practice mode (picked, then revealed) is graded on the server
@@ -343,8 +370,9 @@ deletes its progress. Backups include it.
 - **Job working files**: `php bin/cleanup.php --days=30` (scheduled by `deploy/examtopics.cron`).
   Job history rows are kept.
 - **Saved images** stay when a version is deleted, because other versions usually share them.
-  `php bin/cleanup.php --media` deletes the ones no cached version refers to any more (add
-  `--dry-run` to see what it would remove).
+  `php bin/cleanup.php --media` deletes the ones no cached version or question edit refers to
+  any more (add `--dry-run` to see what it would remove). Pictures added by hand are never
+  deleted by it.
 
 ## Upgrades
 

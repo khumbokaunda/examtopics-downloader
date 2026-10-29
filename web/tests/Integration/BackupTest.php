@@ -47,6 +47,15 @@ final class BackupTest extends HttpTestCase
         return $list[0];
     }
 
+    /** A small PNG file in storage, as if uploaded. */
+    private function png(): string
+    {
+        $img = imagecreatetruecolor(3, 2);
+        $path = $this->app->paths()->storage() . '/picture-' . bin2hex(random_bytes(3)) . '.png';
+        imagepng($img, $path);
+        return $path;
+    }
+
     /** @param array<string,string> $entries */
     private function zip(array $entries): string
     {
@@ -90,10 +99,14 @@ final class BackupTest extends HttpTestCase
 
         // Without images, the image rows stay behind too, so nothing points at missing files.
         $this->app->db()->run("INSERT INTO media (url_hash, url, status, updated_at) VALUES (?, 'https://x/y.png', 'failed', NOW())", [str_repeat('a', 64)]);
+        // Pictures added by hand cannot be fetched again, so they always travel.
+        self::assertIsArray($this->s->media()->storeUpload($this->png(), null));
         sleep(1);
         $lean = $this->makeBackup(['documents' => '1']);
         self::assertSame(0, $lean['manifest']['tables']['media']);
         self::assertNull($lean['manifest']['files']['media']);
+        self::assertSame(1, $lean['manifest']['tables']['uploaded_images']);
+        self::assertSame(1, $lean['manifest']['files']['uploads']['count']);
     }
 
     public function testProgressCancelAndDelete(): void
@@ -284,8 +297,12 @@ final class BackupTest extends HttpTestCase
         // A job running when the backup is made is not running after a restore.
         $this->app->db()->run("UPDATE jobs SET status = 'running', active_slot = 'collect' ORDER BY id DESC LIMIT 1");
         $this->flashes();
+        $upload = $this->s->media()->storeUpload($this->png(), null);
+        self::assertIsArray($upload);
         $b = $this->makeBackup();
         $cacheFile = (string) $this->app->db()->value('SELECT version FROM cache_versions');
+        $uploaded = $this->app->paths()->uploadFile($upload['sha256'], 'png');
+        unlink($uploaded);
         $member = $this->s->users()->findByUsername('member');
 
         // Things change after the backup.
@@ -325,6 +342,8 @@ final class BackupTest extends HttpTestCase
         self::assertSame((int) $member['id'], (int) $this->s->users()->findByUsername('member')['id'], 'ids are kept');
         self::assertSame('Kaunda Exams', $this->s->settings()->get('brand.name'));
         self::assertNotEmpty(glob($this->app->paths()->cacheRoot() . '/huawei/h12-811/*'), 'the exam files are back');
+        self::assertFileExists($uploaded, 'and the pictures added by hand');
+        self::assertNotNull($this->s->media()->file($upload['sha256']));
         self::assertSame(0, (int) $this->app->db()->value("SELECT COUNT(*) FROM jobs WHERE status IN ('queued','running')"));
         $names = array_column($this->s->backup()->list(), 'name');
         self::assertNotEmpty(array_filter($names, static fn($n) => str_contains($n, '-before-restore')), 'a safety backup was made first');

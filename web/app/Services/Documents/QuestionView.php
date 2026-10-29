@@ -362,6 +362,106 @@ final class QuestionView
     }
 
     /**
+     * Apply the wording, choices and pictures corrected in the reader (question_edits, keyed by
+     * question key). Comes before applyEdits(), so an answer check reads the corrected text.
+     *
+     * @param list<array<string,mixed>> $questions normalized questions
+     * @param array<string,array<string,mixed>> $edits
+     * @return list<array<string,mixed>>
+     */
+    public static function applyQuestionEdits(array $questions, array $edits): array
+    {
+        if ($edits === []) {
+            return $questions;
+        }
+        return array_map(static fn(array $q) => self::applyQuestionEdit($q, $edits[self::key($q)] ?? null), $questions);
+    }
+
+    /**
+     * One question with its corrected fields; a field left null stays as collected. What was
+     * changed is listed in $q['question_edit']['fields'] (text, choices, question_images,
+     * answer_images), so pages can say so.
+     *
+     * @param array<string,mixed> $q a normalized question
+     * @param array<string,mixed>|null $edit
+     * @return array<string,mixed>
+     */
+    public static function applyQuestionEdit(array $q, ?array $edit): array
+    {
+        if ($edit === null) {
+            return $q;
+        }
+        $fields = [];
+        if (is_string($edit['text'] ?? null)) {
+            $text = trim($edit['text']);
+            unset($q['text_parts']);
+            if (str_contains($text, self::IMG_MARK)) {
+                $q['text_parts'] = array_map('trim', explode(self::IMG_MARK, $text));
+                $text = trim(implode("\n\n", array_filter($q['text_parts'], static fn(string $p) => $p !== '')));
+            }
+            $q['text'] = $text;
+            $fields[] = 'text';
+        }
+        $changed = [];
+        foreach ((array) ($q['choices'] ?? []) as $i => $c) {
+            $letter = is_array($c) ? (string) ($c['letter'] ?? '') : '';
+            if ($letter !== '' && is_string($edit['choices'][$letter] ?? null)) {
+                $q['choices'][$i]['text'] = trim($edit['choices'][$letter]);
+                $changed[] = $letter;
+            }
+        }
+        if ($changed !== []) {
+            $fields[] = 'choices';
+        }
+        foreach (['question_images', 'answer_images'] as $list) {
+            if (is_array($edit[$list] ?? null)) {
+                $q[$list] = array_values(array_filter(array_map('strval', $edit[$list]), static fn(string $u) => $u !== ''));
+                $fields[] = $list;
+            }
+        }
+        $q['question_edit'] = ['fields' => $fields, 'choices' => $changed, 'updated_at' => (string) ($edit['updated_at'] ?? '')];
+        return $q;
+    }
+
+    /** A line on its own in the editor's text that stands for a picture's place. */
+    public const PICTURE_LINE = '[picture]';
+
+    /**
+     * The question's wording for the editor: the text with a "[picture]" line where each of
+     * its pictures sits, so correcting the wording keeps the pictures in place.
+     *
+     * @param array<string,mixed> $q a normalized question
+     */
+    public static function editorText(array $q): string
+    {
+        $parts = is_array($q['text_parts'] ?? null) ? array_values(array_map('strval', $q['text_parts'])) : null;
+        if ($parts === null) {
+            return (string) ($q['text'] ?? '');
+        }
+        $out = [];
+        foreach ($parts as $i => $part) {
+            if (trim($part) !== '') {
+                $out[] = trim($part);
+            }
+            if ($i < count($parts) - 1) {
+                $out[] = self::PICTURE_LINE;
+            }
+        }
+        return implode("\n\n", $out);
+    }
+
+    /**
+     * The editor's text as stored: "[picture]" lines become the dataset's picture marks, line
+     * endings are made plain, and runs of blank lines become one.
+     */
+    public static function fromEditorText(string $text): string
+    {
+        $lines = preg_split('/\R/', str_replace("\0", '', $text)) ?: [];
+        $lines = array_map(static fn(string $l) => strcasecmp(trim($l), self::PICTURE_LINE) === 0 ? self::IMG_MARK : rtrim($l), $lines);
+        return trim((string) preg_replace("/\n{3,}/", "\n\n", implode("\n", $lines)));
+    }
+
+    /**
      * Reasons to check a question's answer by hand. The collection tool reads ExamTopics'
      * suggested answer and the votes; it cannot follow what the comments argue, and votes
      * can be few or limited to one letter. Empty when nothing looks wrong, when the question

@@ -7,11 +7,9 @@ namespace App\Services;
 use App\Core\Config;
 use App\Core\Logger;
 use App\Core\Paths;
-use App\Repositories\AnswerEditRepository;
 use App\Repositories\DocumentRepository;
 use App\Services\Documents\MarkdownRenderer;
 use App\Services\Documents\PdfRenderer;
-use App\Services\Documents\QuestionView;
 use App\Services\Documents\Variant;
 use RuntimeException;
 use Throwable;
@@ -35,7 +33,7 @@ final class DocumentStore
         private DocumentRepository $docs,
         private CacheService $cache,
         private MediaStore $media,
-        private AnswerEditRepository $edits,
+        private Corrections $corrections,
         /** Starts bin/build-document.php for a document UUID; null builds in the request. */
         private ?\Closure $launcher = null,
     ) {
@@ -182,7 +180,8 @@ final class DocumentStore
             // PDFs embed the images saved on this server. Saving more of them (a later image
             // download) changes the options, so the PDF is generated again with them.
             $data = $this->cache->load($version);
-            $imageUrls = MediaStore::urlsOf($data);
+            // Pictures added in the reader are embedded too.
+            $imageUrls = array_values(array_unique(array_merge(MediaStore::urlsOf($data), $this->corrections->imageUrls((int) $version['exam_id']))));
             $options['images'] = count($this->media->savedHashes($imageUrls));
             // A large exam is made in parts, one after another, so a build needs the memory of
             // one part rather than of the whole exam (about 0.85 MB per question).
@@ -192,9 +191,9 @@ final class DocumentStore
                 $options['parts'] = count($parts);
             }
         }
-        // Answers corrected in the reader: a correction changes the options, so documents made
-        // before it are made again. Exams without corrections keep their existing documents.
-        $edits = $this->edits->fingerprint((int) $version['exam_id']);
+        // Answers and questions corrected in the reader: a correction changes the options, so
+        // documents made before it are made again. Exams without corrections keep theirs.
+        $edits = $this->corrections->fingerprint((int) $version['exam_id']);
         if ($edits !== null) {
             $options['edits'] = $edits;
         }
@@ -210,6 +209,29 @@ final class DocumentStore
                 'filename' => $this->downloadName($version, $variant, $format),
             ],
         ];
+    }
+
+    /**
+     * Why the ready documents of one variant and format should be made again, or null when they
+     * need not be: "edits" (made before the exam's latest corrections), "images" (a PDF made
+     * before more of its images were saved) or "layout" (made with an older layout).
+     * $checkEdits is false when the exam's corrections are not known.
+     *
+     * @param list<array<string,mixed>> $ready
+     */
+    public static function staleReason(array $ready, string $format, ?string $fingerprint, ?int $savedImages, bool $checkEdits = true): ?string
+    {
+        if ($ready === []) {
+            return null;
+        }
+        $options = array_map(static fn(array $d): array => (array) (json_decode((string) $d['options'], true) ?: []), $ready);
+        return match (true) {
+            $checkEdits && !in_array($fingerprint, array_map(static fn(array $o) => $o['edits'] ?? null, $options), true) => 'edits',
+            $format === 'pdf' && $savedImages !== null
+                && max(array_map(static fn(array $o): int => (int) ($o['images'] ?? 0), $options)) < $savedImages => 'images',
+            max(array_map(static fn(array $o): int => (int) ($o['renderer'] ?? 0), $options)) < self::RENDERER_VERSION => 'layout',
+            default => null,
+        };
     }
 
     /**
@@ -238,9 +260,7 @@ final class DocumentStore
                 @ini_set('memory_limit', (string) $this->config->get('documents.pdf_memory_limit', '2048M'));
             }
             $dataset = $this->cache->load($version, true);
-            $dataset['questions'] = QuestionView::applyEdits(array_map([QuestionView::class, 'normalize'],
-                array_values(array_filter((array) ($dataset['questions'] ?? []), 'is_array'))),
-                $this->edits->forExam((int) $version['exam_id']));
+            $dataset['questions'] = $this->corrections->apply((int) $version['exam_id'], (array) ($dataset['questions'] ?? []));
             $meta = $this->meta($version, $dataset);
             if ($format === 'pdf' && count($p['parts']) > 1) {
                 $parts = $this->generateParts($dataset, $meta, $p, $progress);

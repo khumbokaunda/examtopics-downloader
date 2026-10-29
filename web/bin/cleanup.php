@@ -100,6 +100,8 @@ if ($media) {
             exit(1);
         }
     }
+    // Images kept in a question's corrections are kept too, even when no version has them any more.
+    $urls = array_merge($urls, $services->questionEdits()->allImageUrls());
     $pruned = $services->media()->prune(array_values(array_unique($urls)), $dry);
     $app->logger()->info('app', 'Image cleanup', $pruned + ['dry_run' => $dry]);
     echo ($dry ? 'Would remove ' : 'Removed ') . $pruned['files'] . ' unused images (' . fmt_bytes($pruned['bytes']) . ")\n";

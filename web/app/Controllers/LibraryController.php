@@ -324,14 +324,23 @@ final class LibraryController extends Controller
                 . ToolCheck::rebuildHint() . ' Then try again.');
             return $this->redirect('/library/' . rawurlencode($p['slug']) . '/' . rawurlencode($e['code']), ['version' => $v['version']]);
         }
+        // From the integrity page the job shows in place of the button, so several can be started.
+        $back = $this->returnTo('', '/integrity');
+        $inPlace = $back !== '' || $this->request->wantsJson();
         try {
             $id = $this->s->jobService()->enqueueImages($v);
         } catch (ActiveJobException $ex) {
+            if ($inPlace) {
+                return $this->jobStarted($ex->job, false, $ex->getMessage(), $back ?: '/integrity');
+            }
             $this->flash('warning', $ex->getMessage());
             return $this->redirect('/library/' . rawurlencode($p['slug']) . '/' . rawurlencode($e['code']), ['version' => $v['version']]);
         }
         $this->s->audit()->record('exam.images_queued', ['provider' => provider_name($p), 'exam' => $e['code'], 'version' => $v['version']],
             'exam', $p['slug'] . '/' . $e['code']);
+        if ($inPlace) {
+            return $this->jobStarted($this->s->jobs()->find($id), true, 'Image download for ' . strtoupper((string) $e['code']) . ' queued.', $back ?: '/integrity');
+        }
         $this->flash('success', 'Image download queued. You can close this page; the job keeps running on the server.');
         return $this->redirect('/jobs/' . (string) $this->s->jobs()->find($id)['uuid']);
     }
@@ -357,20 +366,19 @@ final class LibraryController extends Controller
      *
      * @param array<string,mixed> $e
      * @param array<string,mixed> $data
-     * @return array{check:int,corrected:int,checked:int,fingerprint:?string}
+     * @return array{check:int,corrected:int,checked:int,edited:int,fingerprint:?string}
      */
     private function answerSummary(array $e, array $data): array
     {
-        $questions = QuestionView::applyEdits(
-            array_map([QuestionView::class, 'normalize'], array_values(array_filter((array) ($data['questions'] ?? []), 'is_array'))),
-            $this->s->answerEdits()->forExam((int) $e['id']));
-        $out = ['check' => 0, 'corrected' => 0, 'checked' => 0, 'fingerprint' => $this->s->answerEdits()->fingerprint((int) $e['id'])];
+        $questions = $this->s->corrections()->apply((int) $e['id'], (array) ($data['questions'] ?? []));
+        $out = ['check' => 0, 'corrected' => 0, 'checked' => 0, 'edited' => 0, 'fingerprint' => $this->s->corrections()->fingerprint((int) $e['id'])];
         foreach ($questions as $q) {
             $out['check'] += QuestionView::doubts($q) !== [] ? 1 : 0;
             $kind = (string) ($q['edit']['kind'] ?? '');
             if ($kind === 'corrected' || $kind === 'checked') {
                 $out[$kind]++;
             }
+            $out['edited'] += isset($q['question_edit']) ? 1 : 0;
         }
         return $out;
     }
