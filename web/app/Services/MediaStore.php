@@ -74,20 +74,48 @@ final class MediaStore
 
     /**
      * @param list<string> $urls
+     * @param array<string,int>|null $counts statusCounts() of these addresses, when already known
      * @return array{total:int,saved:int,failed:int,skipped:int,pending:int}
      */
-    public function summary(array $urls): array
+    public function summary(array $urls, ?array $counts = null): array
     {
-        $known = $this->media->lookup(array_values(array_filter($urls, static fn(string $u): bool => !self::isUpload($u))));
+        $urls = array_values(array_unique($urls));
         $s = ['total' => count($urls), 'saved' => 0, 'failed' => 0, 'skipped' => 0, 'pending' => 0];
+        $downloaded = [];
         foreach ($urls as $u) {
-            // A picture added by hand is saved, or (its file gone) cannot be fetched again.
-            $status = self::isUpload($u)
-                ? ($this->file(substr($u, strlen(self::UPLOAD_PREFIX))) !== null ? 'saved' : 'skipped')
-                : ($known[$u]['status'] ?? 'pending');
-            $s[isset($s[$status]) ? $status : 'pending']++;
+            if (self::isUpload($u)) {
+                // A picture added by hand is saved, or (its file gone) cannot be fetched again.
+                $s[$this->file(substr($u, strlen(self::UPLOAD_PREFIX))) !== null ? 'saved' : 'skipped']++;
+            } else {
+                $downloaded[] = $u;
+            }
         }
+        $known = 0;
+        foreach ($counts ?? $this->statusCounts($downloaded) as $status => $n) {
+            $s[isset($s[$status]) ? $status : 'pending'] += $n;
+            $known += $n;
+        }
+        $s['pending'] += count($downloaded) - $known;
         return $s;
+    }
+
+    /**
+     * How many of these downloaded-image addresses are in each status (saved, failed,
+     * skipped); addresses never tried are not counted. summary() takes the result, so it can be
+     * kept and reused while mark() stays the same.
+     *
+     * @param list<string> $urls
+     * @return array<string,int>
+     */
+    public function statusCounts(array $urls): array
+    {
+        return $this->media->statusCounts(array_values(array_filter($urls, static fn(string $u): bool => !self::isUpload($u))));
+    }
+
+    /** Changes whenever any downloaded image's status does (see statusCounts()). */
+    public function mark(): string
+    {
+        return $this->media->mark();
     }
 
     /** The address of a picture uploaded by hand: "upload:<sha256>". */

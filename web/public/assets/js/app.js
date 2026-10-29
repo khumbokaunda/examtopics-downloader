@@ -589,6 +589,23 @@
     setTimeout(poll, 2000);
   });
 
+  // --- Integrity figures worked out in the background -----------------------------------------
+  // The page shows what it has; it asks how many exams are left and reloads when none are.
+  document.querySelectorAll('[data-integrity-wait]').forEach(function (el) {
+    var line = el.querySelector('[data-field="waiting"]');
+    var poll = function () {
+      getJSON(el.getAttribute('data-integrity-wait')).then(function (d) {
+        if (d.waiting === 0) { window.location.reload(); return; }
+        if (line && d.line) line.textContent = d.line;
+        setTimeout(poll, d.running ? 3000 : 15000);
+      }).catch(function (err) {
+        if (err && err.status === 401) { window.location.reload(); return; }
+        setTimeout(poll, 15000);
+      });
+    };
+    setTimeout(poll, 2000);
+  });
+
   // --- Panels opened by a button (an answer form under a row, for example) -------------------
   document.querySelectorAll('[data-toggle-panel]').forEach(function (btn) {
     var panel = document.getElementById(btn.getAttribute('data-toggle-panel'));

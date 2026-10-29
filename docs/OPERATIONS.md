@@ -325,10 +325,14 @@ lists every exam that needs checking, with the problems counted at the top:
 - **Partly collected** and **Data unreadable** (the data file is missing or damaged) appear as
   filters only while some exam has them.
 
-The figures are kept per exam and worked out again when the exam is collected again or
-corrected. On a large library the first visit may list some exams as not checked yet; open the
-page again to check more (raise `integrity.budget_seconds` in `config/config.local.php` to do
-more at once).
+The figures are kept per exam and worked out again in the background when the exam is
+collected again or corrected, so the page opens at once: exams not checked yet say "being
+checked", changed ones show their last figures marked "updating", and the page reloads itself
+when the check is done (about a quarter of a second per large exam). The check is
+`php bin/integrity.php`, started by the page and logging to `storage/logs/integrity.log`; it
+can also be run by hand or from cron, and only one runs at a time. If the page says the check
+could not be started, the server could not launch PHP in the background (the same setting PDF
+builds use: `setsid` and `php_cli` in `config/config.local.php`).
 
 In the reader (study mode), **Edit this question** fixes the wording and each choice, removes
 pictures and adds new ones (PNG, JPEG, GIF or WebP, up to `media.max_bytes`, 5 MB by default;

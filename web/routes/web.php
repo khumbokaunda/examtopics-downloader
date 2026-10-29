@@ -80,6 +80,7 @@ return static function (Router $r): void {
     $r->post('/collect/links/clear', [CollectController::class, 'clearLinks'], can: $collect);
 
     $r->get('/integrity', [IntegrityController::class, 'index'], can: 'answers.edit');
+    $r->get('/api/integrity', [IntegrityController::class, 'status'], can: 'answers.edit');
     $r->get('/jobs', [JobController::class, 'index'], can: $collect);
     $r->get('/jobs/{uuid}', [JobController::class, 'show'], can: $collect);
     $r->post('/jobs/{uuid}/cancel', [JobController::class, 'cancel'], can: $collect);

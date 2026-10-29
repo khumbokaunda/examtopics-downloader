@@ -111,14 +111,67 @@ final class IntegrityTest extends HttpTestCase
         self::assertStringContainsString('1 to rebuild', $page);
         self::assertStringContainsString('1 checked', $page);
         self::assertSame($toCheck - 1, $this->readerToCheck(), 'the same count as the reader');
+    }
 
-        // With no time to work an exam out, it is listed as not checked yet.
-        $this->app->db()->run('DELETE FROM exam_checks');
-        $this->configure($this->startFixture(), null, ['integrity' => ['budget_seconds' => 0]]);
+    /**
+     * Normally the figures are worked out by a background process, so the page never waits on
+     * reading every exam: it shows what it has and reloads when the rest is done.
+     */
+    public function testFiguresAreWorkedOutInTheBackground(): void
+    {
+        $this->configure($this->startFixture(), null, ['integrity' => ['background' => true], 'setsid' => '/usr/bin/setsid']);
         $this->newSession();
         $this->login();
         $page = $this->get('/integrity')->body;
-        self::assertStringContainsString('1 exam was not checked yet', $page);
-        self::assertStringContainsString('not checked yet', $page);
+        self::assertStringContainsString('data-integrity-wait="/api/integrity"', $page);
+        self::assertStringContainsString('Checking 1 exam in the background. This page updates when they are done.', $page);
+        self::assertStringContainsString('being checked', $page);
+        $this->waitForChecks();
+        $page = $this->get('/integrity')->body;
+        self::assertStringContainsString('Check 2', $page);
+        self::assertStringNotContainsString('data-integrity-wait', $page);
+
+        // After a correction, the kept figures show, marked as updating, until the new ones are in.
+        $this->post(self::BASE . '/answers', ['key' => '1-1', 'version' => $this->version['version'], 'letter_A' => '1']);
+        $page = $this->get('/integrity')->body;
+        self::assertStringContainsString('Check 2', $page);
+        self::assertStringContainsString('>updating<', $page);
+        $this->waitForChecks();
+        self::assertStringContainsString('Check 1', $this->get('/integrity')->body);
+
+        // A data file that is gone shows at once, and a check that cannot read it records why
+        // rather than trying again on every visit.
+        $file = $this->s->cache()->datasetPath($this->version);
+        $copy = $file . '.kept';
+        rename($file, $copy);
+        $page = $this->get('/integrity')->body;
+        self::assertStringContainsString('data unreadable', $page);
+        self::assertStringNotContainsString('data-integrity-wait', $page);
+        $this->s->questionEdits()->delete($this->examId(), '1-2');
+        $this->get('/integrity');
+        $this->waitForChecks();
+        self::assertStringContainsString('missing', (string) $this->app->db()->value('SELECT error FROM exam_checks'));
+        self::assertSame(0, $this->s->integrity()->waiting());
+        // Put back (a restore, say): it is read again.
+        rename($copy, $file);
+        touch($file, time() + 5);
+        self::assertSame(1, $this->s->integrity()->waiting());
+        self::assertSame(1, $this->s->integrity()->workOutAll());
+        self::assertNull($this->app->db()->value('SELECT error FROM exam_checks'));
+        self::assertSame($this->readerToCheck(), (int) $this->app->db()->value('SELECT to_check FROM exam_checks'));
+    }
+
+    /** Wait for the background check, as the page does. */
+    private function waitForChecks(): void
+    {
+        $deadline = time() + 60;
+        do {
+            $status = json_decode($this->get('/api/integrity')->body, true);
+            if ($status['waiting'] === 0) {
+                return;
+            }
+            usleep(200_000);
+        } while (time() < $deadline);
+        self::fail('The background check did not finish: ' . json_encode($status));
     }
 }

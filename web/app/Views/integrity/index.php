@@ -4,7 +4,8 @@
  *
  * @var list<array<string,mixed>> $rows the exams shown, with what needs checking in each
  * @var string $show the filter @var array<string,int> $counts exams per filter
- * @var array{to_check:int,no_answer:int,missing:int,images:int,documents:int,corrections:int,pending:int} $totals
+ * @var array{to_check:int,no_answer:int,missing:int,images:int,documents:int,corrections:int,pending:int,updating:int,found:int} $totals
+ * @var int $waiting exams being checked in the background @var bool $started whether that check is running
  */
 use App\Controllers\IntegrityController;
 use App\Services\Editions;
@@ -15,9 +16,12 @@ $plural = static fn(int $n, string $one, string $many): string => number_format(
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title">Integrity</h1>
-        <p class="page-subtitle"><?= $counts['all'] === 0 ? 'Nothing is in the library yet.'
-            : ($counts['attention'] === 0 ? 'All ' . $plural($counts['all'], 'exam looks', 'exams look') . ' right.'
-                : $plural($counts['attention'], 'exam needs', 'exams need') . ' checking, of ' . number_format($counts['all']) . ' in the library.') ?></p>
+        <p class="page-subtitle"><?= match (true) {
+            $counts['all'] === 0 => 'Nothing is in the library yet.',
+            $totals['found'] > 0 => $plural($totals['found'], 'exam needs', 'exams need') . ' checking, of ' . number_format($counts['all']) . ' in the library.',
+            $totals['pending'] > 0 => 'Nothing found to check so far; the library is still being checked.',
+            default => 'All ' . $plural($counts['all'], 'exam looks', 'exams look') . ' right.',
+        } ?></p>
     </div>
 </header>
 
@@ -42,8 +46,10 @@ $plural = static fn(int $n, string $one, string $many): string => number_format(
     <?php endforeach; ?>
 </nav>
 
-<?php if ($totals['pending'] > 0): ?>
-    <div class="alert alert-info small"><?= icon('hourglass-split') ?><div class="alert-body"><?= $plural($totals['pending'], 'exam was', 'exams were') ?> not checked yet, to keep this page quick. <a href="<?= e(url('/integrity', ['show' => $show === 'attention' ? '' : $show])) ?>">Open the page again</a> to check more.</div></div>
+<?php if ($waiting > 0 && $started): ?>
+    <div class="alert alert-info small" role="status" data-integrity-wait="<?= e(url('/api/integrity')) ?>"><?= icon('hourglass-split') ?><div class="alert-body" data-field="waiting"><?= e(IntegrityController::waitingLine($waiting)) ?></div></div>
+<?php elseif ($waiting > 0): ?>
+    <div class="alert alert-warning small"><?= icon('exclamation-triangle') ?><div class="alert-body"><?= $plural($waiting, 'exam', 'exams') ?> could not be checked: the server did not start the background check. The log is in storage/logs/integrity.log; <span class="mono">php bin/integrity.php</span> runs it by hand.</div></div>
 <?php endif; ?>
 
 <div class="card">
@@ -67,7 +73,8 @@ $plural = static fn(int $n, string $one, string $many): string => number_format(
                     <td class="stack-title" data-order="<?= e(Editions::title($x)) ?>" data-search="<?= e($x['code'] . ' ' . ($x['name'] ?? '') . ' ' . provider_name($x, 'provider_name', 'provider_slug')) ?>">
                         <a class="table-row-link" href="<?= e(url($base, ['version' => $v['version']])) ?>" title="<?= e(strtoupper((string) $x['code'])) ?>"><?= e(Editions::shortCode((string) $x['code'])) ?></a>
                         <div class="cell-sub ms-0 cell-wrap text-clamp-2"><?= e(provider_name($x, 'provider_name', 'provider_slug')) ?><?= Editions::title($x) !== Editions::shortCode((string) $x['code']) ? ' · ' . e(Editions::title($x)) : '' ?></div>
-                        <?php if ($r['state'] === 'pending'): ?><div class="mt-1"><?= chip('not checked yet', 'neutral', 'hourglass-split') ?></div>
+                        <?php if ($r['state'] === 'pending'): ?><div class="mt-1"><?= chip('being checked', 'neutral', 'hourglass-split') ?></div>
+                        <?php elseif ($r['updating']): ?><div class="mt-1" title="Changed since these figures were worked out; they are being worked out again"><?= chip('updating', 'neutral', 'arrow-repeat') ?></div>
                         <?php elseif ($r['state'] === 'error'): ?>
                             <div class="mt-1"><?= chip('data unreadable', 'danger', 'x-octagon') ?></div>
                             <div class="cell-sub ms-0 cell-wrap"><?= e((string) $r['error']) ?><?php if ($collector): ?> <a href="<?= e(url('/collect', ['provider' => $x['provider_slug'], 'exam' => $x['code']])) ?>">Collect again</a><?php endif; ?></div>
@@ -107,7 +114,7 @@ $plural = static fn(int $n, string $one, string $many): string => number_format(
                     </td>
                     <td data-label="Corrections" data-order="<?= $r['corrected'] + $r['checked'] + $r['edited'] ?>">
                         <?php if ($done !== []): ?><a href="<?= e(url($base . '/corrections', ['version' => $v['version']])) ?>"><?= e(implode(', ', $done)) ?></a>
-                        <?php else: ?><span class="text-muted">None</span><?php endif; ?>
+                        <?php elseif ($r['state'] === 'ok'): ?><span class="text-muted">None</span><?php endif; ?>
                     </td>
                 </tr>
             <?php endforeach; ?>

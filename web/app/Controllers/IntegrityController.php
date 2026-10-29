@@ -24,15 +24,18 @@ final class IntegrityController extends Controller
 
     public function index(): Response
     {
-        $rows = $this->s->integrity()->all((float) $this->app->config()->get('integrity.budget_seconds', 10));
+        $checks = $this->s->integrity();
+        $rows = $checks->all();
         $show = (string) $this->request->query('show', 'attention');
         if (!isset(self::FILTERS[$show])) {
             $show = 'attention';
         }
         $counts = ['all' => count($rows), 'attention' => 0] + array_fill_keys(array_keys(IntegrityChecks::ISSUES), 0);
-        $totals = ['to_check' => 0, 'no_answer' => 0, 'missing' => 0, 'images' => 0, 'documents' => 0, 'corrections' => 0, 'pending' => 0];
+        $totals = ['to_check' => 0, 'no_answer' => 0, 'missing' => 0, 'images' => 0, 'documents' => 0, 'corrections' => 0, 'pending' => 0, 'updating' => 0, 'found' => 0];
         foreach ($rows as $r) {
-            $counts['attention'] += $r['issues'] !== [] ? 1 : 0;
+            // Listed under "Needs attention" too while it is being checked, as nothing is known yet.
+            $counts['attention'] += $r['issues'] !== [] || $r['state'] === 'pending' ? 1 : 0;
+            $totals['found'] += $r['issues'] !== [] ? 1 : 0;
             foreach ($r['issues'] as $issue) {
                 $counts[$issue]++;
             }
@@ -43,7 +46,12 @@ final class IntegrityController extends Controller
             $totals['documents'] += $r['stale_documents'];
             $totals['corrections'] += $r['corrected'] + $r['checked'] + $r['edited'];
             $totals['pending'] += $r['state'] === 'pending' ? 1 : 0;
+            $totals['updating'] += $r['updating'] ? 1 : 0;
         }
+        // Exams whose figures are out of date are worked out in the background; the page shows
+        // what it has and reloads when they are done.
+        $waiting = $totals['pending'] + $totals['updating'];
+        $started = $waiting === 0 || $checks->start();
         $shown = array_values(array_filter($rows, static fn(array $r): bool => match ($show) {
             'all' => true,
             'attention' => $r['issues'] !== [] || $r['state'] === 'pending',
@@ -59,6 +67,26 @@ final class IntegrityController extends Controller
             'show' => $show,
             'counts' => $counts,
             'totals' => $totals,
+            'waiting' => $waiting,
+            'started' => $started,
         ]);
+    }
+
+    /**
+     * For the page while exams are being checked: how many are left, so it can reload when
+     * none are. Starts the check again if it stopped with exams left (corrections made since).
+     */
+    public function status(): Response
+    {
+        $checks = $this->s->integrity();
+        $waiting = $checks->waiting();
+        $running = $waiting > 0 && $checks->start();
+        return Response::json(['waiting' => $waiting, 'running' => $running, 'line' => self::waitingLine($waiting)]);
+    }
+
+    public static function waitingLine(int $waiting): string
+    {
+        return 'Checking ' . number_format($waiting) . ' ' . ($waiting === 1 ? 'exam' : 'exams')
+            . ' in the background. This page updates when they are done.';
     }
 }

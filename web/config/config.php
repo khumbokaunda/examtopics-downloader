@@ -89,10 +89,10 @@ return [
     ],
 
     'integrity' => [
-        // The integrity page keeps each exam's figures until the exam changes. On a first
-        // visit it works out as many exams as fit in this many seconds; the rest follow on the
-        // next visit.
-        'budget_seconds' => 10,
+        // The integrity page keeps each exam's figures until the exam changes, and works them
+        // out in a background process (bin/integrity.php) so the page never waits on reading
+        // every exam. False works them out in the request instead.
+        'background' => true,
     ],
 
     'documents' => [
