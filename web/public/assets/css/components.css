@@ -784,3 +784,9 @@ a.job-chip:hover { text-decoration: none; filter: brightness(.96); }
 .my-note p:last-child { margin-bottom: 0; }
 .q-foot { justify-content: flex-start; }
 .q-foot > a { margin-left: auto; }
+
+/* Search across the library */
+.toolbar .search-field--wide { flex-basis: 420px; }
+.search-group .card-header { flex-wrap: wrap; gap: var(--space-2); }
+.search-snippet { margin-top: 2px; font-size: var(--text-sm); color: var(--color-text-muted); overflow-wrap: anywhere; }
+.search-snippet mark { padding: 0 2px; border-radius: 3px; background: var(--color-warning-soft); color: var(--color-text); }

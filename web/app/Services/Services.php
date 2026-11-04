@@ -77,6 +77,11 @@ final class Services
         return $this->app->service(Corrections::class, fn() => new Corrections($this->answerEdits(), $this->questionEdits(), $this->discussions()));
     }
 
+    public function searchIndex(): SearchIndex
+    {
+        return $this->app->service(SearchIndex::class, fn() => new SearchIndex($this->app->db()));
+    }
+
     public function mocks(): MockExams
     {
         return $this->app->service(MockExams::class, fn() => new MockExams($this->app->db(), $this->corrections(), $this->progress()));
@@ -101,7 +106,7 @@ final class Services
     {
         return $this->app->service(IntegrityChecks::class, fn() => new IntegrityChecks(
             $this->app->db(), $this->versions(), $this->cache(), $this->corrections(), $this->media(), $this->documentRepo(),
-            $this->reports(), $this->app->paths()->storage() . '/integrity.lock',
+            $this->reports(), $this->searchIndex(), $this->app->paths()->storage() . '/integrity.lock',
             (bool) $this->app->config()->get('integrity.background', true)
                 ? fn(): bool => $this->supervisor()->launchScript('integrity.php', [], 'integrity.log')
                 : null));

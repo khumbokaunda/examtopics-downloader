@@ -24,6 +24,7 @@ use App\Controllers\ProgressController;
 use App\Controllers\ProviderController;
 use App\Controllers\QuestionController;
 use App\Controllers\RequestController;
+use App\Controllers\SearchController;
 use App\Controllers\SettingsController;
 use App\Controllers\SignInsController;
 use App\Controllers\TwoStepController;
@@ -92,6 +93,7 @@ return static function (Router $r): void {
     $r->get('/api/jobs/{uuid}/log', [JobController::class, 'logJson'], can: $collect);
 
     $r->get('/library', [LibraryController::class, 'index'], can: $read);
+    $r->get('/search', [SearchController::class, 'index'], can: $read);
     $r->get('/api/palette', [LibraryController::class, 'paletteJson'], can: $read);
     $r->get('/library/{provider}/{exam}', [LibraryController::class, 'exam'], can: $read);
     $r->get('/library/{provider}/{exam}/view', [ViewerController::class, 'show'], can: $read);

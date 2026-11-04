@@ -21,7 +21,7 @@ use Throwable;
  * background process (bin/integrity.php, started by the page) works it out again when the
  * exam's best version or its corrections change. Until then the page shows the figures it has,
  * marked as updating. Images and documents are looked up on every visit, since a download or a
- * build changes them.
+ * build changes them. The same pass writes the exam's rows of the library's search (SearchIndex).
  */
 final class IntegrityChecks
 {
@@ -44,6 +44,7 @@ final class IntegrityChecks
         private MediaStore $media,
         private DocumentRepository $documents,
         private QuestionReportRepository $reports,
+        private SearchIndex $search,
         /** Held while bin/integrity.php works, so only one runs at a time. */
         private string $lockPath,
         /** Starts bin/integrity.php; null works exams out in the request instead. */
@@ -276,8 +277,11 @@ final class IntegrityChecks
             }
             // The pictures the corrected questions show: a removed one no longer counts, an added one does.
             $row['image_urls'] = (string) json_encode(MediaStore::urlsOf(['questions' => $questions]), JSON_UNESCAPED_SLASHES);
+            // The library's search reads the same corrected questions.
+            $this->search->replace($examId, $questions);
         } catch (Throwable $e) {
             $row['error'] = mb_substr($e->getMessage(), 0, 1000);
+            $this->search->forget($examId);
         }
         $row['computed_at'] = Database::now();
         $this->db->run(

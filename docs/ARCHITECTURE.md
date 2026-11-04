@@ -125,6 +125,14 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
    Practice mode filters to what is due (`?due=1`), the dashboard lists it, and a mock exam can
    be made of it. Notes and bookmarks (`question_notes`) belong to one person and are shown to
    nobody else; `?bookmarked=1` filters either mode to the bookmarked questions.
+13. **Search across the library** (`/search`, `App\Services\SearchIndex`): `question_index` holds
+   each exam's questions as they are shown (corrected wording, then each choice), one row per
+   question of the best version. The background check writes an exam's rows in the same pass that
+   works out its integrity figures, so the index follows new versions and corrections by itself;
+   the search page starts that check when exams are waiting and says so. A search matches like the
+   reader's (every word, anywhere, ignoring case) with `LIKE`, at most 200 questions. Like
+   `exam_checks`, the index is never backed up, and a restore empties both (`Backup::DERIVED`) so
+   they are worked out again from the restored data.
 
 ## The interface
 
