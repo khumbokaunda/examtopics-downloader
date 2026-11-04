@@ -589,6 +589,125 @@
     setTimeout(poll, 2000);
   });
 
+  // --- Mock exam setup: the time follows the number of questions until it is changed by hand ---
+  document.querySelectorAll('.mock-setup').forEach(function (f) {
+    var count = f.querySelector('[data-mock-count]');
+    var minutes = f.querySelector('[data-mock-minutes]');
+    var timed = f.querySelector('input[name="timed"]');
+    var touched = false;
+    if (!count || !minutes) return;
+    minutes.addEventListener('input', function () { touched = true; });
+    count.addEventListener('change', function () {
+      if (!touched) minutes.value = String(Math.ceil(parseInt(count.value, 10) * 1.5));
+    });
+    if (timed) {
+      var sync = function () { minutes.disabled = !timed.checked; };
+      timed.addEventListener('change', sync);
+      sync();
+    }
+  });
+
+  // --- Mock exam: one question at a time, picks saved as they are made, a clock --------------
+  // Without this script every question shows and the form still works; the server grades it.
+  document.querySelectorAll('form[data-mock]').forEach(function (form) {
+    var qs = Array.prototype.slice.call(form.querySelectorAll('.mock-question'));
+    var nav = form.querySelector('.mock-nav');
+    var navBtns = Array.prototype.slice.call(form.querySelectorAll('[data-mock-go]'));
+    var answeredEl = form.querySelector('[data-mock-answered]');
+    var state = form.querySelector('[data-mock-state]');
+    var saveUrl = form.getAttribute('data-save-url');
+    var current = 0;
+    var picksOf = function (q) {
+      return Array.prototype.slice.call(q.querySelectorAll('.mock-pick:checked')).map(function (i) { return i.getAttribute('data-letter'); }).join('');
+    };
+    var flagged = function (q) { var f = q.querySelector('[data-mock-flag]'); return !!(f && f.checked); };
+    var refresh = function () {
+      var n = 0;
+      qs.forEach(function (q, i) {
+        var done = picksOf(q) !== '';
+        n += done ? 1 : 0;
+        if (navBtns[i]) {
+          navBtns[i].classList.toggle('is-answered', done);
+          navBtns[i].classList.toggle('is-flagged', flagged(q));
+          navBtns[i].classList.toggle('is-current', i === current);
+          if (i === current) navBtns[i].setAttribute('aria-current', 'step'); else navBtns[i].removeAttribute('aria-current');
+        }
+      });
+      if (answeredEl) answeredEl.textContent = n + ' of ' + qs.length + ' answered';
+    };
+    var go = function (i, focus) {
+      current = Math.max(0, Math.min(qs.length - 1, i));
+      qs.forEach(function (q, k) { q.hidden = k !== current; });
+      refresh();
+      if (focus) {
+        var top = form.getBoundingClientRect().top + window.scrollY - 80;
+        if (window.scrollY > top) window.scrollTo(0, top);
+      }
+    };
+    if (nav) nav.hidden = false;
+    form.querySelectorAll('.mock-steps').forEach(function (el) { el.hidden = false; });
+    go(0, false);
+
+    var pending = 0;
+    var save = function (q) {
+      pending++;
+      if (state) { state.textContent = 'Saving…'; state.classList.remove('is-error'); }
+      var body = 'key=' + encodeURIComponent(q.getAttribute('data-key')) + '&picks=' + encodeURIComponent(picksOf(q)) + '&flagged=' + (flagged(q) ? '1' : '0');
+      fetch(saveUrl, { method: 'POST', credentials: 'same-origin', body: body,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrf, Accept: 'application/json' } })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (res) {
+          pending--;
+          if (!res.ok) throw new Error(res.d.error || 'not saved');
+          if (state && pending === 0) state.textContent = 'Your answers are saved as you go.';
+        })
+        .catch(function (err) {
+          pending = Math.max(0, pending - 1);
+          if (state) { state.textContent = 'Not saved (' + err.message + '). Your answers are still sent when you hand it in.'; state.classList.add('is-error'); }
+        });
+    };
+    form.addEventListener('change', function (ev) {
+      var q = ev.target.closest ? ev.target.closest('.mock-question') : null;
+      if (!q) return;
+      // A question with one answer takes one pick: choosing another replaces it.
+      if (ev.target.classList.contains('mock-pick') && ev.target.checked && q.getAttribute('data-picks') === '1') {
+        q.querySelectorAll('.mock-pick').forEach(function (i) { if (i !== ev.target) i.checked = false; });
+      }
+      refresh();
+      save(q);
+    });
+    form.addEventListener('click', function (ev) {
+      var btn = ev.target.closest ? ev.target.closest('[data-mock-go],[data-mock-step]') : null;
+      if (!btn) return;
+      ev.preventDefault();
+      go(btn.hasAttribute('data-mock-go') ? parseInt(btn.getAttribute('data-mock-go'), 10) : current + parseInt(btn.getAttribute('data-mock-step'), 10), true);
+    });
+
+    // The clock: the server's time left, counted down here; at zero the answers are handed in.
+    var timer = form.querySelector('[data-mock-timer]');
+    var left = parseInt(form.getAttribute('data-ends-in') || '', 10);
+    if (timer && !isNaN(left)) {
+      var end = Date.now() + left * 1000;
+      var label = timer.querySelector('[data-field="time"]');
+      // Low: the last fifth of the time, at most the last five minutes.
+      var low = Math.min(300, Math.round(parseInt(form.getAttribute('data-minutes') || '0', 10) * 60 / 5));
+      var tick = function () {
+        var s = Math.max(0, Math.round((end - Date.now()) / 1000));
+        var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+        if (label) label.textContent = (h > 0 ? h + ':' + (m < 10 ? '0' : '') + m : String(m)) + ':' + (sec < 10 ? '0' : '') + sec;
+        timer.classList.toggle('is-low', s > 0 && s <= low);
+        timer.classList.toggle('is-out', s === 0);
+        if (s === 0) {
+          if (state) state.textContent = 'Time is up. Handing in your answers…';
+          HTMLFormElement.prototype.submit.call(form);
+          return;
+        }
+        setTimeout(tick, 500);
+      };
+      tick();
+    }
+  });
+
   // --- Integrity figures worked out in the background -----------------------------------------
   // The page shows what it has; it asks how many exams are left and reloads when none are.
   document.querySelectorAll('[data-integrity-wait]').forEach(function (el) {

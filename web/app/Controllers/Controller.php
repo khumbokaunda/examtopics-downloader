@@ -226,6 +226,18 @@ abstract class Controller
         return Response::redirect(View::buildUrl((string) $this->app->config()->get('base_path', ''), $path, $query) . '#' . $anchor . '-' . $n);
     }
 
+    /**
+     * Addresses of the saved copies of images (/media/<hash>), keyed by the original address.
+     *
+     * @param list<string> $urls
+     * @return array<string,string>
+     */
+    protected function localImages(array $urls): array
+    {
+        $base = (string) $this->app->config()->get('base_path', '');
+        return array_map(static fn(string $sha) => View::buildUrl($base, '/media/' . $sha), $this->s->media()->savedHashes($urls));
+    }
+
     protected function ip(): string
     {
         return \App\Core\ClientIp::of($this->request->server, $this->app->config());

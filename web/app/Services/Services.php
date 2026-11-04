@@ -76,6 +76,11 @@ final class Services
         return $this->app->service(Corrections::class, fn() => new Corrections($this->answerEdits(), $this->questionEdits(), $this->discussions()));
     }
 
+    public function mocks(): MockExams
+    {
+        return $this->app->service(MockExams::class, fn() => new MockExams($this->app->db(), $this->corrections(), $this->progress()));
+    }
+
     public function discussions(): DiscussionRepository
     {
         return $this->app->service(DiscussionRepository::class, fn() => new DiscussionRepository($this->app->db()));

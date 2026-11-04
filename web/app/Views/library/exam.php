@@ -36,6 +36,7 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
             <button class="btn btn-outline-secondary<?= $isSaved ? ' is-saved' : '' ?>" type="submit" aria-pressed="<?= $isSaved ? 'true' : 'false' ?>" title="<?= $isSaved ? 'Saved. Remove from your shelf' : 'Save to your shelf' ?>"><?= icon($isSaved ? 'bookmark-fill' : 'bookmark') ?><span class="label"><?= $isSaved ? 'Saved' : 'Save' ?></span></button>
         </form>
         <?php if (can('exams.collect')): ?><a class="btn btn-outline-secondary" href="<?= e(url('/collect', ['provider' => $provider['slug'], 'exam' => $exam['code']])) ?>"><?= icon('arrow-clockwise') ?>Refresh…</a><?php endif; ?>
+        <a class="btn btn-outline-primary" href="<?= e(url($base . '/mock')) ?>"><?= icon('stopwatch') ?>Mock exam</a>
         <a class="btn btn-outline-primary" href="<?= e(url($base . '/view', ['version' => $selected['version'], 'mode' => 'practice'])) ?>"><?= icon('patch-question') ?>Practice</a>
         <a class="btn btn-primary" href="<?= e(url($base . '/view', ['version' => $selected['version']])) ?>"><?= icon('book') ?>Read</a>
     </div>

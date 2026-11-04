@@ -108,6 +108,16 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
    none of it; the reveal does. **Report a problem** (`question_reports`) reaches everyone with
    `answers.edit` through the inbox, shows in the reader (`?reported=1`) and on the integrity
    page, and tells the member when it is marked dealt with.
+11. **Mock exams** (`App\Services\MockExams`, `mock_exams`): a random set of an exam's questions
+   whose answer is a set of letters (only those can be graded), shown stripped like practice
+   pages, so the page holds no answers. Picks are saved as they are made
+   (`/api/mock/<uuid>/answer`), so a reload loses nothing. The time limit is the server's
+   (`ends_at`): the page's own submit at zero is accepted within a grace of a minute, after which
+   only what was saved counts, and an attempt left open past its time is graded when next opened.
+   Grading compares sorted letters with the answer the reader shows, corrections included; the
+   answer each question was graded against is kept with the attempt, so later corrections do not
+   change a result. Answered questions count towards study progress like practice answers. An
+   attempt is addressed by a random id and only its owner can open it.
 
 ## The interface
 

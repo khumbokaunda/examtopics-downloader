@@ -22,6 +22,7 @@ final class ProgressController extends Controller
             'nav' => 'progress',
             'person' => $user,
             'own' => true,
+            'mocks' => $this->s->mocks()->history((int) $user['id'], null, 10),
         ] + $this->report((int) $user['id']));
     }
 
@@ -48,6 +49,7 @@ final class ProgressController extends Controller
             'nav' => 'progress',
             'person' => $person,
             'own' => false,
+            'mocks' => $this->s->mocks()->history((int) $person['id'], null, 10),
         ] + $this->report((int) $person['id']));
     }
 

@@ -39,6 +39,7 @@ $img = static function (string $url, string $alt) use ($localImages): string {
         <nav class="segmented" aria-label="Mode">
             <a class="<?= $practice ? '' : 'is-active' ?>" href="<?= e(url($base . '/view', ['version' => $version['version'], 'q' => $q])) ?>"<?= $practice ? '' : ' aria-current="page"' ?>><?= icon('book') ?>Study</a>
             <a class="<?= $practice ? 'is-active' : '' ?>" href="<?= e(url($base . '/view', ['version' => $version['version'], 'mode' => 'practice', 'q' => $q])) ?>"<?= $practice ? ' aria-current="page"' : '' ?>><?= icon('patch-question') ?>Practice</a>
+            <a href="<?= e(url($base . '/mock')) ?>"><?= icon('stopwatch') ?>Mock exam</a>
         </nav>
     </div>
 </header>
