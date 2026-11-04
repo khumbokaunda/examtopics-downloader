@@ -24,16 +24,43 @@ final class StudyProgress
     {
     }
 
+    /** Days until a question in each box is due again, after a right answer. A wrong one is due the next day. */
+    public const INTERVALS = [1 => 2, 2 => 4, 3 => 8, 4 => 16, 5 => 32];
+
+    /**
+     * Spaced review: the box a question moves to and the day it is due again. Answered right
+     * when due (or for the first time), it moves up a box; answered right before it is due, the
+     * schedule stays; answered wrong, it goes back to box 0 and is due the next day.
+     *
+     * @param array{box:int|string,due_on:?string}|null $old
+     * @return array{0:int,1:string} box, due day (Y-m-d)
+     */
+    public static function schedule(?array $old, bool $correct, string $day): array
+    {
+        $after = static fn(int $days): string => (new \DateTimeImmutable($day))->modify("+$days days")->format('Y-m-d');
+        if (!$correct) {
+            return [0, $after(1)];
+        }
+        if ($old !== null && $old['due_on'] !== null && (string) $old['due_on'] > $day) {
+            return [(int) $old['box'], (string) $old['due_on']];
+        }
+        $box = min(5, (int) ($old['box'] ?? 0) + 1);
+        return [$box, $after(self::INTERVALS[$box])];
+    }
+
     /** Record a checked answer. $picked is the letters chosen, e.g. "BE"; $day is the person's today (Y-m-d). */
     public function record(int $userId, int $examId, string $key, int $number, string $picked, bool $correct, string $day): void
     {
         $now = Database::now();
+        $old = $this->db->one('SELECT box, due_on FROM study_answers WHERE user_id = ? AND exam_id = ? AND question_key = ?', [$userId, $examId, $key]);
+        [$box, $due] = self::schedule($old, $correct, $day);
         $this->db->run(
-            'INSERT INTO study_answers (user_id, exam_id, question_key, number, picked, correct, attempts, wrong_count, first_at, last_at)
-             VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+            'INSERT INTO study_answers (user_id, exam_id, question_key, number, picked, correct, attempts, wrong_count, first_at, last_at, box, due_on)
+             VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)
              ON DUPLICATE KEY UPDATE number = VALUES(number), picked = VALUES(picked), correct = VALUES(correct),
-                 attempts = attempts + 1, wrong_count = wrong_count + VALUES(wrong_count), last_at = VALUES(last_at)',
-            [$userId, $examId, $key, $number, $picked, $correct ? 1 : 0, $correct ? 0 : 1, $now, $now]
+                 attempts = attempts + 1, wrong_count = wrong_count + VALUES(wrong_count), last_at = VALUES(last_at),
+                 box = VALUES(box), due_on = VALUES(due_on)',
+            [$userId, $examId, $key, $number, $picked, $correct ? 1 : 0, $correct ? 0 : 1, $now, $now, $box, $due]
         );
         $this->db->run(
             'INSERT INTO study_days (user_id, day, answered, correct, pages) VALUES (?, ?, 1, ?, 0)
@@ -201,6 +228,28 @@ final class StudyProgress
     {
         return array_map('strval', array_column($this->db->all(
             'SELECT question_key FROM study_answers WHERE user_id = ? AND exam_id = ? AND correct = 0', [$userId, $examId]), 'question_key'));
+    }
+
+    /** @return list<string> the keys of the person's questions in an exam due for review by $day (Y-m-d) */
+    public function dueKeys(int $userId, int $examId, string $day): array
+    {
+        return array_map('strval', array_column($this->db->all(
+            'SELECT question_key FROM study_answers WHERE user_id = ? AND exam_id = ? AND due_on <= ?', [$userId, $examId, $day]), 'question_key'));
+    }
+
+    /**
+     * The exams with questions due for review by $day, most due first.
+     *
+     * @return list<array{exam_id:int,code:string,name:?string,provider_slug:string,due:int}>
+     */
+    public function dueByExam(int $userId, string $day, int $limit = 8): array
+    {
+        return array_map(static fn(array $r): array => ['exam_id' => (int) $r['exam_id'], 'code' => (string) $r['code'], 'name' => $r['name'],
+            'provider_slug' => (string) $r['provider_slug'], 'due' => (int) $r['due']], $this->db->all(
+            'SELECT a.exam_id, e.code, e.name, p.slug AS provider_slug, COUNT(*) AS due FROM study_answers a
+             JOIN exams e ON e.id = a.exam_id JOIN providers p ON p.id = e.provider_id
+             WHERE a.user_id = ? AND a.due_on <= ? GROUP BY a.exam_id, e.code, e.name, p.slug ORDER BY due DESC, e.code LIMIT ' . max(1, $limit),
+            [$userId, $day]));
     }
 
     /** @return list<string> the keys of every question the person has answered in an exam */

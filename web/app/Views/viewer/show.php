@@ -1,7 +1,8 @@
 <?php
 /** @var array $provider @var array $exam @var array $version @var list<array> $questions @var string $mode
  *  @var string $q @var int $page @var int $pages @var int $total @var int $all @var array<string,string> $localImages
- *  @var bool $review @var int $toCheck @var bool $mistakes @var bool $reported
+ *  @var bool $review @var int $toCheck @var bool $mistakes @var bool $reported @var bool $due @var int $dueCount
+ *  @var bool $bookmarked @var int $bookmarks @var array<string,array{note:?string,bookmarked:bool}> $notes this person's, by question key
  *  @var array<string,list<array>> $reports open reports by question key (people who correct questions, study mode)
  *  @var array<string,list<array>> $discussion members' comments by question key (study mode)
  *  @var array{answered:int,correct:int,mistakes:int,last_at:?string} $progress this person's progress in the exam */
@@ -11,7 +12,20 @@ use App\Services\StudyProgress;
 
 $base = '/library/' . rawurlencode($provider['slug']) . '/' . rawurlencode($exam['code']);
 $editor = can('answers.edit');
-$params = ['version' => $version['version'], 'mode' => $mode === 'practice' ? 'practice' : '', 'q' => $q, 'review' => $review ? '1' : '', 'mistakes' => $mistakes ? '1' : '', 'reported' => $reported ? '1' : ''];
+// The filter in use: it carries over to the next page, the search, and every form on this one.
+$filters = array_filter(['review' => $review, 'mistakes' => $mistakes, 'reported' => $reported, 'due' => $due, 'bookmarked' => $bookmarked]);
+$filters = array_map(static fn() => '1', $filters);
+$params = ['version' => $version['version'], 'mode' => $mode === 'practice' ? 'practice' : '', 'q' => $q] + $filters;
+$filterFields = implode('', array_map(static fn(string $f) => '<input type="hidden" name="' . $f . '" value="1">', array_keys(array_intersect_key($filters, ['due' => 1, 'bookmarked' => 1]))));
+// Everything a form needs to come back to this page at its question.
+$keep = static fn(array $item): string => csrf_field()
+    . '<input type="hidden" name="key" value="' . e(QuestionView::key($item)) . '">'
+    . '<input type="hidden" name="number" value="' . (int) $item['number'] . '">'
+    . '<input type="hidden" name="version" value="' . e((string) $version['version']) . '">'
+    . '<input type="hidden" name="page" value="' . (int) $page . '">'
+    . '<input type="hidden" name="q" value="' . e($q) . '">'
+    . ($mode === 'practice' ? '<input type="hidden" name="mode" value="practice">' : '')
+    . implode('', array_map(static fn(string $f) => '<input type="hidden" name="' . $f . '" value="1">', array_keys($filters)));
 $reportKinds = \App\Repositories\QuestionReportRepository::KINDS;
 $practice = $mode === 'practice';
 $img = static function (string $url, string $alt) use ($localImages): string {
@@ -32,7 +46,14 @@ $img = static function (string $url, string $alt) use ($localImages): string {
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title"><?= e(Editions::title($exam)) ?></h1>
-        <p class="page-subtitle"><?= $review ? $total . ' answers to check, of ' . $all . ' questions' : ($reported ? $total . ' reported by members, of ' . $all . ' questions' : ($mistakes ? $total . ' of your mistakes, of ' . $all . ' questions' : $total . ' of ' . $all . ' questions')) ?> · version <?= e(fmt_time($version['collected_at'])) ?></p>
+        <p class="page-subtitle"><?= $total . match (true) {
+            $review => ' answers to check, of ',
+            $reported => ' reported by members, of ',
+            $mistakes => ' of your mistakes, of ',
+            $due => ' due for review today, of ',
+            $bookmarked => ' bookmarked, of ',
+            default => ' of ',
+        } . $all . ' questions' ?> · version <?= e(fmt_time($version['collected_at'])) ?></p>
         <?php if ($version['status'] === 'partial'): ?><div class="mt-2"><?= chip('Partial version: some questions could not be collected', 'warning', 'exclamation-triangle') ?></div><?php endif; ?>
     </div>
     <div class="page-actions">
@@ -50,21 +71,26 @@ $img = static function (string $url, string $alt) use ($localImages): string {
     <?php if ($review): ?><input type="hidden" name="review" value="1"><?php endif; ?>
     <?php if ($mistakes): ?><input type="hidden" name="mistakes" value="1"><?php endif; ?>
     <?php if ($reported): ?><input type="hidden" name="reported" value="1"><?php endif; ?>
+    <?= $filterFields ?>
     <div class="search-field"><?= icon('search') ?><input class="form-control" type="search" name="q" value="<?= e($q) ?>" placeholder="Search question and answer-choice text" aria-label="Search questions"></div>
     <button class="btn btn-outline-secondary" type="submit">Search</button>
-    <?php if ($q === '' && !$review && !$mistakes && !$reported): ?>
+    <?php if ($q === '' && $filters === []): ?>
         <input class="form-control jump-input" type="number" min="1" max="<?= (int) $all ?>" name="jump" placeholder="Go to #" aria-label="Go to question number">
     <?php elseif ($q !== ''): ?>
-        <a class="btn btn-link" href="<?= e(url($base . '/view', ['version' => $version['version'], 'mode' => $practice ? 'practice' : '', 'review' => $review ? '1' : '', 'mistakes' => $mistakes ? '1' : '', 'reported' => $reported ? '1' : ''])) ?>">Clear search</a>
+        <a class="btn btn-link" href="<?= e(url($base . '/view', ['version' => $version['version'], 'mode' => $practice ? 'practice' : ''] + $filters)) ?>">Clear search</a>
     <?php endif; ?>
-    <?php if ($mistakes): ?>
-        <a class="btn btn-outline-secondary" href="<?= e(url($base . '/view', ['version' => $version['version'], 'mode' => 'practice'])) ?>"><?= icon('list-ol') ?>All questions</a>
-    <?php elseif ($practice && $progress['mistakes'] > 0): ?>
-        <a class="btn btn-outline-secondary" href="<?= e(url($base . '/view', ['version' => $version['version'], 'mode' => 'practice', 'mistakes' => '1'])) ?>" title="The questions you last answered wrong"><?= icon('arrow-repeat') ?>My mistakes (<?= (int) $progress['mistakes'] ?>)</a>
-    <?php endif; ?>
-    <?php if ($review || $reported): ?>
-        <a class="btn btn-outline-secondary" href="<?= e(url($base . '/view', ['version' => $version['version']])) ?>"><?= icon('list-ol') ?>All questions</a>
+    <?php if ($filters !== []): ?>
+        <a class="btn btn-outline-secondary" href="<?= e(url($base . '/view', ['version' => $version['version'], 'mode' => $practice ? 'practice' : ''])) ?>"><?= icon('list-ol') ?>All questions</a>
     <?php else: ?>
+        <?php if ($practice && $dueCount > 0): ?>
+            <a class="btn btn-outline-primary" href="<?= e(url($base . '/view', ['version' => $version['version'], 'mode' => 'practice', 'due' => '1'])) ?>" title="Questions you answered before that are due to be gone over again"><?= icon('calendar-check') ?>Due today (<?= $dueCount ?>)</a>
+        <?php endif; ?>
+        <?php if ($practice && $progress['mistakes'] > 0): ?>
+            <a class="btn btn-outline-secondary" href="<?= e(url($base . '/view', ['version' => $version['version'], 'mode' => 'practice', 'mistakes' => '1'])) ?>" title="The questions you last answered wrong"><?= icon('arrow-repeat') ?>My mistakes (<?= (int) $progress['mistakes'] ?>)</a>
+        <?php endif; ?>
+        <?php if ($bookmarks > 0): ?>
+            <a class="btn btn-outline-secondary" href="<?= e(url($base . '/view', ['version' => $version['version'], 'mode' => $practice ? 'practice' : '', 'bookmarked' => '1'])) ?>" title="The questions you bookmarked"><?= icon('bookmark') ?>Bookmarked (<?= $bookmarks ?>)</a>
+        <?php endif; ?>
         <?php if ($toCheck > 0 && $editor && !$practice): ?>
             <a class="btn btn-outline-warning" href="<?= e(url($base . '/view', ['version' => $version['version'], 'review' => '1'])) ?>" title="Answers that look doubtful and that you have not corrected or checked yet"><?= icon('exclamation-triangle') ?>To check (<?= $toCheck ?>)</a>
         <?php endif; ?>
@@ -78,9 +104,11 @@ $img = static function (string $url, string $alt) use ($localImages): string {
     <div class="card"><div class="card-body"><?= $review && $q === ''
         ? empty_state('check2-all', 'Nothing left to check', 'Every answer that looked doubtful has been corrected or checked.', null, true)
         : ($reported && $q === '' ? empty_state('check2-all', 'No reports waiting', 'Every problem members reported has been dealt with.', null, true)
+        : ($due && $q === '' ? empty_state('calendar-check', 'Nothing due today', 'Every question you answered is scheduled for another day. Answering one right makes it come back later.', ['Practise all questions', url($base . '/view', ['mode' => 'practice'])], true)
+        : ($bookmarked && $q === '' ? empty_state('bookmark', 'No bookmarked questions', 'Bookmark a question with the bookmark beside its number.', null, true)
         : ($mistakes && $q === ''
             ? empty_state('check2-all', 'No mistakes to go over', 'Every question you checked, you last answered right.', ['Practise all questions', url($base . '/view', ['mode' => 'practice'])], true)
-            : empty_state('search', 'No questions match', 'Search looks in question and answer-choice text. Try fewer words.', null, true))) ?></div></div>
+            : empty_state('search', 'No questions match', 'Search looks in question and answer-choice text. Try fewer words.', null, true))))) ?></div></div>
 <?php endif; ?>
 
 <?php if ($practice && $questions !== []): ?>
@@ -98,7 +126,15 @@ $img = static function (string $url, string $alt) use ($localImages): string {
         <div class="card-body">
             <div class="q-head">
                 <h2 class="q-number"><span class="num">Question <?= $n ?></span><?php $kind = QuestionView::kind($item); if ($kind !== null): ?><?= chip($kind === 'drag-drop' ? 'Drag and drop' : 'Hot area', 'info', $kind === 'drag-drop' ? 'arrows-move' : 'cursor') ?><?php endif; ?><?php if (!$practice && isset($item['question_edit'])): ?><?= chip('edited', 'primary', 'pencil') ?><?php endif; ?></h2>
-                <span class="q-meta"><?= e(QuestionView::meta($item)) ?></span>
+                <span class="q-tools">
+                    <span class="q-meta"><?= e(QuestionView::meta($item)) ?></span>
+                    <?php $mine = $notes[QuestionView::key($item)] ?? ['note' => null, 'bookmarked' => false]; ?>
+                    <form method="post" action="<?= e(url($base . '/notes/bookmark')) ?>" data-save-toggle class="q-bookmark"><?= $keep($item) ?>
+                        <button class="icon-btn<?= $mine['bookmarked'] ? ' is-saved' : '' ?>" type="submit" aria-pressed="<?= $mine['bookmarked'] ? 'true' : 'false' ?>"
+                                title="<?= $mine['bookmarked'] ? 'Bookmarked. Take the bookmark off' : 'Bookmark this question' ?>" aria-label="Bookmark question <?= $n ?>"
+                                data-on-title="Bookmarked. Take the bookmark off" data-off-title="Bookmark this question"><?= icon($mine['bookmarked'] ? 'bookmark-fill' : 'bookmark') ?></button>
+                    </form>
+                </span>
             </div>
             <?php $qImages = QuestionView::questionImages($item); foreach (QuestionView::questionSegments($item) as $seg): ?>
                 <?php if (isset($seg['text'])): ?><div class="q-text"><?php foreach (QuestionView::paragraphs($seg['text']) as $para): ?><p><?= $para ?></p><?php endforeach; ?></div>
@@ -110,6 +146,10 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                         <li class="choice<?= $letter !== '' && in_array($letter, $answerLetters, true) ? ' is-answer' : '' ?>" data-letter="<?= e($letter) ?>"><span class="choice-letter"><?= e($letter) ?>.</span> <span class="choice-text"><?= nl2br(e((string) ($c['text'] ?? '')), false) ?><?php foreach ((array) ($c['images'] ?? []) as $u): ?><?= $img((string) $u, 'Choice ' . $letter) ?><?php endforeach; ?></span></li>
                     <?php endforeach; ?>
                 </ul>
+            <?php endif; ?>
+
+            <?php if ($mine['note'] !== null): ?>
+                <div class="my-note"><span class="answer-note-label"><?= icon('lock') ?>Your note</span><?php foreach (QuestionView::paragraphs($mine['note']) as $para): ?><p><?= $para ?></p><?php endforeach; ?></div>
             <?php endif; ?>
 
             <?php if ($practice): ?>
@@ -163,6 +203,7 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                                 <input type="hidden" name="page" value="<?= (int) $page ?>">
                                 <input type="hidden" name="q" value="<?= e($q) ?>">
                                 <?php if ($reported): ?><input type="hidden" name="reported" value="1"><?php endif; ?>
+                                <?= $filterFields ?>
                                 <button class="btn btn-sm btn-outline-secondary" type="submit"><?= icon('check2') ?>Mark dealt with</button>
                                 <span class="small text-muted ms-2">Fix it with the editors below first. <?= count($open) === 1 ? 'Whoever reported it is' : 'Those who reported it are' ?> told.</span>
                             </form>
@@ -181,6 +222,7 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                             <input type="hidden" name="q" value="<?= e($q) ?>">
                             <?php if ($review): ?><input type="hidden" name="review" value="1"><?php endif; ?>
                             <?php if ($reported): ?><input type="hidden" name="reported" value="1"><?php endif; ?>
+                            <?= $filterFields ?>
                             <?php if ($letters !== []): ?>
                                 <fieldset class="mb-3">
                                     <legend class="form-label">Correct answer</legend>
@@ -205,7 +247,9 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                                 <input type="hidden" name="q" value="<?= e($q) ?>">
                                 <?php if ($review): ?><input type="hidden" name="review" value="1"><?php endif; ?>
                                 <?php if ($reported): ?><input type="hidden" name="reported" value="1"><?php endif; ?>
+                                <?= $filterFields ?>
                             <?php if ($reported): ?><input type="hidden" name="reported" value="1"><?php endif; ?>
+                            <?= $filterFields ?>
                                 <input type="hidden" name="action" value="remove">
                                 <button class="btn btn-sm btn-link btn-link-danger" type="submit"><?= icon('arrow-counterclockwise') ?>Remove my correction<?= ($edit['collected'] ?? '') !== '' ? ' (back to ' . e($edit['collected']) . ')' : '' ?></button>
                             </form>
@@ -213,7 +257,7 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                     </div>
                 </details>
                 <?= \App\Core\View::current()->partial('viewer/question_edit', ['item' => $item, 'base' => $base, 'version' => $version,
-                    'page' => $page, 'q' => $q, 'review' => $review, 'reported' => $reported, 'localImages' => $localImages]) ?>
+                    'page' => $page, 'q' => $q, 'review' => $review, 'reported' => $reported, 'localImages' => $localImages, 'filterFields' => $filterFields]) ?>
                 <?php endif; ?>
                 <?php foreach ((array) ($item['answer_images'] ?? []) as $i => $u): ?><?= $img((string) $u, 'Answer image ' . ($i + 1)) ?><?php endforeach; ?>
                 <?php if (trim((string) ($item['explanation'] ?? '')) !== ''): ?>
@@ -249,11 +293,20 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                     </details>
                 <?php endif; ?>
                 <?= \App\Core\View::current()->partial('viewer/discussion', ['item' => $item, 'comments' => $discussion[QuestionView::key($item)] ?? [],
-                    'base' => $base, 'version' => $version, 'page' => $page, 'q' => $q, 'review' => $review, 'reported' => $reported]) ?>
+                    'base' => $base, 'version' => $version, 'page' => $page, 'q' => $q, 'review' => $review, 'reported' => $reported, 'filterFields' => $filterFields]) ?>
             <?php endif; ?>
             <div class="q-foot">
+                <details class="report-problem my-note-edit">
+                    <summary><?= icon('journal-text') ?><?= $mine['note'] !== null ? 'Change your note' : 'Add a note' ?></summary>
+                    <form method="post" action="<?= e(url($base . '/notes')) ?>" class="report-problem-body" data-once data-busy="Saving…"><?= $keep($item) ?>
+                        <label class="form-label" for="my-note-<?= $n ?>">Your note <span class="text-muted fw-normal">(only you can see it)</span></label>
+                        <textarea class="form-control" id="my-note-<?= $n ?>" name="note" rows="3" maxlength="5000"><?= e((string) $mine['note']) ?></textarea>
+                        <div class="form-text">Leave it empty and save to remove it.</div>
+                        <div class="post-actions"><button class="btn btn-sm btn-primary" type="submit"><?= icon('check2') ?>Save</button></div>
+                    </form>
+                </details>
                 <?= \App\Core\View::current()->partial('viewer/report', ['item' => $item, 'base' => $base, 'version' => $version, 'page' => $page,
-                    'q' => $q, 'mode' => $mode, 'review' => $review, 'mistakes' => $mistakes]) ?>
+                    'q' => $q, 'mode' => $mode, 'review' => $review, 'mistakes' => $mistakes, 'filterFields' => $filterFields]) ?>
                 <?php if (preg_match('#^https://#', (string) ($item['source_url'] ?? '')) === 1): ?>
                     <a class="small" href="<?= e($item['source_url']) ?>" rel="noopener noreferrer" target="_blank">Source discussion <?= icon('box-arrow-up-right') ?></a>
                 <?php endif; ?>

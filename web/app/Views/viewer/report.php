@@ -21,6 +21,7 @@ $n = (int) $item['number'];
         <?php if ($mode === 'practice'): ?><input type="hidden" name="mode" value="practice"><?php endif; ?>
         <?php if ($review): ?><input type="hidden" name="review" value="1"><?php endif; ?>
         <?php if ($mistakes): ?><input type="hidden" name="mistakes" value="1"><?php endif; ?>
+        <?= $filterFields ?? '' ?>
         <label class="form-label" for="report-kind-<?= $n ?>">What is wrong?</label>
         <select class="form-select form-select-sm" id="report-kind-<?= $n ?>" name="kind" required>
             <option value="">Choose…</option>

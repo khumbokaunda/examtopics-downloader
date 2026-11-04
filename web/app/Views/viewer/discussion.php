@@ -13,14 +13,15 @@ $n = (int) $item['number'];
 $me = (int) (\App\Core\View::current()->user()['id'] ?? 0);
 $moderator = can('answers.edit');
 $letters = QuestionView::choiceLetters($item);
-$hidden = static function () use ($version, $page, $q, $review, $reported, $n): string {
+$hidden = static function () use ($version, $page, $q, $review, $reported, $n, $filterFields): string {
     return csrf_field()
         . '<input type="hidden" name="version" value="' . e((string) $version['version']) . '">'
         . '<input type="hidden" name="page" value="' . (int) $page . '">'
         . '<input type="hidden" name="q" value="' . e($q) . '">'
         . '<input type="hidden" name="number" value="' . $n . '">'
         . ($review ? '<input type="hidden" name="review" value="1">' : '')
-        . ($reported ? '<input type="hidden" name="reported" value="1">' : '');
+        . ($reported ? '<input type="hidden" name="reported" value="1">' : '')
+        . ($filterFields ?? '');
 };
 ?>
 <details class="discussion member-discussion" id="discussion-<?= $n ?>"<?= $comments !== [] ? ' data-has-comments' : '' ?>>

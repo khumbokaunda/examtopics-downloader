@@ -19,6 +19,7 @@ use App\Controllers\JobController;
 use App\Controllers\LibraryController;
 use App\Controllers\MediaController;
 use App\Controllers\MockController;
+use App\Controllers\NoteController;
 use App\Controllers\ProgressController;
 use App\Controllers\ProviderController;
 use App\Controllers\QuestionController;
@@ -101,6 +102,8 @@ return static function (Router $r): void {
     $r->post('/library/{provider}/{exam}/discussion/{id}/delete', [DiscussionController::class, 'delete'], can: $read);
     $r->post('/library/{provider}/{exam}/reports', [DiscussionController::class, 'report'], can: $read);
     $r->post('/library/{provider}/{exam}/reports/resolve', [DiscussionController::class, 'resolve'], can: 'answers.edit');
+    $r->post('/library/{provider}/{exam}/notes', [NoteController::class, 'save'], can: $read);
+    $r->post('/library/{provider}/{exam}/notes/bookmark', [NoteController::class, 'bookmark'], can: $read);
     $r->get('/library/{provider}/{exam}/mock', [MockController::class, 'setup'], can: $read);
     $r->post('/library/{provider}/{exam}/mock', [MockController::class, 'start'], can: $read);
     $r->get('/mock/{uuid}', [MockController::class, 'show'], can: $read);

@@ -367,6 +367,17 @@ wrong or not answered; your answers count towards your progress. Past results ar
 exam page and on My progress. Only questions whose answer is a set of letters are asked, since
 only those can be graded.
 
+## Review, notes and bookmarks
+
+Every question you answer comes back for review: answered right when it is due, it comes back
+after 2 days, then 4, 8, 16 and 32; answered wrong, it is due the next day; answered right before
+it is due, nothing changes. **Due today** in practice mode, the dashboard's **Due for review
+today** and the mock exam's "Due for review today" source all show what is due.
+
+The bookmark beside each question's number, and **Add a note** under it, are yours alone: nobody
+else sees them, administrators included. **Bookmarked** in the reader shows only those questions,
+and a mock exam can be made of them.
+
 ## Study progress
 
 Every answer someone checks in practice mode (picked, then revealed) is graded on the server

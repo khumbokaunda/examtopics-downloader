@@ -7,7 +7,7 @@
  * @var list<array> $suggestions exams to start with, when nothing was studied yet
  * @var array<string,array{answered:int,correct:int,pages:int}> $days the last 14 days
  * @var array{answered:int,correct:int,mistakes:int} $week @var array{current:int,best:int,today:bool} $streak
- * @var list<array> $mistakes @var list<array> $saved @var list<array> $news
+ * @var list<array> $mistakes @var list<array> $due exams with questions due for review today @var list<array> $saved @var list<array> $news
  * @var array{manager:bool,rows:list<array>,open:int}|null $requests
  * @var bool $system @var array{exams:int,questions:int}|null $totals @var int $providerCount @var list<array> $active
  * @var list<array> $recentCompleted @var list<array> $recentFailed @var list<array> $recentDocuments
@@ -220,6 +220,24 @@ $note = static fn(string $iconName, string $title, string $body, ?array $action 
                 <?= \App\Core\View::current()->partial('partials/study_chart', ['days' => $days]) ?>
             </div>
         </div>
+        <?php if ($due !== []): ?>
+        <div class="card">
+            <div class="card-header"><span class="card-title"><?= icon('calendar-check') ?>Due for review today</span></div>
+            <ul class="list-rows">
+                <?php foreach ($due as $d): $p = $examPath($d); ?>
+                    <li>
+                        <div class="row-main">
+                            <div class="row-text">
+                                <a class="row-title" href="<?= e(url($p)) ?>"><?= e(Editions::title($d['exam'])) ?></a>
+                                <div class="row-meta"><?= number_format($d['due']) ?> question<?= $d['due'] === 1 ? '' : 's' ?> to go over again</div>
+                            </div>
+                        </div>
+                        <a class="btn btn-sm btn-outline-primary" href="<?= e(url($p . '/view', ['mode' => 'practice', 'due' => '1'])) ?>">Review</a>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+        <?php endif; ?>
         <?php if ($requests !== null): $statusChip = ['open' => ['Waiting', 'warning', 'hourglass-split'], 'collected' => ['In the library', 'success', 'check2'], 'declined' => ['Declined', 'neutral', null], 'cancelled' => ['Cancelled', 'neutral', null]]; ?>
         <div class="card">
             <div class="card-header">

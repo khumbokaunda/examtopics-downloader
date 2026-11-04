@@ -118,6 +118,13 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
    answer each question was graded against is kept with the attempt, so later corrections do not
    change a result. Answered questions count towards study progress like practice answers. An
    attempt is addressed by a random id and only its owner can open it.
+12. **Spaced review, notes and bookmarks**: every answered question has a box (0 to 5) and a day it
+   is due again (`study_answers.box`, `due_on`), worked out by `StudyProgress::schedule` in the
+   person's own day: right when due moves it up a box and brings it back after 2, 4, 8, 16 or 32
+   days, right before it is due keeps the schedule, wrong sends it back to box 0 for the next day.
+   Practice mode filters to what is due (`?due=1`), the dashboard lists it, and a mock exam can
+   be made of it. Notes and bookmarks (`question_notes`) belong to one person and are shown to
+   nobody else; `?bookmarked=1` filters either mode to the bookmarked questions.
 
 ## The interface
 
