@@ -341,6 +341,20 @@ picture sits. Edits show in every version of the exam, survive collecting it aga
 documents made after them, and are listed on the exam's Corrections page, where each can be
 put back as collected.
 
+## Members' discussion and reports
+
+Under each question in study mode, **Members' discussion** is for people on this site: anyone who
+can read the library can post, and may pick the answer they would choose, which counts as their
+vote (their latest pick counts). The tally shows with the answer, and when members mostly back a
+different answer than the one shown, the question appears under Answers to check. A comment can
+be deleted by whoever wrote it, or by anyone who corrects questions. Posting is limited to 30
+comments an hour per person.
+
+**Report a problem** (in both modes) sends a short report to everyone who corrects questions, by
+inbox and, if they have it on, email. The reader's **Reported** button and the integrity page
+list them; **Mark dealt with**, after fixing the question, closes them and tells whoever sent
+them. Reports are limited to 20 an hour per person.
+
 ## Study progress
 
 Every answer someone checks in practice mode (picked, then revealed) is graded on the server

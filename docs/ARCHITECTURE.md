@@ -97,6 +97,17 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
    file changes. Image counts are kept too and counted again only after the media table changes
    (a download); documents are looked up on every visit. With `integrity.background` false the
    figures are worked out in the request instead (the test suite does this).
+10. **Members' discussion and reports**: beside the discussion collected from ExamTopics, each
+   question has one for members of this site (`question_comments`, keyed by exam and question
+   key like corrections). A comment may suggest an answer; each person's latest suggestion is
+   their vote. `Corrections::apply` attaches the tally (`member_votes`), so the reader, the
+   practice reveal and every answer check see it: when at least two members back an answer
+   other than the one shown, and it has more votes than the shown one, the question is one to
+   check. Documents do not show members' votes, so they are left out of the documents'
+   fingerprint and only in the integrity page's (`Corrections::checkKey`). Practice pages carry
+   none of it; the reveal does. **Report a problem** (`question_reports`) reaches everyone with
+   `answers.edit` through the inbox, shows in the reader (`?reported=1`) and on the integrity
+   page, and tells the member when it is marked dealt with.
 
 ## The interface
 

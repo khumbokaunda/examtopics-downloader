@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Core\Http\HttpException;
 use App\Core\Http\Response;
+use App\Services\Access;
 use App\Services\Documents\QuestionView;
 use App\Services\Editions;
 use App\Services\MediaStore;
@@ -40,6 +41,13 @@ final class ViewerController extends Controller
         $questions = $this->s->corrections()->apply((int) $e['id'], (array) ($data['questions'] ?? []));
         // Answers that look doubtful and nobody has checked yet (study mode only).
         $review = $mode === 'study' && $this->request->query('review') === '1';
+        // Problems members reported, for the people who correct questions (study mode only).
+        $editor = $mode === 'study' && $this->auth->can('answers.edit');
+        $reports = $editor ? $this->s->reports()->open((int) $e['id']) : [];
+        $reported = $editor && $this->request->query('reported') === '1';
+        if ($reported) {
+            $questions = array_values(array_filter($questions, static fn(array $item) => isset($reports[QuestionView::key($item)])));
+        }
         $toCheck = $mode === 'study' ? count(array_filter($questions, static fn(array $item) => QuestionView::doubts($item) !== [])) : 0;
         if ($review) {
             $questions = array_values(array_filter($questions, static fn(array $item) => QuestionView::doubts($item) !== []));
@@ -66,13 +74,15 @@ final class ViewerController extends Controller
         $pages = max(1, (int) ceil($total / $perPage));
         $page = max(1, min($pages, (int) $this->request->query('page', '1')));
         $jump = (int) $this->request->query('jump', '0');
-        if ($jump > 0 && $q === '' && !$review && !$mistakes) {
+        if ($jump > 0 && $q === '' && !$review && !$mistakes && !$reported) {
             $page = max(1, min($pages, (int) ceil($jump / $perPage)));
         }
-        if ($q === '' && !$review && !$mistakes && $userId > 0) {
+        if ($q === '' && !$review && !$mistakes && !$reported && $userId > 0) {
             $this->s->progress()->remember($userId, (int) $e['id'], $mode, $page, $this->today());
         }
         $slice = array_slice($questions, ($page - 1) * $perPage, $perPage);
+        // Members' discussion is shown in study mode; practice mode fetches it with the answer.
+        $discussion = $mode === 'study' ? $this->s->discussions()->forQuestions((int) $e['id'], array_map([QuestionView::class, 'key'], $slice)) : [];
         if ($mode === 'practice') {
             $slice = array_map([self::class, 'practiceView'], $slice);
         }
@@ -86,6 +96,9 @@ final class ViewerController extends Controller
             'questions' => $slice,
             'mode' => $mode,
             'review' => $review,
+            'reported' => $reported,
+            'reports' => $reports,
+            'discussion' => $discussion,
             'mistakes' => $mistakes,
             'progress' => $progress,
             'toCheck' => $toCheck,
@@ -196,9 +209,24 @@ final class ViewerController extends Controller
         }
         $wanted = array_flip($numbers);
         $out = [];
-        foreach ($this->s->corrections()->apply((int) $e['id'], array_filter((array) ($data['questions'] ?? []),
-            static fn($item) => is_array($item) && isset($wanted[(int) ($item['number'] ?? 0)]))) as $q) {
-            $out[(int) $q['number']] = $this->revealData($q);
+        $questions = $this->s->corrections()->apply((int) $e['id'], array_filter((array) ($data['questions'] ?? []),
+            static fn($item) => is_array($item) && isset($wanted[(int) ($item['number'] ?? 0)])));
+        $discussion = $this->s->discussions()->forQuestions((int) $e['id'], array_map([QuestionView::class, 'key'], $questions));
+        $base = (string) $this->app->config()->get('base_path', '');
+        foreach ($questions as $q) {
+            $n = (int) $q['number'];
+            $out[$n] = $this->revealData($q) + [
+                'member_votes' => QuestionView::memberVotesLine($q),
+                'member_comments' => array_map(static fn(array $c): array => [
+                    'author' => $c['user_id'] !== null ? Access::displayName($c) : 'A former member',
+                    'time' => fmt_ago((string) $c['created_at']),
+                    'answer' => $c['answer'] !== null ? (string) $c['answer'] : null,
+                    'body' => (string) $c['body'],
+                ], $discussion[QuestionView::key($q)] ?? []),
+                // Members post in study mode, where the answer is already shown.
+                'discuss_url' => \App\Core\View::buildUrl($base, '/library/' . rawurlencode((string) $p['slug']) . '/' . rawurlencode((string) $e['code']) . '/view',
+                    ['version' => (string) $v['version'], 'jump' => (string) $n]) . '#discussion-' . $n,
+            ];
         }
         return $out;
     }

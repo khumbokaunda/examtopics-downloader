@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Core\App;
 use App\Repositories\AnswerEditRepository;
 use App\Repositories\CacheVersionRepository;
+use App\Repositories\DiscussionRepository;
 use App\Repositories\DocumentRepository;
 use App\Repositories\ExamRepository;
 use App\Repositories\InventoryRefreshRepository;
@@ -14,6 +15,7 @@ use App\Repositories\JobRepository;
 use App\Repositories\MediaRepository;
 use App\Repositories\ProviderRepository;
 use App\Repositories\QuestionEditRepository;
+use App\Repositories\QuestionReportRepository;
 use App\Repositories\SettingsRepository;
 use App\Repositories\UserRepository;
 
@@ -71,14 +73,24 @@ final class Services
 
     public function corrections(): Corrections
     {
-        return $this->app->service(Corrections::class, fn() => new Corrections($this->answerEdits(), $this->questionEdits()));
+        return $this->app->service(Corrections::class, fn() => new Corrections($this->answerEdits(), $this->questionEdits(), $this->discussions()));
+    }
+
+    public function discussions(): DiscussionRepository
+    {
+        return $this->app->service(DiscussionRepository::class, fn() => new DiscussionRepository($this->app->db()));
+    }
+
+    public function reports(): QuestionReportRepository
+    {
+        return $this->app->service(QuestionReportRepository::class, fn() => new QuestionReportRepository($this->app->db()));
     }
 
     public function integrity(): IntegrityChecks
     {
         return $this->app->service(IntegrityChecks::class, fn() => new IntegrityChecks(
             $this->app->db(), $this->versions(), $this->cache(), $this->corrections(), $this->media(), $this->documentRepo(),
-            $this->app->paths()->storage() . '/integrity.lock',
+            $this->reports(), $this->app->paths()->storage() . '/integrity.lock',
             (bool) $this->app->config()->get('integrity.background', true)
                 ? fn(): bool => $this->supervisor()->launchScript('integrity.php', [], 'integrity.log')
                 : null));

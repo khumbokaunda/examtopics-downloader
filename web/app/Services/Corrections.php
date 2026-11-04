@@ -5,18 +5,23 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Repositories\AnswerEditRepository;
+use App\Repositories\DiscussionRepository;
 use App\Repositories\QuestionEditRepository;
 use App\Services\Documents\QuestionView;
 
 /**
  * Everything corrected by hand for an exam, applied over the collected questions in one place,
  * so the reader, answer checks, the integrity page and documents all show the same thing:
- * first the question's wording, choices and pictures, then its answer.
+ * first the question's wording, choices and pictures, then its answer. Members' answer votes
+ * from their own discussion ride along ($q['member_votes']), so every answer check counts them.
  */
 final class Corrections
 {
-    public function __construct(private AnswerEditRepository $answers, private QuestionEditRepository $questions)
-    {
+    public function __construct(
+        private AnswerEditRepository $answers,
+        private QuestionEditRepository $questions,
+        private DiscussionRepository $discussions,
+    ) {
     }
 
     /**
@@ -29,8 +34,25 @@ final class Corrections
         if ($questions === []) {
             return [];
         }
-        return QuestionView::applyEdits(QuestionView::applyQuestionEdits($questions, $this->questions->forExam($examId)),
+        $questions = QuestionView::applyEdits(QuestionView::applyQuestionEdits($questions, $this->questions->forExam($examId)),
             $this->answers->forExam($examId));
+        $votes = $this->discussions->votes($examId);
+        if ($votes !== []) {
+            foreach ($questions as $i => $q) {
+                $questions[$i]['member_votes'] = $votes[QuestionView::key($q)] ?? [];
+            }
+        }
+        return $questions;
+    }
+
+    /**
+     * Changes whenever anything answer checks read changes: the corrections, or members' votes.
+     * Documents do not show members' votes, so they use fingerprint() alone.
+     */
+    public function checkKey(int $examId): string
+    {
+        $votes = $this->discussions->votesMark($examId);
+        return (string) $this->fingerprint($examId) . ($votes !== '' ? '|' . $votes : '');
     }
 
     /**

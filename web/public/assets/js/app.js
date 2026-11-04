@@ -936,6 +936,7 @@
     line.appendChild(document.createTextNode(d.answer || d.answer_note || 'not available'));
     body.appendChild(line);
     if (d.votes) body.appendChild(el('div', 'answer-votes', 'Community votes: ' + d.votes));
+    if (d.member_votes) body.appendChild(el('div', 'answer-votes', "Members' votes here: " + d.member_votes));
     if (d.note) {
       var note = el('div', 'answer-note');
       note.appendChild(el('span', 'answer-note-label', 'Note'));
@@ -1010,7 +1011,62 @@
       det.appendChild(list);
       target.appendChild(det);
     }
+    // Members' own discussion: read here, posted in study mode where the answer is shown.
+    var mine = d.member_comments || [];
+    var md = el('details', 'discussion member-discussion');
+    var ms = el('summary');
+    ms.appendChild(icon('chevron-right'));
+    ms.appendChild(icon('people'));
+    ms.appendChild(document.createTextNode("Members' discussion (" + mine.length + ')'));
+    md.appendChild(ms);
+    var mb = el('div', 'discussion-body');
+    if (!mine.length) mb.appendChild(el('p', 'member-discussion-empty', 'Nobody here has discussed this question yet.'));
+    mine.forEach(function (c) {
+      var cm = el('div', 'comment');
+      var av = el('span', 'comment-avatar', initials(c.author));
+      av.setAttribute('aria-hidden', 'true');
+      cm.appendChild(av);
+      var main = el('div', 'comment-main');
+      var head = el('div', 'comment-head');
+      head.appendChild(el('span', 'comment-author', c.author));
+      head.appendChild(el('span', 'comment-time', c.time));
+      main.appendChild(head);
+      if (c.body) {
+        var text = el('div', 'comment-body');
+        multiline(text, c.body);
+        main.appendChild(text);
+      }
+      if (c.answer) {
+        var foot = el('div', 'comment-foot');
+        var sug = el('span', 'chip chip--primary');
+        sug.appendChild(icon('check2'));
+        sug.appendChild(document.createTextNode('suggests ' + c.answer));
+        foot.appendChild(sug);
+        main.appendChild(foot);
+      }
+      cm.appendChild(main);
+      mb.appendChild(cm);
+    });
+    if (d.discuss_url) {
+      var go = el('a', 'small', mine.length ? 'Join the discussion' : 'Start the discussion');
+      go.href = d.discuss_url;
+      var p = el('p', 'mt-2 mb-2');
+      p.appendChild(go);
+      mb.appendChild(p);
+    }
+    md.appendChild(mb);
+    target.appendChild(md);
   }
+
+  // A link to a closed section (#discussion-12) opens it.
+  (function () {
+    var id = location.hash ? decodeURIComponent(location.hash.slice(1)) : '';
+    var t = id ? document.getElementById(id) : null;
+    if (t && t.tagName === 'DETAILS') {
+      t.open = true;
+      t.scrollIntoView({ block: 'start' });
+    }
+  })();
 
   // --- Practice mode: pick choices, reveal and check, clear ----------------------------------
   // The page holds no answers. They are fetched for the whole page in one request as soon as

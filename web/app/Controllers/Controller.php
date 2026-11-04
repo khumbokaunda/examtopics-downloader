@@ -194,13 +194,13 @@ abstract class Controller
     }
 
     /**
-     * The reader page the form was on, at the question.
+     * The reader page the form was on, at the question (or at its members' discussion).
      *
      * @param array<string,mixed> $p
      * @param array<string,mixed> $e
      * @param array<string,mixed> $v
      */
-    protected function backToReader(array $p, array $e, array $v, int $n): Response
+    protected function backToReader(array $p, array $e, array $v, int $n, string $anchor = 'question'): Response
     {
         $query = ['version' => (string) $v['version']];
         if ($this->request->input('return') === 'corrections') {
@@ -214,11 +214,16 @@ abstract class Controller
         if ($search !== '') {
             $query['q'] = $search;
         }
-        if ($this->request->input('review') === '1') {
-            $query['review'] = '1';
+        foreach (['review', 'reported', 'mistakes'] as $filter) {
+            if ($this->request->input($filter) === '1') {
+                $query[$filter] = '1';
+            }
+        }
+        if ($this->request->input('mode') === 'practice') {
+            $query['mode'] = 'practice';
         }
         $path = '/library/' . rawurlencode((string) $p['slug']) . '/' . rawurlencode((string) $e['code']) . '/view';
-        return Response::redirect(View::buildUrl((string) $this->app->config()->get('base_path', ''), $path, $query) . '#question-' . $n);
+        return Response::redirect(View::buildUrl((string) $this->app->config()->get('base_path', ''), $path, $query) . '#' . $anchor . '-' . $n);
     }
 
     protected function ip(): string

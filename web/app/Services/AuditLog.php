@@ -175,7 +175,7 @@ final class AuditLog
     public const GROUPS = [
         'signin' => ['label' => 'Sign-in and security', 'prefixes' => ['auth.', 'security.', 'activity.']],
         'accounts' => ['label' => 'Accounts and users', 'prefixes' => ['account.', 'user.', 'users.']],
-        'library' => ['label' => 'Library and collecting', 'prefixes' => ['provider.', 'collect.', 'job.', 'exam.', 'answers.', 'questions.', 'document.', 'request.']],
+        'library' => ['label' => 'Library and collecting', 'prefixes' => ['provider.', 'collect.', 'job.', 'exam.', 'answers.', 'questions.', 'discussion.', 'document.', 'request.']],
         'backups' => ['label' => 'Backups', 'prefixes' => ['backup.']],
         'settings' => ['label' => 'Settings', 'prefixes' => ['settings.']],
     ];

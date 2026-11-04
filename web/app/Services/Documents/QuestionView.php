@@ -504,6 +504,19 @@ final class QuestionView
                 $out[] = $few;
             }
         }
+        // Members of this site who suggested an answer in their own discussion.
+        $members = array_values(array_filter((array) ($q['member_votes'] ?? []), 'is_array'));
+        if ($members !== []) {
+            $forAnswer = 0;
+            foreach ($members as $m) {
+                $forAnswer = (string) $m['answer'] === $answer ? (int) $m['count'] : $forAnswer;
+            }
+            $top = $members[0];
+            if ((string) $top['answer'] !== $answer && (int) $top['count'] >= 2 && (int) $top['count'] > $forAnswer) {
+                $out[] = 'Members here voted ' . $top['answer'] . ' (' . (int) $top['count'] . ' of '
+                    . array_sum(array_map(static fn(array $m): int => (int) $m['count'], $members)) . ').';
+            }
+        }
         $claims = self::textClaims($q);
         if ($claims !== []) {
             $top = $claims[0];
@@ -517,6 +530,13 @@ final class QuestionView
             }
         }
         return $out;
+    }
+
+    /** Members' votes here, e.g. "C (3), B (1)"; null when nobody suggested an answer. */
+    public static function memberVotesLine(array $q): ?string
+    {
+        $members = array_values(array_filter((array) ($q['member_votes'] ?? []), 'is_array'));
+        return $members === [] ? null : implode(', ', array_map(static fn(array $m): string => $m['answer'] . ' (' . (int) $m['count'] . ')', $members));
     }
 
     /** What the comments say, e.g. "ABCD (5), ABC (3)"; null when none names an answer. */
