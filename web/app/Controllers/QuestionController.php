@@ -52,7 +52,7 @@ final class QuestionController extends Controller
 
         // An edit can be put back even when its question is not in this version.
         if ($this->request->input('action') === 'reset') {
-            $this->s->questionEdits()->delete($examId, $key);
+            $this->s->questionEdits()->delete($examId, $key, (int) ($this->auth->user()['id'] ?? 0) ?: null);
             $this->flash('success', ($n > 0 ? "Question $n is" : 'The question is') . ' shown as collected again.');
             $this->app->logger()->info('app', 'Question edit removed', ['exam' => $e['code'], 'question' => $key]);
             $this->s->audit()->record('questions.reset', $audit, 'exam', $p['slug'] . '/' . $e['code']);

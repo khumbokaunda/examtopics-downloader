@@ -112,6 +112,7 @@ final class ViewerController extends Controller
             'review' => $review,
             'reported' => $reported,
             'reports' => $reports,
+            'history' => $editor ? $this->s->correctionHistory()->counts((int) $e['id']) : [],
             'discussion' => $discussion,
             'mistakes' => $mistakes,
             'due' => $due,

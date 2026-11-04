@@ -98,6 +98,10 @@ return static function (Router $r): void {
     $r->get('/library/{provider}/{exam}', [LibraryController::class, 'exam'], can: $read);
     $r->get('/library/{provider}/{exam}/view', [ViewerController::class, 'show'], can: $read);
     $r->get('/library/{provider}/{exam}/corrections', [AnswerController::class, 'index'], can: 'answers.edit');
+    $r->get('/library/{provider}/{exam}/corrections/history', [AnswerController::class, 'history'], can: 'answers.edit');
+    $r->post('/library/{provider}/{exam}/corrections/history', [AnswerController::class, 'restore'], can: 'answers.edit');
+    $r->get('/library/{provider}/{exam}/corrections/editions', [AnswerController::class, 'editions'], can: 'answers.edit');
+    $r->post('/library/{provider}/{exam}/corrections/editions', [AnswerController::class, 'carry'], can: 'answers.edit');
     $r->post('/library/{provider}/{exam}/answers', [AnswerController::class, 'save'], can: 'answers.edit');
     $r->post('/library/{provider}/{exam}/questions', [QuestionController::class, 'save'], can: 'answers.edit');
     $r->post('/library/{provider}/{exam}/discussion', [DiscussionController::class, 'post'], can: $read);

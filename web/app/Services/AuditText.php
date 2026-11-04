@@ -88,6 +88,10 @@ final class AuditText
             }, 'pencil-square', 'primary'],
             'answers.removed' => [$who . ' removed the correction to question ' . (int) ($d['question'] ?? 0) . ' of ' . $exam(), 'pencil-square', 'neutral'],
             'questions.edited' => [$who . ' edited question ' . (int) ($d['question'] ?? 0) . ' of ' . $exam() . self::questionChanges($d), 'pencil', 'primary'],
+            'answers.restored' => [$who . ' put back an earlier ' . (($d['kind'] ?? '') === 'question' ? 'edit of question ' : 'answer to question ')
+                . (int) ($d['question'] ?? 0) . ' of ' . $exam(), 'arrow-counterclockwise', 'neutral'],
+            'answers.carried' => [$who . ' carried ' . ((int) ($d['corrections'] ?? 0) === 1 ? 'a correction' : (int) ($d['corrections'] ?? 0) . ' corrections')
+                . ' of ' . $exam() . ' to ' . implode(', ', array_map('strval', (array) ($d['editions'] ?? []))), 'collection', 'primary'],
             'questions.reported' => [$who . ' reported a problem with question ' . (int) ($d['question'] ?? 0) . ' of ' . $exam()
                 . (isset($d['kind']) ? ': ' . strtolower(\App\Repositories\QuestionReportRepository::KINDS[(string) $d['kind']] ?? 'something else') : ''), 'flag', 'warning'],
             'questions.report_resolved' => [$who . ' dealt with ' . ((int) ($d['reports'] ?? 1) === 1 ? 'a report' : (int) $d['reports'] . ' reports')

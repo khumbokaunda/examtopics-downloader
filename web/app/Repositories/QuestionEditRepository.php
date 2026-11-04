@@ -9,12 +9,27 @@ use App\Core\Database;
 /**
  * Question wording, choices and pictures corrected by hand, per exam question. Like answer
  * corrections they are applied over the collected data when it is shown or turned into
- * documents; the data itself is not changed. A field left null is shown as collected.
+ * documents; the data itself is not changed. A field left null is shown as collected. Every
+ * change is recorded in the question's correction history.
  */
 final class QuestionEditRepository
 {
+    private CorrectionHistoryRepository $history;
+
     public function __construct(private Database $db)
     {
+        $this->history = new CorrectionHistoryRepository($db);
+    }
+
+    /** @return array{text:?string,choices:?array<string,string>,question_images:?list<string>,answer_images:?list<string>}|null a question's edit, as its history records it */
+    public function state(int $examId, string $key): ?array
+    {
+        $row = $this->db->one('SELECT * FROM question_edits WHERE exam_id = ? AND question_key = ?', [$examId, $key]);
+        if ($row === null) {
+            return null;
+        }
+        $e = self::decode($row);
+        return ['text' => $e['text'], 'choices' => $e['choices'], 'question_images' => $e['question_images'], 'answer_images' => $e['answer_images']];
     }
 
     /**
@@ -39,9 +54,10 @@ final class QuestionEditRepository
     public function save(int $examId, string $key, ?string $text, ?array $choices, ?array $questionImages, ?array $answerImages, ?int $userId): void
     {
         if ($text === null && $choices === null && $questionImages === null && $answerImages === null) {
-            $this->delete($examId, $key);
+            $this->delete($examId, $key, $userId);
             return;
         }
+        $before = $this->state($examId, $key);
         $json = static fn(?array $v): ?string => $v === null ? null : json_encode($v, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         $now = Database::now();
         $this->db->run(
@@ -51,11 +67,14 @@ final class QuestionEditRepository
                  answer_images = VALUES(answer_images), user_id = VALUES(user_id), updated_at = VALUES(updated_at)',
             [$examId, $key, $text, $json($choices), $json($questionImages), $json($answerImages), $userId, $now, $now]
         );
+        $this->history->record($examId, $key, 'question', $before, $this->state($examId, $key), $userId);
     }
 
-    public function delete(int $examId, string $key): void
+    public function delete(int $examId, string $key, ?int $userId = null): void
     {
+        $before = $this->state($examId, $key);
         $this->db->run('DELETE FROM question_edits WHERE exam_id = ? AND question_key = ?', [$examId, $key]);
+        $this->history->record($examId, $key, 'question', $before, null, $userId);
     }
 
     /** @return list<string> every picture address the exam's edits use, uploaded ones included */

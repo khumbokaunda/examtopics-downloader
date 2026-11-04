@@ -790,3 +790,11 @@ a.job-chip:hover { text-decoration: none; filter: brightness(.96); }
 .search-group .card-header { flex-wrap: wrap; gap: var(--space-2); }
 .search-snippet { margin-top: 2px; font-size: var(--text-sm); color: var(--color-text-muted); overflow-wrap: anywhere; }
 .search-snippet mark { padding: 0 2px; border-radius: 3px; background: var(--color-warning-soft); color: var(--color-text); }
+
+/* Carrying corrections to other editions */
+.carry-table .carry-pick { width: 2.5rem; }
+
+/* Correction history */
+.history-change { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.history-from { color: var(--color-text-muted); }
+.history-to { color: var(--color-text); }
