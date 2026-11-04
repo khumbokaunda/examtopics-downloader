@@ -203,6 +203,13 @@ final class StudyProgress
             'SELECT question_key FROM study_answers WHERE user_id = ? AND exam_id = ? AND correct = 0', [$userId, $examId]), 'question_key'));
     }
 
+    /** @return list<string> the keys of every question the person has answered in an exam */
+    public function answeredKeys(int $userId, int $examId): array
+    {
+        return array_map('strval', array_column($this->db->all(
+            'SELECT question_key FROM study_answers WHERE user_id = ? AND exam_id = ?', [$userId, $examId]), 'question_key'));
+    }
+
     /** Forget a person's answers and place in one exam. Returns how many answers were removed. */
     public function reset(int $userId, int $examId): int
     {

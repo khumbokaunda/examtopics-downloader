@@ -252,18 +252,6 @@ final class ViewerController extends Controller
     }
 
     /**
-     * Addresses of the saved copies (/media/<hash>), keyed by the original image address.
-     *
-     * @param list<string> $urls
-     * @return array<string,string>
-     */
-    private function localImages(array $urls): array
-    {
-        $base = (string) $this->app->config()->get('base_path', '');
-        return array_map(static fn(string $sha) => \App\Core\View::buildUrl($base, '/media/' . $sha), $this->s->media()->savedHashes($urls));
-    }
-
-    /**
      * Where the browser loads each image from: the saved copy, else the original https address.
      *
      * @param list<mixed> $urls

@@ -355,6 +355,18 @@ inbox and, if they have it on, email. The reader's **Reported** button and the i
 list them; **Mark dealt with**, after fixing the question, closes them and tells whoever sent
 them. Reports are limited to 20 an hour per person.
 
+## Mock exams
+
+**Mock exam** (on the exam page, and in the reader beside Study and Practice) asks a random set of
+questions, from all of them, those not answered yet, or your mistakes, with a time limit of your
+choosing (1.5 minutes a question is suggested) or none. One question shows at a time; answers are
+saved as you go and the clock is kept by the server, so closing the page or losing the connection
+loses nothing: open it again to carry on, or give it up. At zero it is handed in by itself. The
+result shows the score, each question with your pick and the answer, and a filter for the ones
+wrong or not answered; your answers count towards your progress. Past results are on the mock
+exam page and on My progress. Only questions whose answer is a set of letters are asked, since
+only those can be graded.
+
 ## Study progress
 
 Every answer someone checks in practice mode (picked, then revealed) is graded on the server

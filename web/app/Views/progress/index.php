@@ -4,6 +4,7 @@
  *
  * @var array $person @var bool $own @var list<array> $rows
  * @var array{exams:int,answered:int,correct:int,mistakes:int,percent:?int,last_at:?string} $totals
+ * @var list<array> $mocks the person's latest finished mock exams
  */
 use App\Services\Access;
 use App\Services\Editions;
@@ -83,6 +84,29 @@ $everyone = can('progress.view_all');
                         <?php if ($t['mistakes'] > 0): ?><a class="btn btn-sm btn-outline-secondary" href="<?= e(url($path . '/view', ['mode' => 'practice', 'mistakes' => '1'])) ?>"><?= icon('arrow-repeat') ?>Mistakes</a><?php endif; ?>
                     </td>
                     <?php endif; ?>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+<?php endif; ?>
+
+<?php if ($mocks !== []): ?>
+<div class="card mt-4">
+    <div class="card-header"><span class="card-title"><?= icon('stopwatch') ?>Mock exams</span></div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 table-stack" data-table="progress-mocks" data-order='[[2,"desc"]]'>
+            <thead><tr><th>Exam</th><th data-type="num">Score</th><th>Taken</th></tr></thead>
+            <tbody>
+            <?php foreach ($mocks as $m): $pct = (int) $m['total'] > 0 ? (int) round((int) $m['right_count'] * 100 / (int) $m['total']) : 0; ?>
+                <tr>
+                    <td class="stack-title" data-order="<?= e(Editions::title($m)) ?>">
+                        <?php if ($own): ?><a class="table-row-link" href="<?= e(url('/mock/' . $m['uuid'])) ?>"><?= e(Editions::shortCode((string) $m['code'])) ?></a>
+                        <?php else: ?><?= e(Editions::shortCode((string) $m['code'])) ?><?php endif; ?>
+                    </td>
+                    <td data-label="Score" data-order="<?= $pct ?>"><span class="fw-semibold"><?= $pct ?>%</span> <span class="text-muted"><?= (int) $m['right_count'] ?> of <?= (int) $m['total'] ?></span></td>
+                    <td data-label="Taken" data-order="<?= e((string) $m['finished_at']) ?>"><?= e(fmt_ago((string) $m['finished_at'])) ?></td>
                 </tr>
             <?php endforeach; ?>
             </tbody>
