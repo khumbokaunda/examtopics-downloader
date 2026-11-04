@@ -133,6 +133,21 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
    reader's (every word, anywhere, ignoring case) with `LIKE`, at most 200 questions. Like
    `exam_checks`, the index is never backed up, and a restore empties both (`Backup::DERIVED`) so
    they are worked out again from the restored data.
+14. **Corrections across editions** (`App\Services\EditionCorrections`, `EditionMatcher`): from an
+   exam's Corrections page, its corrections can be carried to the other exams on its library card.
+   Each corrected question is looked for in the other edition by its wording and choices: exactly
+   (ignoring case, spacing and punctuation), else nearly (85% of their words in common, the
+   closest winning). An answer correction is carried by the wording of its choices, never by
+   letter alone, so a different choice order cannot misplace it; a question edit only to a
+   question that reads the same. What carrying would do is shown first, and a correction the
+   other edition already has is replaced only when ticked.
+15. **Correction history** (`correction_history`): every change to a question's answer correction or
+   question edit is recorded with what it was before and after and who made it, by the
+   repositories that save them (`AnswerEditRepository`, `QuestionEditRepository`), so the reader,
+   carrying between editions and putting back all count. A question's history page lists the
+   changes newest first and can put back the state before any of them (the newest is "Step back
+   one edit"); putting back is recorded too, so it can itself be undone. History is part of
+   backups.
 
 ## The interface
 

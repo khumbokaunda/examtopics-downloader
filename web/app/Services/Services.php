@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Core\App;
 use App\Repositories\AnswerEditRepository;
 use App\Repositories\CacheVersionRepository;
+use App\Repositories\CorrectionHistoryRepository;
 use App\Repositories\DiscussionRepository;
 use App\Repositories\DocumentRepository;
 use App\Repositories\ExamRepository;
@@ -75,6 +76,17 @@ final class Services
     public function corrections(): Corrections
     {
         return $this->app->service(Corrections::class, fn() => new Corrections($this->answerEdits(), $this->questionEdits(), $this->discussions()));
+    }
+
+    public function correctionHistory(): CorrectionHistoryRepository
+    {
+        return $this->app->service(CorrectionHistoryRepository::class, fn() => new CorrectionHistoryRepository($this->app->db()));
+    }
+
+    public function editionCorrections(): EditionCorrections
+    {
+        return $this->app->service(EditionCorrections::class, fn() => new EditionCorrections(
+            $this->versions(), $this->cache(), $this->answerEdits(), $this->questionEdits()));
     }
 
     public function searchIndex(): SearchIndex

@@ -341,6 +341,23 @@ picture sits. Edits show in every version of the exam, survive collecting it aga
 documents made after them, and are listed on the exam's Corrections page, where each can be
 put back as collected.
 
+## Corrections across editions
+
+When an exam shares its library card with other editions, its **Corrections** page offers
+**Carry to other editions**. The next page lists every correction, where the same question is in
+each other edition ("nearly the same" when its wording differs a little), and what carrying it
+would do: added, already the same, different from a correction already there (ticked only if you
+choose to replace it), or not carried because the question or its choices are not there. Only
+what is ticked is carried. Editions share a card when their names match, or when grouped with the
+Editions card on the exam page.
+
+## Correction history
+
+Every change to a question's corrections is kept: who changed it, when, and what it was before
+and after. **History** beside a correction on the Corrections page (or under the editors in the
+reader) lists them; **Step back one edit** undoes the latest, and **Put back how it was before**
+returns to the state before any earlier change. Putting back is recorded like any change.
+
 ## Members' discussion and reports
 
 Under each question in study mode, **Members' discussion** is for people on this site: anyone who

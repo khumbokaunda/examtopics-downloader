@@ -73,7 +73,142 @@ final class AnswerController extends Controller
             'version' => $v,
             'rows' => $rows,
             'edited' => $edited,
+            'others' => count($this->s->editionCorrections()->others((int) $e['id'], (string) $p['slug'])),
+            'history' => $this->s->correctionHistory()->counts((int) $e['id']),
         ]);
+    }
+
+    /** Every change to one question's corrections, newest first, with a way to put any earlier state back. */
+    public function history(string $provider, string $exam): Response
+    {
+        $p = $this->findProvider($provider);
+        $e = $this->findExam($p, $exam);
+        $v = $this->findVersion($e, $this->request->query('version'));
+        $key = (string) $this->request->query('key', '');
+        if (preg_match(QuestionView::KEY_PATTERN, $key) !== 1) {
+            throw HttpException::notFound('Question');
+        }
+        return $this->render('library/history', [
+            'title' => Editions::shortCode((string) $e['code']) . ' correction history',
+            'nav' => 'library',
+            'provider' => $p,
+            'exam' => $e,
+            'version' => $v,
+            'key' => $key,
+            'question' => $this->question($e, $v, $key),
+            'entries' => $this->s->correctionHistory()->forQuestion((int) $e['id'], $key),
+        ]);
+    }
+
+    /** Put back what a question's answer correction or question edit was before one of its changes. */
+    public function restore(string $provider, string $exam): Response
+    {
+        $p = $this->findProvider($provider);
+        $e = $this->findExam($p, $exam);
+        $v = $this->findVersion($e, $this->request->input('version'));
+        $id = (string) $this->request->input('entry', '');
+        $entry = ctype_digit($id) ? $this->s->correctionHistory()->find((int) $id) : null;
+        if ($entry === null || (int) $entry['exam_id'] !== (int) $e['id']) {
+            throw HttpException::notFound('Change');
+        }
+        $key = (string) $entry['question_key'];
+        $state = $entry['before_state'];
+        $userId = (int) ($this->auth->user()['id'] ?? 0) ?: null;
+        if ($entry['kind'] === 'answer' && $state === null) {
+            $this->s->answerEdits()->delete((int) $e['id'], $key, $userId);
+        } elseif ($entry['kind'] === 'answer') {
+            $this->s->answerEdits()->save((int) $e['id'], $key, (string) $state['answer'], $state['note'] ?? null, $userId);
+        } elseif ($state === null) {
+            $this->s->questionEdits()->delete((int) $e['id'], $key, $userId);
+        } else {
+            $this->s->questionEdits()->save((int) $e['id'], $key, $state['text'] ?? null, $state['choices'] ?? null,
+                $state['question_images'] ?? null, $state['answer_images'] ?? null, $userId);
+        }
+        $q = $this->question($e, $v, $key);
+        $n = $q !== null ? (int) $q['number'] : 0;
+        $what = $entry['kind'] === 'answer' ? 'answer' : 'question edit';
+        $this->flash('success', ($n > 0 ? "Question $n: the " : 'The ') . $what . ($state === null ? ' was taken off, as it was before.' : ' is back to how it was before that change.'));
+        $this->s->audit()->record('answers.restored', ['provider' => provider_name($p), 'exam' => $e['code'], 'question' => $n, 'kind' => $entry['kind']],
+            'exam', $p['slug'] . '/' . $e['code']);
+        return $this->redirect('/library/' . rawurlencode((string) $p['slug']) . '/' . rawurlencode((string) $e['code']) . '/corrections/history',
+            ['version' => (string) $v['version'], 'key' => $key]);
+    }
+
+    /** @return array<string,mixed>|null the question in this version, corrections applied */
+    private function question(array $e, array $v, string $key): ?array
+    {
+        try {
+            $data = $this->s->cache()->load($v);
+        } catch (RuntimeException) {
+            return null;
+        }
+        $raw = array_values(array_filter((array) ($data['questions'] ?? []), static fn($item) => is_array($item) && QuestionView::key($item) === $key));
+        return $this->s->corrections()->apply((int) $e['id'], array_slice($raw, 0, 1))[0] ?? null;
+    }
+
+    /** What carrying this exam's corrections to its other editions would do, to choose from. */
+    public function editions(string $provider, string $exam): Response
+    {
+        $p = $this->findProvider($provider);
+        $e = $this->findExam($p, $exam);
+        $v = $this->findVersion($e, $this->request->query('version'));
+        $carry = $this->s->editionCorrections();
+        $others = $carry->others((int) $e['id'], (string) $p['slug']);
+        try {
+            $plan = $carry->plan((int) $e['id'], $v, $others);
+        } catch (RuntimeException $ex) {
+            throw new HttpException(409, $ex->getMessage());
+        }
+        return $this->render('library/carry', [
+            'title' => Editions::shortCode((string) $e['code']) . ' corrections to other editions',
+            'nav' => 'library',
+            'provider' => $p,
+            'exam' => $e,
+            'version' => $v,
+            'others' => $others,
+            'plan' => $plan,
+        ]);
+    }
+
+    /** Carry the chosen corrections. */
+    public function carry(string $provider, string $exam): Response
+    {
+        $p = $this->findProvider($provider);
+        $e = $this->findExam($p, $exam);
+        $v = $this->findVersion($e, $this->request->input('version'));
+        $carry = $this->s->editionCorrections();
+        try {
+            $plan = $carry->plan((int) $e['id'], $v, $carry->others((int) $e['id'], (string) $p['slug']));
+        } catch (RuntimeException $ex) {
+            throw new HttpException(409, $ex->getMessage());
+        }
+        $chosen = [];
+        $n = 0;
+        foreach ($plan as $edition) {
+            foreach ($edition['items'] as $_) {
+                $id = $this->request->input('carry_' . $n++);
+                if ($id !== null && $id !== '') {
+                    $chosen[] = $id;
+                }
+            }
+        }
+        $done = $carry->apply($plan, $chosen, (int) ($this->auth->user()['id'] ?? 0) ?: null);
+        $back = '/library/' . rawurlencode((string) $p['slug']) . '/' . rawurlencode((string) $e['code']) . '/corrections';
+        if ($done === []) {
+            $this->flash('info', 'Nothing was carried: no correction was chosen.');
+            return $this->redirect($back, ['version' => (string) $v['version']]);
+        }
+        $codes = [];
+        foreach ($plan as $edition) {
+            if (isset($done[(int) $edition['exam']['exam_id']])) {
+                $codes[] = Editions::shortCode((string) $edition['exam']['code']) . ' (' . $done[(int) $edition['exam']['exam_id']] . ')';
+            }
+        }
+        $total = array_sum($done);
+        $this->flash('success', ($total === 1 ? '1 correction was' : "$total corrections were") . ' carried to ' . implode(', ', $codes) . '.');
+        $this->s->audit()->record('answers.carried', ['provider' => provider_name($p), 'exam' => $e['code'], 'corrections' => $total,
+            'editions' => array_map(static fn(string $c) => preg_replace('/ \(\d+\)$/', '', $c), $codes)], 'exam', $p['slug'] . '/' . $e['code']);
+        return $this->redirect($back, ['version' => (string) $v['version']]);
     }
 
     /**
@@ -120,7 +255,7 @@ final class AnswerController extends Controller
 
         // A correction can be removed even when its question is not in this version.
         if ($this->request->input('action') === 'remove') {
-            $this->s->answerEdits()->delete($examId, $key);
+            $this->s->answerEdits()->delete($examId, $key, (int) ($this->auth->user()['id'] ?? 0) ?: null);
             $this->flash('success', ($n > 0 ? "Question $n: your" : 'Your') . ' correction was removed, so the collected answer is shown again.');
             $this->app->logger()->info('app', 'Answer correction removed', ['exam' => $e['code'], 'question' => $key]);
             $this->s->audit()->record('answers.removed', ['provider' => provider_name($p), 'exam' => $e['code'], 'question' => $n], 'exam', $p['slug'] . '/' . $e['code']);

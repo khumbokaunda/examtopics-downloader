@@ -9,11 +9,22 @@ use App\Core\Database;
 /**
  * Answers corrected or confirmed by hand, per exam question. They are applied over the
  * collected data when it is shown or turned into documents; the data itself is not changed.
+ * Every change is recorded in the question's correction history.
  */
 final class AnswerEditRepository
 {
+    private CorrectionHistoryRepository $history;
+
     public function __construct(private Database $db)
     {
+        $this->history = new CorrectionHistoryRepository($db);
+    }
+
+    /** @return array{answer:string,note:?string}|null a question's correction, as its history records it */
+    public function state(int $examId, string $key): ?array
+    {
+        $row = $this->db->one('SELECT answer, note FROM answer_edits WHERE exam_id = ? AND question_key = ?', [$examId, $key]);
+        return $row === null ? null : ['answer' => (string) $row['answer'], 'note' => $row['note'] === null || $row['note'] === '' ? null : (string) $row['note']];
     }
 
     /** @return array<string,array<string,mixed>> the exam's edits, keyed by question key */
@@ -28,6 +39,7 @@ final class AnswerEditRepository
 
     public function save(int $examId, string $key, string $answer, ?string $note, ?int $userId): void
     {
+        $before = $this->state($examId, $key);
         $now = Database::now();
         $this->db->run(
             'INSERT INTO answer_edits (exam_id, question_key, answer, note, user_id, created_at, updated_at)
@@ -36,11 +48,14 @@ final class AnswerEditRepository
                  updated_at = VALUES(updated_at)',
             [$examId, $key, $answer, $note, $userId, $now, $now]
         );
+        $this->history->record($examId, $key, 'answer', $before, $this->state($examId, $key), $userId);
     }
 
-    public function delete(int $examId, string $key): void
+    public function delete(int $examId, string $key, ?int $userId = null): void
     {
+        $before = $this->state($examId, $key);
         $this->db->run('DELETE FROM answer_edits WHERE exam_id = ? AND question_key = ?', [$examId, $key]);
+        $this->history->record($examId, $key, 'answer', $before, null, $userId);
     }
 
     /**

@@ -2,6 +2,7 @@
 /** @var array $provider @var array $exam @var array $version @var list<array> $questions @var string $mode
  *  @var string $q @var int $page @var int $pages @var int $total @var int $all @var array<string,string> $localImages
  *  @var bool $review @var int $toCheck @var bool $mistakes @var bool $reported @var bool $due @var int $dueCount
+ *  @var array<string,int> $history recorded changes to each question's corrections (people who correct questions)
  *  @var bool $bookmarked @var int $bookmarks @var array<string,array{note:?string,bookmarked:bool}> $notes this person's, by question key
  *  @var array<string,list<array>> $reports open reports by question key (people who correct questions, study mode)
  *  @var array<string,list<array>> $discussion members' comments by question key (study mode)
@@ -253,6 +254,9 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                                 <input type="hidden" name="action" value="remove">
                                 <button class="btn btn-sm btn-link btn-link-danger" type="submit"><?= icon('arrow-counterclockwise') ?>Remove my correction<?= ($edit['collected'] ?? '') !== '' ? ' (back to ' . e($edit['collected']) . ')' : '' ?></button>
                             </form>
+                        <?php endif; ?>
+                        <?php $changes = $history[QuestionView::key($item)] ?? 0; if ($changes > 0): ?>
+                            <a class="small d-inline-block mt-2" href="<?= e(url($base . '/corrections/history', ['version' => $version['version'], 'key' => QuestionView::key($item)])) ?>"><?= icon('clock-history') ?> History of this question's corrections (<?= $changes ?>)</a>
                         <?php endif; ?>
                     </div>
                 </details>

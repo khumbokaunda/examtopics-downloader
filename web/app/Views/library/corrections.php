@@ -1,7 +1,9 @@
 <?php
 /** @var array $provider @var array $exam @var array $version
  *  @var list<array{key:string,number:?int,text:string,kind:string,collected:?string,answer:string,note:string,updated_at:string}> $rows
- *  @var list<array{key:string,number:?int,text:string,changes:list<string>,updated_at:string}> $edited questions whose wording or pictures were edited */
+ *  @var list<array{key:string,number:?int,text:string,changes:list<string>,updated_at:string}> $edited questions whose wording or pictures were edited
+ *  @var int $others how many other editions share this exam's card
+ *  @var array<string,int> $history how many recorded changes each question has */
 use App\Services\Editions;
 
 $base = '/library/' . rawurlencode($provider['slug']) . '/' . rawurlencode($exam['code']);
@@ -26,6 +28,9 @@ $summary = array_filter([
             : e(implode(', ', $summary)) . '. They apply to every version of ' . e(strtoupper($exam['code'])) . ' and to documents made after them; the collected data is unchanged.' ?></p>
     </div>
     <div class="page-actions">
+        <?php if ($others > 0 && ($rows !== [] || $edited !== [])): ?>
+            <a class="btn btn-outline-primary" href="<?= e(url($base . '/corrections/editions', ['version' => $version['version']])) ?>" title="The same questions in this exam's other editions"><?= icon('collection') ?>Carry to other editions (<?= $others ?>)</a>
+        <?php endif; ?>
         <a class="btn btn-outline-warning" href="<?= e(url($base . '/view', ['version' => $version['version'], 'review' => '1'])) ?>"><?= icon('exclamation-triangle') ?>Answers to check</a>
         <a class="btn btn-outline-secondary" href="<?= e(url($base, ['version' => $version['version']])) ?>"><?= icon('arrow-left') ?>Back to the exam</a>
     </div>
@@ -72,6 +77,7 @@ $summary = array_filter([
                             <input type="hidden" name="return" value="corrections">
                             <button class="btn btn-sm btn-link btn-link-danger" type="submit"><?= icon('arrow-counterclockwise') ?>Remove</button>
                         </form>
+                        <?php if (($history[$r['key']] ?? 0) > 0): ?><a class="btn btn-sm btn-link" href="<?= e(url($base . '/corrections/history', ['version' => $version['version'], 'key' => $r['key']])) ?>"><?= icon('clock-history') ?>History (<?= (int) $history[$r['key']] ?>)</a><?php endif; ?>
                     </td>
                 </tr>
             <?php endforeach; ?>
@@ -112,6 +118,7 @@ $summary = array_filter([
                             <input type="hidden" name="return" value="corrections">
                             <button class="btn btn-sm btn-link btn-link-danger" type="submit"><?= icon('arrow-counterclockwise') ?>Put back</button>
                         </form>
+                        <?php if (($history[$r['key']] ?? 0) > 0): ?><a class="btn btn-sm btn-link" href="<?= e(url($base . '/corrections/history', ['version' => $version['version'], 'key' => $r['key']])) ?>"><?= icon('clock-history') ?>History (<?= (int) $history[$r['key']] ?>)</a><?php endif; ?>
                     </td>
                 </tr>
             <?php endforeach; ?>
