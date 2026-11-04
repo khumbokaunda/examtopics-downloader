@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Core\Database;
 use App\Repositories\CacheVersionRepository;
 use App\Repositories\DocumentRepository;
+use App\Repositories\QuestionReportRepository;
 use App\Services\Documents\QuestionView;
 use Throwable;
 
@@ -30,6 +31,7 @@ final class IntegrityChecks
         'missing' => 'Questions missing',
         'images' => 'Images not saved',
         'documents' => 'Documents to rebuild',
+        'reports' => 'Reported by members',
         'partial' => 'Partly collected',
         'unreadable' => 'Data unreadable',
     ];
@@ -41,6 +43,7 @@ final class IntegrityChecks
         private Corrections $corrections,
         private MediaStore $media,
         private DocumentRepository $documents,
+        private QuestionReportRepository $reports,
         /** Held while bin/integrity.php works, so only one runs at a time. */
         private string $lockPath,
         /** Starts bin/integrity.php; null works exams out in the request instead. */
@@ -59,10 +62,13 @@ final class IntegrityChecks
     {
         $kept = $this->kept();
         $mark = $this->media->mark();
+        $reports = $this->reports->openCounts();
         $out = [];
         foreach ($this->versions->library() as $exam) {
             if (is_array($exam['best'] ?? null)) {
-                $out[] = $this->forExam($exam, $kept[(int) $exam['exam_id']] ?? null, $mark);
+                $row = $this->forExam($exam, $kept[(int) $exam['exam_id']] ?? null, $mark);
+                $row['reports'] = $reports[(int) $exam['exam_id']] ?? 0;
+                $out[] = $this->withIssues($row);
             }
         }
         return $out;
@@ -151,7 +157,7 @@ final class IntegrityChecks
             'exam' => $exam, 'version' => $version, 'state' => 'ok', 'error' => null, 'updating' => false,
             'questions' => (int) $version['collected_count'], 'reported' => $exam['reported_count'] === null ? null : (int) $exam['reported_count'],
             'to_check' => 0, 'no_answer' => 0, 'corrected' => 0, 'checked' => 0, 'edited' => 0,
-            'images' => null, 'images_to_fetch' => 0, 'stale_documents' => 0,
+            'images' => null, 'images_to_fetch' => 0, 'stale_documents' => 0, 'reports' => 0,
             'partial' => $version['status'] === 'partial', 'issues' => [],
         ];
         // ExamTopics' count can be lower than what was collected when the inventory is old; only
@@ -201,7 +207,7 @@ final class IntegrityChecks
         }
         foreach ($ready as $group => $docs) {
             $format = substr((string) $group, (int) strrpos((string) $group, '/') + 1);
-            $row['stale_documents'] += DocumentStore::staleReason($docs, $format, $fingerprint === '' ? null : $fingerprint, $images['saved']) !== null ? 1 : 0;
+            $row['stale_documents'] += DocumentStore::staleReason($docs, $format, $this->corrections->fingerprint($examId), $images['saved']) !== null ? 1 : 0;
         }
         return $this->withIssues($row);
     }
@@ -216,9 +222,10 @@ final class IntegrityChecks
         return $out;
     }
 
+    /** What the kept figures were worked out from: the corrections and members' votes. */
     private function fingerprint(int $examId): string
     {
-        return (string) $this->corrections->fingerprint($examId);
+        return $this->corrections->checkKey($examId);
     }
 
     /**
@@ -296,6 +303,7 @@ final class IntegrityChecks
             'missing' => $row['missing'] > 0,
             'images' => $row['images_to_fetch'] > 0,
             'documents' => $row['stale_documents'] > 0,
+            'reports' => $row['reports'] > 0,
             'partial' => $row['partial'],
             'unreadable' => $row['state'] === 'error',
         ]));

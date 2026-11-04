@@ -27,6 +27,7 @@ final class Notifier
         'request_update' => 'Your requests',
         'account' => 'Accounts',
         'security' => 'Sign-in security',
+        'question_report' => 'Question reports',
     ];
 
     public function __construct(

@@ -10,6 +10,7 @@ use App\Controllers\BackupController;
 use App\Controllers\BrandingController;
 use App\Controllers\CollectController;
 use App\Controllers\DashboardController;
+use App\Controllers\DiscussionController;
 use App\Controllers\DocumentController;
 use App\Controllers\EmailController;
 use App\Controllers\InboxController;
@@ -95,6 +96,10 @@ return static function (Router $r): void {
     $r->get('/library/{provider}/{exam}/corrections', [AnswerController::class, 'index'], can: 'answers.edit');
     $r->post('/library/{provider}/{exam}/answers', [AnswerController::class, 'save'], can: 'answers.edit');
     $r->post('/library/{provider}/{exam}/questions', [QuestionController::class, 'save'], can: 'answers.edit');
+    $r->post('/library/{provider}/{exam}/discussion', [DiscussionController::class, 'post'], can: $read);
+    $r->post('/library/{provider}/{exam}/discussion/{id}/delete', [DiscussionController::class, 'delete'], can: $read);
+    $r->post('/library/{provider}/{exam}/reports', [DiscussionController::class, 'report'], can: $read);
+    $r->post('/library/{provider}/{exam}/reports/resolve', [DiscussionController::class, 'resolve'], can: 'answers.edit');
     $r->post('/library/{provider}/{exam}/editions', [LibraryController::class, 'editions'], can: 'library.manage');
     $r->get('/progress', [ProgressController::class, 'mine'], can: $read);
     $r->get('/progress/everyone', [ProgressController::class, 'everyone'], can: 'progress.view_all');

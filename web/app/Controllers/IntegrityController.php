@@ -16,7 +16,7 @@ use App\Services\IntegrityChecks;
 final class IntegrityController extends Controller
 {
     /** What the list can show; "attention" is every exam with at least one problem. */
-    public const FILTERS = ['attention' => 'Needs attention', 'answers' => 'Answers to check', 'missing' => 'Questions missing',
+    public const FILTERS = ['attention' => 'Needs attention', 'answers' => 'Answers to check', 'reports' => 'Reported by members', 'missing' => 'Questions missing',
         'images' => 'Images not saved', 'documents' => 'Documents to rebuild', 'partial' => 'Partly collected',
         'unreadable' => 'Data unreadable', 'all' => 'All exams'];
     /** Filters offered only while some exam has the problem: it is rare, and a chip at 0 is noise. */
@@ -31,7 +31,7 @@ final class IntegrityController extends Controller
             $show = 'attention';
         }
         $counts = ['all' => count($rows), 'attention' => 0] + array_fill_keys(array_keys(IntegrityChecks::ISSUES), 0);
-        $totals = ['to_check' => 0, 'no_answer' => 0, 'missing' => 0, 'images' => 0, 'documents' => 0, 'corrections' => 0, 'pending' => 0, 'updating' => 0, 'found' => 0];
+        $totals = ['to_check' => 0, 'reports' => 0, 'no_answer' => 0, 'missing' => 0, 'images' => 0, 'documents' => 0, 'corrections' => 0, 'pending' => 0, 'updating' => 0, 'found' => 0];
         foreach ($rows as $r) {
             // Listed under "Needs attention" too while it is being checked, as nothing is known yet.
             $counts['attention'] += $r['issues'] !== [] || $r['state'] === 'pending' ? 1 : 0;
@@ -40,6 +40,7 @@ final class IntegrityController extends Controller
                 $counts[$issue]++;
             }
             $totals['to_check'] += $r['to_check'];
+            $totals['reports'] += $r['reports'];
             $totals['no_answer'] += $r['no_answer'];
             $totals['missing'] += $r['missing'];
             $totals['images'] += $r['images_to_fetch'];
@@ -58,7 +59,7 @@ final class IntegrityController extends Controller
             default => in_array($show, $r['issues'], true),
         }));
         // The exams with the most to do first.
-        usort($shown, static fn(array $a, array $b): int => [count($b['issues']), $b['to_check'], $b['missing']] <=> [count($a['issues']), $a['to_check'], $a['missing']]
+        usort($shown, static fn(array $a, array $b): int => [count($b['issues']), $b['reports'], $b['to_check'], $b['missing']] <=> [count($a['issues']), $a['reports'], $a['to_check'], $a['missing']]
             ?: strcmp(Editions::title($a['exam']), Editions::title($b['exam'])));
         return $this->render('integrity/index', [
             'title' => 'Integrity',

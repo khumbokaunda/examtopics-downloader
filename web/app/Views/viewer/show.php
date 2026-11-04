@@ -1,7 +1,9 @@
 <?php
 /** @var array $provider @var array $exam @var array $version @var list<array> $questions @var string $mode
  *  @var string $q @var int $page @var int $pages @var int $total @var int $all @var array<string,string> $localImages
- *  @var bool $review @var int $toCheck @var bool $mistakes
+ *  @var bool $review @var int $toCheck @var bool $mistakes @var bool $reported
+ *  @var array<string,list<array>> $reports open reports by question key (people who correct questions, study mode)
+ *  @var array<string,list<array>> $discussion members' comments by question key (study mode)
  *  @var array{answered:int,correct:int,mistakes:int,last_at:?string} $progress this person's progress in the exam */
 use App\Services\Documents\QuestionView;
 use App\Services\Editions;
@@ -9,7 +11,8 @@ use App\Services\StudyProgress;
 
 $base = '/library/' . rawurlencode($provider['slug']) . '/' . rawurlencode($exam['code']);
 $editor = can('answers.edit');
-$params = ['version' => $version['version'], 'mode' => $mode === 'practice' ? 'practice' : '', 'q' => $q, 'review' => $review ? '1' : '', 'mistakes' => $mistakes ? '1' : ''];
+$params = ['version' => $version['version'], 'mode' => $mode === 'practice' ? 'practice' : '', 'q' => $q, 'review' => $review ? '1' : '', 'mistakes' => $mistakes ? '1' : '', 'reported' => $reported ? '1' : ''];
+$reportKinds = \App\Repositories\QuestionReportRepository::KINDS;
 $practice = $mode === 'practice';
 $img = static function (string $url, string $alt) use ($localImages): string {
     // The copy saved on this server when there is one, else the original address.
@@ -29,7 +32,7 @@ $img = static function (string $url, string $alt) use ($localImages): string {
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title"><?= e(Editions::title($exam)) ?></h1>
-        <p class="page-subtitle"><?= $review ? $total . ' answers to check, of ' . $all . ' questions' : ($mistakes ? $total . ' of your mistakes, of ' . $all . ' questions' : $total . ' of ' . $all . ' questions') ?> · version <?= e(fmt_time($version['collected_at'])) ?></p>
+        <p class="page-subtitle"><?= $review ? $total . ' answers to check, of ' . $all . ' questions' : ($reported ? $total . ' reported by members, of ' . $all . ' questions' : ($mistakes ? $total . ' of your mistakes, of ' . $all . ' questions' : $total . ' of ' . $all . ' questions')) ?> · version <?= e(fmt_time($version['collected_at'])) ?></p>
         <?php if ($version['status'] === 'partial'): ?><div class="mt-2"><?= chip('Partial version: some questions could not be collected', 'warning', 'exclamation-triangle') ?></div><?php endif; ?>
     </div>
     <div class="page-actions">
@@ -45,31 +48,38 @@ $img = static function (string $url, string $alt) use ($localImages): string {
     <?php if ($practice): ?><input type="hidden" name="mode" value="practice"><?php endif; ?>
     <?php if ($review): ?><input type="hidden" name="review" value="1"><?php endif; ?>
     <?php if ($mistakes): ?><input type="hidden" name="mistakes" value="1"><?php endif; ?>
+    <?php if ($reported): ?><input type="hidden" name="reported" value="1"><?php endif; ?>
     <div class="search-field"><?= icon('search') ?><input class="form-control" type="search" name="q" value="<?= e($q) ?>" placeholder="Search question and answer-choice text" aria-label="Search questions"></div>
     <button class="btn btn-outline-secondary" type="submit">Search</button>
-    <?php if ($q === '' && !$review && !$mistakes): ?>
+    <?php if ($q === '' && !$review && !$mistakes && !$reported): ?>
         <input class="form-control jump-input" type="number" min="1" max="<?= (int) $all ?>" name="jump" placeholder="Go to #" aria-label="Go to question number">
     <?php elseif ($q !== ''): ?>
-        <a class="btn btn-link" href="<?= e(url($base . '/view', ['version' => $version['version'], 'mode' => $practice ? 'practice' : '', 'review' => $review ? '1' : '', 'mistakes' => $mistakes ? '1' : ''])) ?>">Clear search</a>
+        <a class="btn btn-link" href="<?= e(url($base . '/view', ['version' => $version['version'], 'mode' => $practice ? 'practice' : '', 'review' => $review ? '1' : '', 'mistakes' => $mistakes ? '1' : '', 'reported' => $reported ? '1' : ''])) ?>">Clear search</a>
     <?php endif; ?>
     <?php if ($mistakes): ?>
         <a class="btn btn-outline-secondary" href="<?= e(url($base . '/view', ['version' => $version['version'], 'mode' => 'practice'])) ?>"><?= icon('list-ol') ?>All questions</a>
     <?php elseif ($practice && $progress['mistakes'] > 0): ?>
         <a class="btn btn-outline-secondary" href="<?= e(url($base . '/view', ['version' => $version['version'], 'mode' => 'practice', 'mistakes' => '1'])) ?>" title="The questions you last answered wrong"><?= icon('arrow-repeat') ?>My mistakes (<?= (int) $progress['mistakes'] ?>)</a>
     <?php endif; ?>
-    <?php if ($review): ?>
+    <?php if ($review || $reported): ?>
         <a class="btn btn-outline-secondary" href="<?= e(url($base . '/view', ['version' => $version['version']])) ?>"><?= icon('list-ol') ?>All questions</a>
-    <?php elseif ($toCheck > 0 && $editor): ?>
-        <a class="btn btn-outline-warning" href="<?= e(url($base . '/view', ['version' => $version['version'], 'review' => '1'])) ?>" title="Answers that look doubtful and that you have not corrected or checked yet"><?= icon('exclamation-triangle') ?>To check (<?= $toCheck ?>)</a>
+    <?php else: ?>
+        <?php if ($toCheck > 0 && $editor && !$practice): ?>
+            <a class="btn btn-outline-warning" href="<?= e(url($base . '/view', ['version' => $version['version'], 'review' => '1'])) ?>" title="Answers that look doubtful and that you have not corrected or checked yet"><?= icon('exclamation-triangle') ?>To check (<?= $toCheck ?>)</a>
+        <?php endif; ?>
+        <?php if ($reports !== []): ?>
+            <a class="btn btn-outline-danger" href="<?= e(url($base . '/view', ['version' => $version['version'], 'reported' => '1'])) ?>" title="Questions members reported a problem with"><?= icon('flag') ?>Reported (<?= count($reports) ?>)</a>
+        <?php endif; ?>
     <?php endif; ?>
 </form>
 
 <?php if ($questions === []): ?>
     <div class="card"><div class="card-body"><?= $review && $q === ''
         ? empty_state('check2-all', 'Nothing left to check', 'Every answer that looked doubtful has been corrected or checked.', null, true)
+        : ($reported && $q === '' ? empty_state('check2-all', 'No reports waiting', 'Every problem members reported has been dealt with.', null, true)
         : ($mistakes && $q === ''
             ? empty_state('check2-all', 'No mistakes to go over', 'Every question you checked, you last answered right.', ['Practise all questions', url($base . '/view', ['mode' => 'practice'])], true)
-            : empty_state('search', 'No questions match', 'Search looks in question and answer-choice text. Try fewer words.', null, true)) ?></div></div>
+            : empty_state('search', 'No questions match', 'Search looks in question and answer-choice text. Try fewer words.', null, true))) ?></div></div>
 <?php endif; ?>
 
 <?php if ($practice && $questions !== []): ?>
@@ -119,6 +129,7 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                         <?php $note = QuestionView::pictureAnswerNote($item); ?>
                         <div class="answer-text"><strong>Answer:</strong> <?= $answer !== null ? e($answer) : '<span class="text-muted">' . e($note ?? 'not available') . '</span>' ?></div>
                         <?php if ($votes !== null): ?><div class="answer-votes">Community votes: <?= e($votes) ?></div><?php endif; ?>
+                        <?php $memberVotes = QuestionView::memberVotesLine($item); if ($memberVotes !== null): ?><div class="answer-votes">Members' votes here: <?= e($memberVotes) ?></div><?php endif; ?>
                         <?php if (($edit['note'] ?? '') !== ''): ?><div class="answer-note"><span class="answer-note-label">Note</span><?php foreach (QuestionView::paragraphs($edit['note']) as $para): ?><p><?= $para ?></p><?php endforeach; ?></div><?php endif; ?>
                     </div>
                 </div>
@@ -129,6 +140,31 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                             <div class="answer-check-title">Check this answer</div>
                             <ul class="answer-check-list"><?php foreach ($doubts as $d): ?><li><?= e($d) ?></li><?php endforeach; ?></ul>
                             <?php if ($claims !== null): ?><div class="answer-check-claims">Answers named in the comments: <?= e($claims) ?></div><?php endif; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
+                <?php $open = $reports[QuestionView::key($item)] ?? []; if ($open !== []): ?>
+                    <div class="question-reports" role="note">
+                        <?= icon('flag-fill') ?>
+                        <div>
+                            <div class="answer-check-title"><?= count($open) === 1 ? 'Reported by a member' : 'Reported by ' . count($open) . ' members' ?></div>
+                            <ul class="question-report-list">
+                                <?php foreach ($open as $r): ?>
+                                    <li><span class="fw-medium"><?= e($reportKinds[$r['kind']] ?? 'Something else') ?>:</span> <?= e((string) $r['body']) ?>
+                                        <span class="question-report-by"><?= e($r['user_id'] !== null ? \App\Services\Access::displayName($r) : 'A former member') ?>, <?= e(fmt_ago((string) $r['created_at'])) ?></span></li>
+                                <?php endforeach; ?>
+                            </ul>
+                            <form method="post" action="<?= e(url($base . '/reports/resolve')) ?>" class="mt-2" data-once data-busy="Saving…">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="key" value="<?= e(QuestionView::key($item)) ?>">
+                                <input type="hidden" name="version" value="<?= e($version['version']) ?>">
+                                <input type="hidden" name="number" value="<?= $n ?>">
+                                <input type="hidden" name="page" value="<?= (int) $page ?>">
+                                <input type="hidden" name="q" value="<?= e($q) ?>">
+                                <?php if ($reported): ?><input type="hidden" name="reported" value="1"><?php endif; ?>
+                                <button class="btn btn-sm btn-outline-secondary" type="submit"><?= icon('check2') ?>Mark dealt with</button>
+                                <span class="small text-muted ms-2">Fix it with the editors below first. <?= count($open) === 1 ? 'Whoever reported it is' : 'Those who reported it are' ?> told.</span>
+                            </form>
                         </div>
                     </div>
                 <?php endif; ?>
@@ -143,6 +179,7 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                             <input type="hidden" name="page" value="<?= (int) $page ?>">
                             <input type="hidden" name="q" value="<?= e($q) ?>">
                             <?php if ($review): ?><input type="hidden" name="review" value="1"><?php endif; ?>
+                            <?php if ($reported): ?><input type="hidden" name="reported" value="1"><?php endif; ?>
                             <?php if ($letters !== []): ?>
                                 <fieldset class="mb-3">
                                     <legend class="form-label">Correct answer</legend>
@@ -166,6 +203,8 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                                 <input type="hidden" name="page" value="<?= (int) $page ?>">
                                 <input type="hidden" name="q" value="<?= e($q) ?>">
                                 <?php if ($review): ?><input type="hidden" name="review" value="1"><?php endif; ?>
+                                <?php if ($reported): ?><input type="hidden" name="reported" value="1"><?php endif; ?>
+                            <?php if ($reported): ?><input type="hidden" name="reported" value="1"><?php endif; ?>
                                 <input type="hidden" name="action" value="remove">
                                 <button class="btn btn-sm btn-link btn-link-danger" type="submit"><?= icon('arrow-counterclockwise') ?>Remove my correction<?= ($edit['collected'] ?? '') !== '' ? ' (back to ' . e($edit['collected']) . ')' : '' ?></button>
                             </form>
@@ -173,7 +212,7 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                     </div>
                 </details>
                 <?= \App\Core\View::current()->partial('viewer/question_edit', ['item' => $item, 'base' => $base, 'version' => $version,
-                    'page' => $page, 'q' => $q, 'review' => $review, 'localImages' => $localImages]) ?>
+                    'page' => $page, 'q' => $q, 'review' => $review, 'reported' => $reported, 'localImages' => $localImages]) ?>
                 <?php endif; ?>
                 <?php foreach ((array) ($item['answer_images'] ?? []) as $i => $u): ?><?= $img((string) $u, 'Answer image ' . ($i + 1)) ?><?php endforeach; ?>
                 <?php if (trim((string) ($item['explanation'] ?? '')) !== ''): ?>
@@ -208,10 +247,16 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                         </div>
                     </details>
                 <?php endif; ?>
+                <?= \App\Core\View::current()->partial('viewer/discussion', ['item' => $item, 'comments' => $discussion[QuestionView::key($item)] ?? [],
+                    'base' => $base, 'version' => $version, 'page' => $page, 'q' => $q, 'review' => $review, 'reported' => $reported]) ?>
             <?php endif; ?>
-            <?php if (preg_match('#^https://#', (string) ($item['source_url'] ?? '')) === 1): ?>
-                <div class="q-foot"><a class="small" href="<?= e($item['source_url']) ?>" rel="noopener noreferrer" target="_blank">Source discussion <?= icon('box-arrow-up-right') ?></a></div>
-            <?php endif; ?>
+            <div class="q-foot">
+                <?= \App\Core\View::current()->partial('viewer/report', ['item' => $item, 'base' => $base, 'version' => $version, 'page' => $page,
+                    'q' => $q, 'mode' => $mode, 'review' => $review, 'mistakes' => $mistakes]) ?>
+                <?php if (preg_match('#^https://#', (string) ($item['source_url'] ?? '')) === 1): ?>
+                    <a class="small" href="<?= e($item['source_url']) ?>" rel="noopener noreferrer" target="_blank">Source discussion <?= icon('box-arrow-up-right') ?></a>
+                <?php endif; ?>
+            </div>
         </div>
     </article>
 <?php endforeach; ?>

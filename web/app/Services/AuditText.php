@@ -88,6 +88,14 @@ final class AuditText
             }, 'pencil-square', 'primary'],
             'answers.removed' => [$who . ' removed the correction to question ' . (int) ($d['question'] ?? 0) . ' of ' . $exam(), 'pencil-square', 'neutral'],
             'questions.edited' => [$who . ' edited question ' . (int) ($d['question'] ?? 0) . ' of ' . $exam() . self::questionChanges($d), 'pencil', 'primary'],
+            'questions.reported' => [$who . ' reported a problem with question ' . (int) ($d['question'] ?? 0) . ' of ' . $exam()
+                . (isset($d['kind']) ? ': ' . strtolower(\App\Repositories\QuestionReportRepository::KINDS[(string) $d['kind']] ?? 'something else') : ''), 'flag', 'warning'],
+            'questions.report_resolved' => [$who . ' dealt with ' . ((int) ($d['reports'] ?? 1) === 1 ? 'a report' : (int) $d['reports'] . ' reports')
+                . ' on question ' . (int) ($d['question'] ?? 0) . ' of ' . $exam(), 'flag', 'neutral'],
+            'discussion.posted' => [$who . ' posted in the discussion of question ' . (int) ($d['question'] ?? 0) . ' of ' . $exam()
+                . (($d['answer'] ?? null) !== null ? ', voting ' . $d['answer'] : ''), 'people', 'neutral'],
+            'discussion.deleted' => [$who . ' deleted ' . (($d['author'] ?? null) !== null ? $d['author'] . '\'s' : 'their') . ' comment on question '
+                . (int) ($d['question'] ?? 0) . ' of ' . $exam(), 'people', 'neutral'],
             'questions.reset' => [$who . ' put question ' . (int) ($d['question'] ?? 0) . ' of ' . $exam() . ' back as collected', 'pencil', 'neutral'],
             'document.build_queued' => [$who . ' built a ' . $named('format') . ' of ' . $exam() . (isset($d['variant']) ? ': ' . $d['variant'] : ''), 'file-earmark-text', 'neutral'],
             'document.deleted' => [$who . ' deleted a ' . $named('format') . ' of ' . $exam(), 'trash3', 'warning'],

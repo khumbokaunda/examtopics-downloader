@@ -4,7 +4,7 @@
  *
  * @var list<array<string,mixed>> $rows the exams shown, with what needs checking in each
  * @var string $show the filter @var array<string,int> $counts exams per filter
- * @var array{to_check:int,no_answer:int,missing:int,images:int,documents:int,corrections:int,pending:int,updating:int,found:int} $totals
+ * @var array{to_check:int,reports:int,no_answer:int,missing:int,images:int,documents:int,corrections:int,pending:int,updating:int,found:int} $totals
  * @var int $waiting exams being checked in the background @var bool $started whether that check is running
  */
 use App\Controllers\IntegrityController;
@@ -28,6 +28,7 @@ $plural = static fn(int $n, string $one, string $many): string => number_format(
 <div class="kpi-strip">
     <?php foreach ([
         ['answers', 'Answers to check', $totals['to_check'], 'exclamation-triangle', 'warning'],
+        ['reports', 'Reports from members', $totals['reports'], 'flag', 'danger'],
         ['missing', 'Questions missing', $totals['missing'], 'question-diamond', 'danger'],
         ['images', 'Images not saved', $totals['images'], 'image', 'info'],
         ['documents', 'Documents to rebuild', $totals['documents'], 'file-earmark-text', 'primary'],
@@ -61,7 +62,7 @@ $plural = static fn(int $n, string $one, string $many): string => number_format(
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0 table-stack" id="integrity-table" data-table="integrity" data-order='[]'>
             <thead><tr>
-                <th>Exam</th><th data-type="num">Answers to check</th><th data-type="num">Questions</th><th data-type="num">Images</th>
+                <th>Exam</th><th data-type="num">Answers to check</th><th data-type="num">Reports</th><th data-type="num">Questions</th><th data-type="num">Images</th>
                 <th data-type="num">Documents</th><th>Corrections</th>
             </tr></thead>
             <tbody>
@@ -85,6 +86,11 @@ $plural = static fn(int $n, string $one, string $many): string => number_format(
                             <a class="btn btn-sm btn-outline-warning" href="<?= e(url($base . '/view', ['version' => $v['version'], 'review' => '1'])) ?>"><?= icon('exclamation-triangle') ?>Check <?= number_format($r['to_check']) ?></a>
                             <?php if ($r['no_answer'] > 0): ?><div class="cell-sub ms-0"><?= $plural($r['no_answer'], 'has', 'have') ?> no answer</div><?php endif; ?>
                         <?php elseif ($r['state'] === 'ok'): ?><span class="text-muted">None</span><?php endif; ?>
+                    </td>
+                    <td data-label="Reports" data-order="<?= (int) $r['reports'] ?>">
+                        <?php if ($r['reports'] > 0): ?>
+                            <a class="btn btn-sm btn-outline-danger" href="<?= e(url($base . '/view', ['version' => $v['version'], 'reported' => '1'])) ?>"><?= icon('flag') ?>Look at <?= number_format($r['reports']) ?></a>
+                        <?php else: ?><span class="text-muted">None</span><?php endif; ?>
                     </td>
                     <td data-label="Questions" data-order="<?= (int) $r['missing'] ?>">
                         <?= number_format($r['questions']) ?><?php if ($r['missing'] > 0): ?> <span class="text-muted">of <?= number_format((int) $r['reported']) ?></span><?php endif; ?>
