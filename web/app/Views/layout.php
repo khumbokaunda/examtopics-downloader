@@ -21,6 +21,7 @@ $groups = [
     ],
     'Study' => [
         'library' => ['/library', 'Library', 'journal-bookmark', 'library.view'],
+        'search' => ['/search', 'Search questions', 'search', 'library.view'],
         'progress' => ['/progress', 'My progress', 'graph-up', 'library.view'],
         'providers' => ['/providers', $collector ? 'Providers & inventory' : 'Providers', 'buildings', 'library.view'],
         'requests' => ['/requests', $user && can('requests.manage') ? 'Exam requests' : 'My requests', 'inbox', 'exams.request'],

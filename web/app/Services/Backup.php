@@ -34,7 +34,9 @@ final class Backup
 {
     public const FORMAT = 1;
     /** Installation-specific or short-lived tables: never exported, never replaced. */
-    public const SKIP = ['schema_migrations', 'login_attempts', 'throttle_events', 'account_codes', 'mail_queue', 'exam_checks'];
+    public const SKIP = ['schema_migrations', 'login_attempts', 'throttle_events', 'account_codes', 'mail_queue', 'exam_checks', 'question_index'];
+    /** Of those, the ones worked out from the data: emptied by a restore, so they are worked out again from what was restored. */
+    public const DERIVED = ['exam_checks', 'question_index'];
     /** Storage areas, and whether a backup includes them unless told otherwise. */
     public const AREAS = ['cache' => true, 'inventory' => true, 'branding' => true, 'uploads' => true, 'media' => true, 'documents' => true];
     /** Areas that can be left out, and the table whose rows describe their files. */
@@ -559,6 +561,9 @@ final class Backup
                     throw new RuntimeException('The data for "' . $table . '" is damaged.');
                 }
                 $this->insertRows($table, $rows, $warnings);
+            }
+            foreach (array_intersect(self::DERIVED, $this->tables()) as $table) {
+                $pdo->exec('DELETE FROM `' . $table . '`');
             }
             $pdo->commit();
         } catch (\Throwable $e) {

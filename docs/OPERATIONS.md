@@ -378,6 +378,13 @@ The bookmark beside each question's number, and **Add a note** under it, are you
 else sees them, administrators included. **Bookmarked** in the reader shows only those questions,
 and a mock exam can be made of them.
 
+## Searching the library
+
+**Search questions** (in the menu) looks through every exam's questions and choices for the words
+typed, all of them, and lists where each question is, with links to read or practise it. It reads
+the exams as corrected. A newly collected or corrected exam is added by the same background check
+as the integrity page, within a minute; until then the page says how many are still being added.
+
 ## Study progress
 
 Every answer someone checks in practice mode (picked, then revealed) is graded on the server

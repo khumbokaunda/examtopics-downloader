@@ -299,6 +299,9 @@ final class BackupTest extends HttpTestCase
         $this->flashes();
         $upload = $this->s->media()->storeUpload($this->png(), null);
         self::assertIsArray($upload);
+        // Figures and the search index worked out from the data before the backup...
+        $this->s->integrity()->workOutAll();
+        self::assertGreaterThan(0, (int) $this->app->db()->value('SELECT COUNT(*) FROM question_index'));
         $b = $this->makeBackup();
         $cacheFile = (string) $this->app->db()->value('SELECT version FROM cache_versions');
         $uploaded = $this->app->paths()->uploadFile($upload['sha256'], 'png');
@@ -343,6 +346,9 @@ final class BackupTest extends HttpTestCase
         self::assertSame('Kaunda Exams', $this->s->settings()->get('brand.name'));
         self::assertNotEmpty(glob($this->app->paths()->cacheRoot() . '/huawei/h12-811/*'), 'the exam files are back');
         self::assertFileExists($uploaded, 'and the pictures added by hand');
+        // ...are thrown away by the restore, to be worked out again from what was restored.
+        self::assertSame(0, (int) $this->app->db()->value('SELECT COUNT(*) FROM exam_checks'));
+        self::assertSame(0, (int) $this->app->db()->value('SELECT COUNT(*) FROM question_index'));
         self::assertNotNull($this->s->media()->file($upload['sha256']));
         self::assertSame(0, (int) $this->app->db()->value("SELECT COUNT(*) FROM jobs WHERE status IN ('queued','running')"));
         $names = array_column($this->s->backup()->list(), 'name');
