@@ -44,6 +44,12 @@ final class DashboardController extends Controller
                 $mistakes[] = $card + ['mistakes' => $n, 'progress' => $totals[$examId] ?? null];
             }
         }
+        $due = [];
+        foreach ($progress->dueByExam($userId, $today, 4) as $row) {
+            if (($card = $this->examCard($row['exam_id'])) !== null) {
+                $due[] = $card + ['due' => $row['due']];
+            }
+        }
         $saved = [];
         foreach (array_slice(array_keys($progress->saved($userId)), 0, 5) as $examId) {
             if (($card = $this->examCard($examId)) !== null) {
@@ -67,6 +73,7 @@ final class DashboardController extends Controller
             'week' => $week + ['mistakes' => array_sum(array_column($totals, 'mistakes'))],
             'streak' => $progress->streak($userId, $today),
             'mistakes' => $mistakes,
+            'due' => $due,
             'saved' => $saved,
             'news' => $this->news($zone, $now, $progress->providerSlugs($userId)),
             'requests' => $this->requests($userId),

@@ -990,11 +990,13 @@
       var on = !!d.saved;
       btn.classList.toggle('is-saved', on);
       btn.setAttribute('aria-pressed', String(on));
-      btn.title = on ? 'Saved. Remove from your shelf' : 'Save to your shelf';
+      // The wording is the button's own (data-on-title and so on); a saved exam's by default.
+      var say = function (what, yes, no) { return btn.getAttribute('data-' + (on ? 'on' : 'off') + '-' + what) || (on ? yes : no); };
+      btn.title = say('title', 'Saved. Remove from your shelf', 'Save to your shelf');
       var i = btn.querySelector('.bi');
       if (i) i.className = 'bi bi-' + (on ? 'bookmark-fill' : 'bookmark');
       var label = btn.querySelector('.label');
-      if (label) label.textContent = on ? 'Saved' : 'Save';
+      if (label) label.textContent = say('label', 'Saved', 'Save');
     }).catch(function () {
       showFlash('danger', 'That could not be saved. Reload the page and try again.');
     }).finally(function () { btn.disabled = false; });

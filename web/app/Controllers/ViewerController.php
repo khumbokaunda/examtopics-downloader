@@ -60,6 +60,20 @@ final class ViewerController extends Controller
             $wrong = array_flip($this->s->progress()->mistakes($userId, (int) $e['id']));
             $questions = array_values(array_filter($questions, static fn(array $item) => isset($wrong[QuestionView::key($item)])));
         }
+        // ...or the ones due for review today (spaced review).
+        $dueKeys = $mode === 'practice' ? array_flip($this->s->progress()->dueKeys($userId, (int) $e['id'], $this->today())) : [];
+        $due = $mode === 'practice' && $this->request->query('due') === '1';
+        if ($due) {
+            $questions = array_values(array_filter($questions, static fn(array $item) => isset($dueKeys[QuestionView::key($item)])));
+        }
+        // The person's own notes and bookmarks; either mode can show only the bookmarked questions.
+        $notes = $this->s->notes()->forExam($userId, (int) $e['id']);
+        $bookmarks = count(array_filter($notes, static fn(array $n) => $n['bookmarked']));
+        $bookmarked = $this->request->query('bookmarked') === '1';
+        if ($bookmarked) {
+            $questions = array_values(array_filter($questions, static fn(array $item) => ($notes[QuestionView::key($item)]['bookmarked'] ?? false)));
+        }
+        $filtered = $review || $mistakes || $reported || $due || $bookmarked;
         if ($q !== '') {
             $needle = mb_strtolower($q);
             $questions = array_values(array_filter($questions, static function (array $item) use ($needle): bool {
@@ -74,10 +88,10 @@ final class ViewerController extends Controller
         $pages = max(1, (int) ceil($total / $perPage));
         $page = max(1, min($pages, (int) $this->request->query('page', '1')));
         $jump = (int) $this->request->query('jump', '0');
-        if ($jump > 0 && $q === '' && !$review && !$mistakes && !$reported) {
+        if ($jump > 0 && $q === '' && !$filtered) {
             $page = max(1, min($pages, (int) ceil($jump / $perPage)));
         }
-        if ($q === '' && !$review && !$mistakes && !$reported && $userId > 0) {
+        if ($q === '' && !$filtered && $userId > 0) {
             $this->s->progress()->remember($userId, (int) $e['id'], $mode, $page, $this->today());
         }
         $slice = array_slice($questions, ($page - 1) * $perPage, $perPage);
@@ -100,6 +114,11 @@ final class ViewerController extends Controller
             'reports' => $reports,
             'discussion' => $discussion,
             'mistakes' => $mistakes,
+            'due' => $due,
+            'dueCount' => count($dueKeys),
+            'bookmarked' => $bookmarked,
+            'bookmarks' => $bookmarks,
+            'notes' => $notes,
             'progress' => $progress,
             'toCheck' => $toCheck,
             'q' => $q,

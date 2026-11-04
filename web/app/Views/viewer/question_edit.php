@@ -13,14 +13,15 @@ use App\Services\MediaStore;
 $n = (int) $item['number'];
 $edited = $item['question_edit'] ?? null;
 $key = QuestionView::key($item);
-$hidden = static function () use ($key, $version, $page, $q, $review, $reported): string {
+$hidden = static function () use ($key, $version, $page, $q, $review, $reported, $filterFields): string {
     return csrf_field()
         . '<input type="hidden" name="key" value="' . e($key) . '">'
         . '<input type="hidden" name="version" value="' . e((string) $version['version']) . '">'
         . '<input type="hidden" name="page" value="' . (int) $page . '">'
         . '<input type="hidden" name="q" value="' . e($q) . '">'
         . ($review ? '<input type="hidden" name="review" value="1">' : '')
-        . ($reported ? '<input type="hidden" name="reported" value="1">' : '');
+        . ($reported ? '<input type="hidden" name="reported" value="1">' : '')
+        . ($filterFields ?? '');
 };
 $accept = implode(',', array_keys(MediaStore::TYPES));
 $pictures = ['question' => ['Question pictures', (array) ($item['question_images'] ?? [])], 'answer' => ['Answer pictures', (array) ($item['answer_images'] ?? [])]];

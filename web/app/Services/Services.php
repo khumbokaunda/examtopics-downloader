@@ -15,6 +15,7 @@ use App\Repositories\JobRepository;
 use App\Repositories\MediaRepository;
 use App\Repositories\ProviderRepository;
 use App\Repositories\QuestionEditRepository;
+use App\Repositories\QuestionNoteRepository;
 use App\Repositories\QuestionReportRepository;
 use App\Repositories\SettingsRepository;
 use App\Repositories\UserRepository;
@@ -79,6 +80,11 @@ final class Services
     public function mocks(): MockExams
     {
         return $this->app->service(MockExams::class, fn() => new MockExams($this->app->db(), $this->corrections(), $this->progress()));
+    }
+
+    public function notes(): QuestionNoteRepository
+    {
+        return $this->app->service(QuestionNoteRepository::class, fn() => new QuestionNoteRepository($this->app->db()));
     }
 
     public function discussions(): DiscussionRepository

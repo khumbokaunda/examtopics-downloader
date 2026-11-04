@@ -19,7 +19,8 @@ use RuntimeException;
 final class MockController extends Controller
 {
     /** Where to choose the questions from. */
-    public const SOURCES = ['all' => 'All questions', 'new' => 'Questions I have not answered yet', 'mistakes' => 'My mistakes'];
+    public const SOURCES = ['all' => 'All questions', 'new' => 'Questions I have not answered yet', 'mistakes' => 'My mistakes',
+        'due' => 'Due for review today', 'bookmarked' => 'My bookmarked questions'];
 
     public function setup(string $provider, string $exam): Response
     {
@@ -27,21 +28,14 @@ final class MockController extends Controller
         $e = $this->findExam($p, $exam);
         $v = $this->findVersion($e, $this->request->query('version'));
         $userId = $this->userId();
-        $gradable = $this->gradable($e, $v);
-        $answered = array_flip($this->s->progress()->answeredKeys($userId, (int) $e['id']));
-        $mistakes = array_flip($this->s->progress()->mistakes($userId, (int) $e['id']));
-        $keys = array_map([QuestionView::class, 'key'], $gradable);
+        $keys = array_map([QuestionView::class, 'key'], $this->gradable($e, $v));
         return $this->render('mock/setup', [
             'title' => Editions::shortCode((string) $e['code']) . ' mock exam',
             'nav' => 'library',
             'provider' => $p,
             'exam' => $e,
             'version' => $v,
-            'available' => [
-                'all' => count($keys),
-                'new' => count(array_filter($keys, static fn(string $k) => !isset($answered[$k]))),
-                'mistakes' => count(array_filter($keys, static fn(string $k) => isset($mistakes[$k]))),
-            ],
+            'available' => array_map(fn(string $source) => count($this->choose($source, $keys, $userId, (int) $e['id'])), array_combine(array_keys(self::SOURCES), array_keys(self::SOURCES))),
             'open' => $this->s->mocks()->open($userId, (int) $e['id']),
             'history' => $this->s->mocks()->history($userId, (int) $e['id']),
         ]);
@@ -60,14 +54,7 @@ final class MockController extends Controller
             return $this->redirect('/mock/' . $open['uuid']);
         }
         $source = (string) $this->request->input('source', 'all');
-        $keys = array_map([QuestionView::class, 'key'], $this->gradable($e, $v));
-        if ($source === 'new') {
-            $answered = array_flip($this->s->progress()->answeredKeys($userId, (int) $e['id']));
-            $keys = array_values(array_filter($keys, static fn(string $k) => !isset($answered[$k])));
-        } elseif ($source === 'mistakes') {
-            $mistakes = array_flip($this->s->progress()->mistakes($userId, (int) $e['id']));
-            $keys = array_values(array_filter($keys, static fn(string $k) => isset($mistakes[$k])));
-        }
+        $keys = $this->choose($source, array_map([QuestionView::class, 'key'], $this->gradable($e, $v)), $userId, (int) $e['id']);
         if ($keys === []) {
             $this->flash('warning', 'There are no questions to ask from "' . (self::SOURCES[$source] ?? self::SOURCES['all']) . '". Choose other questions.');
             return $this->redirect($back);
@@ -176,6 +163,24 @@ final class MockController extends Controller
         }
         $exam = (array) $this->app->db()->one('SELECT e.code, p.slug FROM exams e JOIN providers p ON p.id = e.provider_id WHERE e.id = ?', [(int) $mock['exam_id']]);
         return $this->redirect('/library/' . rawurlencode((string) $exam['slug']) . '/' . rawurlencode((string) $exam['code']) . '/mock');
+    }
+
+    /**
+     * The questions a source offers, of these gradable ones.
+     *
+     * @param list<string> $keys
+     * @return list<string>
+     */
+    private function choose(string $source, array $keys, int $userId, int $examId): array
+    {
+        $pick = match ($source) {
+            'new' => array_diff_key(array_flip($keys), array_flip($this->s->progress()->answeredKeys($userId, $examId))),
+            'mistakes' => array_flip($this->s->progress()->mistakes($userId, $examId)),
+            'due' => array_flip($this->s->progress()->dueKeys($userId, $examId, $this->today())),
+            'bookmarked' => array_filter($this->s->notes()->forExam($userId, $examId), static fn(array $n) => $n['bookmarked']),
+            default => null,
+        };
+        return $pick === null ? $keys : array_values(array_filter($keys, static fn(string $k) => isset($pick[$k])));
     }
 
     private function userId(): int

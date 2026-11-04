@@ -3,7 +3,7 @@
  * Set up a mock exam of one exam, continue one in progress, and see past results.
  *
  * @var array $provider @var array $exam @var array $version
- * @var array{all:int,new:int,mistakes:int} $available gradable questions per source
+ * @var array<string,int> $available gradable questions per source (MockController::SOURCES)
  * @var array|null $open the attempt in progress @var list<array> $history finished attempts, newest first
  */
 use App\Controllers\MockController;

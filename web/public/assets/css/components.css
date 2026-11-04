@@ -770,3 +770,17 @@ a.job-chip:hover { text-decoration: none; filter: brightness(.96); }
 .mock-save-state { margin-top: var(--space-2); }
 .mock-save-state.is-error { color: var(--color-danger-ink); }
 .mock-setup .form-check { margin-bottom: 4px; }
+
+/* A person's own bookmark and note on a question */
+.q-tools { display: inline-flex; align-items: center; gap: var(--space-2); }
+.q-bookmark { display: inline; margin: 0; }
+.q-bookmark .icon-btn.is-saved { color: var(--color-primary); }
+.my-note {
+  margin: var(--space-2) 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md);
+  border: 1px dashed var(--color-border-strong); background: var(--color-surface-alt); font-size: var(--text-sm);
+}
+.my-note .answer-note-label { display: inline-flex; align-items: center; gap: 4px; }
+.my-note p { margin: 0 0 4px; }
+.my-note p:last-child { margin-bottom: 0; }
+.q-foot { justify-content: flex-start; }
+.q-foot > a { margin-left: auto; }
