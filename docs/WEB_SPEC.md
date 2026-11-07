@@ -26,8 +26,9 @@ Contents:
 13. [Running the system](#13-running-the-system)
 14. [Look and feel](#14-look-and-feel)
 15. [Limits and rules worth knowing](#15-limits-and-rules-worth-knowing)
-16. [Not built, or on hold](#16-not-built-or-on-hold)
-17. [Technical reference](#17-technical-reference)
+16. [Institutions](#16-institutions)
+17. [Not built, or on hold](#17-not-built-or-on-hold)
+18. [Technical reference](#18-technical-reference)
 
 ---
 
@@ -72,6 +73,9 @@ The permissions an administrator can hand out one by one:
 | `security.manage` | Review sign-in attempts, unlock accounts, unblock networks, and be told when either is locked. |
 
 Pages and buttons a person may not use are hidden from them, and the server refuses them anyway.
+
+The platform permission `institutions.manage` (review registered institutions) is also in this
+list. Inside an institution, people hold institution roles instead (section 16).
 
 ## 3. Getting in: accounts and sign-in
 
@@ -360,20 +364,60 @@ removes old working files, stale sign-up codes and unused images.
   from the site itself), CSRF protection on every form, prepared database queries, secrets kept out
   of logs and public folders.
 
-## 16. Not built, or on hold
+## 16. Institutions
+
+Training institutions can run on the platform as tenants of their own. This is the first step of
+the move to an assessment platform described in [PLATFORM_PLAN.md](PLATFORM_PLAN.md); question
+banks, assessments and results come in later phases.
+
+- **Registering** (`/institutions/register`): any signed-in account registers an institution
+  (name, kind, address, region and district, contact details, registration details, planned use)
+  and becomes its owner. It waits for verification. Up to three registrations per account can wait
+  at once.
+- **Verification** (`/platform/institutions`, `institutions.manage`): reviewers see every
+  institution by status, its registration, its owners and every decision, and verify, decline
+  (with a reason) or suspend (with a reason) it, or reinstate it. Owners are told. A declined
+  registration can be corrected and sent again. Verification means a reviewer checked it; it is
+  not accreditation, and the pages say so.
+- **People** (`/institutions/<id>/members`): invite by email with a role, see open invitations,
+  withdraw them, change roles and extra permissions, remove people. A removed person's membership
+  is kept, marked as ended.
+- **Invitations** (`/invitations/<token>`): the emailed link works for 14 days and opens for
+  anyone; accepting needs an account with the invited email address.
+- **Overview and activity** (`/institutions/<id>`, `/institutions/<id>/activity`): status, people
+  by role, open invitations, your role, and the institution's own history.
+
+Institution roles are separate from the global ones:
+
+| Role | Institution permissions |
+|---|---|
+| **Owner** | All of them: `institution.manage` (profile), `members.view`, `members.manage`, `activity.view`. Only owners make or change owners. |
+| **Institution administrator** | `members.view`, `members.manage`, `activity.view` |
+| **Instructor**, **Examination officer** | `members.view` |
+| **Invigilator**, **Student** | none yet |
+
+Rules: only an institution's own members can open its pages; anyone else, platform administrators
+included, gets "not found". Rights in one institution give nothing in another. Nobody changes
+their own membership, nobody gives a permission they do not hold, the last owner cannot be removed,
+demoted or leave, and an account that is the only owner of an institution cannot be deleted. Until
+an institution is verified only its overview and profile open; a suspended one opens to its owners'
+overview only.
+
+## 17. Not built, or on hold
 
 - **Automatic refresh of old exams**: on hold by choice. Exams older than 90 days are only marked.
 - **Members' discussion in documents**: documents leave out members' comments and votes.
 - **Comment upvotes and replies**: members' comments can carry a vote for an answer, but cannot be
   upvoted or replied to directly.
 - **Editing a posted comment**: comments can be deleted, not edited.
-- **More roles**: only Member and Administrator, plus per-person extra permissions; no "editor"
-  role exists as such.
-- **Sharing mock exams or results** between people, leaderboards, or groups and classes.
+- **More global roles**: only Member and Administrator, plus per-person extra permissions; no
+  "editor" role exists as such. Institutions have roles of their own (section 16).
+- **Sharing mock exams or results** between people, leaderboards, or classes (classes come with
+  institutional student management).
 - **A public or read-only API** for other apps.
 - **SMS, push or chat-app notifications**: inbox and email only.
 
-## 17. Technical reference
+## 18. Technical reference
 
 ### Pages and actions
 
@@ -418,6 +462,9 @@ removes old working files, stale sign-up codes and unused images.
 | Backups | `GET /backups`, `/api/backups/status`, `/backups/{name}/download`; `POST /backups`, `/backups/cancel`, `/backups/upload`, `/backups/uploads[...]`, `/backups/{name}/restore`, `/backups/{name}/delete` | backup.manage |
 | Settings | `GET /settings`, `/settings/branding`, `/settings/email`; `POST /settings/reconcile`, `/settings/time`, `/settings/branding`, `/settings/branding/logo/remove`, `/settings/email`, `/settings/email/test` | settings.manage |
 | Branding | `GET /branding/theme.css`, `/branding/{file}` | public |
+| Institutions | `GET /institutions`, `/institutions/register`, `/institutions/{ref}`, `/institutions/{ref}/profile`, `/institutions/{ref}/members`, `/institutions/{ref}/activity`; `POST /institutions/register`, `/institutions/{ref}/profile`, `/institutions/{ref}/resubmit`, `/institutions/{ref}/invitations`, `/institutions/{ref}/invitations/{id}/revoke`, `/institutions/{ref}/members/{member}/role`, `/institutions/{ref}/members/{member}/remove`, `/institutions/{ref}/leave` | signed-in, then membership and institution permission |
+| Invitations | `GET /invitations/{token}` public; `POST /invitations/{token}/accept`, `/invitations/{token}/decline` signed-in | |
+| Institution review | `GET /platform/institutions`, `/platform/institutions/{ref}`; `POST /platform/institutions/{ref}/decision` | institutions.manage |
 
 ### What is stored
 
@@ -429,10 +476,11 @@ removes old working files, stale sign-up codes and unused images.
 | Members | `question_comments` (with answer votes), `question_reports`, `question_notes` (notes and bookmarks) |
 | Studying | `study_answers` (latest answer per question, with spaced review box and due day), `study_days`, `study_places`, `saved_exams`, `mock_exams` |
 | Output | `documents`, `media` (saved images) |
+| Institutions | `institutions`, `institution_reviews` (decisions), `institution_memberships`, `institution_invitations` |
 | Worked out, rebuilt on demand (not backed up) | `exam_checks` (Integrity figures), `question_index` (search) |
 | System | `settings`, `notifications`, `mail_queue`, `exam_requests`, `audit_log`, `throttle_events`, `schema_migrations` |
 
-Migrations `001` to `026` in `web/database/migrations` create all of it; `php bin/migrate.php`
+Migrations `001` to `027` in `web/database/migrations` create all of it; `php bin/migrate.php`
 applies them.
 
 ### Background processes

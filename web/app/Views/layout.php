@@ -26,6 +26,9 @@ $groups = [
         'providers' => ['/providers', $collector ? 'Providers & inventory' : 'Providers', 'buildings', 'library.view'],
         'requests' => ['/requests', $user && can('requests.manage') ? 'Exam requests' : 'My requests', 'inbox', 'exams.request'],
     ],
+    'Institutions' => [
+        'institutions' => ['/institutions', 'My institutions', 'building', \App\Core\View::current()->inInstitution() ? \App\Services\Access::SIGNED_IN : null],
+    ],
     'Collect' => [
         'collect' => ['/collect', 'Collect exam', 'cloud-arrow-down', 'exams.collect'],
         'jobs' => ['/jobs', 'Jobs & history', 'clock-history', 'exams.collect'],
@@ -33,6 +36,7 @@ $groups = [
     ],
     'System' => [
         'users' => ['/users', 'Users', 'people', 'users.manage'],
+        'platform-institutions' => ['/platform/institutions', 'Institutions', 'buildings', 'institutions.manage'],
         'activity' => ['/activity', 'Activity', 'activity', 'activity.view'],
         'sign-ins' => ['/security/sign-ins', 'Sign-in attempts', 'shield-lock', 'security.manage'],
         'branding' => ['/settings/branding', 'Branding', 'brush', 'settings.manage'],
@@ -42,7 +46,7 @@ $groups = [
 ];
 // Only the pages this person may open.
 foreach ($groups as $heading => $links) {
-    $groups[$heading] = $user ? array_filter($links, static fn(array $l): bool => can($l[3])) : [];
+    $groups[$heading] = $user ? array_filter($links, static fn(array $l): bool => $l[3] !== null && can($l[3])) : [];
     if ($groups[$heading] === []) {
         unset($groups[$heading]);
     }

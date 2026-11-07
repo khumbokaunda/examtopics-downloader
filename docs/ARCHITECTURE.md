@@ -148,6 +148,16 @@ between the components are specified in [DATA_MODEL.md](DATA_MODEL.md).
    changes newest first and can put back the state before any of them (the newest is "Step back
    one edit"); putting back is recorded too, so it can itself be undone. History is part of
    backups.
+16. **Institutions** (`App\Services\Institutions`, `InstitutionAccess`, `InstitutionRepository`;
+   see [PLATFORM_PLAN.md](PLATFORM_PLAN.md)): tenants with their own people. An institution is
+   registered by an account that becomes its owner, verified by a platform reviewer
+   (`institutions.manage`), and joined through invitations by email. Institution rights belong to
+   the membership, not the global role: routes are open to any signed-in account and
+   `InstitutionController::tenant()` answers "not found" to anyone without an active membership,
+   platform administrators included, and 403 to a member without the institution permission. Every
+   repository read of a membership or invitation is scoped by the institution's id. Memberships
+   that end are marked removed, never deleted. Every change is an `institution.*` entry in the
+   activity log with the institution as its subject.
 
 ## The interface
 

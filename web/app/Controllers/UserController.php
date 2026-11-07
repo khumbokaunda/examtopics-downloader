@@ -202,6 +202,11 @@ final class UserController extends Controller
             $this->flash('danger', $guard);
             return $this->redirect(self::accountPath($account));
         }
+        $sole = $this->s->institutions()->repo()->soleOwnerOf((int) $account['id']);
+        if ($sole !== []) {
+            $this->flash('danger', $account['username'] . ' is the only owner of ' . implode(', ', $sole) . '. Another owner has to be added there first.');
+            return $this->redirect(self::accountPath($account));
+        }
         $this->s->users()->delete((int) $account['id']);
         $this->audit('User deleted', $account['username'], ['role' => $account['role']]);
         $this->s->audit()->record('user.deleted', ['username' => $account['username'], 'role' => $account['role'],

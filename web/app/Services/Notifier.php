@@ -28,6 +28,7 @@ final class Notifier
         'account' => 'Accounts',
         'security' => 'Sign-in security',
         'question_report' => 'Question reports',
+        'institution' => 'Institutions',
     ];
 
     public function __construct(

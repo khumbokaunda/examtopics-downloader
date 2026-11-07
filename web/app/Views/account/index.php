@@ -169,6 +169,16 @@ $verified = $user['email'] !== null && $user['email_verified_at'] !== null;
     </div>
 
     <div class="col-12">
+        <div class="card" id="institutions">
+            <div class="card-header"><span class="card-title"><?= icon('building') ?>Institutions</span><a class="small" href="<?= e(url('/institutions')) ?>">Your institutions</a></div>
+            <div class="card-body d-flex flex-wrap align-items-center gap-3">
+                <p class="mb-0 flex-grow-1">Run a training institution? Register it to manage its people here. A platform reviewer verifies each registration first. An invitation from an institution arrives in your inbox.</p>
+                <a class="btn btn-outline-primary" href="<?= e(url('/institutions/register')) ?>"><?= icon('building-add') ?>Register an institution</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
         <div class="card" id="time">
             <div class="card-header"><span class="card-title"><?= icon('clock') ?>Timezone</span><span class="text-muted small">Times are shown in this timezone</span></div>
             <div class="card-body">

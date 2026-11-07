@@ -176,6 +176,7 @@ final class AuditLog
         'signin' => ['label' => 'Sign-in and security', 'prefixes' => ['auth.', 'security.', 'activity.']],
         'accounts' => ['label' => 'Accounts and users', 'prefixes' => ['account.', 'user.', 'users.']],
         'library' => ['label' => 'Library and collecting', 'prefixes' => ['provider.', 'collect.', 'job.', 'exam.', 'answers.', 'questions.', 'discussion.', 'document.', 'request.']],
+        'institutions' => ['label' => 'Institutions', 'prefixes' => ['institution.']],
         'backups' => ['label' => 'Backups', 'prefixes' => ['backup.']],
         'settings' => ['label' => 'Settings', 'prefixes' => ['settings.']],
     ];
@@ -223,6 +224,16 @@ final class AuditLog
      *
      * @return list<array<string,mixed>>
      */
+    /**
+     * The newest entries about one subject (an institution's history), newest first.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function forSubject(string $type, string $id, int $limit = 500): array
+    {
+        return $this->app->db()->all('SELECT * FROM audit_log WHERE subject_type = ? AND subject_id = ? ORDER BY id DESC LIMIT ' . max(1, $limit), [$type, $id]);
+    }
+
     /** The newest entries, without sign-ins and sign-outs (the dashboard counts sign-ins on a line of their own). */
     public function recent(int $limit = 8): array
     {

@@ -142,6 +142,9 @@ td .empty-state { white-space: normal; }
 }
 .segmented a:hover, .segmented button:hover { color: var(--color-text); text-decoration: none; }
 .segmented .is-active { background: var(--color-surface); color: var(--color-primary); box-shadow: var(--shadow-xs); }
+/* More choices than fit a phone: the control scrolls sideways instead of widening the page. */
+.segmented { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.segmented a, .segmented button { flex: 0 0 auto; white-space: nowrap; }
 
 /* ---- Toolbar above a table -------------------------------------------------------------- */
 .toolbar { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
