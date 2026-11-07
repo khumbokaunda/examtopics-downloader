@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS institution_memberships (
     PRIMARY KEY (id),
     UNIQUE KEY uq_institution_memberships_uuid (uuid),
     UNIQUE KEY uq_institution_memberships_person (institution_id, user_id),
+    UNIQUE KEY uq_institution_memberships_tenant (id, institution_id), -- for composite foreign keys that keep references inside one institution
     KEY ix_institution_memberships_user (user_id, status),
     CONSTRAINT fk_institution_memberships_institution FOREIGN KEY (institution_id) REFERENCES institutions (id) ON DELETE CASCADE,
     CONSTRAINT fk_institution_memberships_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
@@ -79,6 +80,7 @@ CREATE TABLE IF NOT EXISTS institution_invitations (
     institution_id INT UNSIGNED NOT NULL,
     email          VARCHAR(190) NOT NULL,
     role           VARCHAR(32)  NOT NULL,
+    details        TEXT         NULL,                 -- JSON applied on acceptance: student number, classes (from a student import)
     token_sha256   CHAR(64)     NOT NULL,
     invited_by     INT UNSIGNED NULL,
     created_at     DATETIME     NOT NULL,
