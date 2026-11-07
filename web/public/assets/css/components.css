@@ -805,3 +805,18 @@ a.job-chip:hover { text-decoration: none; filter: brightness(.96); }
 /* ---- A long list of checkboxes (choosing students for a class) ------------------------- */
 .check-list { max-height: 22rem; overflow-y: auto; padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
 .check-list .form-check { padding-top: 3px; padding-bottom: 3px; }
+
+/* ---- Institution question banks -------------------------------------------------------- */
+.row-text.is-subtopic { padding-left: 1.25rem; }
+.bank-question-text { font-size: var(--text-md, 1rem); line-height: 1.6; margin-bottom: var(--space-3); white-space: normal; }
+.bank-question-image { display: block; max-width: 100%; height: auto; margin: 0 0 var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.bank-choices { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.bank-choices li { display: flex; gap: var(--space-3); align-items: flex-start; padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.bank-choices li.is-right { border-color: var(--color-success); background: var(--color-success-soft, var(--color-surface-alt)); }
+.bank-choices li.is-right .bi { color: var(--color-success); }
+.bank-choice-key { font-weight: var(--weight-semibold, 600); min-width: 1.25rem; color: var(--color-text-muted); }
+.bank-explanation { margin-top: var(--space-3); padding: var(--space-3); border-radius: var(--radius-md); background: var(--color-surface-alt); }
+.bank-choice-row { display: flex; gap: var(--space-2); align-items: flex-start; margin-bottom: var(--space-2); }
+.bank-choice-row .form-check-input { margin-top: .55rem; flex: 0 0 auto; }
+.bank-thumb { height: 48px; width: auto; border: 1px solid var(--color-border); border-radius: var(--radius-sm); vertical-align: middle; }
+[data-question-form] [hidden] { display: none !important; }

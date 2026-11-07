@@ -10,6 +10,8 @@ $tabs = array_filter([
     'members' => [$base . '/members', 'People', 'people', $verified && InstitutionAccess::can($membership, 'members.view')],
     'students' => [$base . '/students', 'Students', 'mortarboard', $verified && (InstitutionAccess::can($membership, 'students.manage') || InstitutionAccess::can($membership, 'classes.view'))],
     'classes' => [$base . '/classes', 'Classes', 'collection', $verified && (InstitutionAccess::can($membership, 'classes.view') || in_array($membership['role'], \App\Services\InstitutionStructure::TEACHING_ROLES, true))],
+    'banks' => [$base . '/banks', 'Question banks', 'database', $verified && array_filter(['question_banks.view', 'question_banks.create', 'question_banks.edit', 'question_banks.publish'],
+        static fn(string $p): bool => InstitutionAccess::can($membership, $p)) !== []],
     'structure' => [$base . '/structure', 'Programmes', 'diagram-3', $verified && InstitutionAccess::can($membership, 'departments.manage')],
     'profile' => [$base . '/profile', 'Profile', 'building-gear', InstitutionAccess::can($membership, 'institution.manage')],
     'activity' => [$base . '/activity', 'Activity', 'activity', $verified && InstitutionAccess::can($membership, 'activity.view')],

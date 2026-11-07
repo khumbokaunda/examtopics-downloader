@@ -181,6 +181,12 @@ final class Services
         return $this->app->service(InstitutionStructure::class, fn() => new InstitutionStructure(new \App\Repositories\StructureRepository($this->app->db()), $this->audit()));
     }
 
+    public function questionBanks(): QuestionBanks
+    {
+        return $this->app->service(QuestionBanks::class, fn() => new QuestionBanks(new \App\Repositories\QuestionBankRepository($this->app->db()),
+            $this->structure()->repo(), $this->audit()));
+    }
+
     public function studentImport(): StudentImport
     {
         return $this->app->service(StudentImport::class, fn() => new StudentImport($this->structure()->repo(), $this->institutions()->repo(), $this->users()));

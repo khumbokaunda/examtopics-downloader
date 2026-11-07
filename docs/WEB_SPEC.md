@@ -392,6 +392,12 @@ banks, assessments and results come in later phases.
   programme, their instructors and students. Students are added, moved between classes and taken
   out; every stint is kept, so a student's page shows every class now and before. Archived classes
   keep their history.
+- **Question banks** (`/institutions/<id>/banks`): the institution's own questions (single choice,
+  multiple select, true or false), sorted by topic, each with marks, difficulty, explanation and
+  pictures. Every save is a new version that never changes; questions go through draft, review,
+  approved and published, and assessments will use the published version. Banks are readable by
+  examination officers and administrators and writable by their creator and the people added to
+  them; students never see them.
 - **Students** (`/institutions/<id>/students`): each student's institutional number, programme,
   standing and enrolment date, and an import from a CSV spreadsheet with a preview of every row
   before anything is saved, and a results file afterwards.
@@ -400,10 +406,10 @@ Institution roles are separate from the global ones:
 
 | Role | Institution permissions |
 |---|---|
-| **Owner** | All of them: `institution.manage` (profile), `members.view`, `members.manage`, `activity.view`, `departments.manage`, `classes.view`, `classes.manage`, `students.manage`. Only owners make or change owners. |
+| **Owner** | All of them: `institution.manage` (profile), `members.view`, `members.manage`, `activity.view`, `departments.manage`, `classes.view`, `classes.manage`, `students.manage`, `question_banks.view`, `question_banks.create`, `question_banks.edit`, `question_banks.publish`. Only owners make or change owners. |
 | **Institution administrator** | everything but `institution.manage` |
-| **Examination officer** | `members.view`, `classes.view` |
-| **Instructor** | `members.view`, and sees the classes they teach |
+| **Examination officer** | `members.view`, `classes.view`, `question_banks.view`, `question_banks.publish` |
+| **Instructor** | `members.view`, `question_banks.create`, and sees the classes they teach |
 | **Invigilator**, **Student** | none yet |
 
 Rules: only an institution's own members can open its pages; anyone else, platform administrators
@@ -473,7 +479,7 @@ overview only.
 | Settings | `GET /settings`, `/settings/branding`, `/settings/email`; `POST /settings/reconcile`, `/settings/time`, `/settings/branding`, `/settings/branding/logo/remove`, `/settings/email`, `/settings/email/test` | settings.manage |
 | Branding | `GET /branding/theme.css`, `/branding/{file}` | public |
 | Institutions | `GET /institutions`, `/institutions/register`, `/institutions/{ref}`, `/institutions/{ref}/profile`, `/institutions/{ref}/members`, `/institutions/{ref}/activity`; `POST /institutions/register`, `/institutions/{ref}/profile`, `/institutions/{ref}/resubmit`, `/institutions/{ref}/invitations`, `/institutions/{ref}/invitations/{id}/revoke`, `/institutions/{ref}/members/{member}/role`, `/institutions/{ref}/members/{member}/remove`, `/institutions/{ref}/leave` | signed-in, then membership and institution permission |
-| Institution classes and students | `GET/POST /institutions/{ref}/structure[...]`, `/institutions/{ref}/classes[/{class}[...]]`, `/institutions/{ref}/students[/{member}]`, `/institutions/{ref}/students/import[...]` | signed-in, then membership and institution permission |
+| Institution classes and students | `GET/POST /institutions/{ref}/structure[...]`, `/institutions/{ref}/classes[/{class}[...]]`, `/institutions/{ref}/students[/{member}]`, `/institutions/{ref}/students/import[...]`, `/institutions/{ref}/banks[/review]`, `/institutions/{ref}/banks/{bank}[...]` (topics, editors, questions, versions, status) | signed-in, then membership and institution permission |
 | Invitations | `GET /invitations/{token}` public; `POST /invitations/{token}/accept`, `/invitations/{token}/decline` signed-in | |
 | Institution review | `GET /platform/institutions`, `/platform/institutions/{ref}`; `POST /platform/institutions/{ref}/decision` | institutions.manage |
 
@@ -487,11 +493,11 @@ overview only.
 | Members | `question_comments` (with answer votes), `question_reports`, `question_notes` (notes and bookmarks) |
 | Studying | `study_answers` (latest answer per question, with spaced review box and due day), `study_days`, `study_places`, `saved_exams`, `mock_exams` |
 | Output | `documents`, `media` (saved images) |
-| Institutions | `institutions`, `institution_reviews` (decisions), `institution_memberships`, `institution_invitations`, `institution_departments`, `institution_programmes`, `institution_classes`, `class_instructors`, `class_enrolments`, `institution_students` |
+| Institutions | `institutions`, `institution_reviews` (decisions), `institution_memberships`, `institution_invitations`, `institution_departments`, `institution_programmes`, `institution_classes`, `class_instructors`, `class_enrolments`, `institution_students`, `question_banks`, `question_bank_editors`, `bank_topics`, `bank_questions`, `question_versions` |
 | Worked out, rebuilt on demand (not backed up) | `exam_checks` (Integrity figures), `question_index` (search) |
 | System | `settings`, `notifications`, `mail_queue`, `exam_requests`, `audit_log`, `throttle_events`, `schema_migrations` |
 
-Migrations `001` to `028` in `web/database/migrations` create all of it; `php bin/migrate.php`
+Migrations `001` to `029` in `web/database/migrations` create all of it; `php bin/migrate.php`
 applies them.
 
 ### Background processes

@@ -740,6 +740,20 @@
     });
   });
 
+  // --- Question editor: only the fields for the chosen kind of question ---------------------
+  // Without JavaScript every field shows and the server reads the ones the kind uses.
+  document.querySelectorAll('[data-question-form]').forEach(function (form) {
+    var select = form.querySelector('[data-question-type]');
+    if (!select) return;
+    function show() {
+      form.querySelectorAll('[data-for-types]').forEach(function (el) {
+        el.hidden = el.getAttribute('data-for-types').split(' ').indexOf(select.value) === -1;
+      });
+    }
+    select.addEventListener('change', show);
+    show();
+  });
+
   // --- Backup uploads, sent in pieces -------------------------------------------------------
   // One request carrying the whole file can outlast the web server's timeouts and size limits,
   // so the file goes in pieces (8 MB at most, halved whenever the server says a piece is too

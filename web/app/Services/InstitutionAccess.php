@@ -23,8 +23,8 @@ final class InstitutionAccess
     public const ROLES = [
         self::OWNER => ['name' => 'Owner', 'description' => 'Responsible for the institution\'s account: its profile, its people and their roles.'],
         self::ADMIN => ['name' => 'Institution administrator', 'description' => 'Runs the day to day: people, departments and programmes, classes and student records (not owners).'],
-        'instructor' => ['name' => 'Instructor', 'description' => 'Teaches and assesses. Sees who belongs to the institution and the classes they are assigned to.'],
-        'exam_officer' => ['name' => 'Examination officer', 'description' => 'Administers examinations. Sees who belongs to the institution and every class.'],
+        'instructor' => ['name' => 'Instructor', 'description' => 'Teaches and assesses: writes questions in their question banks, and sees the classes they are assigned to.'],
+        'exam_officer' => ['name' => 'Examination officer', 'description' => 'Administers examinations: approves and publishes questions, and sees every class and question bank.'],
         'invigilator' => ['name' => 'Invigilator', 'description' => 'Supervises examination sessions they are assigned to.'],
         self::STUDENT => ['name' => 'Student', 'description' => 'Belongs to classes and takes the assessments assigned to them.'],
     ];
@@ -38,13 +38,18 @@ final class InstitutionAccess
         'classes.view' => 'See every class and who is in it. Instructors always see the classes they teach.',
         'classes.manage' => 'Create and archive classes, assign their instructors, and enrol, move and remove students.',
         'students.manage' => 'Keep student records (number, programme, standing) and import students from a spreadsheet.',
+        'question_banks.view' => 'See every question bank and its questions, answers included.',
+        'question_banks.create' => 'Create question banks, and write questions in the banks they created or were added to.',
+        'question_banks.edit' => 'Write in every question bank, and choose who may write in each.',
+        'question_banks.publish' => 'Approve and publish questions, or send them back for changes.',
     ];
 
     /** What each role gives. The owner is not listed: it holds every institution permission. */
     public const ROLE_PERMISSIONS = [
-        self::ADMIN => ['members.view', 'members.manage', 'activity.view', 'departments.manage', 'classes.view', 'classes.manage', 'students.manage'],
-        'instructor' => ['members.view'],
-        'exam_officer' => ['members.view', 'classes.view'],
+        self::ADMIN => ['members.view', 'members.manage', 'activity.view', 'departments.manage', 'classes.view', 'classes.manage', 'students.manage',
+            'question_banks.view', 'question_banks.create', 'question_banks.edit', 'question_banks.publish'],
+        'instructor' => ['members.view', 'question_banks.create'],
+        'exam_officer' => ['members.view', 'classes.view', 'question_banks.view', 'question_banks.publish'],
         'invigilator' => [],
         self::STUDENT => [],
     ];
