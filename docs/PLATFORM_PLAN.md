@@ -16,8 +16,8 @@ acceptance criteria.
 | 0 | Repository and architecture mapping | Done (this file) |
 | 1 | Institutional foundation: tenants, memberships, roles, isolation | Done |
 | 2a | Programmes, classes, student records and student import | Done |
-| 2b | Question bank management | Next |
-| 3 | Institutional examination builder | |
+| 2b | Question bank management | Done |
+| 3 | Institutional examination builder | Next |
 | 4 | Examination execution engine (first major milestone) | |
 | 5 | Results and analytics | |
 | 6 | Readiness assessment and certificates | |
@@ -243,8 +243,72 @@ student); classes and students of another institution addressed through one's ow
 database refusing a cross-institution enrolment; unique student numbers; and the import from
 preview to acceptance. Pages checked in a browser at 1440 and 380 pixels.
 
-### Known limitations
+### Known limitations (2a)
 
 - Student numbers in invitations that are not yet accepted are not reserved; if someone else takes
   the number meanwhile, the invitation's number is dropped on acceptance.
 - No bulk move between classes (one student at a time).
+
+---
+
+## Phase 2b: question banks (delivered)
+
+### Database
+
+Migration 029 adds `question_banks`, `question_bank_editors`, `bank_topics`, `bank_questions`
+and `question_versions`, all with the institution's id and composite foreign keys, entirely
+separate from the certification library's tables.
+
+The important rule is in the shape of the data. A question's content lives in
+`question_versions`: one row per save, inserted and never changed. `bank_questions` points at
+its `latest_version` (what authors work on, with its review status) and its `published_version`
+(what assessments will use). Editing a published question writes a new draft version; the
+published one stays in use, unchanged, until the new one is reviewed and published. Phase 3
+assessments will record the exact `question_versions.id` they used (specification 7 and 18.2).
+
+### What it does
+
+- **Banks** (`/institutions/{uuid}/banks`): a name, an optional subject, programme and
+  description. Archiving keeps the questions and stops new writing.
+- **Topics**, with one level of subtopics. A topic used by any version of any question cannot be
+  removed (questions keep the topic they were written with).
+- **Who may do what**:
+  - `question_banks.view` (examination officers, administrators) reads every bank.
+  - `question_banks.create` (instructors) creates banks and writes in the banks they created or
+    were added to; a bank's creator chooses who else may write in it.
+  - `question_banks.edit` (administrators) writes in every bank.
+  - `question_banks.publish` (examination officers, administrators) approves, publishes and sends
+    back.
+  - Anyone else, students included, gets "not found" on a bank and its questions, so answer keys
+    never reach them.
+- **Question types**: single choice (exactly one right), multiple select (one or more right, with
+  optional part marks: each right pick earns its share and a wrong pick takes one share off, never
+  below zero; the grading itself comes with Phase 4) and true or false. Up to ten choices, marks
+  from 0.25 to 1,000, difficulty, topic, explanation, reference and up to ten pictures (the existing
+  picture store, kept by image cleanup).
+- **The editor** checks the question before saving (one right answer for single choice, at least
+  two choices, no repeated choices) and comes back filled in when something is wrong. Saving an
+  unchanged question writes nothing. Without JavaScript every field shows; with it, only the ones
+  the kind of question uses.
+- **Review**: draft, in review, approved, published, archived. Authors send a question for review;
+  a publisher approves it, publishes it (or both at once) or sends it back with a reason the author
+  sees. `/banks/review` lists everything waiting. Every step is in the institution's activity
+  history.
+- **The question page** shows the question as a candidate will see it, separately from its answer
+  and marks, and every version with the one in use marked; any earlier version can be opened.
+
+### Validation
+
+`QuestionBanksTest` (5 tests): writing and checking questions of each kind, topics and
+subtopics; the review chain with a returned question, publishing, and an edit that becomes
+version 2 while version 1 stays unchanged and in use; who may read and write a bank (creator,
+added editor, another instructor, examination officer, student); another institution's banks and
+topics refused, and the database refusing a cross-institution version; pictures and archived
+banks. Checked in a browser at 1440 and 380 pixels in light and dark.
+
+### Known limitations (2b)
+
+- Question text is plain text with line breaks: no rich formatting or mathematical notation yet.
+- Short answer, numerical and essay questions are not built (decided above).
+- No import of questions from a file, and no copying between banks.
+
