@@ -801,3 +801,7 @@ a.job-chip:hover { text-decoration: none; filter: brightness(.96); }
 .history-change { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .history-from { color: var(--color-text-muted); }
 .history-to { color: var(--color-text); }
+
+/* ---- A long list of checkboxes (choosing students for a class) ------------------------- */
+.check-list { max-height: 22rem; overflow-y: auto; padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.check-list .form-check { padding-top: 3px; padding-bottom: 3px; }

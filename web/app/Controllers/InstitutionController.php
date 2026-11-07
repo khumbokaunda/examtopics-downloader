@@ -18,7 +18,7 @@ use RuntimeException;
  * institution gets "not found" (whether or not it exists, and whatever their global role), and a
  * member without the institution permission a page needs gets 403.
  */
-final class InstitutionController extends Controller
+final class InstitutionController extends TenantController
 {
     public function index(): Response
     {
@@ -60,6 +60,9 @@ final class InstitutionController extends Controller
             'invitations' => InstitutionAccess::can($m, 'members.view') ? count($repo->openInvitations((int) $i['id'])) : null,
             'activity' => InstitutionAccess::can($m, 'activity.view') ? $this->activityRows($i, 8) : null,
             'reviews' => $i['status'] !== 'verified' ? $repo->reviews((int) $i['id']) : [],
+            'counts' => $this->s->structure()->repo()->counts((int) $i['id']),
+            'myClasses' => array_values(array_filter($this->s->structure()->repo()->enrolmentsOf((int) $i['id'], (int) $m['id']), static fn(array $e): bool => $e['status'] === 'active')),
+            'teaching' => $this->s->structure()->repo()->classes((int) $i['id'], 'active', (int) $m['id']),
         ]);
     }
 
@@ -182,40 +185,6 @@ final class InstitutionController extends Controller
         return $this->render('institutions/activity', $this->pageVars($i, $m, 'activity') + ['rows' => $this->activityRows($i, 500)]);
     }
 
-    /**
-     * The institution and the signed-in person's membership of it, or the refusal.
-     *
-     * @param bool $verifiedOnly whether the page needs a verified institution (inviting, the
-     *        member list); the overview, profile and leaving work while it waits.
-     * @return array{0:array<string,mixed>,1:array<string,mixed>}
-     */
-    private function tenant(string $ref, ?string $permission, bool $verifiedOnly = true): array
-    {
-        $repo = $this->s->institutions()->repo();
-        $i = $repo->findByUuid($ref);
-        $m = $i !== null ? $repo->membership((int) $i['id'], (int) $this->auth->user()['id']) : null;
-        if ($i === null || $m === null || $m['status'] !== 'active') {
-            throw HttpException::notFound('Institution');
-        }
-        $owner = $m['role'] === InstitutionAccess::OWNER;
-        if ($i['status'] === 'suspended' && !($owner && !$verifiedOnly)) {
-            throw new HttpException(403, $i['name'] . ' is suspended, so its pages are closed. Its owners can see why.');
-        }
-        if ($verifiedOnly && $i['status'] !== 'verified') {
-            throw new HttpException(403, 'This opens once ' . $i['name'] . ' is verified.');
-        }
-        if ($permission !== null && !InstitutionAccess::can($m, $permission)) {
-            throw new HttpException(403, 'Your role in ' . $i['name'] . ' does not include this. It needs the "' . $permission . '" permission, which an owner can give you.');
-        }
-        return [$i, $m];
-    }
-
-    /** @param array<string,mixed> $i @param array<string,mixed> $m @return array<string,mixed> */
-    private function pageVars(array $i, array $m, string $tab): array
-    {
-        return ['title' => $i['short_name'] ?: $i['name'], 'nav' => 'institutions', 'institution' => $i, 'membership' => $m, 'tab' => $tab];
-    }
-
     /** @param array<string,mixed> $i @return list<array<string,mixed>> */
     private function activityRows(array $i, int $limit): array
     {
@@ -237,9 +206,4 @@ final class InstitutionController extends Controller
         return $in;
     }
 
-    /** @param array<string,mixed> $p */
-    private function name(array $p): string
-    {
-        return \App\Services\Access::displayName($p);
-    }
 }
