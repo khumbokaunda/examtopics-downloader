@@ -22,11 +22,11 @@ final class InstitutionAccess
 
     public const ROLES = [
         self::OWNER => ['name' => 'Owner', 'description' => 'Responsible for the institution\'s account: its profile, its people and their roles.'],
-        self::ADMIN => ['name' => 'Institution administrator', 'description' => 'Runs the day to day: invites people, changes roles and removes people (not owners).'],
-        'instructor' => ['name' => 'Instructor', 'description' => 'Teaches and assesses. Sees who belongs to the institution.'],
-        'exam_officer' => ['name' => 'Examination officer', 'description' => 'Administers examinations. Sees who belongs to the institution.'],
+        self::ADMIN => ['name' => 'Institution administrator', 'description' => 'Runs the day to day: people, departments and programmes, classes and student records (not owners).'],
+        'instructor' => ['name' => 'Instructor', 'description' => 'Teaches and assesses. Sees who belongs to the institution and the classes they are assigned to.'],
+        'exam_officer' => ['name' => 'Examination officer', 'description' => 'Administers examinations. Sees who belongs to the institution and every class.'],
         'invigilator' => ['name' => 'Invigilator', 'description' => 'Supervises examination sessions they are assigned to.'],
-        self::STUDENT => ['name' => 'Student', 'description' => 'Takes the assessments assigned to them.'],
+        self::STUDENT => ['name' => 'Student', 'description' => 'Belongs to classes and takes the assessments assigned to them.'],
     ];
 
     public const PERMISSIONS = [
@@ -34,13 +34,17 @@ final class InstitutionAccess
         'members.view' => 'See who belongs to the institution and their roles.',
         'members.manage' => 'Invite people, change their roles and remove them. Only owners can make or change owners.',
         'activity.view' => 'See the institution\'s activity history.',
+        'departments.manage' => 'Add, rename and remove departments and programmes.',
+        'classes.view' => 'See every class and who is in it. Instructors always see the classes they teach.',
+        'classes.manage' => 'Create and archive classes, assign their instructors, and enrol, move and remove students.',
+        'students.manage' => 'Keep student records (number, programme, standing) and import students from a spreadsheet.',
     ];
 
     /** What each role gives. The owner is not listed: it holds every institution permission. */
     public const ROLE_PERMISSIONS = [
-        self::ADMIN => ['members.view', 'members.manage', 'activity.view'],
+        self::ADMIN => ['members.view', 'members.manage', 'activity.view', 'departments.manage', 'classes.view', 'classes.manage', 'students.manage'],
         'instructor' => ['members.view'],
-        'exam_officer' => ['members.view'],
+        'exam_officer' => ['members.view', 'classes.view'],
         'invigilator' => [],
         self::STUDENT => [],
     ];

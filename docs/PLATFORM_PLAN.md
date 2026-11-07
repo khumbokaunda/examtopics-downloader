@@ -15,7 +15,8 @@ acceptance criteria.
 |---|---|---|
 | 0 | Repository and architecture mapping | Done (this file) |
 | 1 | Institutional foundation: tenants, memberships, roles, isolation | Done |
-| 2 | Question bank management | Next |
+| 2a | Programmes, classes, student records and student import | Done |
+| 2b | Question bank management | Next |
 | 3 | Institutional examination builder | |
 | 4 | Examination execution engine (first major milestone) | |
 | 5 | Results and analytics | |
@@ -180,15 +181,70 @@ overflow.
 
 ---
 
-## Before Phase 2: decisions to make
+## Decisions taken after Phase 1
 
-1. **Classes before question banks?** Assessments are assigned to classes, and the minimum
-   institutional release has student and class management (with CSV import) before question banks.
-   Building classes first keeps Phase 3 unblocked.
-2. **Who may register an institution?** Today any signed-in account can. It could instead need a
-   platform permission, or a sign-up path of its own for people with no account.
-3. **Students and the library.** An invited student gets an ordinary member account, which can read
-   the certification library. Should institution-only students be kept out of it?
-4. **Question types for the first release.** The specification starts with single choice, multiple
-   select, true/false, short answer, numerical and essay. The minimum release needs only multiple
-   choice; the rest can follow once the engine works.
+1. **Classes before question banks** (the owner's call): Phase 2 is split into 2a (classes and
+   students) and 2b (question banks), so Phase 3 can assign assessments to classes.
+2. **Registration stays open** to any signed-in account (the owner's call).
+3. **Students keep library access** for now: an invited student is an ordinary member account. This
+   can be revisited without touching the institution data.
+4. **First question types**: single choice, multiple select and true/false. All three are graded
+   automatically and share one storage model (choices with one or more marked correct). Short
+   answer, numerical and essay follow once the engine works.
+
+---
+
+## Phase 2a: programmes, classes and students (delivered)
+
+### Database
+
+Migration 028 adds `institution_departments`, `institution_programmes`, `institution_classes`,
+`class_instructors`, `class_enrolments` and `institution_students`. Every one carries the
+institution's id, and every reference to another institution-owned row is a composite foreign key
+on `(id, institution_id)`: the database itself refuses an enrolment, record or class that points
+into another institution (specification 18.1). Migration 027 gained the `(id, institution_id)`
+key on memberships for this, and a `details` column on invitations.
+
+### What it does
+
+- **Programmes and departments** (`/institutions/{uuid}/structure`, `departments.manage`): add,
+  rename, edit and remove. One still in use (a department with programmes, a programme with classes
+  or student records) cannot be removed.
+- **Classes** (`/classes`): a class has a name, an optional intake ("January 2027") and an optional
+  programme; the same name and intake cannot be created twice. `classes.manage` creates, edits and
+  archives classes, assigns instructors (instructors, administrators and owners), and adds, moves
+  and takes out students. An archived class keeps its students and history and takes no new ones.
+  `classes.view` sees every class; an instructor sees the classes they teach.
+- **Enrolment history**: each stint in a class is a row. Taking a student out or moving them ends
+  the row (removed, or moved with the class it went to) and keeps it, so a student's page lists
+  every class now and before, and later exam records can name the class a student was in at the
+  time. Leaving the institution ends every stint.
+- **Student records** (`/students`, `students.manage`; `classes.view` reads them): the institution's
+  student number (unique within it), programme, standing (active, suspended, completed, withdrawn)
+  and enrolment date. Names and email addresses stay on the person's own account and are never
+  copied.
+- **Student import** (`/students/import`): a CSV with an `email` column and optional `name`,
+  `student_number`, `classes` (separated by `;`) and `programme`. A downloadable template; header
+  names, comma or semicolon, a byte-order mark and Windows-1252 text are all accepted; up to 2,000
+  rows and 1 MB. The preview shows what happens to every row, and nothing is written until it is
+  confirmed. Rows with problems (bad or repeated email, repeated or taken number, unknown class or
+  programme, someone already here in another role) are listed with the reason and never skipped
+  silently. Existing students are updated and put in their classes; everyone else is invited as a
+  student, and the number, programme and classes apply when they accept. A results CSV lists every
+  row's outcome, with invitation links when email is not set up. Cells that look like spreadsheet
+  formulas are made inert.
+- **Overview**: a Classes figure, and "Your classes" for the person's own classes, taught or taken.
+
+### Validation
+
+`ClassesTest` (7 tests) covers programmes and departments; creating, enrolling, moving, taking out
+and archiving with history kept; who sees which classes (instructor, examination officer,
+student); classes and students of another institution addressed through one's own pages; the
+database refusing a cross-institution enrolment; unique student numbers; and the import from
+preview to acceptance. Pages checked in a browser at 1440 and 380 pixels.
+
+### Known limitations
+
+- Student numbers in invitations that are not yet accepted are not reserved; if someone else takes
+  the number meanwhile, the invitation's number is dropped on acceptance.
+- No bulk move between classes (one student at a time).

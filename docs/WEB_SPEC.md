@@ -385,15 +385,25 @@ banks, assessments and results come in later phases.
 - **Invitations** (`/invitations/<token>`): the emailed link works for 14 days and opens for
   anyone; accepting needs an account with the invited email address.
 - **Overview and activity** (`/institutions/<id>`, `/institutions/<id>/activity`): status, people
-  by role, open invitations, your role, and the institution's own history.
+  by role, classes, your own classes, open invitations, your role, and the institution's own history.
+- **Programmes and departments** (`/institutions/<id>/structure`): an institution's departments and
+  its programmes of study.
+- **Classes** (`/institutions/<id>/classes`): classes or cohorts with an optional intake and
+  programme, their instructors and students. Students are added, moved between classes and taken
+  out; every stint is kept, so a student's page shows every class now and before. Archived classes
+  keep their history.
+- **Students** (`/institutions/<id>/students`): each student's institutional number, programme,
+  standing and enrolment date, and an import from a CSV spreadsheet with a preview of every row
+  before anything is saved, and a results file afterwards.
 
 Institution roles are separate from the global ones:
 
 | Role | Institution permissions |
 |---|---|
-| **Owner** | All of them: `institution.manage` (profile), `members.view`, `members.manage`, `activity.view`. Only owners make or change owners. |
-| **Institution administrator** | `members.view`, `members.manage`, `activity.view` |
-| **Instructor**, **Examination officer** | `members.view` |
+| **Owner** | All of them: `institution.manage` (profile), `members.view`, `members.manage`, `activity.view`, `departments.manage`, `classes.view`, `classes.manage`, `students.manage`. Only owners make or change owners. |
+| **Institution administrator** | everything but `institution.manage` |
+| **Examination officer** | `members.view`, `classes.view` |
+| **Instructor** | `members.view`, and sees the classes they teach |
 | **Invigilator**, **Student** | none yet |
 
 Rules: only an institution's own members can open its pages; anyone else, platform administrators
@@ -463,6 +473,7 @@ overview only.
 | Settings | `GET /settings`, `/settings/branding`, `/settings/email`; `POST /settings/reconcile`, `/settings/time`, `/settings/branding`, `/settings/branding/logo/remove`, `/settings/email`, `/settings/email/test` | settings.manage |
 | Branding | `GET /branding/theme.css`, `/branding/{file}` | public |
 | Institutions | `GET /institutions`, `/institutions/register`, `/institutions/{ref}`, `/institutions/{ref}/profile`, `/institutions/{ref}/members`, `/institutions/{ref}/activity`; `POST /institutions/register`, `/institutions/{ref}/profile`, `/institutions/{ref}/resubmit`, `/institutions/{ref}/invitations`, `/institutions/{ref}/invitations/{id}/revoke`, `/institutions/{ref}/members/{member}/role`, `/institutions/{ref}/members/{member}/remove`, `/institutions/{ref}/leave` | signed-in, then membership and institution permission |
+| Institution classes and students | `GET/POST /institutions/{ref}/structure[...]`, `/institutions/{ref}/classes[/{class}[...]]`, `/institutions/{ref}/students[/{member}]`, `/institutions/{ref}/students/import[...]` | signed-in, then membership and institution permission |
 | Invitations | `GET /invitations/{token}` public; `POST /invitations/{token}/accept`, `/invitations/{token}/decline` signed-in | |
 | Institution review | `GET /platform/institutions`, `/platform/institutions/{ref}`; `POST /platform/institutions/{ref}/decision` | institutions.manage |
 
@@ -476,11 +487,11 @@ overview only.
 | Members | `question_comments` (with answer votes), `question_reports`, `question_notes` (notes and bookmarks) |
 | Studying | `study_answers` (latest answer per question, with spaced review box and due day), `study_days`, `study_places`, `saved_exams`, `mock_exams` |
 | Output | `documents`, `media` (saved images) |
-| Institutions | `institutions`, `institution_reviews` (decisions), `institution_memberships`, `institution_invitations` |
+| Institutions | `institutions`, `institution_reviews` (decisions), `institution_memberships`, `institution_invitations`, `institution_departments`, `institution_programmes`, `institution_classes`, `class_instructors`, `class_enrolments`, `institution_students` |
 | Worked out, rebuilt on demand (not backed up) | `exam_checks` (Integrity figures), `question_index` (search) |
 | System | `settings`, `notifications`, `mail_queue`, `exam_requests`, `audit_log`, `throttle_events`, `schema_migrations` |
 
-Migrations `001` to `027` in `web/database/migrations` create all of it; `php bin/migrate.php`
+Migrations `001` to `028` in `web/database/migrations` create all of it; `php bin/migrate.php`
 applies them.
 
 ### Background processes

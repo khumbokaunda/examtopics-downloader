@@ -64,6 +64,7 @@ final class Institutions
         private Notifier $notifier,
         private MailQueue $mail,
         private Mailer $mailer,
+        private InstitutionStructure $structure,
     ) {
     }
 
@@ -215,9 +216,10 @@ final class Institutions
      *
      * @param array<string,mixed> $institution @param array<string,mixed> $actor its membership, of the person inviting
      * @param array<string,mixed> $user the person inviting
-     * @return array{path:string,emailed:bool}
+     * @param array<string,mixed>|null $details applied on acceptance (a student import's number, programme and classes)
+     * @return array{path:string,link:string,emailed:bool}
      */
-    public function invite(array $institution, array $actor, array $user, string $email, string $role): array
+    public function invite(array $institution, array $actor, array $user, string $email, string $role, ?array $details = null): array
     {
         $email = UserRepository::normalizeEmail($email);
         if (!UserRepository::validEmail($email)) {
@@ -233,7 +235,7 @@ final class Institutions
         }
         $token = bin2hex(random_bytes(24));
         $expires = gmdate('Y-m-d H:i:s', time() + self::INVITE_DAYS * 86400);
-        $id = $this->repo->invite((int) $institution['id'], $email, $role, hash('sha256', $token), (int) $user['id'], $expires);
+        $id = $this->repo->invite((int) $institution['id'], $email, $role, hash('sha256', $token), (int) $user['id'], $expires, $details);
         $path = '/invitations/' . $token;
         $this->record('institution.member_invited', $institution, ['email' => $email, 'role' => $role]);
         $title = Access::displayName($user) . ' invited you to ' . $institution['name'];
@@ -249,7 +251,7 @@ final class Institutions
                 '<p>' . e($line) . '</p><p><a href="' . e($url) . '">See the invitation</a></p>'
                 . '<p style="color:#6b7280;font-size:13px">Accept it while signed in to an account with this email address. If you did not expect it, ignore this email.</p>');
         }
-        return ['path' => $path, 'emailed' => $emailed];
+        return ['path' => $path, 'link' => $url ?? $path, 'emailed' => $emailed];
     }
 
     /** @param array<string,mixed> $institution */
@@ -303,6 +305,11 @@ final class Institutions
         }
         $this->repo->join((int) $institution['id'], (int) $user['id'], (string) $inv['role'], [], $inv['invited_by'] !== null ? (int) $inv['invited_by'] : null);
         $this->repo->closeInvitation((int) $inv['id'], 'accepted', (int) $user['id']);
+        $details = json_decode((string) ($inv['details'] ?? ''), true);
+        if (is_array($details) && $inv['role'] === InstitutionAccess::STUDENT) {
+            $m = $this->repo->membership((int) $institution['id'], (int) $user['id']);
+            $this->structure->applyInvitationDetails((int) $institution['id'], (int) $m['id'], $details, $inv['invited_by'] !== null ? (int) $inv['invited_by'] : null);
+        }
         $this->notifier->resolve('invitation:' . $inv['id']);
         $this->record('institution.invitation_accepted', $institution, ['role' => $inv['role']]);
     }
@@ -358,6 +365,7 @@ final class Institutions
             throw new RuntimeException('An institution needs at least one owner.');
         }
         $this->repo->remove((int) $institution['id'], (int) $member['id'], (int) $actor['user_id']);
+        $this->structure->repo()->endAllEnrolments((int) $institution['id'], (int) $member['id'], (int) $actor['user_id']);
         $this->record('institution.member_removed', $institution, ['username' => $member['username'], 'role' => $member['role']]);
     }
 
@@ -368,6 +376,7 @@ final class Institutions
             throw new RuntimeException('You are the only owner. Make someone else an owner before you leave.');
         }
         $this->repo->remove((int) $institution['id'], (int) $membership['id'], (int) $membership['user_id']);
+        $this->structure->repo()->endAllEnrolments((int) $institution['id'], (int) $membership['id'], (int) $membership['user_id']);
         $this->record('institution.member_left', $institution, ['role' => $membership['role']]);
     }
 

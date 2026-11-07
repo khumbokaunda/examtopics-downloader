@@ -217,14 +217,16 @@ final class InstitutionRepository
 
     // Invitations ---------------------------------------------------------------------------
 
-    public function invite(int $institutionId, string $email, string $role, string $tokenSha256, ?int $by, string $expiresAt): int
+    /** @param array<string,mixed>|null $details */
+    public function invite(int $institutionId, string $email, string $role, string $tokenSha256, ?int $by, string $expiresAt, ?array $details = null): int
     {
         $now = Database::now();
         // A newer invitation to the same address replaces any still open.
         $this->db->run('UPDATE institution_invitations SET revoked_at = ? WHERE institution_id = ? AND email = ?
                         AND accepted_at IS NULL AND declined_at IS NULL AND revoked_at IS NULL', [$now, $institutionId, $email]);
-        $this->db->run('INSERT INTO institution_invitations (institution_id, email, role, token_sha256, invited_by, created_at, expires_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)', [$institutionId, $email, $role, $tokenSha256, $by, $now, $expiresAt]);
+        $this->db->run('INSERT INTO institution_invitations (institution_id, email, role, details, token_sha256, invited_by, created_at, expires_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [$institutionId, $email, $role, $details === null ? null : json_encode($details, JSON_UNESCAPED_SLASHES),
+                        $tokenSha256, $by, $now, $expiresAt]);
         return $this->db->lastId();
     }
 

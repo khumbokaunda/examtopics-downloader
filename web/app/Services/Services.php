@@ -173,7 +173,17 @@ final class Services
     public function institutions(): Institutions
     {
         return $this->app->service(Institutions::class, fn() => new Institutions(new \App\Repositories\InstitutionRepository($this->app->db()),
-            $this->users(), $this->audit(), $this->notifier(), $this->mailQueue(), $this->mailer()));
+            $this->users(), $this->audit(), $this->notifier(), $this->mailQueue(), $this->mailer(), $this->structure()));
+    }
+
+    public function structure(): InstitutionStructure
+    {
+        return $this->app->service(InstitutionStructure::class, fn() => new InstitutionStructure(new \App\Repositories\StructureRepository($this->app->db()), $this->audit()));
+    }
+
+    public function studentImport(): StudentImport
+    {
+        return $this->app->service(StudentImport::class, fn() => new StudentImport($this->structure()->repo(), $this->institutions()->repo(), $this->users()));
     }
 
     public function registration(): Registration

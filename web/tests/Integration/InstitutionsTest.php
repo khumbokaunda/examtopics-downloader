@@ -6,6 +6,7 @@ namespace Tests\Integration;
 
 use App\Services\Access;
 use Tests\Support\HttpTestCase;
+use Tests\Support\InstitutionFixtures;
 
 /**
  * Institutions: registering one, the platform's verification, memberships and invitations, and
@@ -14,70 +15,12 @@ use Tests\Support\HttpTestCase;
  */
 final class InstitutionsTest extends HttpTestCase
 {
-    private const PW = 'member password long';
+    use InstitutionFixtures;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->configure($this->startFixture());
-        $this->s->users()->create('admin', 'correct horse battery', 'admin', ['email' => 'admin@example.com', 'email_verified' => true]);
-        foreach (['olive', 'bob', 'carol', 'dan', 'erin'] as $name) {
-            $this->s->users()->create($name, self::PW, Access::MEMBER, ['email' => $name . '@example.com', 'email_verified' => true]);
-        }
-        $this->newSession();
-    }
-
-    private function as(string $name): void
-    {
-        $this->newSession();
-        if ($name === 'admin') {
-            $this->login();
-        } else {
-            $this->login($name, self::PW, Access::MEMBER);
-        }
-    }
-
-    /** @return array<string,string> */
-    private function profile(string $name): array
-    {
-        return ['name' => $name, 'short_name' => '', 'type' => 'private_centre', 'address' => 'Area 47, Plot 12', 'region' => 'Central',
-            'district' => 'Lilongwe', 'email' => 'info@example.org', 'phone' => '+265 999 123 456', 'website' => 'https://example.org',
-            'registration_info' => '', 'contact_name' => 'Olive Banda', 'contact_position' => 'Director',
-            'intended_use' => 'Assessing our networking students during the course.'];
-    }
-
-    /** Register as $owner and have the administrator verify it. @return string its uuid */
-    private function institution(string $owner, string $name, bool $verify = true): string
-    {
-        $this->as($owner);
-        $r = $this->post('/institutions/register', $this->profile($name));
-        self::assertSame(303, $r->status, $r->body);
-        $uuid = (string) $this->app->db()->value('SELECT uuid FROM institutions WHERE name = ?', [$name]);
-        if ($verify) {
-            $this->as('admin');
-            $this->post('/platform/institutions/' . $uuid . '/decision', ['decision' => 'verify', 'evidence' => 'Phoned the office.']);
-            self::assertSame('verified', $this->app->db()->value('SELECT status FROM institutions WHERE uuid = ?', [$uuid]));
-        }
-        return $uuid;
-    }
-
-    /** Invite as $by, then accept as $who. */
-    private function join(string $uuid, string $by, string $who, string $role): void
-    {
-        $this->as($by);
-        $this->post('/institutions/' . $uuid . '/invitations', ['email' => $who . '@example.com', 'role' => $role]);
-        $flash = $this->flashes()[0]['message'] ?? '';
-        self::assertMatchesRegularExpression('#/invitations/[a-f0-9]{48}#', $flash);
-        preg_match('#/invitations/([a-f0-9]{48})#', $flash, $m);
-        $this->as($who);
-        self::assertSame(303, $this->post('/invitations/' . $m[1] . '/accept')->status);
-        self::assertSame('success', $this->flashes()[0]['type']);
-    }
-
-    private function memberUuid(string $institution, string $username): string
-    {
-        return (string) $this->app->db()->value('SELECT m.uuid FROM institution_memberships m JOIN institutions i ON i.id = m.institution_id
-            JOIN users u ON u.id = m.user_id WHERE i.uuid = ? AND u.username = ?', [$institution, $username]);
+        $this->people();
     }
 
     public function testRegisteringWaitsForVerificationAndTheReviewerIsTold(): void

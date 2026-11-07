@@ -1,6 +1,6 @@
 <?php
 /** @var array $institution @var array $membership @var string $tab @var array<string,int> $roleCounts @var int|null $invitations
- *  @var list<array>|null $activity @var list<array> $reviews */
+ *  @var list<array>|null $activity @var list<array> $reviews @var array<string,int> $counts @var list<array> $myClasses @var list<array> $teaching */
 use App\Services\InstitutionAccess;
 use App\Services\Institutions;
 $base = '/institutions/' . $institution['uuid'];
@@ -28,6 +28,7 @@ $staff = $people - ($roleCounts['student'] ?? 0);
         ['People', number_format($people), 'people', 'primary'],
         ['Staff', number_format($staff), 'person-badge', 'info'],
         ['Students', number_format($roleCounts['student'] ?? 0), 'mortarboard', 'success'],
+        ['Classes', number_format($counts['classes']), 'collection', 'neutral'],
         ...($invitations !== null ? [['Invitations waiting', number_format($invitations), 'envelope', $invitations > 0 ? 'warning' : 'neutral']] : []),
     ] as [$label, $value, $iconName, $tone]): ?>
         <div class="kpi" data-tone="<?= e($tone) ?>">
@@ -64,6 +65,25 @@ $staff = $people - ($roleCounts['student'] ?? 0);
                 </form>
             </div>
         </div>
+        <?php if ($myClasses !== [] || $teaching !== []): ?>
+        <div class="card mb-4">
+            <div class="card-header"><span class="card-title"><?= icon('collection') ?>Your classes</span></div>
+            <ul class="list-rows">
+                <?php foreach ($teaching as $c): ?>
+                    <li class="request-row"><div class="row-main"><div class="row-text">
+                        <div class="row-title"><a href="<?= e(url($base . '/classes/' . $c['uuid'])) ?>"><?= e(\App\Services\InstitutionStructure::label($c['name'], $c['intake'])) ?></a> <?= chip('You teach it', 'primary') ?></div>
+                        <div class="row-meta"><?= (int) $c['student_count'] ?> students</div>
+                    </div></div></li>
+                <?php endforeach; ?>
+                <?php foreach ($myClasses as $c): ?>
+                    <li class="request-row"><div class="row-main"><div class="row-text">
+                        <div class="row-title"><?= e(\App\Services\InstitutionStructure::label($c['class_name'], $c['intake'])) ?></div>
+                        <div class="row-meta">Since <?= e(fmt_time((string) $c['enrolled_at'])) ?></div>
+                    </div></div></li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+        <?php endif; ?>
         <?php if ($reviews !== []): ?>
         <div class="card mb-4">
             <div class="card-header"><span class="card-title"><?= icon('patch-question') ?>Verification</span></div>

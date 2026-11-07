@@ -1,5 +1,5 @@
 <?php
-/** The heading and tabs of an institution's pages. @var array $institution @var array $membership @var string $tab */
+/** The heading and tabs of an institution's pages. @var array $institution @var array $membership @var string $tab @var array<string,?string>|null $crumb deeper pages */
 use App\Services\InstitutionAccess;
 use App\Services\Institutions;
 $base = '/institutions/' . $institution['uuid'];
@@ -8,13 +8,23 @@ $tone = ['pending' => 'warning', 'verified' => 'success', 'rejected' => 'danger'
 $tabs = array_filter([
     'overview' => [$base, 'Overview', 'grid-1x2', true],
     'members' => [$base . '/members', 'People', 'people', $verified && InstitutionAccess::can($membership, 'members.view')],
+    'students' => [$base . '/students', 'Students', 'mortarboard', $verified && (InstitutionAccess::can($membership, 'students.manage') || InstitutionAccess::can($membership, 'classes.view'))],
+    'classes' => [$base . '/classes', 'Classes', 'collection', $verified && (InstitutionAccess::can($membership, 'classes.view') || in_array($membership['role'], \App\Services\InstitutionStructure::TEACHING_ROLES, true))],
+    'structure' => [$base . '/structure', 'Programmes', 'diagram-3', $verified && InstitutionAccess::can($membership, 'departments.manage')],
     'profile' => [$base . '/profile', 'Profile', 'building-gear', InstitutionAccess::can($membership, 'institution.manage')],
     'activity' => [$base . '/activity', 'Activity', 'activity', $verified && InstitutionAccess::can($membership, 'activity.view')],
 ], static fn(array $t): bool => $t[3]);
 ?>
 <nav aria-label="breadcrumb"><ol class="breadcrumb">
     <li class="breadcrumb-item"><a href="<?= e(url('/institutions')) ?>">Institutions</a></li>
+    <?php if (isset($crumb)): ?>
+        <li class="breadcrumb-item"><a href="<?= e(url($base)) ?>"><?= e($institution['short_name'] ?: $institution['name']) ?></a></li>
+        <?php foreach ($crumb as $label => $href): ?>
+            <?php if ($href !== null): ?><li class="breadcrumb-item"><a href="<?= e(url($href)) ?>"><?= e($label) ?></a></li><?php else: ?><li class="breadcrumb-item active" aria-current="page"><?= e($label) ?></li><?php endif; ?>
+        <?php endforeach; ?>
+    <?php else: ?>
     <li class="breadcrumb-item active" aria-current="page"><?= e($institution['short_name'] ?: $institution['name']) ?></li>
+    <?php endif; ?>
 </ol></nav>
 <header class="page-header">
     <div class="page-header-text">
