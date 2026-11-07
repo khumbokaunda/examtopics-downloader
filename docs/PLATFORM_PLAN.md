@@ -17,8 +17,8 @@ acceptance criteria.
 | 1 | Institutional foundation: tenants, memberships, roles, isolation | Done |
 | 2a | Programmes, classes, student records and student import | Done |
 | 2b | Question bank management | Done |
-| 3 | Institutional examination builder | Next |
-| 4 | Examination execution engine (first major milestone) | |
+| 3 | Institutional examination builder | Done |
+| 4 | Examination execution engine (first major milestone) | Next |
 | 5 | Results and analytics | |
 | 6 | Readiness assessment and certificates | |
 | 7 | Integrity monitoring | |
@@ -311,4 +311,67 @@ banks. Checked in a browser at 1440 and 380 pixels in light and dark.
 - Question text is plain text with line breaks: no rich formatting or mathematical notation yet.
 - Short answer, numerical and essay questions are not built (decided above).
 - No import of questions from a file, and no copying between banks.
+
+---
+
+## Phase 3: the examination builder (delivered)
+
+### Database
+
+Migration 030 adds `assessments`, `assessment_items` (questions chosen one by one),
+`assessment_blueprints` (questions drawn per candidate) and `assessment_assignments` (classes
+and named students), all institution-scoped with composite foreign keys.
+
+### What it does
+
+- **Assessments** (`/institutions/{uuid}/assessments`): created as drafts, with a title and a kind
+  (practice, diagnostic, readiness, formative, summative, formal examination). The kind describes
+  the result; it does not change how marking works (specification 8).
+- **Settings**: description, instructions for candidates, time allowed (1 to 600 minutes), pass
+  mark (or none), attempts allowed, when it opens and closes (entered in the person's timezone,
+  kept in UTC), shuffling of questions and of choices (true or false keeps its order), a deduction
+  for wrong answers (0 to 1 times the question's marks; unanswered loses nothing), and what
+  candidates see once results are published (nothing, their score, or their answers with the right
+  ones and explanations).
+- **Questions**, in two ways that combine:
+  - chosen one by one from any bank the person can see (only published questions), in an order
+    that can be changed;
+  - a blueprint: so many questions from a bank, optionally one topic (with its subtopics) and one
+    difficulty, drawn for each candidate and never repeating a chosen question.
+- **Readiness checks** before publishing: instructions written, at least one question, every chosen
+  question still published, enough published questions for every blueprint row (drawn in order, as
+  a form would be), a closing time in the future, and at least one class or student assigned.
+- **Publishing** (`assessments.schedule`) fixes every chosen question to the exact version
+  published at that moment; later edits and new published versions do not touch it. A published
+  assessment's settings cannot change; its opening and closing times can. It can be closed,
+  reopened, taken back to a draft (which unfixes the versions), archived and restored.
+- **Assignment** to classes (meaning their students at the time they sit) and to named students.
+  Instructors assign only the classes they teach; people with `classes.view` assign any class or
+  student. The page shows how many students the assignments reach now.
+- **Preview**: one candidate's form, drawn as Phase 4 will draw it, with the right answers marked
+  for staff; "Draw another" shows a different candidate's form. The draw is reproducible from its
+  number (a seeded generator), which is how a sitting will be stored: its seed and the question
+  version ids it used.
+- **Permissions**: `assessments.view` (see every assessment), `assessments.create` (build drafts:
+  instructors see and build their own), `assessments.assign`, `assessments.schedule` (publish,
+  times, close). Examination officers and administrators hold all four; instructors create and
+  assign. Students cannot reach any of it.
+
+### Validation
+
+`AssessmentsTest` (4 tests): settings validation and UTC times; unpublished questions refused;
+blueprint shortage reported; publishing refused until ready and refused to instructors; versions
+fixed at publishing and unchanged by a later published edit; settings locked once published;
+rescheduling, closing, reopening and back to draft; the drawn form (same seed, same form; chosen
+questions never drawn again; blueprint filters; forms differ between seeds); who may build,
+assign and see; another institution's assessments, banks and classes refused, and the database
+refusing a cross-institution item. Checked in a browser at 1440 and 380 pixels.
+
+### Known limitations (3)
+
+- Going back to a draft is allowed at any time, since nobody can sit an assessment yet. Phase 4
+  must refuse it once a sitting exists.
+- No sections with their own timing; one time limit for the whole assessment.
+- Total marks of a blueprint-drawn form depend on the questions drawn; percentages are worked out
+  per candidate.
 

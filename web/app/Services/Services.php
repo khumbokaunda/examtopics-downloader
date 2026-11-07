@@ -187,6 +187,12 @@ final class Services
             $this->structure()->repo(), $this->audit()));
     }
 
+    public function assessments(): Assessments
+    {
+        return $this->app->service(Assessments::class, fn() => new Assessments(new \App\Repositories\AssessmentRepository($this->app->db()),
+            $this->questionBanks()->repo(), $this->questionBanks(), $this->structure()->repo(), $this->audit()));
+    }
+
     public function studentImport(): StudentImport
     {
         return $this->app->service(StudentImport::class, fn() => new StudentImport($this->structure()->repo(), $this->institutions()->repo(), $this->users()));

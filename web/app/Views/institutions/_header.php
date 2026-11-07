@@ -12,6 +12,8 @@ $tabs = array_filter([
     'classes' => [$base . '/classes', 'Classes', 'collection', $verified && (InstitutionAccess::can($membership, 'classes.view') || in_array($membership['role'], \App\Services\InstitutionStructure::TEACHING_ROLES, true))],
     'banks' => [$base . '/banks', 'Question banks', 'database', $verified && array_filter(['question_banks.view', 'question_banks.create', 'question_banks.edit', 'question_banks.publish'],
         static fn(string $p): bool => InstitutionAccess::can($membership, $p)) !== []],
+    'assessments' => [$base . '/assessments', 'Assessments', 'clipboard-check', $verified && array_filter(['assessments.view', 'assessments.create', 'assessments.assign', 'assessments.schedule'],
+        static fn(string $p): bool => InstitutionAccess::can($membership, $p)) !== []],
     'structure' => [$base . '/structure', 'Programmes', 'diagram-3', $verified && InstitutionAccess::can($membership, 'departments.manage')],
     'profile' => [$base . '/profile', 'Profile', 'building-gear', InstitutionAccess::can($membership, 'institution.manage')],
     'activity' => [$base . '/activity', 'Activity', 'activity', $verified && InstitutionAccess::can($membership, 'activity.view')],
@@ -35,13 +37,11 @@ $tabs = array_filter([
             <?= chip('You: ' . InstitutionAccess::roleName((string) $membership['role']), 'neutral', 'person') ?></span>
             <?= e(Institutions::TYPES[$institution['type']] ?? $institution['type']) ?> · <?= e($institution['district']) ?></p>
     </div>
-    <?php if (count($tabs) > 1): ?>
-    <div class="page-actions">
-        <nav class="segmented" aria-label="Institution pages">
-            <?php foreach ($tabs as $key => [$href, $label, $iconName]): ?>
-                <a class="<?= $tab === $key ? 'is-active' : '' ?>" href="<?= e(url($href)) ?>"<?= $tab === $key ? ' aria-current="page"' : '' ?>><?= icon($iconName) ?><?= e($label) ?></a>
-            <?php endforeach; ?>
-        </nav>
-    </div>
-    <?php endif; ?>
 </header>
+<?php if (count($tabs) > 1): ?>
+<nav class="segmented institution-tabs" aria-label="Institution pages">
+    <?php foreach ($tabs as $key => [$href, $label, $iconName]): ?>
+        <a class="<?= $tab === $key ? 'is-active' : '' ?>" href="<?= e(url($href)) ?>"<?= $tab === $key ? ' aria-current="page"' : '' ?>><?= icon($iconName) ?><?= e($label) ?></a>
+    <?php endforeach; ?>
+</nav>
+<?php endif; ?>
