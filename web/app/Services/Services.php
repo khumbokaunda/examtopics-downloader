@@ -170,6 +170,12 @@ final class Services
             $this->app->db(), $this->users(), $this->notifier(), $this->app->logger()));
     }
 
+    public function institutions(): Institutions
+    {
+        return $this->app->service(Institutions::class, fn() => new Institutions(new \App\Repositories\InstitutionRepository($this->app->db()),
+            $this->users(), $this->audit(), $this->notifier(), $this->mailQueue(), $this->mailer()));
+    }
+
     public function registration(): Registration
     {
         return $this->app->service(Registration::class, fn() => new Registration($this->app, $this->users(), $this->notifier()));

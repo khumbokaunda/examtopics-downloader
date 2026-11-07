@@ -110,6 +110,19 @@ final class View
         }
     }
 
+    /** Whether the signed-in person belongs to any institution, for the sidebar. */
+    public function inInstitution(): bool
+    {
+        if ($this->user === null) {
+            return false;
+        }
+        try {
+            return (int) $this->app->db()->value("SELECT COUNT(*) FROM institution_memberships WHERE user_id = ? AND status = 'active'", [(int) $this->user['id']]) > 0;
+        } catch (\Throwable) {
+            return false; // not migrated yet
+        }
+    }
+
     /** @return array<string,mixed>|null */
     public function user(): ?array
     {

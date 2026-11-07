@@ -14,12 +14,15 @@ use App\Controllers\DiscussionController;
 use App\Controllers\DocumentController;
 use App\Controllers\EmailController;
 use App\Controllers\InboxController;
+use App\Controllers\InstitutionController;
 use App\Controllers\IntegrityController;
+use App\Controllers\InvitationController;
 use App\Controllers\JobController;
 use App\Controllers\LibraryController;
 use App\Controllers\MediaController;
 use App\Controllers\MockController;
 use App\Controllers\NoteController;
+use App\Controllers\PlatformInstitutionController;
 use App\Controllers\ProgressController;
 use App\Controllers\ProviderController;
 use App\Controllers\QuestionController;
@@ -158,6 +161,29 @@ return static function (Router $r): void {
     $r->get('/inbox', [InboxController::class, 'index'], can: $me);
     $r->post('/inbox/read', [InboxController::class, 'readAll'], can: $me);
     $r->get('/inbox/{id}', [InboxController::class, 'open'], can: $me);
+
+    // Institutions: open to any signed-in account here; InstitutionController::tenant() admits
+    // only the institution's own members, and checks their institution permissions.
+    $r->get('/institutions', [InstitutionController::class, 'index'], can: $me);
+    $r->get('/institutions/register', [InstitutionController::class, 'registerForm'], can: $me);
+    $r->post('/institutions/register', [InstitutionController::class, 'register'], can: $me);
+    $r->get('/institutions/{ref}', [InstitutionController::class, 'show'], can: $me);
+    $r->get('/institutions/{ref}/profile', [InstitutionController::class, 'profile'], can: $me);
+    $r->post('/institutions/{ref}/profile', [InstitutionController::class, 'saveProfile'], can: $me);
+    $r->post('/institutions/{ref}/resubmit', [InstitutionController::class, 'resubmit'], can: $me);
+    $r->get('/institutions/{ref}/members', [InstitutionController::class, 'members'], can: $me);
+    $r->post('/institutions/{ref}/invitations', [InstitutionController::class, 'invite'], can: $me);
+    $r->post('/institutions/{ref}/invitations/{id}/revoke', [InstitutionController::class, 'revoke'], can: $me);
+    $r->post('/institutions/{ref}/members/{member}/role', [InstitutionController::class, 'memberRole'], can: $me);
+    $r->post('/institutions/{ref}/members/{member}/remove', [InstitutionController::class, 'memberRemove'], can: $me);
+    $r->post('/institutions/{ref}/leave', [InstitutionController::class, 'leave'], can: $me);
+    $r->get('/institutions/{ref}/activity', [InstitutionController::class, 'activity'], can: $me);
+    $r->get('/invitations/{token}', [InvitationController::class, 'show'], public: true);
+    $r->post('/invitations/{token}/accept', [InvitationController::class, 'accept'], can: $me);
+    $r->post('/invitations/{token}/decline', [InvitationController::class, 'decline'], can: $me);
+    $r->get('/platform/institutions', [PlatformInstitutionController::class, 'index'], can: 'institutions.manage');
+    $r->get('/platform/institutions/{ref}', [PlatformInstitutionController::class, 'show'], can: 'institutions.manage');
+    $r->post('/platform/institutions/{ref}/decision', [PlatformInstitutionController::class, 'decide'], can: 'institutions.manage');
 
     $r->get('/requests', [RequestController::class, 'index'], can: 'exams.request');
     $r->post('/requests', [RequestController::class, 'store'], can: 'exams.request');
