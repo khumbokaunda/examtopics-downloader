@@ -404,6 +404,11 @@ banks, assessments and results come in later phases.
   and what candidates see afterwards; assigned to classes or students; checked and published, which
   fixes the exact question versions. A preview shows one candidate's form. Candidates sit them in
   the next phase.
+- **Sitting assessments** (`/my/assessments`, `/sit/<id>`): students see what is set for them,
+  read the instructions and rules, and sit it on a page of its own: one question at a time, a clock
+  kept by the server, answers saved as they are picked (and kept on the device when the connection
+  drops), handed in by the student or by the server when time is up, and graded on the server.
+  Staff see every sitting's score and answers on the assessment's results page.
 - **Students** (`/institutions/<id>/students`): each student's institutional number, programme,
   standing and enrolment date, and an import from a CSV spreadsheet with a preview of every row
   before anything is saved, and a results file afterwards.
@@ -499,11 +504,11 @@ overview only.
 | Members | `question_comments` (with answer votes), `question_reports`, `question_notes` (notes and bookmarks) |
 | Studying | `study_answers` (latest answer per question, with spaced review box and due day), `study_days`, `study_places`, `saved_exams`, `mock_exams` |
 | Output | `documents`, `media` (saved images) |
-| Institutions | `institutions`, `institution_reviews` (decisions), `institution_memberships`, `institution_invitations`, `institution_departments`, `institution_programmes`, `institution_classes`, `class_instructors`, `class_enrolments`, `institution_students`, `question_banks`, `question_bank_editors`, `bank_topics`, `bank_questions`, `question_versions`, `assessments`, `assessment_items`, `assessment_blueprints`, `assessment_assignments` |
+| Institutions | `institutions`, `institution_reviews` (decisions), `institution_memberships`, `institution_invitations`, `institution_departments`, `institution_programmes`, `institution_classes`, `class_instructors`, `class_enrolments`, `institution_students`, `question_banks`, `question_bank_editors`, `bank_topics`, `bank_questions`, `question_versions`, `assessments`, `assessment_items`, `assessment_blueprints`, `assessment_assignments`, `assessment_sessions`, `assessment_session_questions`, `assessment_responses`, `assessment_response_history` |
 | Worked out, rebuilt on demand (not backed up) | `exam_checks` (Integrity figures), `question_index` (search) |
 | System | `settings`, `notifications`, `mail_queue`, `exam_requests`, `audit_log`, `throttle_events`, `schema_migrations` |
 
-Migrations `001` to `030` in `web/database/migrations` create all of it; `php bin/migrate.php`
+Migrations `001` to `031` in `web/database/migrations` create all of it; `php bin/migrate.php`
 applies them.
 
 ### Background processes

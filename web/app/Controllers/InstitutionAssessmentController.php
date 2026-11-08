@@ -211,6 +211,31 @@ final class InstitutionAssessmentController extends TenantController
         ]);
     }
 
+    public function results(string $ref, string $assessment): Response
+    {
+        [$i, $m, $a] = $this->assessmentFor($ref, $assessment, 'see');
+        $this->s->sittings()->expireOverdue();
+        $rows = $this->s->sittings()->repo()->forAssessment((int) $i['id'], (int) $a['id']);
+        $done = array_values(array_filter($rows, static fn(array $r): bool => $r['status'] !== 'in_progress'));
+        $percents = array_map(static fn(array $r): float => (float) $r['percent'], $done);
+        return $this->render('institutions/assessment_results', $this->pageVars($i, $m, 'assessments') + [
+            'assessment' => $a, 'rows' => $rows,
+            'summary' => ['sat' => count($done), 'in_progress' => count($rows) - count($done), 'candidates' => $this->s->assessments()->repo()->candidateCount((int) $i['id'], (int) $a['id']),
+                'average' => $percents !== [] ? round(array_sum($percents) / count($percents), 1) : null,
+                'passed' => $a['pass_percent'] !== null ? count(array_filter($done, static fn(array $r): bool => (int) $r['passed'] === 1)) : null],
+        ]);
+    }
+
+    public function sitting(string $ref, string $assessment, string $sitting): Response
+    {
+        [$i, $m, $a] = $this->assessmentFor($ref, $assessment, 'see');
+        $s = $this->s->sittings()->repo()->sessionOf((int) $i['id'], (int) $a['id'], $sitting) ?? throw HttpException::notFound('Sitting');
+        return $this->render('institutions/assessment_sitting', $this->pageVars($i, $m, 'assessments') + [
+            'assessment' => $a, 'sitting' => $s, 'questions' => $this->s->sittings()->repo()->questions((int) $s['id']),
+            'responses' => $this->s->sittings()->repo()->responses((int) $s['id']),
+        ]);
+    }
+
     /**
      * @return array{0:array<string,mixed>,1:array<string,mixed>,2:array<string,mixed>}
      */

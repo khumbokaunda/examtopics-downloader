@@ -34,7 +34,8 @@ $creator = (int) $a['created_by'] === (int) $membership['id'];
     <div class="col-xl-8">
         <div class="card mb-4" id="questions">
             <div class="card-header"><span class="card-title"><?= icon('list-check') ?>Questions</span>
-                <span class="d-flex gap-2"><a class="btn btn-sm btn-outline-secondary" href="<?= e(url($base . '/preview')) ?>"><?= icon('eye') ?>Preview a form</a>
+                <span class="d-flex gap-2"><?php if ($a['status'] !== 'draft'): ?><a class="btn btn-sm btn-outline-primary" href="<?= e(url($base . '/results')) ?>"><?= icon('table') ?>Results</a><?php endif; ?>
+                <a class="btn btn-sm btn-outline-secondary" href="<?= e(url($base . '/preview')) ?>"><?= icon('eye') ?>Preview a form</a>
                 <?php if ($canEdit): ?><a class="btn btn-sm btn-primary" href="<?= e(url($base . '/add')) ?>"><?= icon('plus') ?>Add questions</a><?php endif; ?></span></div>
             <?php if ($items === [] && $blueprints === []): ?>
                 <div class="card-body"><?= empty_state('list-check', 'No questions yet', $canEdit ? 'Choose questions one by one, or describe how many to draw from a bank, topic and difficulty.' : '', null, true) ?></div>

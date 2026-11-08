@@ -251,6 +251,12 @@ final class AssessmentRepository
         $this->db->run('DELETE FROM assessment_assignments WHERE institution_id = ? AND assessment_id = ? AND id = ?', [$iid, $assessmentId, $id]);
     }
 
+    /** How many sittings an assessment has had (any status). */
+    public function sittingCount(int $iid, int $assessmentId): int
+    {
+        return (int) $this->db->value('SELECT COUNT(*) FROM assessment_sessions WHERE institution_id = ? AND assessment_id = ?', [$iid, $assessmentId]);
+    }
+
     /** How many different students the assignments reach today (class members now, plus named students). */
     public function candidateCount(int $iid, int $assessmentId): int
     {

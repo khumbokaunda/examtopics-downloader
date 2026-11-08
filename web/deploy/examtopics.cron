@@ -3,6 +3,9 @@
 */5 * * * * /usr/bin/php /srv/examtopics-downloader/web/bin/reconcile.php > /dev/null 2>&1
 # Send queued notification emails and retry failed ones.
 */5 * * * * /usr/bin/php /srv/examtopics-downloader/web/bin/send-mail.php > /dev/null 2>&1
+# Hand in institution assessment sittings whose time is up (a safety net: sittings are also
+# handed in when next opened).
+* * * * * /usr/bin/php /srv/examtopics-downloader/web/bin/sittings.php > /dev/null 2>&1
 # Remove working files of jobs that finished more than 30 days ago.
 17 3 * * * /usr/bin/php /srv/examtopics-downloader/web/bin/cleanup.php --days=30 > /dev/null 2>&1
 # Optional: a nightly backup of everything, keeping the newest seven (uncomment to use).

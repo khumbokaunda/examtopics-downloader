@@ -17,7 +17,7 @@ use RuntimeException;
  *
  * Lifecycle: draft (edited freely) -> published (fixed: chosen questions are pinned to the
  * versions published at that moment) -> closed -> archived. A published assessment can go back to
- * draft only while nobody has sat it; phase 4 adds that guard with the sittings themselves.
+ * draft only while nobody has sat it, and an archived one that was sat is restored as closed.
  */
 final class Assessments
 {
@@ -359,7 +359,14 @@ final class Assessments
         if ($action === 'reopen' && $a['closes_at'] !== null && (string) $a['closes_at'] <= gmdate('Y-m-d H:i:s')) {
             throw new RuntimeException('Its closing time has passed. Set a later one first.');
         }
-        if ($action === 'unpublish' || ($action === 'restore')) {
+        $sat = $this->repo->sittingCount((int) $i['id'], (int) $a['id']) > 0;
+        if ($action === 'unpublish' && $sat) {
+            throw new RuntimeException('Candidates have sat it, so it stays published. Close it instead, and make a new assessment for any changes.');
+        }
+        if ($action === 'restore' && $sat) {
+            $to = 'closed';
+        }
+        if ($action === 'unpublish' || ($action === 'restore' && !$sat)) {
             $this->repo->unpinItems((int) $i['id'], (int) $a['id']);
         }
         $this->repo->setStatus((int) $i['id'], (int) $a['id'], $to);
