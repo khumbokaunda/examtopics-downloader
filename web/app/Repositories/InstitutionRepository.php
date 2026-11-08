@@ -17,8 +17,11 @@ use App\Core\Ids;
 final class InstitutionRepository
 {
     /** Profile columns a form may set. */
-    public const PROFILE = ['name', 'short_name', 'type', 'address', 'region', 'district', 'email', 'phone', 'website',
-        'registration_info', 'contact_name', 'contact_position', 'intended_use'];
+    public const PROFILE = ['name', 'short_name', 'type', 'address', 'region', 'district', 'email', 'phone', 'website', 'year_established', 'services',
+        'registration_info', 'registration_authority', 'registration_number', 'accreditation_authority', 'accreditation_reference', 'accreditation_expires',
+        'contact_name', 'contact_position', 'contact_phone', 'intended_use'];
+    /** Applications still open (counted against how many one account may have at once). */
+    public const OPEN = ['draft', 'pending', 'under_review', 'info_requested'];
 
     public function __construct(private Database $db)
     {
@@ -43,7 +46,7 @@ final class InstitutionRepository
         $cols = array_intersect_key($profile, array_flip(self::PROFILE));
         $names = array_keys($cols);
         $this->db->run('INSERT INTO institutions (uuid, ' . implode(', ', $names) . ', status, created_by, created_at, updated_at) VALUES (?, '
-            . implode(', ', array_fill(0, count($names), '?')) . ", 'pending', ?, ?, ?)",
+            . implode(', ', array_fill(0, count($names), '?')) . ", 'draft', ?, ?, ?)",
             [Ids::uuid(), ...array_values($cols), $userId, $now, $now]);
         return $this->db->lastId();
     }
@@ -92,7 +95,7 @@ final class InstitutionRepository
             $sql .= ' WHERE i.status = ?';
             $args[] = $status;
         }
-        return $this->db->all($sql . " ORDER BY i.status = 'pending' DESC, i.created_at DESC", $args);
+        return $this->db->all($sql . " ORDER BY i.status IN ('pending', 'under_review') DESC, i.status = 'info_requested' DESC, i.created_at DESC", $args);
     }
 
     /** @return array<string,int> institutions per status */
@@ -107,7 +110,7 @@ final class InstitutionRepository
 
     public function pendingCreatedBy(int $userId): int
     {
-        return (int) $this->db->value("SELECT COUNT(*) FROM institutions WHERE created_by = ? AND status = 'pending'", [$userId]);
+        return (int) $this->db->value("SELECT COUNT(*) FROM institutions WHERE created_by = ? AND status IN ('draft', 'pending', 'under_review', 'info_requested')", [$userId]);
     }
 
     // Memberships ---------------------------------------------------------------------------

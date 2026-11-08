@@ -33,14 +33,18 @@ final class InstitutionsTest extends HttpTestCase
         $uuid = $this->institution('olive', 'Lilongwe ICT Academy', false);
 
         $i = $this->app->db()->one('SELECT * FROM institutions WHERE uuid = ?', [$uuid]);
-        self::assertSame('pending', $i['status']);
+        self::assertSame('draft', $i['status']);
         $m = $this->app->db()->one('SELECT * FROM institution_memberships WHERE institution_id = ?', [(int) $i['id']]);
         self::assertSame('owner', $m['role'], 'the person registering becomes its owner');
         $admin = $this->s->users()->findByUsername('admin');
-        self::assertSame(1, (int) $this->app->db()->value("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND kind = 'institution'", [(int) $admin['id']]));
+        $told = fn(): int => (int) $this->app->db()->value("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND kind = 'institution'", [(int) $admin['id']]);
+        self::assertSame(0, $told(), 'a draft is the applicant\'s own');
+        $this->post('/institutions/' . $uuid . '/application/submit', ['accept' => '1']);
+        self::assertSame('pending', $this->app->db()->value('SELECT status FROM institutions WHERE uuid = ?', [$uuid]));
+        self::assertSame(1, $told());
 
         $page = $this->get('/institutions/' . $uuid)->body;
-        self::assertStringContainsString('Waiting for a platform reviewer', $page);
+        self::assertStringContainsString('is with the platform', $page);
         self::assertSame(403, $this->get('/institutions/' . $uuid . '/members')->status, 'nobody is invited before verification');
         self::assertSame(403, $this->post('/institutions/' . $uuid . '/invitations', ['email' => 'bob@example.com', 'role' => 'student'])->status);
         self::assertSame(0, (int) $this->app->db()->value('SELECT COUNT(*) FROM institution_invitations'));
@@ -52,11 +56,16 @@ final class InstitutionsTest extends HttpTestCase
     {
         $uuid = $this->institution('olive', 'Zomba Training Centre', false);
         $this->as('admin');
+        $this->post('/platform/institutions/' . $uuid . '/decision', ['decision' => 'reject', 'note' => 'Not sent yet.']);
+        self::assertStringContainsString('cannot be given that decision', $this->flashes()[0]['message'], 'a draft is not the reviewer\'s');
+        $this->as('olive');
+        $this->post('/institutions/' . $uuid . '/application/submit', ['accept' => '1']);
+        $this->as('admin');
         $this->post('/platform/institutions/' . $uuid . '/decision', ['decision' => 'reject', 'note' => '']);
         self::assertStringContainsString('Give the reason', $this->flashes()[0]['message']);
         $this->post('/platform/institutions/' . $uuid . '/decision', ['decision' => 'reject', 'note' => 'The telephone number does not answer.']);
         self::assertSame('rejected', $this->app->db()->value('SELECT status FROM institutions WHERE uuid = ?', [$uuid]));
-        self::assertStringContainsString('not verified', $this->flashes()[0]['message']);
+        self::assertStringContainsString('not approved', $this->flashes()[0]['message']);
         $this->post('/platform/institutions/' . $uuid . '/decision', ['decision' => 'suspend', 'note' => 'x']);
         self::assertStringContainsString('cannot be given that decision', $this->flashes()[0]['message']);
 
@@ -64,7 +73,7 @@ final class InstitutionsTest extends HttpTestCase
         self::assertStringContainsString('The telephone number does not answer.', $this->get('/institutions/' . $uuid)->body);
         $this->post('/institutions/' . $uuid . '/resubmit');
         self::assertSame('pending', $this->app->db()->value('SELECT status FROM institutions WHERE uuid = ?', [$uuid]));
-        self::assertSame(2, (int) $this->app->db()->value('SELECT COUNT(*) FROM institution_reviews'), 'every decision is kept with its reviewer');
+        self::assertSame(3, (int) $this->app->db()->value('SELECT COUNT(*) FROM institution_reviews'), 'sending, the decision and sending again are all kept');
     }
 
     public function testNoOneOutsideAnInstitutionCanOpenItNotEvenAPlatformAdministrator(): void

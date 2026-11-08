@@ -47,8 +47,8 @@ final class InstitutionController extends TenantController
             return $this->render('institutions/register', ['title' => 'Register an institution', 'nav' => 'institutions', 'form' => $profile,
                 'errors' => ['_' => $e->getMessage()]], 422);
         }
-        $this->flash('success', $institution['name'] . ' is registered and waits for verification. You are its owner, and you are told in your inbox when it is decided.');
-        return $this->redirect('/institutions/' . $institution['uuid']);
+        $this->flash('success', 'The application for ' . $institution['name'] . ' is started. Add its documents and send it for review.');
+        return $this->redirect('/institutions/' . $institution['uuid'] . '/application');
     }
 
     public function show(string $ref): Response
@@ -59,7 +59,9 @@ final class InstitutionController extends TenantController
             'roleCounts' => $repo->roleCounts((int) $i['id']),
             'invitations' => InstitutionAccess::can($m, 'members.view') ? count($repo->openInvitations((int) $i['id'])) : null,
             'activity' => InstitutionAccess::can($m, 'activity.view') ? $this->activityRows($i, 8) : null,
-            'reviews' => $i['status'] !== 'verified' ? $repo->reviews((int) $i['id']) : [],
+            'reviews' => [],
+            'setup' => $i['status'] === 'verified' && InstitutionAccess::can($m, 'institution.manage')
+                ? $this->s->onboarding()->setup($i, $this->auth->user(), $this->s->twoStep()->enabled((int) $this->auth->user()['id'])) : null,
             'counts' => $this->s->structure()->repo()->counts((int) $i['id']),
             'myClasses' => array_values(array_filter($this->s->structure()->repo()->enrolmentsOf((int) $i['id'], (int) $m['id']), static fn(array $e): bool => $e['status'] === 'active')),
             'teaching' => $this->s->structure()->repo()->classes((int) $i['id'], 'active', (int) $m['id']),
@@ -81,7 +83,7 @@ final class InstitutionController extends TenantController
             return $this->render('institutions/profile', $this->pageVars($i, $m, 'profile') + ['form' => $profile, 'errors' => $errors], 422);
         }
         $this->s->institutions()->updateProfile($i, $profile);
-        $this->flash('success', 'The profile is saved.' . ($i['status'] === 'rejected' ? ' Send it for verification again when it is ready.' : ''));
+        $this->flash('success', 'The profile is saved.' . (in_array($i['status'], \App\Services\Onboarding::EDITABLE, true) ? ' Send the application for review when it is ready.' : ''));
         return $this->redirect('/institutions/' . $i['uuid'] . '/profile');
     }
 
@@ -89,8 +91,8 @@ final class InstitutionController extends TenantController
     {
         [$i] = $this->tenant($ref, 'institution.manage', false);
         try {
-            $this->s->institutions()->resubmit($i, $this->auth->user());
-            $this->flash('success', 'Sent for verification again.');
+            $this->s->onboarding()->submit($i, $this->auth->user(), false, (string) $this->request->input('response', ''), $this->request->ip());
+            $this->flash('success', 'Sent for review again.');
         } catch (RuntimeException $e) {
             $this->flash('warning', $e->getMessage());
         }

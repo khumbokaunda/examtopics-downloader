@@ -16,7 +16,8 @@ use ZipArchive;
  *   manifest.json         what it holds: format, when, by whom, migrations, row counts, files
  *   data/<table>.json     every row of each table, as JSON
  *   files/<area>/...      storage areas: cache (the exam data), inventory (known question
- *                         links), branding (the logo), uploads (pictures added by hand,
+ *                         links), branding (the logo), institution_documents (the
+ *                         evidence sent with institution applications), uploads (pictures added by hand,
  *                         which cannot be fetched again), and optionally media (saved
  *                         images) and documents (built PDFs and Markdown)
  *
@@ -38,11 +39,11 @@ final class Backup
     /** Of those, the ones worked out from the data: emptied by a restore, so they are worked out again from what was restored. */
     public const DERIVED = ['exam_checks', 'question_index'];
     /** Storage areas, and whether a backup includes them unless told otherwise. */
-    public const AREAS = ['cache' => true, 'inventory' => true, 'branding' => true, 'uploads' => true, 'media' => true, 'documents' => true];
+    public const AREAS = ['cache' => true, 'inventory' => true, 'branding' => true, 'uploads' => true, 'media' => true, 'documents' => true, 'institution_documents' => true];
     /** Areas that can be left out, and the table whose rows describe their files. */
     public const OPTIONAL = ['media' => 'media', 'documents' => 'documents'];
     private const NAME_RE = '/^examtopics-backup-\d{8}-\d{6}(?:-[a-z]+(?:-[a-z]+)*)?\.zip$/';
-    private const ENTRY_RE = '#^(?:manifest\.json|data/[a-z0-9_]{1,64}\.json|files/(cache|inventory|branding|uploads|media|documents)/[A-Za-z0-9._@+=-]+(?:/[A-Za-z0-9._@+=-]+)*)$#';
+    private const ENTRY_RE = '#^(?:manifest\.json|data/[a-z0-9_]{1,64}\.json|files/(cache|inventory|branding|uploads|media|documents|institution_documents)/[A-Za-z0-9._@+=-]+(?:/[A-Za-z0-9._@+=-]+)*)$#';
 
     public function __construct(private App $app)
     {

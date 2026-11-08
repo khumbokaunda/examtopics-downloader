@@ -1,6 +1,6 @@
 <?php
 /** @var array $institution @var array $membership @var string $tab @var array<string,int> $roleCounts @var int|null $invitations
- *  @var list<array>|null $activity @var list<array> $reviews @var array<string,int> $counts @var list<array> $myClasses @var list<array> $teaching @var array|null $overview */
+ *  @var list<array>|null $setup @var list<array>|null $activity @var list<array> $reviews @var array<string,int> $counts @var list<array> $myClasses @var list<array> $teaching @var array|null $overview */
 use App\Services\InstitutionAccess;
 use App\Services\Institutions;
 $base = '/institutions/' . $institution['uuid'];
@@ -11,16 +11,31 @@ $staff = $people - ($roleCounts['student'] ?? 0);
 ?>
 <?= \App\Core\View::current()->partial('institutions/_header', ['institution' => $institution, 'membership' => $membership, 'tab' => $tab]) ?>
 
-<?php if ($status === 'pending'): ?>
-    <div class="alert alert-warning" role="status"><?= icon('hourglass-split') ?><div class="alert-body">Waiting for a platform reviewer. Until it is verified you can correct the profile, and people cannot be invited yet. You are told in your inbox when it is decided.</div></div>
-<?php elseif ($status === 'rejected'): ?>
-    <div class="alert alert-danger d-flex flex-wrap align-items-center gap-2" role="status"><?= icon('x-octagon') ?><div class="alert-body flex-grow-1">Not verified<?= $institution['status_note'] ? ': ' . e($institution['status_note']) : '' ?>. Correct the profile, then send it again.</div>
-        <?php if (InstitutionAccess::can($membership, 'institution.manage')): ?>
-        <form method="post" action="<?= e(url($base . '/resubmit')) ?>" data-once><?= csrf_field() ?><button class="btn btn-sm btn-outline-secondary" type="submit"><?= icon('send') ?>Send for verification again</button></form>
-        <?php endif; ?>
+<?php $manage = InstitutionAccess::can($membership, 'institution.manage'); ?>
+<?php if (in_array($status, ['draft', 'pending', 'under_review', 'info_requested', 'rejected'], true)): ?>
+    <div class="alert <?= in_array($status, ['info_requested', 'rejected'], true) ? 'alert-warning' : 'alert-info' ?> d-flex flex-wrap align-items-center gap-2" role="status"><?= icon('file-earmark-check') ?>
+        <div class="alert-body flex-grow-1"><?= e(match ($status) {
+            'draft' => 'The application has not been sent yet. Add its documents and send it for review.',
+            'pending', 'under_review' => 'The application is with the platform\'s reviewers. Until it is approved, people cannot be invited.',
+            'info_requested' => 'The reviewer asked for more information: ' . (string) $institution['status_note'],
+            default => 'Not approved: ' . (string) $institution['status_note'] . ' Correct the application and send it again.',
+        }) ?></div>
+        <?php if ($manage): ?><a class="btn btn-sm btn-outline-secondary" href="<?= e(url($base . '/application')) ?>"><?= icon('arrow-right') ?>Open the application</a><?php endif; ?>
     </div>
 <?php elseif ($status === 'suspended'): ?>
-    <div class="alert alert-danger" role="status"><?= icon('slash-circle') ?><div class="alert-body">Suspended by the platform<?= $institution['status_note'] ? ': ' . e($institution['status_note']) : '' ?>. Its members cannot open it until it is reinstated.</div></div>
+    <div class="alert alert-danger" role="status"><?= icon('slash-circle') ?><div class="alert-body">Suspended by the platform<?= $institution['status_note'] ? ': ' . e($institution['status_note']) : '' ?>. Its members cannot open it until it is reinstated. Its records and certificates are kept.</div></div>
+<?php endif; ?>
+<?php if ($setup !== null && array_filter($setup, static fn(array $s): bool => !$s['done']) !== []): ?>
+    <div class="card mb-4">
+        <div class="card-header"><span class="card-title"><?= icon('list-check') ?>Getting started</span><span class="small text-muted"><?= count(array_filter($setup, static fn(array $s): bool => $s['done'])) ?> of <?= count($setup) ?> done</span></div>
+        <ul class="list-rows">
+            <?php foreach ($setup as $step): ?>
+                <li class="request-row"><div class="row-main"><span class="icon-bubble" data-tone="<?= $step['done'] ? 'success' : 'neutral' ?>"><?= icon($step['done'] ? 'check2' : 'circle') ?></span><div class="row-text">
+                    <div class="row-title fw-normal"><?= $step['done'] ? e($step['label']) : '<a href="' . e(url($step['href'])) . '">' . e($step['label']) . '</a>' ?></div>
+                </div></div></li>
+            <?php endforeach; ?>
+        </ul>
+    </div>
 <?php endif; ?>
 
 <div class="kpi-strip">
