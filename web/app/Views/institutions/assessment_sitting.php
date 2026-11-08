@@ -1,4 +1,4 @@
-<?php /** @var array $institution @var array $membership @var string $tab @var array $assessment @var array $sitting @var list<array> $questions @var array<int,array> $responses */
+<?php /** @var array $institution @var array $membership @var string $tab @var array $assessment @var array $sitting @var list<array> $questions @var array<int,array> $responses @var list<array> $topics @var bool $canExport */
 use App\Controllers\InstitutionAssessmentController as C;
 use App\Services\Access;
 use App\Services\QuestionBanks;
@@ -31,7 +31,9 @@ $letters = static function (string $order, string $keys): string {
     <?php else: ?>
     <div><div class="small text-muted">Ends</div><div><?= e(fmt_time((string) $s['ends_at'])) ?></div></div>
     <?php endif; ?>
+    <?php if ($canExport && !$live): ?><div class="ms-auto"><a class="btn btn-sm btn-outline-secondary" href="<?= e(url($base . '/results/' . $s['uuid'] . '/report.pdf')) ?>"><?= icon('file-earmark-pdf') ?>Report as PDF</a></div><?php endif; ?>
 </div></div>
+<?php if ($topics !== []): ?><div class="mb-4"><?= \App\Core\View::current()->partial('sitting/_topics', ['topics' => $topics]) ?></div><?php endif; ?>
 <div class="card">
     <div class="card-header"><span class="card-title"><?= icon('list-check') ?>Answers</span><span class="small text-muted">Letters as this candidate saw them</span></div>
     <div class="table-responsive">

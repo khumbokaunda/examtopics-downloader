@@ -19,7 +19,7 @@ acceptance criteria.
 | 2b | Question bank management | Done |
 | 3 | Institutional examination builder | Done |
 | 4 | Examination execution engine (first major milestone) | Done |
-| 5 | Results and analytics | Next |
+| 5 | Results and analytics, and the public registration page | Done |
 | 6 | Readiness assessment and certificates | |
 | 7 | Integrity monitoring | |
 | 8 | Live invigilation | |
@@ -447,4 +447,48 @@ browser: answering, losing the connection (the answer kept and shown as not save
 - No pause or extra time for one candidate (invigilation, Phase 8).
 - If the device is offline when the time runs out, answers it never sent are not counted, as the
   specification requires.
+
+---
+
+## Public institution registration (delivered with Phase 5)
+
+`/join`, linked from the sign-in page ("Running a training institution? Register it"), registers
+an institution for someone without an account: their account (name, email, username, password)
+and the institution's profile in one form. It follows the site's sign-up setting: open or needing
+approval it works, closed it explains how to register from an existing account. Nothing is stored
+while the institution's details have problems. The account is created unverified with an emailed
+code, exactly as an ordinary sign-up; the institution waits in the browser's session and is
+registered only once the code is typed, so an address nobody confirms never leaves an institution
+behind. Signed in, `/join` goes to the ordinary form. `JoinTest` covers both modes.
+
+## Phase 5: results and analytics (delivered)
+
+Migration 032 adds `results_published_at` and `results_published_by` to `assessments`.
+
+- **Publishing results** (`results.publish`: examination officers, administrators, owners). Until
+  then candidates know only that they handed in. Publishing tells every candidate who handed in,
+  in their inbox and by email if they chose it, linking to their latest attempt; it can be taken
+  back. Candidates then see what the assessment's review policy allows: nothing ("your result is
+  recorded"), their score with a breakdown by topic, or that plus every question with their answer,
+  the right one and the explanation. A PDF of their report downloads from the same page.
+- **Per sitting**: score, percentage, pass, and topics weakest first (`/results/{sitting}`, with a
+  PDF report for `results.export`).
+- **Per assessment** (its results page): handed in against the candidates it reaches, sitting now,
+  average and passes; a score distribution in bands of 10%; topics across candidates; and every
+  question with how often it was given and answered right, how often unanswered, and the wrong
+  choice picked most. Questions answered right by under 30% or at least 95% of five or more
+  candidates are flagged as very hard or very easy, as prompts for the author, not verdicts.
+- **Per class**: each assessment assigned to it, with how many of its students handed in, their
+  average and passes (class page). **Per student**: every result (student page). **Institution**:
+  sittings handed in, average score and pass rate on the overview.
+- **Export** (`results.export`): every sitting as CSV (cells that look like formulas made inert),
+  and any candidate's report as PDF. Downloads are recorded in the activity history.
+- Statistics are worked out from stored sittings (their forms, answers and grades), never from the
+  question bank as it is today, so a later edit never changes a past result. Charts are drawn with
+  CSS classes rather than inline styles, which the CSP forbids, and each has a table for screen
+  readers.
+
+`ResultsTest` (3 tests): statistics with the most picked wrong choice, CSV and PDF, publishing and
+the notification, what each review policy shows, taking results back, who may publish and export,
+and the class, student and institution views.
 

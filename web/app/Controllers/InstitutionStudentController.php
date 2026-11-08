@@ -36,6 +36,7 @@ final class InstitutionStudentController extends TenantController
         return $this->render('institutions/student', $this->pageVars($i, $m, 'students') + [
             'student' => $st, 'history' => $repo->enrolmentsOf((int) $i['id'], (int) $st['id']),
             'programmes' => $repo->programmes((int) $i['id']), 'manage' => InstitutionAccess::can($m, 'students.manage'),
+            'results' => $this->s->results()->student((int) $i['id'], (int) $st['id']),
         ]);
     }
 

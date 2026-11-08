@@ -219,7 +219,8 @@ final class InstitutionAssessmentController extends TenantController
         $done = array_values(array_filter($rows, static fn(array $r): bool => $r['status'] !== 'in_progress'));
         $percents = array_map(static fn(array $r): float => (float) $r['percent'], $done);
         return $this->render('institutions/assessment_results', $this->pageVars($i, $m, 'assessments') + [
-            'assessment' => $a, 'rows' => $rows,
+            'assessment' => $a, 'rows' => $rows, 'stats' => $this->s->results()->assessment((int) $i['id'], (int) $a['id']),
+            'canPublish' => InstitutionAccess::can($m, 'results.publish'), 'canExport' => InstitutionAccess::can($m, 'results.export'),
             'summary' => ['sat' => count($done), 'in_progress' => count($rows) - count($done), 'candidates' => $this->s->assessments()->repo()->candidateCount((int) $i['id'], (int) $a['id']),
                 'average' => $percents !== [] ? round(array_sum($percents) / count($percents), 1) : null,
                 'passed' => $a['pass_percent'] !== null ? count(array_filter($done, static fn(array $r): bool => (int) $r['passed'] === 1)) : null],
@@ -230,10 +231,69 @@ final class InstitutionAssessmentController extends TenantController
     {
         [$i, $m, $a] = $this->assessmentFor($ref, $assessment, 'see');
         $s = $this->s->sittings()->repo()->sessionOf((int) $i['id'], (int) $a['id'], $sitting) ?? throw HttpException::notFound('Sitting');
+        $questions = $this->s->sittings()->repo()->questions((int) $s['id']);
         return $this->render('institutions/assessment_sitting', $this->pageVars($i, $m, 'assessments') + [
-            'assessment' => $a, 'sitting' => $s, 'questions' => $this->s->sittings()->repo()->questions((int) $s['id']),
+            'assessment' => $a, 'sitting' => $s, 'questions' => $questions,
             'responses' => $this->s->sittings()->repo()->responses((int) $s['id']),
+            'topics' => $s['status'] !== 'in_progress' ? $this->s->results()->topics($questions) : [],
+            'canExport' => InstitutionAccess::can($m, 'results.export'),
         ]);
+    }
+
+    public function publishResults(string $ref, string $assessment): Response
+    {
+        [$i, $m, $a] = $this->assessmentFor($ref, $assessment, 'see');
+        if (!InstitutionAccess::can($m, 'results.publish')) {
+            throw new HttpException(403, 'Publishing results needs the "results.publish" permission.');
+        }
+        try {
+            if ($this->request->input('action') === 'unpublish') {
+                $this->s->results()->unpublish($i, $a);
+                $this->flash('success', 'Results taken back. Candidates no longer see them.');
+            } else {
+                $this->s->sittings()->expireOverdue();
+                $n = $this->s->results()->publish($i, $m, $a);
+                $this->flash('success', 'Results published. ' . $n . ' ' . ($n === 1 ? 'candidate was' : 'candidates were') . ' told.');
+            }
+        } catch (RuntimeException $e) {
+            $this->flash('warning', $e->getMessage());
+        }
+        return $this->redirect('/institutions/' . $i['uuid'] . '/assessments/' . $a['uuid'] . '/results');
+    }
+
+    public function exportResults(string $ref, string $assessment): Response
+    {
+        [$i, $m, $a] = $this->assessmentFor($ref, $assessment, 'see');
+        if (!InstitutionAccess::can($m, 'results.export')) {
+            throw new HttpException(403, 'Downloading results needs the "results.export" permission.');
+        }
+        $this->s->audit()->record('institution.results_exported', ['institution' => $i['name'], 'assessment' => $a['title']], 'institution', (string) $i['uuid']);
+        return new Response(\App\Services\Results::csv($this->s->sittings()->repo()->forAssessment((int) $i['id'], (int) $a['id'])), 200,
+            ['Content-Type' => 'text/csv; charset=utf-8', 'Content-Disposition' => 'attachment; filename="results.csv"']);
+    }
+
+    public function sittingPdf(string $ref, string $assessment, string $sitting): Response
+    {
+        [$i, $m, $a] = $this->assessmentFor($ref, $assessment, 'see');
+        if (!InstitutionAccess::can($m, 'results.export')) {
+            throw new HttpException(403, 'Downloading reports needs the "results.export" permission.');
+        }
+        $s = $this->s->sittings()->repo()->sessionOf((int) $i['id'], (int) $a['id'], $sitting) ?? throw HttpException::notFound('Sitting');
+        if ($s['status'] === 'in_progress') {
+            throw HttpException::notFound('Report');
+        }
+        return $this->reportPdf($i['name'], $a['title'], 'answers', $s);
+    }
+
+    /** A candidate's report as a PDF: score, topics and, when $policy allows, each answer. @param array<string,mixed> $s a sitting */
+    private function reportPdf(string $institution, string $title, string $policy, array $s): Response
+    {
+        $questions = $this->s->sittings()->repo()->questions((int) $s['id']);
+        $view = new \App\Core\View($this->app, $this->session, $this->auth->user());
+        $html = $view->render('sitting/report_pdf', ['institution' => $institution, 'title' => $title, 'sitting' => $s, 'policy' => $policy,
+            'questions' => $questions, 'responses' => $this->s->sittings()->repo()->responses((int) $s['id']), 'topics' => $this->s->results()->topics($questions)], null);
+        return new Response(\App\Services\Results::pdf($html, $this->app->paths()->storage() . '/tmp/pdf'), 200,
+            ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="report.pdf"']);
     }
 
     /**

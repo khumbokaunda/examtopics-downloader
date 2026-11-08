@@ -1,4 +1,4 @@
-<?php /** @var array $institution @var array $membership @var string $tab @var array $student @var list<array> $history @var list<array> $programmes @var bool $manage */
+<?php /** @var array $institution @var array $membership @var string $tab @var array $student @var list<array> $history @var list<array> $programmes @var bool $manage @var list<array> $results */
 use App\Repositories\StructureRepository;
 use App\Services\Access;
 use App\Services\InstitutionStructure;
@@ -62,5 +62,19 @@ $active = $student['status'] === 'active';
             </ul>
             <?php endif; ?>
         </div>
+        <?php if ($results !== []): ?>
+        <div class="card mt-4">
+            <div class="card-header"><span class="card-title"><?= icon('graph-up') ?>Results</span></div>
+            <ul class="list-rows">
+                <?php foreach ($results as $r): ?>
+                    <li class="request-row"><div class="row-main"><div class="row-text">
+                        <div class="row-title fw-normal"><a href="<?= e(url('/institutions/' . $institution['uuid'] . '/assessments/' . $r['assessment_uuid'] . '/results/' . $r['uuid'])) ?>"><?= e($r['title']) ?></a></div>
+                        <div class="row-meta">Attempt <?= (int) $r['attempt'] ?> · <?= e(fmt_time((string) $r['submitted_at'])) ?></div>
+                    </div></div><span class="fw-semibold"><?= e(rtrim(rtrim((string) $r['percent'], '0'), '.')) ?>%</span>
+                    <?= $r['passed'] !== null ? ((int) $r['passed'] ? chip('Pass', 'success') : chip('Not passed', 'danger')) : '' ?></li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+        <?php endif; ?>
     </div>
 </div>

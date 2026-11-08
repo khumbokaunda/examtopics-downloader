@@ -20,45 +20,7 @@ final class SittingsTest extends HttpTestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->people('fay');
-        $this->a = $this->institution('olive', 'Lilongwe ICT Academy');
-        $this->join($this->a, 'olive', 'bob', 'instructor');
-        $this->join($this->a, 'olive', 'erin', 'exam_officer');
-        $this->join($this->a, 'olive', 'carol', 'student');
-        $this->join($this->a, 'olive', 'dan', 'student');
-        $this->join($this->a, 'olive', 'fay', 'student');
-        $base = '/institutions/' . $this->a;
-
-        $this->as('olive');
-        $this->post($base . '/classes', ['name' => 'CCNA 1']);
-        $class = (string) $this->db('SELECT uuid FROM institution_classes');
-        $this->post($base . '/classes/' . $class . '/students', ['students' => [$this->memberUuid($this->a, 'carol'), $this->memberUuid($this->a, 'dan')]]);
-
-        // Three published questions: single choice (2 marks, B right), multiple select with part
-        // marks (3 marks, A and C right), true or false (1 mark, true).
-        $this->post($base . '/banks', ['name' => 'Bank']);
-        $bank = $base . '/banks/' . $this->db('SELECT uuid FROM question_banks');
-        $this->post($bank . '/questions', ['type' => 'single', 'text' => 'Which layer routes?', 'choice_text' => ['Physical', 'Network', 'Session'], 'correct' => ['1'],
-            'marks' => '2', 'difficulty' => 'easy', 'explanation' => 'SECRET EXPLANATION']);
-        $this->post($bank . '/questions', ['type' => 'multiple', 'text' => 'Which are routing protocols?', 'choice_text' => ['OSPF', 'HTTP', 'EIGRP', 'FTP'],
-            'correct' => ['0', '2'], 'partial_credit' => '1', 'marks' => '3', 'difficulty' => 'medium']);
-        $this->post($bank . '/questions', ['type' => 'true_false', 'text' => 'OSPF is link-state.', 'tf_answer' => 'T', 'marks' => '1', 'difficulty' => 'easy']);
-        $questions = array_column($this->app->db()->all('SELECT uuid FROM bank_questions ORDER BY id'), 'uuid');
-        foreach ($questions as $q) {
-            $this->post($bank . '/questions/' . $q . '/status', ['action' => 'submit']);
-            $this->post($bank . '/questions/' . $q . '/status', ['action' => 'publish']);
-        }
-
-        $this->post($base . '/assessments', ['title' => 'Module test', 'type' => 'summative']);
-        $this->assessment = (string) $this->db('SELECT uuid FROM assessments');
-        $this->path = $base . '/assessments/' . $this->assessment;
-        $this->post($this->path . '/settings', ['title' => 'Module test', 'type' => 'summative', 'description' => '', 'instructions' => 'Answer every question.',
-            'duration_minutes' => '30', 'pass_percent' => '50', 'max_attempts' => '1', 'opens_at' => '', 'closes_at' => '', 'shuffle_questions' => '1',
-            'shuffle_choices' => '1', 'negative_marking' => '0', 'review_policy' => 'answers']);
-        $this->post($this->path . '/questions', ['bank' => (string) $this->db('SELECT uuid FROM question_banks'), 'questions' => $questions]);
-        $this->post($this->path . '/assignments', ['class' => $class]);
-        $this->post($this->path . '/status', ['action' => 'publish']);
-        self::assertSame('published', $this->db('SELECT status FROM assessments'));
+        [$this->a, $this->path, $this->assessment] = $this->sittingScenario();
     }
 
     private function db(string $sql, array $args = []): mixed

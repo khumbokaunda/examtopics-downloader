@@ -124,6 +124,45 @@ final class SittingController extends Controller
             'total' => count($this->s->sittings()->repo()->questions((int) $session['id']))]);
     }
 
+    /**
+     * The candidate's own result, once the institution has published results, showing what the
+     * assessment's review policy allows: nothing, the score and topics, or every answer too.
+     */
+    public function result(string $uuid): Response
+    {
+        $session = $this->released($uuid);
+        $questions = $this->s->sittings()->repo()->questions((int) $session['id']);
+        return $this->render('sitting/result', ['title' => 'Result: ' . $session['title'], 'nav' => 'my-assessments', 'session' => $session,
+            'questions' => $session['review_policy'] === 'answers' ? $questions : [],
+            'responses' => $session['review_policy'] === 'answers' ? $this->s->sittings()->repo()->responses((int) $session['id']) : [],
+            'topics' => $session['review_policy'] !== 'none' ? $this->s->results()->topics($questions) : []]);
+    }
+
+    public function resultPdf(string $uuid): Response
+    {
+        $session = $this->released($uuid);
+        if ($session['review_policy'] === 'none') {
+            throw HttpException::notFound('Report');
+        }
+        $questions = $this->s->sittings()->repo()->questions((int) $session['id']);
+        $view = new View($this->app, $this->session, $this->auth->user());
+        $html = $view->render('sitting/report_pdf', ['institution' => $session['institution_name'], 'title' => $session['title'], 'sitting' => $session,
+            'policy' => $session['review_policy'], 'questions' => $questions, 'responses' => $this->s->sittings()->repo()->responses((int) $session['id']),
+            'topics' => $this->s->results()->topics($questions)], null);
+        return new Response(\App\Services\Results::pdf($html, $this->app->paths()->storage() . '/tmp/pdf'), 200,
+            ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="result.pdf"']);
+    }
+
+    /** @return array<string,mixed> the person's own handed-in sitting whose results are published */
+    private function released(string $uuid): array
+    {
+        $session = $this->mine($uuid);
+        if ($session['status'] === 'in_progress' || $session['results_published_at'] === null) {
+            throw new HttpException(404, 'Your result is not published yet. You are told in your inbox when it is.');
+        }
+        return $session;
+    }
+
     /** @return array<string,mixed> */
     private function assigned(string $institution, string $assessment): array
     {

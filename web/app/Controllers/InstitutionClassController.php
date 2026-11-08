@@ -50,6 +50,7 @@ final class InstitutionClassController extends TenantController
             'teachers' => array_values(array_filter($members, static fn(array $p): bool => in_array($p['role'], InstitutionStructure::TEACHING_ROLES, true))),
             'otherClasses' => $manage ? array_values(array_filter($repo->classes($iid), static fn(array $o): bool => (int) $o['id'] !== (int) $c['id'])) : [],
             'programmes' => $manage ? $repo->programmes($iid) : [],
+            'report' => $this->s->results()->classReport($iid, (int) $c['id']),
         ]);
     }
 

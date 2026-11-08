@@ -96,7 +96,7 @@ final class SittingRepository
             return null;
         }
         return $this->db->one("SELECT s.*, a.uuid AS assessment_uuid, a.title, a.instructions, a.duration_minutes, a.pass_percent, a.negative_marking,
-                                      a.review_policy, a.type AS assessment_type, i.uuid AS institution_uuid, i.name AS institution_name,
+                                      a.review_policy, a.results_published_at, a.type AS assessment_type, i.uuid AS institution_uuid, i.name AS institution_name,
                                       m.user_id, u.username, u.display_name
                                FROM assessment_sessions s JOIN assessments a ON a.id = s.assessment_id JOIN institutions i ON i.id = s.institution_id
                                JOIN institution_memberships m ON m.id = s.membership_id JOIN users u ON u.id = m.user_id
@@ -212,7 +212,7 @@ final class SittingRepository
     /** @return list<array<string,mixed>> a person's sittings across institutions, newest first */
     public function history(int $userId): array
     {
-        return $this->db->all("SELECT s.*, a.uuid AS assessment_uuid, a.title, i.uuid AS institution_uuid, i.name AS institution_name
+        return $this->db->all("SELECT s.*, a.uuid AS assessment_uuid, a.title, a.results_published_at, i.uuid AS institution_uuid, i.name AS institution_name
                                FROM assessment_sessions s JOIN institution_memberships m ON m.id = s.membership_id
                                JOIN assessments a ON a.id = s.assessment_id JOIN institutions i ON i.id = s.institution_id
                                WHERE m.user_id = ? ORDER BY s.started_at DESC LIMIT 500", [$userId]);

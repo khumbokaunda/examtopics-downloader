@@ -829,3 +829,37 @@ a.job-chip:hover { text-decoration: none; filter: brightness(.96); }
 .sitting-save { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-sm); color: var(--color-success-ink); }
 .sitting-save.is-saving { color: var(--color-text-muted); }
 .sitting-save.is-error { color: var(--color-danger-ink); font-weight: var(--weight-semibold); }
+
+/* ---- Results: bars without inline styles (the CSP allows none) ------------------------- */
+.topic-bar { height: 6px; margin-top: 6px; border-radius: 3px; background: var(--color-surface-alt); overflow: hidden; }
+.topic-bar-fill { display: block; height: 100%; background: var(--color-primary); }
+.topic-bar[data-tone="success"] .topic-bar-fill { background: var(--color-success); }
+.topic-bar[data-tone="warning"] .topic-bar-fill { background: var(--color-warning); }
+.topic-bar[data-tone="danger"] .topic-bar-fill { background: var(--color-danger); }
+.score-bars { display: flex; align-items: flex-end; gap: 6px; height: 160px; padding-top: 18px; }
+.score-bar { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }
+.score-bar-fill { display: block; width: 100%; min-height: 2px; border-radius: 3px 3px 0 0; background: var(--color-primary); opacity: .85; }
+.score-bar-n { font-size: var(--text-xs, .75rem); color: var(--color-text-muted); }
+.score-bar-label { font-size: var(--text-xs, .75rem); color: var(--color-text-muted); margin-top: 4px; }
+.bank-choices li.is-picked-wrong { border-color: var(--color-danger); background: var(--color-danger-soft); }
+.topic-w-0 { width: 0%; } .topic-h-0 { height: 0%; }
+.topic-w-5 { width: 5%; } .topic-h-5 { height: 5%; }
+.topic-w-10 { width: 10%; } .topic-h-10 { height: 10%; }
+.topic-w-15 { width: 15%; } .topic-h-15 { height: 15%; }
+.topic-w-20 { width: 20%; } .topic-h-20 { height: 20%; }
+.topic-w-25 { width: 25%; } .topic-h-25 { height: 25%; }
+.topic-w-30 { width: 30%; } .topic-h-30 { height: 30%; }
+.topic-w-35 { width: 35%; } .topic-h-35 { height: 35%; }
+.topic-w-40 { width: 40%; } .topic-h-40 { height: 40%; }
+.topic-w-45 { width: 45%; } .topic-h-45 { height: 45%; }
+.topic-w-50 { width: 50%; } .topic-h-50 { height: 50%; }
+.topic-w-55 { width: 55%; } .topic-h-55 { height: 55%; }
+.topic-w-60 { width: 60%; } .topic-h-60 { height: 60%; }
+.topic-w-65 { width: 65%; } .topic-h-65 { height: 65%; }
+.topic-w-70 { width: 70%; } .topic-h-70 { height: 70%; }
+.topic-w-75 { width: 75%; } .topic-h-75 { height: 75%; }
+.topic-w-80 { width: 80%; } .topic-h-80 { height: 80%; }
+.topic-w-85 { width: 85%; } .topic-h-85 { height: 85%; }
+.topic-w-90 { width: 90%; } .topic-h-90 { height: 90%; }
+.topic-w-95 { width: 95%; } .topic-h-95 { height: 95%; }
+.topic-w-100 { width: 100%; } .topic-h-100 { height: 100%; }

@@ -1,5 +1,5 @@
 <?php
-/** @var array $institution @var array $membership @var string $tab @var array $class @var list<array> $students @var bool $withEnded @var bool $manage
+/** @var list<array> $report @var array $institution @var array $membership @var string $tab @var array $class @var list<array> $students @var bool $withEnded @var bool $manage
  *  @var list<array> $instructors @var list<array> $candidates @var list<array> $teachers @var list<array> $otherClasses @var list<array> $programmes */
 use App\Services\Access;
 use App\Services\InstitutionAccess;
@@ -79,6 +79,20 @@ $studentPages = InstitutionAccess::can($membership, 'students.manage') || Instit
         <?php endif; ?>
     </div>
     <div class="col-xl-4">
+        <?php if ($report !== []): ?>
+        <div class="card mb-4">
+            <div class="card-header"><span class="card-title"><?= icon('graph-up') ?>Assessments</span></div>
+            <ul class="list-rows">
+                <?php foreach ($report as $r): ?>
+                    <li class="request-row"><div class="row-main"><div class="row-text">
+                        <div class="row-title fw-normal"><?= e($r['title']) ?></div>
+                        <div class="row-meta"><?= (int) $r['sat'] ?> of <?= (int) $r['members'] ?> handed in<?= $r['average'] !== null ? ' · average ' . e(rtrim(rtrim(number_format((float) $r['average'], 1), '0'), '.')) . '%' : '' ?>
+                            <?= $r['pass_percent'] !== null && (int) $r['sittings'] > 0 ? ' · ' . (int) $r['passed'] . ' of ' . (int) $r['sittings'] . ' sittings passed' : '' ?></div>
+                    </div></div></li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+        <?php endif; ?>
         <div class="card mb-4">
             <div class="card-header"><span class="card-title"><?= icon('person-badge') ?>Instructors</span></div>
             <?php if ($manage): ?>

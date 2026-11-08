@@ -47,7 +47,8 @@ $label = ['open' => 'Open', 'upcoming' => 'Not open yet', 'closed' => 'Closed'];
                     <td class="small" data-label="Attempt"><?= (int) $h['attempt'] ?></td>
                     <td class="small" data-label="Started"><?= e(fmt_time((string) $h['started_at'])) ?></td>
                     <td data-label="Status"><?= chip(Sittings::STATUSES[$h['status']] ?? $h['status'], $h['status'] === 'in_progress' ? 'warning' : 'success') ?></td>
-                    <td class="small" data-label="Result"><?= $h['status'] === 'in_progress' ? '<a href="' . e(url('/sit/' . $h['uuid'])) . '">Carry on</a>' : 'Shown when the institution publishes results' ?></td>
+                    <td class="small" data-label="Result"><?= $h['status'] === 'in_progress' ? '<a href="' . e(url('/sit/' . $h['uuid'])) . '">Carry on</a>'
+                        : ($h['results_published_at'] !== null ? '<a href="' . e(url('/sit/' . $h['uuid'] . '/result')) . '">See your result</a>' : 'Shown when the institution publishes results') ?></td>
                 </tr>
             <?php endforeach; ?>
             </tbody>
