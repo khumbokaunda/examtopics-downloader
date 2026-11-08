@@ -195,12 +195,27 @@ final class Services
 
     public function sittings(): Sittings
     {
-        return $this->app->service(Sittings::class, fn() => new Sittings(new \App\Repositories\SittingRepository($this->app->db()), $this->assessments(), $this->audit()));
+        return $this->app->service(Sittings::class, fn() => new Sittings(new \App\Repositories\SittingRepository($this->app->db()), $this->assessments(), $this->audit(), $this->examIntegrity()));
     }
 
     public function results(): Results
     {
         return $this->app->service(Results::class, fn() => new Results($this->app->db(), $this->notifier(), $this->audit()));
+    }
+
+    public function readiness(): Readiness
+    {
+        return $this->app->service(Readiness::class, fn() => new Readiness($this->app->db(), $this->audit()));
+    }
+
+    public function examIntegrity(): Integrity
+    {
+        return $this->app->service(Integrity::class, fn() => new Integrity($this->app->db(), $this->audit()));
+    }
+
+    public function invigilation(): Invigilation
+    {
+        return $this->app->service(Invigilation::class, fn() => new Invigilation($this->app->db(), $this->examIntegrity(), $this->audit()));
     }
 
     public function studentImport(): StudentImport

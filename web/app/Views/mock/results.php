@@ -6,6 +6,7 @@
  * @var array $provider @var array $exam @var array $version @var array $mock
  * @var list<array> $questions the questions shown (all, wrong or unanswered) @var string $show
  * @var int $missing questions no longer in the version @var array<string,string> $localImages
+ * @var array $readiness from Readiness::assess() @var array|null $certificate @var list<array> $attempts
  */
 use App\Services\Documents\QuestionView;
 use App\Services\Editions;
@@ -46,6 +47,45 @@ $order = array_flip($mock['keys']);
             <span class="kpi-text"><span class="kpi-value d-block"><?= number_format($value) ?></span><span class="kpi-label d-block"><?= e($label) ?></span></span>
         </div>
     <?php endforeach; ?>
+</div>
+
+<?php $rTone = ['ready' => 'success', 'nearly' => 'info', 'developing' => 'warning', 'not_yet' => 'danger'][$readiness['level']]; ?>
+<div class="card mb-4 readiness-card">
+    <div class="card-header"><span class="card-title"><?= icon('speedometer2') ?>Readiness</span><?= chip($readiness['label'], $rTone) ?></div>
+    <div class="card-body">
+        <div class="row g-4">
+            <div class="col-lg-7">
+                <p class="small text-muted mb-2">What this attempt shows, by fixed rules. It measures performance on these practice questions, not a prediction of the real exam.</p>
+                <ul class="readiness-conditions">
+                    <?php foreach ($readiness['conditions'] as $c): ?><li class="<?= $c['ok'] ? 'is-met' : '' ?>"><?= icon($c['ok'] ? 'check-circle-fill' : 'circle') ?><span><?= e($c['text']) ?></span></li><?php endforeach; ?>
+                </ul>
+                <?php if ($certificate !== null): ?>
+                    <a class="btn btn-success" href="<?= e(url('/certificates/' . $certificate['uuid'])) ?>"><?= icon('award') ?>Your certificate <?= e($certificate['number']) ?></a>
+                <?php elseif ($readiness['eligible']): ?>
+                    <form method="post" action="<?= e(url('/mock/' . $mock['uuid'] . '/certificate')) ?>" data-once><?= csrf_field() ?>
+                        <button class="btn btn-success" type="submit"><?= icon('award') ?>Get your certificate of demonstrated readiness</button></form>
+                <?php else: ?>
+                    <p class="small mb-0">Meet every condition in one attempt to earn a certificate of demonstrated readiness.</p>
+                <?php endif; ?>
+            </div>
+            <div class="col-lg-5">
+                <h2 class="section-heading">How you worked</h2>
+                <dl class="row small mb-3">
+                    <dt class="col-7">Answered</dt><dd class="col-5"><?= (int) $readiness['stats']['answered'] ?> of <?= $total ?></dd>
+                    <dt class="col-7">Marked to look at again</dt><dd class="col-5"><?= (int) $readiness['stats']['flagged'] ?></dd>
+                    <dt class="col-7">Time per question, on average</dt><dd class="col-5"><?= (int) $readiness['stats']['per_question'] ?> s</dd>
+                </dl>
+                <?php if (count($attempts) > 1): ?>
+                <h2 class="section-heading">Your recent attempts</h2>
+                <ul class="list-unstyled small mb-0">
+                    <?php foreach ($attempts as $at): $p = (int) $at['total'] > 0 ? (int) round((int) $at['right_count'] * 100 / (int) $at['total']) : 0; ?>
+                        <li><?= (int) $at['id'] === (int) $mock['id'] ? '<strong>' : '' ?><?= e(fmt_time((string) $at['finished_at'])) ?>: <?= $p ?>% of <?= (int) $at['total'] ?><?= (int) $at['minutes'] > 0 ? ', timed' : '' ?><?= (int) $at['id'] === (int) $mock['id'] ? ' (this one)</strong>' : '' ?></li>
+                    <?php endforeach; ?>
+                </ul>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
 </div>
 
 <nav class="filter-chips" aria-label="Show">

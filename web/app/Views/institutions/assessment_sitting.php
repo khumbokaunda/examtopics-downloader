@@ -1,5 +1,7 @@
-<?php /** @var array $institution @var array $membership @var string $tab @var array $assessment @var array $sitting @var list<array> $questions @var array<int,array> $responses @var list<array> $topics @var bool $canExport */
+<?php /** @var array $institution @var array $membership @var string $tab @var array $assessment @var array $sitting @var list<array> $questions @var array<int,array> $responses @var list<array> $topics @var bool $canExport
+ *  @var array|null $integrity @var bool $canReview @var list<array> $observations */
 use App\Controllers\InstitutionAssessmentController as C;
+use App\Services\Integrity;
 use App\Services\Access;
 use App\Services\QuestionBanks;
 use App\Services\Sittings;
@@ -54,3 +56,47 @@ $letters = static function (string $order, string $keys): string {
         </table>
     </div>
 </div>
+<?php if ($integrity !== null): ?>
+<div class="card mt-4" id="integrity">
+    <div class="card-header"><span class="card-title"><?= icon('shield-check') ?>Integrity</span><span class="small text-muted">Monitoring: <?= e((Integrity::POLICIES[$s['monitoring']] ?? Integrity::POLICIES['basic'])['name']) ?></span></div>
+    <div class="card-body">
+        <p class="small text-muted">Observations, then indicators worked out from them by fixed rules, then people's conclusions. An observation has many innocent causes; nothing here is a finding by itself.</p>
+        <h2 class="section-heading">Indicators</h2>
+        <?php if ($integrity['indicators'] === []): ?><p class="small">Nothing to note.</p><?php else: ?>
+        <ul class="list-unstyled small">
+            <?php foreach ($integrity['indicators'] as $ind): ?><li class="mb-1"><?= match ($ind['level']) { 'review' => chip('Worth a look', 'warning'), 'technical' => chip('Technical', 'info'), default => chip('Noted', 'neutral') } ?> <?= e($ind['text']) ?></li><?php endforeach; ?>
+        </ul>
+        <?php endif; ?>
+        <h2 class="section-heading">Invigilators' observations</h2>
+        <?php if ($observations === []): ?><p class="small text-muted">None recorded.</p><?php endif; ?>
+        <?php foreach ($observations as $ob): ?>
+            <p class="small mb-2"><?= chip(\App\Services\Invigilation::CATEGORIES[$ob['category']] ?? $ob['category'], $ob['category'] === 'incident' ? 'warning' : 'neutral') ?> <?= e($ob['note']) ?> <span class="text-muted">· <?= e((string) $ob['author']) ?>, <?= e(fmt_time((string) $ob['created_at'])) ?></span></p>
+        <?php endforeach; ?>
+        <h2 class="section-heading">Conclusions</h2>
+        <?php if ($integrity['reviews'] === []): ?><p class="small text-muted">None recorded.</p><?php endif; ?>
+        <?php foreach ($integrity['reviews'] as $rv): ?>
+            <p class="small mb-2"><?= chip(Integrity::OUTCOMES[$rv['outcome']] ?? $rv['outcome'], $rv['outcome'] === 'no_concern' ? 'success' : 'warning') ?> <?= e($rv['note']) ?> <span class="text-muted">· <?= e((string) $rv['author']) ?>, <?= e(fmt_time((string) $rv['created_at'])) ?></span></p>
+        <?php endforeach; ?>
+        <?php if ($canReview && $s['status'] !== 'in_progress'): ?>
+        <form method="post" action="<?= e(url($base . '/results/' . $s['uuid'] . '/integrity')) ?>" class="row g-2 align-items-end mb-3" data-once><?= csrf_field() ?>
+            <div class="col-sm-4"><label class="form-label small" for="outcome">Conclusion</label><select class="form-select form-select-sm" id="outcome" name="outcome">
+                <?php foreach (Integrity::OUTCOMES as $k => $v): ?><option value="<?= e($k) ?>"><?= e($v) ?></option><?php endforeach; ?></select></div>
+            <div class="col-sm-6"><label class="form-label small" for="note">What it rests on</label><input class="form-control form-control-sm" id="note" name="note" maxlength="2000" required></div>
+            <div class="col-sm-2"><button class="btn btn-sm btn-outline-primary w-100" type="submit">Record</button></div>
+        </form>
+        <?php endif; ?>
+        <h2 class="section-heading">What was observed</h2>
+        <?php if ($integrity['events'] === []): ?><p class="small text-muted mb-0">Nothing was recorded<?= $s['monitoring'] === 'basic' ? ': this sitting\'s monitoring was basic' : '' ?>.</p><?php else: ?>
+        <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+            <thead><tr><th>Received (server time)</th><th>Observation</th><th>From</th><th>Lasted</th></tr></thead>
+            <tbody>
+            <?php foreach ($integrity['events'] as $ev): ?>
+                <tr><td class="small text-muted"><?= e(fmt_time((string) $ev['received_at'])) ?></td><td class="small"><?= e(Integrity::LABELS[$ev['type']] ?? $ev['type']) ?></td>
+                    <td class="small text-muted"><?= $ev['source'] === 'server' ? 'Server' : 'Browser' ?></td><td class="small"><?= $ev['duration_ms'] !== null && in_array($ev['type'], ['visible', 'online'], true) ? round((int) $ev['duration_ms'] / 1000) . ' s' : '' ?></td></tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table></div>
+        <?php endif; ?>
+    </div>
+</div>
+<?php endif; ?>

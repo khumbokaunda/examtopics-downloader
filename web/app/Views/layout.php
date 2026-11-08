@@ -23,6 +23,7 @@ $groups = [
         'library' => ['/library', 'Library', 'journal-bookmark', 'library.view'],
         'search' => ['/search', 'Search questions', 'search', 'library.view'],
         'progress' => ['/progress', 'My progress', 'graph-up', 'library.view'],
+        'certificates' => ['/certificates', 'My certificates', 'award', 'library.view'],
         'providers' => ['/providers', $collector ? 'Providers & inventory' : 'Providers', 'buildings', 'library.view'],
         'requests' => ['/requests', $user && can('requests.manage') ? 'Exam requests' : 'My requests', 'inbox', 'exams.request'],
     ],
@@ -38,6 +39,7 @@ $groups = [
     'System' => [
         'users' => ['/users', 'Users', 'people', 'users.manage'],
         'platform-institutions' => ['/platform/institutions', 'Institutions', 'buildings', 'institutions.manage'],
+        'platform-certificates' => ['/platform/certificates', 'Certificates', 'award', 'certificates.manage'],
         'activity' => ['/activity', 'Activity', 'activity', 'activity.view'],
         'sign-ins' => ['/security/sign-ins', 'Sign-in attempts', 'shield-lock', 'security.manage'],
         'branding' => ['/settings/branding', 'Branding', 'brush', 'settings.manage'],
@@ -208,5 +210,6 @@ $flashIcons = ['success' => 'check-circle', 'info' => 'info-circle', 'warning' =
 <?php endif; ?>
 <script src="<?= e(asset('/assets/js/app.js')) ?>"></script>
 <script src="<?= e(asset('/assets/js/data-table.js')) ?>"></script>
+<script src="<?= e(asset('/assets/js/live.js')) ?>"></script>
 </body>
 </html>

@@ -50,13 +50,14 @@ final class SittingController extends Controller
     public function sit(string $uuid): Response
     {
         $session = $this->mine($uuid);
-        if ($session['status'] === 'in_progress' && Sittings::secondsLeft($session) <= 0) {
+        if ($session['status'] === 'in_progress' && $session['paused_at'] === null && Sittings::secondsLeft($session) <= 0) {
             $this->s->sittings()->submit($session);
             $session = $this->mine($uuid);
         }
         if ($session['status'] !== 'in_progress') {
             return $this->redirect('/sit/' . $uuid . '/done');
         }
+        $this->s->examIntegrity()->record($session, 'opened');
         $view = new View($this->app, $this->session, $this->auth->user());
         return Response::html($view->render('sitting/sit', [
             'title' => $session['title'], 'session' => $session, 'questions' => $this->s->sittings()->repo()->questions((int) $session['id']),
@@ -84,6 +85,18 @@ final class SittingController extends Controller
         }
     }
 
+    /** Observations the sitting's browser sends, by its monitoring policy (a JSON list in the "events" field). */
+    public function events(string $uuid): Response
+    {
+        $session = $this->mine($uuid);
+        // Events sent just after the end (a last batch) are still taken; later ones are not.
+        if ($session['status'] !== 'in_progress' && (int) strtotime((string) ($session['submitted_at'] ?? '1970-01-01') . ' UTC') < time() - 60) {
+            return Response::json(['stored' => 0, 'ended' => true]);
+        }
+        $events = json_decode((string) $this->request->input('events', '[]'), true);
+        return Response::json(['stored' => $this->s->examIntegrity()->ingest($session, is_array($events) ? $events : [])]);
+    }
+
     public function status(string $uuid): Response
     {
         $session = $this->mine($uuid);
@@ -91,7 +104,8 @@ final class SittingController extends Controller
             $this->s->sittings()->submit($session);
             $session = $this->mine($uuid);
         }
-        return Response::json(['status' => $session['status'], 'seconds_left' => $session['status'] === 'in_progress' ? Sittings::secondsLeft($session) : 0]);
+        return Response::json(['status' => $session['status'], 'paused' => $session['paused_at'] !== null,
+            'seconds_left' => $session['status'] === 'in_progress' ? Sittings::secondsLeft($session) : 0]);
     }
 
     public function submit(string $uuid): Response

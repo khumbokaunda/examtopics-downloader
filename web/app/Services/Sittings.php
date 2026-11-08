@@ -26,9 +26,9 @@ use RuntimeException;
  */
 final class Sittings
 {
-    public const STATUSES = ['in_progress' => 'In progress', 'submitted' => 'Handed in', 'auto_submitted' => 'Handed in when time ran out'];
+    public const STATUSES = ['in_progress' => 'In progress', 'submitted' => 'Handed in', 'auto_submitted' => 'Handed in when time ran out', 'terminated' => 'Ended by the institution'];
 
-    public function __construct(private SittingRepository $repo, private Assessments $assessments, private AuditLog $audit)
+    public function __construct(private SittingRepository $repo, private Assessments $assessments, private AuditLog $audit, private Integrity $integrity)
     {
     }
 
@@ -82,7 +82,7 @@ final class Sittings
             $ends = min($ends, (int) strtotime($row['closes_at'] . ' UTC'));
         }
         $uuid = $this->repo->create($iid, (int) $row['id'], (int) $row['membership_id'], $this->repo->assignedClass($iid, (int) $row['id'], (int) $row['membership_id']),
-            (int) $row['attempts_used'] + 1, $seed, gmdate('Y-m-d H:i:s', $ends), $form);
+            (int) $row['attempts_used'] + 1, $seed, gmdate('Y-m-d H:i:s', $ends), $form, (string) ($row['monitoring'] ?? 'basic'));
         if ($uuid === null) {
             throw new RuntimeException('It was started already, perhaps in another tab. Open it from your assessments.');
         }
@@ -91,9 +91,19 @@ final class Sittings
         return $uuid;
     }
 
+    /** Seconds left by the server's clock; while paused, the time left when it was paused. */
     public static function secondsLeft(array $session): int
     {
-        return max(0, (int) strtotime($session['ends_at'] . ' UTC') - time());
+        $from = ($session['paused_at'] ?? null) !== null ? (int) strtotime($session['paused_at'] . ' UTC') : time();
+        return max(0, (int) strtotime($session['ends_at'] . ' UTC') - $from);
+    }
+
+    /** End a sitting at the institution's decision (invigilation), marked with the answers it had. @param array<string,mixed> $session */
+    public function terminate(array $session): void
+    {
+        if ($session['status'] === 'in_progress') {
+            $this->finish($session, 'terminated');
+        }
     }
 
     /**
@@ -105,6 +115,9 @@ final class Sittings
     {
         if ($session['status'] !== 'in_progress') {
             throw new RuntimeException('This sitting has been handed in.');
+        }
+        if (($session['paused_at'] ?? null) !== null) {
+            throw new RuntimeException('The invigilator has paused this sitting. Your answers are kept; carry on when it resumes.');
         }
         if (self::secondsLeft($session) <= 0) {
             $this->finish($session, 'auto_submitted');
@@ -179,7 +192,8 @@ final class Sittings
         $passed = $session['pass_percent'] !== null && $percent !== null ? $percent >= (float) $session['pass_percent'] : null;
         $done = $this->repo->finish((int) $session['id'], $status, $score, $percent, $passed, $grades);
         if ($done) {
-            $this->audit->record($status === 'submitted' ? 'sitting.submitted' : 'sitting.auto_submitted',
+            $this->integrity->record($session, $status);
+            $this->audit->record($status === 'submitted' ? 'sitting.submitted' : ($status === 'terminated' ? 'sitting.terminated' : 'sitting.auto_submitted'),
                 ['institution' => $session['institution_name'], 'assessment' => $session['title'], 'student' => $session['username']],
                 'institution', (string) $session['institution_uuid']);
         }

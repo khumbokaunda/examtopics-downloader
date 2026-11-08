@@ -64,16 +64,16 @@ final class SittingRepository
      *
      * @param list<array{version:array<string,mixed>,choice_order:list<string>}> $form
      */
-    public function create(int $iid, int $assessmentId, int $membershipId, ?int $classId, int $attempt, int $seed, string $endsAt, array $form): ?string
+    public function create(int $iid, int $assessmentId, int $membershipId, ?int $classId, int $attempt, int $seed, string $endsAt, array $form, string $monitoring = 'basic'): ?string
     {
         $uuid = Ids::uuid();
         $now = Database::now();
         $max = array_sum(array_map(static fn(array $f): float => (float) $f['version']['marks'], $form));
         try {
-            $this->db->transaction(function (Database $db) use ($uuid, $iid, $assessmentId, $membershipId, $classId, $attempt, $seed, $now, $endsAt, $max, $form): void {
-                $db->run('INSERT INTO assessment_sessions (uuid, institution_id, assessment_id, membership_id, class_id, attempt, seed, status, terms_accepted_at,
-                                                          started_at, ends_at, max_score) VALUES (?, ?, ?, ?, ?, ?, ?, \'in_progress\', ?, ?, ?, ?)',
-                    [$uuid, $iid, $assessmentId, $membershipId, $classId, $attempt, $seed, $now, $now, $endsAt, number_format($max, 2, '.', '')]);
+            $this->db->transaction(function (Database $db) use ($uuid, $iid, $assessmentId, $membershipId, $classId, $attempt, $seed, $now, $endsAt, $max, $form, $monitoring): void {
+                $db->run('INSERT INTO assessment_sessions (uuid, institution_id, assessment_id, membership_id, class_id, attempt, seed, monitoring, status, terms_accepted_at,
+                                                          started_at, ends_at, max_score) VALUES (?, ?, ?, ?, ?, ?, ?, ?, \'in_progress\', ?, ?, ?, ?)',
+                    [$uuid, $iid, $assessmentId, $membershipId, $classId, $attempt, $seed, $monitoring, $now, $now, $endsAt, number_format($max, 2, '.', '')]);
                 $id = $db->lastId();
                 foreach ($form as $n => $f) {
                     $db->run('INSERT INTO assessment_session_questions (session_id, institution_id, position, question_version_id, choice_order, marks) VALUES (?, ?, ?, ?, ?, ?)',
@@ -96,7 +96,7 @@ final class SittingRepository
             return null;
         }
         return $this->db->one("SELECT s.*, a.uuid AS assessment_uuid, a.title, a.instructions, a.duration_minutes, a.pass_percent, a.negative_marking,
-                                      a.review_policy, a.results_published_at, a.type AS assessment_type, i.uuid AS institution_uuid, i.name AS institution_name,
+                                      a.review_policy, a.results_published_at, a.type AS assessment_type, a.monitoring AS assessment_monitoring, i.uuid AS institution_uuid, i.name AS institution_name,
                                       m.user_id, u.username, u.display_name
                                FROM assessment_sessions s JOIN assessments a ON a.id = s.assessment_id JOIN institutions i ON i.id = s.institution_id
                                JOIN institution_memberships m ON m.id = s.membership_id JOIN users u ON u.id = m.user_id
@@ -178,7 +178,7 @@ final class SittingRepository
     public function overdue(): array
     {
         return array_map(static fn(array $r): string => (string) $r['uuid'],
-            $this->db->all("SELECT uuid FROM assessment_sessions WHERE status = 'in_progress' AND ends_at <= ? ORDER BY ends_at LIMIT 1000", [Database::now()]));
+            $this->db->all("SELECT uuid FROM assessment_sessions WHERE status = 'in_progress' AND paused_at IS NULL AND ends_at <= ? ORDER BY ends_at LIMIT 1000", [Database::now()]));
     }
 
     /** @return list<array<string,mixed>> an assessment's sittings, newest first, with the students' names and classes */

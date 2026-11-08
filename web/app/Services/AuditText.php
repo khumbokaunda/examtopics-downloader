@@ -179,6 +179,18 @@ final class AuditText
             'institution.results_published' => [$who . ' published the results of ' . $named('assessment') . ' to ' . (int) ($d['candidates'] ?? 0) . ' candidates', 'megaphone', 'success'],
             'institution.results_unpublished' => [$who . ' took back the results of ' . $named('assessment'), 'eye-slash', 'warning'],
             'institution.results_exported' => [$who . ' downloaded the results of ' . $named('assessment'), 'download', 'neutral'],
+            'certificate.issued' => [$who . ' earned the readiness certificate ' . $named('number') . ' for ' . $named('exam'), 'award', 'success'],
+            'certificate.revoked' => [$who . ' revoked the certificate ' . $named('number') . ' of ' . $named('holder'), 'award', 'danger'],
+            'institution.integrity_reviewed' => [$who . ' recorded an integrity conclusion for ' . $named('student') . ': '
+                . strtolower(Integrity::OUTCOMES[(string) ($d['outcome'] ?? '')] ?? '?'), 'shield-check', 'neutral'],
+            'institution.invigilators_set' => [$who . ' set the invigilators of ' . $named('assessment') . ': '
+                . (((array) ($d['invigilators'] ?? [])) !== [] ? implode(', ', array_map('strval', (array) $d['invigilators'])) : 'none'), 'eye', 'neutral'],
+            'institution.observation_recorded' => [$who . ' recorded an observation about ' . $named('student') . ': ' . strtolower(Invigilation::CATEGORIES[(string) ($d['category'] ?? '')] ?? '?'), 'eye', 'neutral'],
+            'institution.sitting_paused' => [$who . ' paused the sitting of ' . $named('student') . ' in ' . $named('assessment'), 'pause-circle', 'warning'],
+            'institution.sitting_resumed' => [$who . ' resumed the sitting of ' . $named('student') . ' in ' . $named('assessment'), 'play-circle', 'neutral'],
+            'institution.sitting_extended' => [$who . ' gave ' . $named('student') . ' ' . (int) ($d['minutes'] ?? 0) . ' extra minutes in ' . $named('assessment') . ': ' . $named('reason'), 'stopwatch', 'warning'],
+            'institution.sitting_ended' => [$who . ' ended the sitting of ' . $named('student') . ' in ' . $named('assessment') . ': ' . $named('reason'), 'stop-circle', 'danger'],
+            'sitting.terminated' => ['The sitting of ' . $named('student') . ' in ' . $named('assessment') . ' was ended by the institution', 'stop-circle', 'danger'],
             'institution.member_left' => [$who . ' left ' . $named('institution'), 'box-arrow-left', 'neutral'],
             'backup.created' => [$who . ' made the backup ' . $named('name'), 'archive', 'success'],
             'backup.downloaded' => [$who . ' downloaded the backup ' . $named('name'), 'download', 'warning'],

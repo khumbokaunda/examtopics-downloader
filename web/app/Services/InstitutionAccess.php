@@ -48,16 +48,20 @@ final class InstitutionAccess
         'assessments.schedule' => 'Publish assessments, set when they open and close, and close them.',
         'results.publish' => 'Publish an assessment\'s results to its candidates, or take them back.',
         'results.export' => 'Download results as CSV and candidates\' reports as PDF.',
+        'integrity.view' => 'See integrity reports: what was observed during sittings and the indicators worked out from it.',
+        'integrity.manage' => 'Record a conclusion about a sitting\'s integrity.',
+        'assessments.monitor' => 'Watch every assessment\'s sittings live and record observations. Invigilators watch the assessments they are assigned to.',
+        'assessments.intervene' => 'Pause and resume a sitting, give extra time, or end it.',
     ];
 
     /** What each role gives. The owner is not listed: it holds every institution permission. */
     public const ROLE_PERMISSIONS = [
         self::ADMIN => ['members.view', 'members.manage', 'activity.view', 'departments.manage', 'classes.view', 'classes.manage', 'students.manage',
             'question_banks.view', 'question_banks.create', 'question_banks.edit', 'question_banks.publish',
-            'assessments.view', 'assessments.create', 'assessments.assign', 'assessments.schedule', 'results.publish', 'results.export'],
+            'assessments.view', 'assessments.create', 'assessments.assign', 'assessments.schedule', 'results.publish', 'results.export', 'integrity.view', 'integrity.manage', 'assessments.monitor', 'assessments.intervene'],
         'instructor' => ['members.view', 'question_banks.create', 'assessments.create', 'assessments.assign'],
         'exam_officer' => ['members.view', 'classes.view', 'question_banks.view', 'question_banks.publish',
-            'assessments.view', 'assessments.create', 'assessments.assign', 'assessments.schedule', 'results.publish', 'results.export'],
+            'assessments.view', 'assessments.create', 'assessments.assign', 'assessments.schedule', 'results.publish', 'results.export', 'integrity.view', 'integrity.manage', 'assessments.monitor', 'assessments.intervene'],
         'invigilator' => [],
         self::STUDENT => [],
     ];

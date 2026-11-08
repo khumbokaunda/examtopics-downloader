@@ -1,4 +1,4 @@
-<?php /** @var array $institution @var array $membership @var string $tab @var array $assessment @var list<array> $rows @var array $summary @var array $stats @var bool $canPublish @var bool $canExport */
+<?php /** @var array $institution @var array $membership @var string $tab @var array $assessment @var list<array> $rows @var array $summary @var array $stats @var bool $canPublish @var bool $canExport @var array<int,string>|null $levels */
 use App\Controllers\InstitutionAssessmentController as C;
 use App\Services\Access;
 use App\Services\InstitutionStructure;
@@ -76,7 +76,7 @@ $base = '/institutions/' . $institution['uuid'] . '/assessments/' . $a['uuid'];
     <?php else: ?>
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0 table-stack" data-table="assessment-results" data-order='[[0,"asc"]]'>
-            <thead><tr><th>Candidate</th><th>Class</th><th data-type="num">Attempt</th><th>Status</th><th data-type="num">Score</th><th data-type="num">%</th><th data-type="num">Started</th><th data-type="num">Time taken</th></tr></thead>
+            <thead><tr><th>Candidate</th><th>Class</th><th data-type="num">Attempt</th><th>Status</th><th data-type="num">Score</th><th data-type="num">%</th><th data-type="num">Started</th><th data-type="num">Time taken</th><?php if ($levels !== null): ?><th>Integrity</th><?php endif; ?></tr></thead>
             <tbody>
             <?php foreach ($rows as $r): $live = $r['status'] === 'in_progress'; ?>
                 <tr>
@@ -89,6 +89,7 @@ $base = '/institutions/' . $institution['uuid'] . '/assessments/' . $a['uuid'];
                     <td data-label="%" data-order="<?= e((string) ($r['percent'] ?? -1)) ?>"><?= $live ? '' : e(C::marks($r['percent'])) . '%' ?> <?= $r['passed'] !== null && !$live ? chip((int) $r['passed'] ? 'Pass' : 'Not passed', (int) $r['passed'] ? 'success' : 'danger') : '' ?></td>
                     <td class="small" data-label="Started" data-order="<?= e((string) $r['started_at']) ?>"><?= e(fmt_time((string) $r['started_at'])) ?></td>
                     <td class="small" data-label="Time taken" data-order="<?= $r['submitted_at'] !== null ? strtotime((string) $r['submitted_at']) - strtotime((string) $r['started_at']) : 0 ?>"><?= $r['submitted_at'] !== null ? e(fmt_duration((string) $r['started_at'], (string) $r['submitted_at'])) : '' ?></td>
+                    <?php if ($levels !== null): $lv = $levels[(int) $r['id']] ?? 'none'; ?><td data-label="Integrity"><?= match ($lv) { 'review' => chip('Worth a look', 'warning'), 'technical' => chip('Technical', 'info'), 'info' => chip('Noted', 'neutral'), default => '<span class="text-muted small">nothing</span>' } ?></td><?php endif; ?>
                 </tr>
             <?php endforeach; ?>
             </tbody>

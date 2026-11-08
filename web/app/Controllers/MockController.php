@@ -105,6 +105,9 @@ final class MockController extends Controller
             'questions' => $shown,
             'show' => $show,
             'missing' => count($mock['keys']) - count($asked),
+            'readiness' => \App\Services\Readiness::assess($mock, $this->s->mocks()->history($this->userId(), (int) $mock['exam_id'], 50)),
+            'certificate' => $this->s->readiness()->forMock((int) $mock['id']),
+            'attempts' => $this->s->mocks()->history($this->userId(), (int) $mock['exam_id'], 6),
         ]);
     }
 

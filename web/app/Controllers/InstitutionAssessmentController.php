@@ -58,6 +58,7 @@ final class InstitutionAssessmentController extends TenantController
             'assignments' => $svc->repo()->assignments($iid, (int) $a['id']), 'candidates' => $svc->repo()->candidateCount($iid, (int) $a['id']),
             'checks' => $a['status'] === 'draft' ? $svc->checks($i, $a) : [],
             'canEdit' => $svc->canEdit($m, $a), 'canAssign' => $canAssign, 'canSchedule' => InstitutionAccess::can($m, 'assessments.schedule'),
+            'canWatch' => $this->s->invigilation()->canWatch($m, $a),
             'banks' => $svc->canEdit($m, $a) ? $this->visibleBanks($i, $m) : [],
             'classes' => $canAssign ? $this->s->structure()->repo()->classes($iid, 'active', $all ? null : (int) $m['id']) : [],
             'students' => $canAssign && $all ? $this->s->structure()->repo()->students($iid) : [],
@@ -221,6 +222,7 @@ final class InstitutionAssessmentController extends TenantController
         return $this->render('institutions/assessment_results', $this->pageVars($i, $m, 'assessments') + [
             'assessment' => $a, 'rows' => $rows, 'stats' => $this->s->results()->assessment((int) $i['id'], (int) $a['id']),
             'canPublish' => InstitutionAccess::can($m, 'results.publish'), 'canExport' => InstitutionAccess::can($m, 'results.export'),
+            'levels' => InstitutionAccess::can($m, 'integrity.view') ? $this->s->examIntegrity()->levels(array_map(static fn(array $r): int => (int) $r['id'], $rows)) : null,
             'summary' => ['sat' => count($done), 'in_progress' => count($rows) - count($done), 'candidates' => $this->s->assessments()->repo()->candidateCount((int) $i['id'], (int) $a['id']),
                 'average' => $percents !== [] ? round(array_sum($percents) / count($percents), 1) : null,
                 'passed' => $a['pass_percent'] !== null ? count(array_filter($done, static fn(array $r): bool => (int) $r['passed'] === 1)) : null],
@@ -237,7 +239,28 @@ final class InstitutionAssessmentController extends TenantController
             'responses' => $this->s->sittings()->repo()->responses((int) $s['id']),
             'topics' => $s['status'] !== 'in_progress' ? $this->s->results()->topics($questions) : [],
             'canExport' => InstitutionAccess::can($m, 'results.export'),
+            'integrity' => InstitutionAccess::can($m, 'integrity.view') ? \App\Services\Integrity::summary($events = $this->s->examIntegrity()->events((int) $s['id'])) + ['events' => $events,
+                'reviews' => $this->s->examIntegrity()->reviews((int) $s['id'])] : null,
+            'canReview' => InstitutionAccess::can($m, 'integrity.manage'),
+            'observations' => $this->s->invigilation()->observations((int) $s['id']),
         ]);
+    }
+
+    public function integrityReview(string $ref, string $assessment, string $sitting): Response
+    {
+        [$i, $m, $a] = $this->assessmentFor($ref, $assessment, 'see');
+        if (!InstitutionAccess::can($m, 'integrity.manage')) {
+            throw new HttpException(403, 'Recording an integrity conclusion needs the "integrity.manage" permission.');
+        }
+        $s = $this->s->sittings()->repo()->sessionOf((int) $i['id'], (int) $a['id'], $sitting) ?? throw HttpException::notFound('Sitting');
+        try {
+            $this->s->examIntegrity()->review($i, $m, $s, (string) $this->request->input('outcome', ''), (string) $this->request->input('note', ''));
+            $this->flash('success', 'Conclusion recorded.');
+        } catch (RuntimeException $e) {
+            $this->flash('warning', $e->getMessage());
+        }
+        return \App\Core\Http\Response::redirect(\App\Core\View::buildUrl((string) $this->app->config()->get('base_path', ''),
+            '/institutions/' . $i['uuid'] . '/assessments/' . $a['uuid'] . '/results/' . $s['uuid']) . '#integrity');
     }
 
     public function publishResults(string $ref, string $assessment): Response

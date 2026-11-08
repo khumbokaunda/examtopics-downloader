@@ -126,6 +126,10 @@ final class Assessments
         if (!isset(self::REVIEW_POLICIES[$policy])) {
             $errors[] = 'Choose what candidates see afterwards.';
         }
+        $monitoring = (string) ($in['monitoring'] ?? '') ?: 'basic';
+        if (!isset(Integrity::POLICIES[$monitoring])) {
+            $errors[] = 'Choose what is monitored.';
+        }
         [$opens, $closes, $windowErrors] = self::window((string) ($in['opens_at'] ?? ''), (string) ($in['closes_at'] ?? ''), $timezone);
         $errors = array_merge($errors, $windowErrors);
         if ($errors !== []) {
@@ -137,7 +141,7 @@ final class Assessments
             'pass_percent' => $pass !== '' ? number_format((float) $pass, 2, '.', '') : null, 'max_attempts' => $attempts,
             'opens_at' => $opens, 'closes_at' => $closes, 'shuffle_questions' => ($in['shuffle_questions'] ?? '') === '1' ? 1 : 0,
             'shuffle_choices' => ($in['shuffle_choices'] ?? '') === '1' ? 1 : 0, 'negative_marking' => number_format((float) $negative, 2, '.', ''),
-            'review_policy' => $policy,
+            'review_policy' => $policy, 'monitoring' => $monitoring,
         ]);
         $this->record('institution.assessment_changed', $i, ['assessment' => $title]);
     }
