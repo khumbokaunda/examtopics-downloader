@@ -83,7 +83,7 @@ final class MockExamTest extends HttpTestCase
 
         // A second one waits until this one is done.
         $this->post(self::BASE . '/mock', ['version' => $this->version['version'], 'source' => 'all', 'count' => '3']);
-        self::assertStringContainsString('in progress', $this->flashes()[0]['message']);
+        self::assertStringContainsString('current mock exam', $this->flashes()[0]['message']);
 
         // Handed in: one right, one wrong, one left out. The form is what counts.
         $wrong = $answers[$k1] === 'A' ? 'B' : 'A';
@@ -154,7 +154,7 @@ final class MockExamTest extends HttpTestCase
         $this->newSession();
         $this->login('mercy', self::PW);
         $this->post(self::BASE . '/mock', ['version' => $this->version['version'], 'source' => 'mistakes', 'count' => '3']);
-        self::assertStringContainsString('in progress', $this->flashes()[0]['message']);
+        self::assertStringContainsString('current mock exam', $this->flashes()[0]['message']);
         $r = $this->post('/mock/' . $mock['uuid'] . '/discard');
         self::assertSame(self::BASE . '/mock', $r->headers['Location']);
         self::assertSame('The mock exam was given up. Nothing from it was counted.', $this->flashes()[0]['message']);

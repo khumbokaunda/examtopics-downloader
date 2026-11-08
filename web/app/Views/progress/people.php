@@ -9,7 +9,7 @@ $studying = count(array_filter($people, static fn(array $p): bool => $p['last_at
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title">Everyone's progress</h1>
-        <p class="page-subtitle"><?= $studying === 0 ? 'Nobody has read or practised an exam yet.' : number_format($studying) . ' of ' . number_format(count($people)) . ' accounts have read or practised an exam. Open a person to see each exam.' ?></p>
+        <p class="page-subtitle"><?= $studying === 0 ? 'Nobody has read or practised an exam yet.' : number_format($studying) . ' of ' . number_format(count($people)) . ' accounts studying.' ?></p>
     </div>
     <div class="page-actions">
         <nav class="segmented" aria-label="Whose progress">

@@ -32,14 +32,14 @@ $base = '/my/assessments/' . $a['institution_uuid'] . '/' . $a['uuid'];
                 <?php endif; ?>
                 <h2 class="section-heading">The rules</h2>
                 <ul class="small">
-                    <li>The clock starts when you start and keeps running if you close the page. When it reaches zero, the server hands in the answers it has received.</li>
-                    <li>Answers are saved as you pick them. If your connection drops, they stay on this device and are sent when it returns; the bar at the top says if any have not arrived.</li>
-                    <li>You can go back to any question and change your answer until you hand in. After that nothing can be changed.</li>
+                    <li>The clock keeps running if you leave. At zero, it hands in.</li>
+                    <li>Answers save as you go, even offline.</li>
+                    <li>Change answers until you hand in.</li>
                     <li>Do the work on your own, using only what the institution allows.</li>
                 </ul>
                 <h2 class="section-heading">What is recorded</h2>
                 <?php $policy = \App\Services\Integrity::POLICIES[$a['monitoring'] ?? 'basic'] ?? \App\Services\Integrity::POLICIES['basic']; ?>
-                <p class="small mb-2">When you started and handed in, the questions you were given, and each answer you picked with the time it reached the server. The institution sees your answers and result.</p>
+                <p class="small mb-2">Your answers, times and result.</p>
                 <p class="small mb-0"><strong>Monitoring: <?= e($policy['name']) ?>.</strong> <?= e($policy['text']) ?>
                     <?= ($a['monitoring'] ?? 'basic') !== 'basic' ? ' These are observations with many innocent causes (a notification, a call, a lost connection); they are shown to the institution as prompts, never as proof. What you type is never recorded.' : '' ?></p>
             </div>

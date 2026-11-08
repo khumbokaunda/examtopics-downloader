@@ -16,7 +16,7 @@ $networkLabel = static fn(array $n): string => match ($n['kind']) {
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title">Sign-in attempts</h1>
-        <p class="page-subtitle">Whether any attempt got in, which accounts and names were tried, and where from. An account locks after <?= (int) $limit ?> wrong passwords in a row; a network that fails too often is refused for a while.</p>
+        <p class="page-subtitle">Failed and suspicious sign-ins.</p>
     </div>
     <div class="page-actions">
         <div class="btn-group btn-group-sm" role="group" aria-label="Period">
@@ -52,7 +52,7 @@ $networkLabel = static fn(array $n): string => match ($n['kind']) {
         <?php endif; ?>
     </div>
     <?php if ($report['flagged'] === []): ?>
-        <div class="card-body"><?= empty_state('shield-check', 'Nothing looks suspicious', 'No sign-in came from a network that had been guessing at that account or at made-up names, and no account was signed into straight after being locked.', null, true) ?></div>
+        <div class="card-body"><?= empty_state('shield-check', 'Nothing looks suspicious', '', null, true) ?></div>
     <?php else: ?>
     <ul class="list-rows">
         <?php foreach ($report['flagged'] as $f): $cleared = $f['cleared_at'] !== null; ?>
@@ -79,7 +79,7 @@ $networkLabel = static fn(array $n): string => match ($n['kind']) {
         <div class="card h-100">
             <div class="card-header"><span class="card-title"><?= icon('person-lock') ?>Accounts tried</span></div>
             <?php if ($report['accounts'] === []): ?>
-                <div class="card-body"><?= empty_state('person-check', 'No wrong passwords', 'No account had a wrong password typed for it in this period.', null, true) ?></div>
+                <div class="card-body"><?= empty_state('person-check', 'No wrong passwords', '', null, true) ?></div>
             <?php else: ?>
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0 table-stack" data-table="sign-in-accounts" data-order='[[1,"desc"]]'>

@@ -15,7 +15,7 @@ $policy = (string) $s['review_policy'];
     <?php if ($policy !== 'none'): ?><div class="page-actions"><a class="btn btn-outline-secondary" href="<?= e(url('/sit/' . $s['uuid'] . '/result.pdf')) ?>"><?= icon('file-earmark-pdf') ?>Download as PDF</a></div><?php endif; ?>
 </header>
 <?php if ($policy === 'none'): ?>
-    <div class="card"><div class="card-body"><?= empty_state('lock', 'Your result is recorded', 'The institution keeps the results of this assessment to itself. Ask them if you need it.', null, true) ?></div></div>
+    <div class="card"><div class="card-body"><?= empty_state('lock', 'Your result is recorded', 'Results are not shown for this one.', null, true) ?></div></div>
 <?php else: ?>
 <div class="kpi-strip">
     <?php foreach ([

@@ -28,7 +28,7 @@ $hidden = static function () use ($version, $page, $q, $review, $reported, $n, $
     <summary><?= icon('chevron-right') ?><?= icon('people') ?>Members' discussion (<?= count($comments) ?>)<?php $votes = QuestionView::memberVotesLine($item); if ($votes !== null): ?><span class="summary-note">votes: <?= e($votes) ?></span><?php endif; ?></summary>
     <div class="discussion-body">
         <?php if ($comments === []): ?>
-            <p class="member-discussion-empty">Nobody here has discussed this question yet. Say what you think, and which answer you would choose.</p>
+            <p class="member-discussion-empty">No discussion yet.</p>
         <?php endif; ?>
         <?php foreach ($comments as $c): $author = $c['user_id'] !== null ? Access::displayName($c) : 'A former member'; ?>
             <div class="comment">

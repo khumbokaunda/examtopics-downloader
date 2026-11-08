@@ -25,7 +25,7 @@ $summary = array_filter([
     <div class="page-header-text">
         <h1 class="page-title">Corrections</h1>
         <p class="page-subtitle"><?= $rows === [] && $edited === [] ? 'Nothing in ' . e(strtoupper($exam['code'])) . ' has been corrected, checked or edited yet.'
-            : e(implode(', ', $summary)) . '. They apply to every version of ' . e(strtoupper($exam['code'])) . ' and to documents made after them; the collected data is unchanged.' ?></p>
+            : e(implode(', ', $summary)) ?></p>
     </div>
     <div class="page-actions">
         <?php if ($others > 0 && ($rows !== [] || $edited !== [])): ?>
@@ -39,7 +39,7 @@ $summary = array_filter([
 <div class="card<?= $edited !== [] ? ' mb-4' : '' ?>">
     <?php if ($rows !== [] || $edited !== []): ?><div class="card-header"><span class="card-title"><?= icon('check2-square') ?>Answers</span></div><?php endif; ?>
     <?php if ($rows === [] && $edited === []): ?>
-        <div class="card-body"><?= empty_state('pencil-square', 'Nothing corrected yet', 'Answers you correct or check in the reader, and questions you edit there, are listed here, so you can review them in one place.') ?></div>
+        <div class="card-body"><?= empty_state('pencil-square', 'Nothing corrected yet', 'Corrections show here.') ?></div>
     <?php elseif ($rows === []): ?>
         <div class="card-note"><span class="card-note-text text-muted">No answers corrected or checked yet.</span></div>
     <?php else: ?>

@@ -365,7 +365,7 @@ final class Assessments
         }
         $sat = $this->repo->sittingCount((int) $i['id'], (int) $a['id']) > 0;
         if ($action === 'unpublish' && $sat) {
-            throw new RuntimeException('Candidates have sat it, so it stays published. Close it instead, and make a new assessment for any changes.');
+            throw new RuntimeException('Candidates have sat it. Close it instead.');
         }
         if ($action === 'restore' && $sat) {
             $to = 'closed';

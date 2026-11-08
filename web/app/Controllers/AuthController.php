@@ -227,7 +227,7 @@ final class AuthController extends Controller
             }
             return $this->redirect('/');
         }
-        $this->flash('success', 'Your email address is verified. An administrator will now approve your account; you will get an email when it is ready.');
+        $this->flash('success', 'Email verified. An administrator will approve your account.');
         return $this->redirect('/login');
     }
 

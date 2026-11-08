@@ -22,8 +22,8 @@ $everyone = can('progress.view_all');
     <div class="page-header-text">
         <h1 class="page-title"><?= $own ? 'My progress' : e(Access::displayName($person)) . '\'s progress' ?></h1>
         <p class="page-subtitle"><?= $own
-            ? 'Every exam you have read or practised. Answers count once you reveal them in practice mode.' . ($everyone ? '' : ' Administrators can see this page.')
-            : 'What ' . e(Access::displayName($person)) . ' (' . e($person['username']) . ') has read and practised. Only they can change it.' ?></p>
+            ? 'Exams you have read or practised.'
+            : 'What ' . e(Access::displayName($person)) . ' has read and practised.' ?></p>
     </div>
     <?php if ($everyone): ?>
     <div class="page-actions">
@@ -51,7 +51,7 @@ $everyone = can('progress.view_all');
 
 <?php if ($rows === []): ?>
     <div class="card"><div class="card-body"><?= $own
-        ? empty_state('graph-up', 'Nothing studied yet', 'Open an exam in the library. Pick answers in practice mode and reveal them to see how you are doing.', ['Go to the library', url('/library')])
+        ? empty_state('graph-up', 'Nothing studied yet', 'Practise an exam to see progress.', ['Go to the library', url('/library')])
         : empty_state('graph-up', 'Nothing studied yet', e(Access::displayName($person)) . ' has not read or practised any exam.') ?></div></div>
 <?php else: ?>
 <div class="card">

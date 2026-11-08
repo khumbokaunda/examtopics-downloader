@@ -337,7 +337,7 @@ final class BackupTest extends HttpTestCase
         $r = $this->post('/backups/' . $b['name'] . '/restore', ['password' => self::PW]);
         self::assertSame('/login?restored=1', $r->headers['Location']);
         self::assertSame(303, $this->get('/library')->status, 'everyone is signed out');
-        self::assertStringContainsString('restored from a backup', $this->get('/login', ['restored' => '1'])->body);
+        self::assertStringContainsString('Restored from a backup', $this->get('/login', ['restored' => '1'])->body);
 
         self::assertNull($this->s->users()->findByUsername('intruder'));
         self::assertFileDoesNotExist($sessions . '/sess_before');

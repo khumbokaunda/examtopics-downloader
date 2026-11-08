@@ -30,7 +30,7 @@ $dims = array_slice(Onboarding::verification($c + ['status' => $c['institution_s
             <dt class="col-5">Issuer</dt><dd class="col-7"><?= e((string) $c['issuer_name']) ?>
                 <div class="small text-muted"><?= e(implode('; ', array_map(static fn(array $d): string => $d['label'] . ': ' . strtolower($d['text']), $dims))) ?></div>
                 <?php if ($c['category'] === 'qualification' && $c['awarding_body'] !== null): ?><div class="small text-muted">Authorised awarding body for <?= e((string) $c['awarding_body']) ?></div><?php endif; ?>
-                <?php if ($c['institution_status'] === 'suspended'): ?><div class="small text-danger">The issuer is currently suspended by ExamLib. Credentials it issued before are shown as they were issued.</div><?php endif; ?></dd>
+                <?php if ($c['institution_status'] === 'suspended'): ?><div class="small text-danger">The issuer is currently suspended.</div><?php endif; ?></dd>
         </dl>
         <p class="small text-muted mb-0">ExamLib shows only what is needed to check this credential. Signature key <?= e((string) $c['key_id']) ?>; public keys at <a href="<?= e(url('/verify/keys')) ?>">/verify/keys</a>. <a href="<?= e(url('/policies/credential_verification')) ?>">About verification</a>.</p>
     </div>

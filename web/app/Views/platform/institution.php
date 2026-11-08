@@ -81,7 +81,7 @@ $rows = [
         <form method="post" action="<?= e(url('/platform/institutions/' . $i['uuid'] . '/awarding')) ?>" class="card mb-4" data-once><?= csrf_field() ?>
             <div class="card-header"><span class="card-title"><?= icon('mortarboard') ?>Formal qualifications</span></div>
             <div class="card-body">
-                <p class="small">Only an institution recorded here as an authorised awarding body can issue formal qualification certificates. Record the body whose qualifications it may award, once you have seen the authority.</p>
+                <p class="small">Set only after seeing their authority.</p>
                 <div class="toolbar"><label class="visually-hidden" for="awarding_body">Awarding body</label>
                     <input class="form-control form-control-sm" id="awarding_body" name="awarding_body" maxlength="160" value="<?= e((string) ($i['awarding_body'] ?? '')) ?>" placeholder="Not authorised">
                     <button class="btn btn-sm btn-outline-primary" type="submit">Save</button></div>
@@ -113,7 +113,7 @@ $rows = [
                     <div class="mb-3"><label class="form-label" for="evidence">What you checked (kept with the decision)</label>
                         <textarea class="form-control" id="evidence" name="evidence" rows="2" maxlength="1000" placeholder="For example: phoned the number given, saw the registration certificate"></textarea></div>
                     <?php if ($missing !== [] && in_array($i['status'], ['pending', 'under_review', 'info_requested'], true)): ?><p class="small text-danger"><?= e(implode(' ', $missing)) ?></p><?php endif; ?>
-                    <p class="form-text">Approving needs the organisation's identity and the representative's authority verified (above). Registration and accreditation are shown exactly as set.</p>
+                    <p class="form-text">Verify identity and representative before approving.</p>
                     <div class="d-flex flex-wrap gap-2">
                         <?php foreach ($decisions as $k => $d): ?>
                             <button class="btn btn-sm <?= $k === 'verify' ? 'btn-success' : (in_array($k, ['review', 'request_info'], true) ? 'btn-outline-primary' : 'btn-outline-danger') ?>" type="submit" name="decision" value="<?= e($k) ?>"><?= e($i['status'] === 'suspended' && $k === 'verify' ? 'Reinstate' : $d['label']) ?></button>

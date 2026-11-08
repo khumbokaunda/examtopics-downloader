@@ -95,7 +95,7 @@ $note = static fn(string $iconName, string $title, string $body, ?array $action 
         <div class="card">
             <div class="card-header"><span class="card-title"><?= icon('compass') ?>Start studying</span></div>
             <div class="card-body">
-                <p class="mb-3">Find an exam, open it in practice mode, pick an answer and reveal it. Every answer you check counts towards your week and your streak.</p>
+                <p class="mb-3">Practise an exam to build your streak.</p>
                 <form class="library-search mb-4" method="get" action="<?= e(url('/library')) ?>" role="search">
                     <span class="library-search-icon"><?= icon('search') ?></span>
                     <input class="form-control" type="search" name="q" placeholder="Search by name, code or provider" aria-label="Search the library">
@@ -298,7 +298,7 @@ $note = static fn(string $iconName, string $title, string $body, ?array $action 
         <?= $workerRunning ? chip('Worker running', 'success', 'cpu') : chip('Worker idle', 'neutral', 'cpu') ?>
     </div>
     <?php if ($active === []): ?>
-        <?= $note('cup-hot', 'Nothing is running', 'Collections and inventory refreshes show here while they run, and keep running if you close the page.') ?>
+        <?= $note('cup-hot', 'Nothing is running', 'Running jobs show here.') ?>
     <?php else: ?>
     <div class="card-body">
         <?php foreach ($active as $job): ?>
@@ -400,7 +400,7 @@ $note = static fn(string $iconName, string $title, string $body, ?array $action 
                 <a class="small" href="<?= e(url('/activity')) ?>">All activity</a>
             </div>
             <?php if ($activity['rows'] === [] && $activity['failed'] === 0 && $activity['signIns']['count'] === 0): ?>
-                <?= $note('activity', 'Nothing recorded yet', 'Sign-ins and changes to accounts, settings, the library and backups are listed here.') ?>
+                <?= $note('activity', 'Nothing recorded yet', 'Activity shows here.') ?>
             <?php else: ?>
             <ul class="list-rows">
                 <?php if ($activity['failed'] > 0): ?>

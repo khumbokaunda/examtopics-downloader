@@ -12,7 +12,7 @@ $base = '/institutions/' . $institution['uuid'] . '/banks';
             <div class="card-header"><span class="card-title"><?= icon('database') ?><?= $archived ? 'Archived question banks' : ($all ? 'Question banks' : 'Your question banks') ?></span>
                 <a class="small" href="<?= e(url($base, $archived ? [] : ['status' => 'archived'])) ?>"><?= $archived ? 'Open banks' : 'Archived banks' ?></a></div>
             <?php if ($banks === []): ?>
-                <div class="card-body"><?= empty_state('database', $archived ? 'No archived banks' : 'No question banks yet', $canCreate ? 'A bank holds questions on one subject, organised by topic. Create the first one here.' : 'Banks you create, or are added to, show here.', null, true) ?></div>
+                <div class="card-body"><?= empty_state('database', $archived ? 'No archived banks' : 'No question banks yet', $canCreate ? 'Create one to start writing questions.' : 'Banks you create, or are added to, show here.', null, true) ?></div>
             <?php else: ?>
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0 table-stack" data-table="question-banks" data-order='[[0,"asc"]]'>

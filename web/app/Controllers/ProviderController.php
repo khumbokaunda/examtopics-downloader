@@ -88,7 +88,7 @@ final class ProviderController extends Controller
     {
         $slug = strtolower(trim((string) $this->request->input('slug', '')));
         if (!Ids::isProvider($slug)) {
-            $this->flash('danger', 'Provider identifiers use lower-case letters, digits and single hyphens, as in ExamTopics URLs (e.g. "huawei").');
+            $this->flash('danger', 'Use lower-case letters, digits and hyphens, e.g. "huawei".');
             return $this->redirect('/providers');
         }
         $this->s->providers()->upsert($slug, null, 'manual');

@@ -3,7 +3,7 @@
     <div class="card-body">
         <h1 class="h3 mb-1">Forgot your password</h1>
         <?php if (!$available): ?>
-            <p class="text-muted small">Email is not set up on this server, so a code cannot be sent. Ask an administrator to set a new password for you.</p>
+            <p class="text-muted small">Email is not set up. Ask an administrator to reset it.</p>
             <a class="btn btn-outline-secondary w-100" href="<?= e(url('/login')) ?>">Back to sign in</a>
         <?php else: ?>
         <p class="text-muted small mb-4">Type the email address of your account and we send a code to set a new password.</p>

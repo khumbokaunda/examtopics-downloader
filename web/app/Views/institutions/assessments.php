@@ -48,7 +48,7 @@ $tone = ['draft' => 'neutral', 'published' => 'success', 'closed' => 'info', 'ar
                         <select class="form-select" id="atype" name="type">
                             <?php foreach (Assessments::TYPES as $k => $v): ?><option value="<?= e($k) ?>" <?= $k === 'summative' ? 'selected' : '' ?>><?= e($v) ?></option><?php endforeach; ?>
                         </select>
-                        <div class="form-text">The kind decides how results are described. A formal examination is official only where the institution is authorised to award it.</div></div>
+                        <div class="form-text">Decides how results are described.</div></div>
                     <button class="btn btn-primary" type="submit"><?= icon('plus') ?>Create as a draft</button>
                 </form>
             </div>

@@ -30,7 +30,7 @@ $tone = ['pending' => 'warning', 'issued' => 'success', 'declined' => 'neutral',
             <div class="card-header"><span class="card-title"><?= icon('award') ?>Templates</span>
                 <?php if ($canManage): ?><a class="btn btn-sm btn-outline-primary" href="<?= e(url($base . '/templates/new')) ?>"><?= icon('plus') ?>New template</a><?php endif; ?></div>
             <?php if ($templates === []): ?>
-                <div class="card-body"><?= empty_state('award', 'No templates yet', 'A template says what a credential certifies and who is eligible: passing an assessment, completing a programme, or chosen by staff.', null, true) ?></div>
+                <div class="card-body"><?= empty_state('award', 'No templates yet', 'Create one to start issuing.', null, true) ?></div>
             <?php else: ?>
             <ul class="list-rows">
                 <?php foreach ($templates as $t): ?>
@@ -76,7 +76,7 @@ $tone = ['pending' => 'warning', 'issued' => 'success', 'declined' => 'neutral',
         <div class="card mb-4">
             <div class="card-header"><span class="card-title"><?= icon('pen') ?>Signatories</span></div>
             <div class="card-body">
-                <p class="small">The staff an owner authorised to approve and sign credentials, by kind. Their name and position are printed on what they sign.</p>
+                <p class="small">Staff who approve and sign credentials.</p>
                 <?php if ($signatories === []): ?><p class="small text-muted">None yet.</p><?php endif; ?>
                 <?php foreach ($signatories as $s): ?>
                     <p class="small mb-1"><strong><?= e(Access::displayName($s)) ?></strong>, <?= e($s['position']) ?> <?= (int) $s['active'] === 1 ? '' : chip('No longer signs', 'neutral') ?>
@@ -110,8 +110,8 @@ $tone = ['pending' => 'warning', 'issued' => 'success', 'declined' => 'neutral',
         <div class="card">
             <div class="card-header"><span class="card-title"><?= icon('shield-check') ?>What a credential shows</span></div>
             <div class="card-body small">
-                <p>Each issued credential has a number, a QR code and a link anyone can open to check it. The page shows the holder, what it certifies, the dates, who signed it, whether it still stands, and <?= e($institution['name']) ?>'s verification as it is: <?= e(implode(', ', array_map(static fn(array $v): string => strtolower($v['label'] . ' ' . $v['text']), array_slice(\App\Services\Onboarding::verification($institution), 0, 3)))) ?>.</p>
-                <p class="mb-0"><?= ($institution['awarding_body'] ?? null) !== null ? 'Recorded by ExamLib as authorised to award qualifications of ' . e((string) $institution['awarding_body']) . '.' : 'Formal qualifications need ExamLib to record the institution as an authorised awarding body.' ?></p>
+                <p>Each has a number, a QR code and a public check page.</p>
+                <p class="mb-0"><?= ($institution['awarding_body'] ?? null) !== null ? 'Authorised awarding body: ' . e((string) $institution['awarding_body']) . '.' : 'Not an authorised awarding body.' ?></p>
             </div>
         </div>
     </div>

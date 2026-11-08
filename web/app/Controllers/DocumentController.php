@@ -82,7 +82,7 @@ final class DocumentController extends Controller
         $this->s->audit()->record('document.deleted', ['provider' => (string) $doc['provider_slug'], 'exam' => (string) $doc['exam_code'],
             'version' => (string) $doc['version'], 'format' => (string) $doc['format'] === 'pdf' ? 'PDF' : 'Markdown file',
             'file' => (string) ($doc['filename'] ?? '')], 'exam', $doc['provider_slug'] . '/' . $doc['exam_code']);
-        $this->flash('success', 'Document deleted. The cached exam data is unchanged and the document can be generated again.');
+        $this->flash('success', 'Document deleted.');
         return $this->redirect('/library/' . rawurlencode((string) $doc['provider_slug']) . '/' . rawurlencode((string) $doc['exam_code']),
             ['version' => (string) $doc['version']]);
     }

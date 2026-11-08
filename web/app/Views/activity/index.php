@@ -7,7 +7,7 @@ $filtered = $filters['to'] !== '' || $filters['who'] !== '' || $filters['group']
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title">Activity</h1>
-        <p class="page-subtitle">Who did what, and when: sign-ins, changes to accounts and settings, collections and backups. Entries are only ever added, never changed.</p>
+        <p class="page-subtitle">Who did what, and when.</p>
     </div>
     <div class="page-actions">
         <a class="btn btn-sm btn-outline-secondary" href="<?= e(url('/activity.csv', $query)) ?>"><?= icon('download') ?>Download as CSV</a>

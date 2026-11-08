@@ -28,7 +28,7 @@ $have = array_count_values(array_column($documents, 'kind'));
                     <li class="request-row"><div class="row-main"><div class="row-text"><div class="row-title"><?= e($v['label']) ?> <?= chip($v['text'], $v['tone']) ?></div></div></div></li>
                 <?php endforeach; ?>
             </ul>
-            <div class="card-body pt-0"><p class="form-text mb-0">Each is checked separately. Approval needs the organisation's identity and your authority to represent it; registration and accreditation are shown exactly as verified, and never claimed otherwise.</p></div>
+            <div class="card-body pt-0"><p class="form-text mb-0">Each is checked separately.</p></div>
         </div>
         <div class="card mb-4">
             <div class="card-header"><span class="card-title"><?= icon('file-earmark-text') ?>Supporting documents</span></div>
@@ -36,7 +36,7 @@ $have = array_count_values(array_column($documents, 'kind'));
                 <?php if ($required !== []): ?>
                     <p class="small">Needed for a <?= e(strtolower(Institutions::TYPES[$i['type']] ?? $i['type'])) ?>: <?= e(implode(', ', array_map(static fn(string $k): string => strtolower(Onboarding::DOCUMENTS[$k]) . (isset($have[$k]) ? ' (sent)' : ''), $required))) ?>.</p>
                 <?php else: ?>
-                    <p class="small">None are required for this kind of institution, but a registration certificate or a letter authorising you helps the reviewer.</p>
+                    <p class="small">None required. A registration certificate helps.</p>
                 <?php endif; ?>
                 <?php if ($canUpload): ?>
                 <form method="post" action="<?= e(url($base . '/application/documents')) ?>" enctype="multipart/form-data" class="toolbar mb-3" data-once><?= csrf_field() ?>
@@ -46,7 +46,7 @@ $have = array_count_values(array_column($documents, 'kind'));
                     <input class="form-control form-control-sm" type="file" id="doc-file" name="document" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required>
                     <button class="btn btn-sm btn-primary" type="submit"><?= icon('upload') ?>Upload</button>
                 </form>
-                <p class="form-text">PDF, JPEG or PNG, up to 10 MB. Only your institution's managers and the platform's reviewers can open them.</p>
+                <p class="form-text">PDF, JPEG or PNG, up to 10 MB.</p>
                 <?php endif; ?>
             </div>
             <?php if ($documents !== []): ?>

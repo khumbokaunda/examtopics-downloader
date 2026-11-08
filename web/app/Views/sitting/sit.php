@@ -14,7 +14,7 @@ $total = count($questions);
 $answered = count(array_filter($responses, static fn(array $r): bool => $r['answer'] !== ''));
 ?>
 <div class="sitting-paused" data-paused<?= $session['paused_at'] === null ? ' hidden' : '' ?> role="alert"><div class="card"><div class="card-body text-center py-5">
-    <?= icon('pause-circle') ?><h2 class="h5 mt-2">Paused by the invigilator</h2><p class="mb-0 text-muted">Your clock has stopped and your answers are kept. This page carries on by itself when the sitting resumes.</p>
+    <?= icon('pause-circle') ?><h2 class="h5 mt-2">Paused by the invigilator</h2><p class="mb-0 text-muted">Your clock has stopped. Answers are kept.</p>
 </div></div></div>
 <form class="mock sitting" method="post" action="<?= e(url('/sit/' . $session['uuid'] . '/submit')) ?>" data-sitting
       data-uuid="<?= e($session['uuid']) ?>" data-save-url="<?= e(url('/api/sit/' . $session['uuid'] . '/answer')) ?>"
@@ -82,5 +82,5 @@ $answered = count(array_filter($responses, static fn(array $r): bool => $r['answ
             </div>
         </section>
     <?php endforeach; ?>
-    <p class="mock-save-state small text-muted" data-mock-state>Your answers are saved as you pick them. If the connection drops, they are kept on this device and sent when it is back.</p>
+    <p class="mock-save-state small text-muted" data-mock-state>Answers save as you go, even offline.</p>
 </form>

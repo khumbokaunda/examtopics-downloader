@@ -9,7 +9,7 @@ $base = '/institutions/' . $institution['uuid'] . '/structure/programmes/' . $p[
         <div class="card mb-4">
             <div class="card-header"><span class="card-title"><?= icon('list-ol') ?>Modules</span></div>
             <?php if ($modules === []): ?>
-                <div class="card-body"><?= empty_state('list-ol', 'No modules yet', 'Modules are the parts of the programme. Link assessments to them in each assessment\'s settings; passing one, once its results are published, completes the module.', null, true) ?></div>
+                <div class="card-body"><?= empty_state('list-ol', 'No modules yet', 'Add the parts of the programme.', null, true) ?></div>
             <?php else: ?>
             <ul class="list-rows">
                 <?php foreach ($modules as $m): ?>
@@ -43,7 +43,7 @@ $base = '/institutions/' . $institution['uuid'] . '/structure/programmes/' . $p[
                 <div class="mb-3"><label class="form-label" for="p-duration">Duration</label><input class="form-control" id="p-duration" name="duration" maxlength="60" value="<?= e((string) $p['duration']) ?>" placeholder="For example: 6 months"></div>
                 <div class="mb-3"><label class="form-label" for="p-objectives">Learning objectives</label><textarea class="form-control" id="p-objectives" name="objectives" rows="3" maxlength="2000"><?= e((string) $p['objectives']) ?></textarea></div>
                 <div class="mb-3"><label class="form-label" for="p-req">Completion requirements</label><textarea class="form-control" id="p-req" name="completion_requirements" rows="2" maxlength="1000" placeholder="For example: every required module, and 80% attendance"><?= e((string) $p['completion_requirements']) ?></textarea>
-                    <div class="form-text">Shown to staff. The record marks a student ready to complete when every required module is completed; staff confirm completion.</div></div>
+                    <div class="form-text">For staff. Required modules are checked automatically.</div></div>
                 <div class="mb-3"><label class="form-label" for="p-status">Offered</label><select class="form-select" id="p-status" name="status"><option value="active"<?= $p['status'] === 'active' ? ' selected' : '' ?>>Yes</option><option value="retired"<?= $p['status'] === 'retired' ? ' selected' : '' ?>>No longer offered</option></select></div>
                 <button class="btn btn-primary" type="submit"><?= icon('check2') ?>Save</button>
             </form>

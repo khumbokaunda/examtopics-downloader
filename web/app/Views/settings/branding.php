@@ -9,7 +9,7 @@ $themes = ['system' => ['Match each device', 'circle-half'], 'light' => ['Light'
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title">Branding</h1>
-        <p class="page-subtitle">The name, logo and colour everyone sees: in the sidebar, on the sign-in page, in the browser tab and in emails.</p>
+        <p class="page-subtitle">Name, logo and colour.</p>
     </div>
 </header>
 
@@ -38,7 +38,7 @@ $themes = ['system' => ['Match each device', 'circle-half'], 'light' => ['Light'
                             <div class="logo-preview mb-2"><img src="<?= e($logoUrl) ?>" alt="Current logo"><span class="small text-muted">Current logo. Upload another to replace it.</span></div>
                         <?php endif; ?>
                         <input class="form-control" type="file" name="logo" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml">
-                        <div class="form-text">PNG, JPEG, GIF, WebP or SVG, up to 5 MB. Photos are scaled down to 512 pixels and saved as PNG; a transparent background looks best. Emails show PNG logos only, so an SVG logo leaves the name on its own there.</div>
+                        <div class="form-text">PNG, JPEG, GIF, WebP or SVG, up to 5 MB.</div>
                     </div>
 
                     <div class="settings-section">
@@ -54,7 +54,7 @@ $themes = ['system' => ['Match each device', 'circle-half'], 'light' => ['Light'
                         </div>
                         <label class="form-label" for="color">Custom colour</label>
                         <div class="color-field"><input class="form-control" type="color" id="color" name="color" value="<?= e(strtolower($brand['color'] !== '' ? $brand['color'] : '#1C7293')) ?>"><span class="small text-muted">Used when Custom is chosen.</span></div>
-                        <div class="form-text">A preset is the starting colour for each person, who can pick their own on their account page. A custom colour applies to everyone; it is darkened in the light theme and lightened in the dark one only as far as it takes to stay readable.</div>
+                        <div class="form-text">A preset is a default people can change. A custom colour applies to everyone.</div>
                     </div>
 
                     <div class="settings-section">

@@ -82,7 +82,7 @@ final class JoinTest extends HttpTestCase
     {
         $this->s->registration()->setMode('closed');
         $page = $this->get('/join');
-        self::assertStringContainsString('cannot register here', $page->body);
+        self::assertStringContainsString('Sign-ups are closed', $page->body);
         self::assertSame(403, $this->post('/join', $this->form())->status);
         self::assertNull($this->s->users()->findByUsername('grace'));
     }

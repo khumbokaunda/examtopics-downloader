@@ -203,7 +203,7 @@ final class BackupController extends Controller
         $path = $backup->path($name) ?? throw HttpException::notFound('Backup');
         $user = (array) $this->auth->user();
         if (($backup->status()['status'] ?? '') === 'running') {
-            $this->flash('warning', 'A backup or restore is already running. Its progress is shown below; try again when it has finished.');
+            $this->flash('warning', 'A backup or restore is already running.');
             return $this->redirect('/backups');
         }
         if ((bool) $this->app->config()->get('backup.background', true)) {

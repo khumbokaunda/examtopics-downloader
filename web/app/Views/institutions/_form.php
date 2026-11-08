@@ -58,7 +58,7 @@ $select = static function (string $name, string $label, array $options) use ($fo
         <div class="card">
             <div class="card-header"><span class="card-title"><?= icon('patch-check') ?>Registration and accreditation</span></div>
             <div class="card-body">
-                <p class="form-text mt-0">Give what applies to your institution; leave the rest empty. Registration (for example with the Registrar of Companies, NCHE or TEVETA) and accreditation of courses are different things, and are verified separately.</p>
+                <p class="form-text mt-0">Fill in what applies. Each is verified separately.</p>
                 <div class="row g-3">
                     <div class="col-sm-7"><?= $field('registration_authority', 'Registration authority', 'text', ['maxlength' => '160']) ?></div>
                     <div class="col-sm-5"><?= $field('registration_number', 'Registration number', 'text', ['maxlength' => '80']) ?></div>
@@ -92,7 +92,7 @@ $select = static function (string $name, string $label, array $options) use ($fo
         <div class="card">
             <div class="card-header"><span class="card-title"><?= icon('person-badge') ?>Authorised representative</span></div>
             <div class="card-body">
-                <p class="form-text mt-0">The person applying for the institution. A reviewer confirms they are authorised to represent it, so a letter of authority among the documents helps.</p>
+                <p class="form-text mt-0">The person applying. A letter of authority helps.</p>
                 <?= $field('contact_name', 'Full name', 'text', ['required' => true, 'maxlength' => '120']) ?>
                 <div class="row g-3">
                     <div class="col-sm-6"><?= $field('contact_position', 'Position at the institution', 'text', ['required' => true, 'maxlength' => '120']) ?></div>

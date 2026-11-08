@@ -77,7 +77,9 @@ $staff = $people - ($roleCounts['student'] ?? 0);
             <div class="card-body">
                 <p class="mb-2"><?= e(InstitutionAccess::roleName((string) $membership['role'])) ?>, since <?= e(fmt_time((string) $membership['joined_at'])) ?>.</p>
                 <?php $perms = InstitutionAccess::permissions($membership); ?>
-                <p class="small text-muted mb-3"><?= $perms === [] ? 'Your role does not include managing the institution.' : 'You can: ' . e(implode(' ', array_map(static fn(string $p): string => InstitutionAccess::PERMISSIONS[$p], $perms))) ?></p>
+                <div class="chip-group mb-3"><?php if ($membership['role'] === InstitutionAccess::OWNER): ?><?= chip('Full access', 'success') ?>
+                    <?php elseif ($perms === []): ?><span class="small text-muted">No management access.</span>
+                    <?php else: foreach (array_unique(array_map(static fn(string $p): string => InstitutionAccess::AREAS[$p] ?? $p, $perms)) as $area): ?><?= chip($area, 'neutral') ?><?php endforeach; endif; ?></div>
                 <form method="post" action="<?= e(url($base . '/leave')) ?>" data-confirm="You lose access to <?= e($institution['name']) ?>. What you did there stays in its history." data-confirm-title="Leave this institution?" data-confirm-button="Leave"><?= csrf_field() ?>
                     <button class="btn btn-sm btn-outline-danger" type="submit"><?= icon('box-arrow-left') ?>Leave <?= e($institution['short_name'] ?: $institution['name']) ?></button>
                 </form>

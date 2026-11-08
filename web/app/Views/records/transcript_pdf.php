@@ -39,5 +39,5 @@ th { font-size: 8.5pt; color: #6b7280; } .box { border: 1px solid #d1d5db; paddi
 </table>
 <?php endif; ?>
 <p class="muted" style="margin-top:16pt">Issued by <?= e((string) $r['institution']['name']) ?> through ExamLib. This transcript records what was on file when it was issued; later changes appear only on a newer transcript.
-<?= !empty($r['provisional']) ? 'Results marked provisional had not been published by the institution when it was issued and may change.' : 'It contains final (published) results only.' ?></p>
+<?= !empty($r['provisional']) ? 'Provisional results may still change.' : 'It contains final (published) results only.' ?></p>
 </body></html>

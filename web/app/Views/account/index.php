@@ -15,7 +15,7 @@ $verified = $user['email'] !== null && $user['email_verified_at'] !== null;
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title">Account</h1>
-        <p class="page-subtitle">Your profile, password, timezone and how the pages look for you.</p>
+        <p class="page-subtitle">Profile, password and preferences.</p>
     </div>
 </header>
 
@@ -25,12 +25,12 @@ $verified = $user['email'] !== null && $user['email_verified_at'] !== null;
             <div class="card-header"><span class="card-title"><?= icon('person-circle') ?>Profile</span><span class="chip-group"><?= chip(Access::roleName((string) $user['role']), $user['role'] === 'admin' ? 'primary' : 'neutral', 'shield') ?></span></div>
             <div class="card-body">
                 <form method="post" action="<?= e(url('/account/profile')) ?>" data-once><?= csrf_field() ?>
-                    <div class="mb-3"><label class="form-label" for="username">Username</label><input class="form-control" id="username" value="<?= e($user['username']) ?>" disabled><div class="form-text">Used to sign in, with your email address. An administrator can change it.</div></div>
+                    <div class="mb-3"><label class="form-label" for="username">Username</label><input class="form-control" id="username" value="<?= e($user['username']) ?>" disabled><div class="form-text">Used to sign in.</div></div>
                     <div class="mb-3"><label class="form-label" for="display_name">Name</label><input class="form-control" id="display_name" name="display_name" maxlength="128" value="<?= e($user['display_name'] ?? '') ?>" autocomplete="name"><div class="form-text">Shown in the top bar and on your requests.</div></div>
                     <div class="mb-3">
                         <label class="form-label" for="email">Email address</label>
                         <input class="form-control" id="email" name="email" type="email" maxlength="190" value="<?= e($user['email'] ?? '') ?>" autocomplete="email">
-                        <div class="form-text"><?php if ($user['email'] === null): ?>Add one to receive notifications by email and to reset a forgotten password.<?php elseif ($verified): ?><?= chip('verified', 'success', 'check2-circle') ?><?php else: ?><?= chip('not verified', 'warning', 'exclamation-triangle') ?><?php endif; ?></div>
+                        <div class="form-text"><?php if ($user['email'] === null): ?>Needed for email notices and password resets.<?php elseif ($verified): ?><?= chip('verified', 'success', 'check2-circle') ?><?php else: ?><?= chip('not verified', 'warning', 'exclamation-triangle') ?><?php endif; ?></div>
                     </div>
                     <div class="form-actions"><button class="btn btn-primary" type="submit"><?= icon('check2') ?>Save profile</button></div>
                 </form>
@@ -78,7 +78,7 @@ $verified = $user['email'] !== null && $user['email_verified_at'] !== null;
                 <?= $twoStep['enabled'] ? chip('On', 'success', 'shield-check') : ($twoStep['pending'] !== null ? chip('Being set up', 'warning') : chip('Off', 'neutral')) ?></div>
             <div class="card-body">
             <?php if ($twoStep['enabled']): ?>
-                <p>Signing in needs the code from your authenticator app as well as your password. On since <?= e(fmt_time((string) $twoStep['since'])) ?>.
+                <p>On since <?= e(fmt_time((string) $twoStep['since'])) ?>.
                     <?= (int) $twoStep['codes_left'] ?> recovery code<?= (int) $twoStep['codes_left'] === 1 ? '' : 's' ?> left<?= (int) $twoStep['codes_left'] <= 3 ? ': make new ones soon.' : '.' ?></p>
                 <div class="row g-3">
                     <div class="col-md-6">
@@ -98,7 +98,7 @@ $verified = $user['email'] !== null && $user['email_verified_at'] !== null;
                 </div>
             <?php elseif ($twoStep['pending'] !== null): ?>
                 <ol class="setup-steps">
-                    <li>Install an authenticator app on your phone, if you have none: Google Authenticator, Microsoft Authenticator, Authy, or the one in your password manager.</li>
+                    <li>Install an authenticator app, such as Google Authenticator.</li>
                     <li>In the app, add an account and scan this code.
                         <div class="d-flex flex-wrap align-items-center gap-4 my-3">
                             <span class="qr-box"><img data-qr="<?= e((string) $twoStepUri) ?>" alt="QR code for your authenticator app" width="180" height="180"></span>
@@ -115,7 +115,7 @@ $verified = $user['email'] !== null && $user['email_verified_at'] !== null;
                 <form method="post" action="<?= e(url('/account/two-step/cancel')) ?>"><?= csrf_field() ?><button class="btn btn-link btn-sm px-0" type="submit">Cancel setting up</button></form>
                 <script src="<?= e(asset('/assets/vendor/qrcode-generator/qrcode.js')) ?>"></script>
             <?php else: ?>
-                <p>Ask for a code from an app on your phone as well as your password when you sign in, so a stolen password is not enough on its own.</p>
+                <p>Ask for a phone code as well as your password.</p>
                 <form method="post" action="<?= e(url('/account/two-step/begin')) ?>"><?= csrf_field() ?>
                     <button class="btn btn-outline-primary" type="submit"><?= icon('phone') ?>Set up two-step sign-in</button>
                 </form>
@@ -172,7 +172,7 @@ $verified = $user['email'] !== null && $user['email_verified_at'] !== null;
         <div class="card" id="institutions">
             <div class="card-header"><span class="card-title"><?= icon('building') ?>Institutions</span><a class="small" href="<?= e(url('/institutions')) ?>">Your institutions</a></div>
             <div class="card-body d-flex flex-wrap align-items-center gap-3">
-                <p class="mb-0 flex-grow-1">Run a training institution? Register it to manage its people here. A platform reviewer verifies each registration first. An invitation from an institution arrives in your inbox.</p>
+                <p class="mb-0 flex-grow-1">Run a training institution? Register it here.</p>
                 <a class="btn btn-outline-primary" href="<?= e(url('/institutions/register')) ?>"><?= icon('building-add') ?>Register an institution</a>
             </div>
         </div>

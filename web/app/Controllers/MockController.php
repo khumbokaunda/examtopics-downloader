@@ -50,7 +50,7 @@ final class MockController extends Controller
         $back = '/library/' . rawurlencode((string) $p['slug']) . '/' . rawurlencode((string) $e['code']) . '/mock';
         $open = $this->s->mocks()->open($userId, (int) $e['id']);
         if ($open !== null) {
-            $this->flash('info', 'You have a mock exam of this exam in progress. Finish it, or give it up, before starting another.');
+            $this->flash('info', 'Finish or give up your current mock exam first.');
             return $this->redirect('/mock/' . $open['uuid']);
         }
         $source = (string) $this->request->input('source', 'all');

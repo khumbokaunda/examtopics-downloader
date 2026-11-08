@@ -9,8 +9,8 @@ $canCollect = can('exams.collect');
     <div class="page-header-text">
         <h1 class="page-title"><?= $manager ? 'Exam requests' : 'My requests' ?></h1>
         <p class="page-subtitle"><?= $manager
-            ? 'Exams people have asked for. Collecting an exam closes its requests and tells everyone who asked.'
-            : 'Exams you have asked for. You are told in your inbox, and by email if you chose it, when one is collected.' ?></p>
+            ? 'Exams people asked for.'
+            : 'Exams you asked for.' ?></p>
     </div>
 </header>
 

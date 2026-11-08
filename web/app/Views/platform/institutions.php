@@ -5,7 +5,7 @@ $tone = \App\Services\Institutions::TONES;
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title">Institutions</h1>
-        <p class="page-subtitle">Every registered institution, with its status. Verify the ones you have checked. Reviewing an institution shows its profile and its owners, not its people or what they do there.</p>
+        <p class="page-subtitle">Applications and their status.</p>
     </div>
     <div class="page-actions">
         <nav class="segmented" aria-label="Status">
@@ -18,7 +18,7 @@ $tone = \App\Services\Institutions::TONES;
 </header>
 <div class="card">
     <?php if ($rows === []): ?>
-        <div class="card-body"><?= empty_state('buildings', 'No institutions here', 'Registrations appear here, and reviewers are told in their inbox.', null, true) ?></div>
+        <div class="card-body"><?= empty_state('buildings', 'No institutions here', 'Applications appear here.', null, true) ?></div>
     <?php else: ?>
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0 table-stack" data-table="platform-institutions" data-order='[[4,"desc"]]'>

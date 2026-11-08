@@ -32,22 +32,22 @@ final class Access
 
     /** The catalogue: every permission the code checks, with the sentence shown beside its box. */
     public const PERMISSIONS = [
-        'library.view' => 'Browse providers and collected exams, read and practise them, and download built documents.',
+        'library.view' => 'Read and practise the library.',
         'exams.request' => 'Request exams that have not been collected yet.',
-        'inventory.first' => 'Load the exam list of a provider that has never been fetched.',
+        'inventory.first' => 'Load a new provider\'s exam list.',
         'documents.build' => 'Build and delete PDF and Markdown documents.',
-        'answers.edit' => 'Correct answers and questions, add pictures, and see the integrity page.',
-        'exams.collect' => 'Collect exams, refresh any provider, add providers, download images and see jobs.',
-        'library.manage' => 'Delete cached versions of an exam, and choose which exams share a card as editions.',
-        'requests.manage' => 'See and answer every exam request, and be notified of new ones.',
-        'users.manage' => 'Create, edit, approve and disable accounts, and be notified of sign-ups.',
-        'settings.manage' => 'Change system, email and branding settings.',
+        'answers.edit' => 'Correct answers and questions.',
+        'exams.collect' => 'Collect exams and manage providers.',
+        'library.manage' => 'Delete versions and group editions.',
+        'requests.manage' => 'Answer exam requests.',
+        'users.manage' => 'Manage accounts.',
+        'settings.manage' => 'Change settings.',
         'backup.manage' => 'Create, download and restore backups.',
-        'progress.view_all' => 'See every member\'s study progress: the exams they read and practised, and how many answers they got right.',
-        'activity.view' => 'See the activity history: sign-ins, and changes to accounts, settings, the library and backups.',
-        'institutions.manage' => 'Review registered institutions: verify them, decline them and suspend them. This does not open an institution\'s own pages or its people.',
-        'certificates.manage' => 'See every readiness certificate, and revoke one with a reason (it is never deleted).',
-        'security.manage' => 'Review sign-in attempts, unlock accounts and unblock networks, and be told when either is locked.',
+        'progress.view_all' => 'See everyone\'s progress.',
+        'activity.view' => 'See activity.',
+        'institutions.manage' => 'Review institutions.',
+        'certificates.manage' => 'Manage readiness certificates.',
+        'security.manage' => 'Review sign-ins and unlock accounts.',
     ];
 
     /** What each role gives. The administrator is not listed: it holds everything. */

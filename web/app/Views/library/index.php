@@ -45,7 +45,7 @@ $examHref = static fn(array $r): string => url($examPath($r));
     <div class="card"><div class="card-body"><?= $filtered
         ? empty_state('search', 'Nothing matches', '<a href="' . e(url('/library')) . '">Clear the search</a> to see the whole library.')
         : ($collector
-            ? empty_state('journal-bookmark', 'Your library is empty', 'Collect an exam to start your library. It is stored on this server and read from here.', ['Collect an exam', url('/collect')])
+            ? empty_state('journal-bookmark', 'Your library is empty', 'Collect an exam to start.', ['Collect an exam', url('/collect')])
             : empty_state('journal-bookmark', 'The library is empty', 'Collected exams appear here.' . (can('exams.request') ? ' <a href="' . e(url('/requests')) . '">Request an exam</a>.' : ''))) ?></div></div>
 
 <?php elseif ($view === 'shelves'):

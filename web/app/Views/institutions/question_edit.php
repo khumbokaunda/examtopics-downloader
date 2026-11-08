@@ -47,7 +47,7 @@ foreach ($form['choices'] as $c) {
                     <?php endfor; ?>
                     <div class="form-check mt-2" data-for-types="multiple">
                         <input class="form-check-input" type="checkbox" id="partial" name="partial_credit" value="1" <?= $form['partial_credit'] ? 'checked' : '' ?>>
-                        <label class="form-check-label" for="partial">Give part of the marks for a partly right answer (each right pick earns its share; a wrong pick takes one share off)</label>
+                        <label class="form-check-label" for="partial">Give part marks for partly right answers</label>
                     </div>
                 </fieldset>
 
@@ -59,7 +59,7 @@ foreach ($form['choices'] as $c) {
 
                 <div class="mb-3"><label class="form-label" for="explanation">Explanation (optional)</label>
                     <textarea class="form-control" id="explanation" name="explanation" rows="3" maxlength="5000"><?= e((string) ($form['explanation'] ?? '')) ?></textarea>
-                    <div class="form-text">Shown with the answer when an assessment lets candidates review their answers.</div></div>
+                    <div class="form-text">Shown when candidates review answers.</div></div>
                 <div class="mb-0"><label class="form-label" for="reference">Reference (optional)</label>
                     <input class="form-control" id="reference" name="reference" value="<?= e((string) ($form['reference'] ?? '')) ?>" maxlength="1000" placeholder="Course notes, chapter 4"></div>
             </div>

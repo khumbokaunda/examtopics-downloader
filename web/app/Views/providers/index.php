@@ -5,7 +5,7 @@ $first = can('inventory.first');
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title"><?= $collector ? 'Providers &amp; inventory' : 'Providers' ?></h1>
-        <p class="page-subtitle">Providers come from ExamTopics itself. <strong>Listed</strong> is how many exams ExamTopics shows for a provider; <strong>Exams</strong> is how many have discussions you can collect, found by refreshing its inventory.</p>
+        <p class="page-subtitle">Exam providers on ExamTopics.</p>
     </div>
     <?php if ($collector): ?>
     <div class="page-actions">
@@ -20,7 +20,7 @@ $first = can('inventory.first');
 <div class="card mb-4">
     <?php if ($providers === []): ?>
         <div class="card-body"><?= $collector
-            ? empty_state('buildings', 'No providers yet', 'Use <strong>Discover providers</strong>, or add one by its identifier below (for example <code>huawei</code>).')
+            ? empty_state('buildings', 'No providers yet', 'Discover providers or add one below.')
             : empty_state('buildings', 'No providers yet', 'An administrator has not loaded the providers yet.') ?></div>
     <?php else: ?>
     <div class="table-responsive">

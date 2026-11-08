@@ -30,13 +30,13 @@ $n = 0;
     <div class="page-header-text">
         <h1 class="page-title">Carry corrections to other editions</h1>
         <p class="page-subtitle">The same questions in <?= e(implode(', ', array_map(static fn($o) => Editions::shortCode((string) $o['code']), $others)) ?: 'no other edition') ?>.
-            An answer is carried by the wording of its choices, so a different choice order cannot misplace it. Nothing changes until you carry what is ticked.</p>
+</p>
     </div>
 </header>
 
 <?php if ($plan === []): ?>
     <div class="card"><div class="card-body"><?= $others === []
-        ? empty_state('collection', 'No other editions', 'This exam has no other editions in the library. Editions share a card when their names match, or when an administrator groups them on the exam page.', null, true)
+        ? empty_state('collection', 'No other editions', 'This exam has no other editions.', null, true)
         : empty_state('pencil-square', 'Nothing to carry', 'This exam has no corrections yet.', null, true) ?></div></div>
 <?php else: ?>
 <form method="post" action="<?= e(url($base . '/corrections/editions')) ?>" data-once data-busy="Carrying…">

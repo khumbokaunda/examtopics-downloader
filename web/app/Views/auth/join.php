@@ -6,10 +6,10 @@
     <div class="card-body">
         <h1 class="h3 mb-1">Register your institution</h1>
         <?php if (!$available): ?>
-            <p class="text-muted">New accounts are not open at the moment, so institutions cannot register here. If you already have an account, sign in and register your institution from your account page.</p>
+            <p class="text-muted">Sign-ups are closed. Sign in to register an institution.</p>
             <a class="btn btn-primary" href="<?= e(url('/login', ['next' => '/institutions/register'])) ?>"><?= icon('box-arrow-in-right') ?>Sign in</a>
         <?php else: ?>
-        <p class="text-muted mb-4">Training centres, colleges and other institutions can assess their students here. Create your account and tell us about the institution: we email you a code to confirm your address<?= $approval ? ', an administrator approves your account,' : '' ?> and a platform reviewer then checks the registration before you invite your people. Verification here is not accreditation or government recognition.
+        <p class="text-muted mb-4">Create your account and tell us about your institution. We review it before you invite people.
             Already have an account? <a href="<?= e(url('/login', ['next' => '/institutions/register'])) ?>">Sign in</a> and register from there.</p>
         <?php if ($error !== null): ?>
             <div class="alert alert-danger" role="alert"><?= icon('exclamation-octagon') ?><div class="alert-body"><?= e($error) ?></div></div>

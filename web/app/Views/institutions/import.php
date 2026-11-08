@@ -12,7 +12,7 @@ $says = ['member' => 'Update their record and classes', 'existing_user' => 'Invi
     'crumb' => ['Students' => '/institutions/' . $institution['uuid'] . '/students', 'Import' => null]]) ?>
 
 <?php if ($results !== null): ?>
-    <div class="alert alert-info d-flex flex-wrap align-items-center gap-2" role="status"><?= icon('file-earmark-spreadsheet') ?><div class="alert-body flex-grow-1">The last import's outcome for every row, including any invitation links to send yourself.</div>
+    <div class="alert alert-info d-flex flex-wrap align-items-center gap-2" role="status"><?= icon('file-earmark-spreadsheet') ?><div class="alert-body flex-grow-1">Results of the last import.</div>
         <a class="btn btn-sm btn-outline-secondary" href="<?= e(url($base . '/results.csv')) ?>"><?= icon('download') ?>Download the results</a></div>
 <?php endif; ?>
 
@@ -26,7 +26,7 @@ $says = ['member' => 'Update their record and classes', 'existing_user' => 'Invi
                 <form method="post" action="<?= e(url($base)) ?>" enctype="multipart/form-data" data-once><?= csrf_field() ?>
                     <div class="mb-3"><label class="form-label" for="file">CSV file</label>
                         <input class="form-control" type="file" id="file" name="file" accept=".csv,text/csv" required>
-                        <div class="form-text">Save the spreadsheet as CSV. Up to <?= StudentImport::MAX_ROWS ?> students and 1 MB. Nothing is saved until you have seen the preview.</div></div>
+                        <div class="form-text">CSV, up to <?= StudentImport::MAX_ROWS ?> students. You see a preview first.</div></div>
                     <button class="btn btn-primary" type="submit"><?= icon('eye') ?>Check the file</button>
                     <a class="btn btn-outline-secondary" href="<?= e(url($base . '/template.csv')) ?>"><?= icon('download') ?>Download the template</a>
                 </form>
@@ -42,7 +42,7 @@ $says = ['member' => 'Update their record and classes', 'existing_user' => 'Invi
                 <p><strong>student_number</strong>: the institution's number for them, different for every student.</p>
                 <p><strong>classes</strong>: class names, separated by <span class="mono">;</span>. Add the intake when two classes share a name ("CCNA 1 2027").</p>
                 <p><strong>programme</strong>: a programme's name or code.</p>
-                <p class="mb-0">Rows are matched by email address only, never by name. Someone already a student here has their record updated and is put in the classes. Everyone else is invited as a student (their number, programme and classes apply when they accept), unless an invitation is already waiting, which is kept rather than sent twice, so importing the same file again is safe. A name or number that disagrees with what is on record is held for you to decide.</p>
+                <p class="mb-0">Matched by email. Existing students are updated, others invited. Safe to import again.</p>
             </div>
         </div>
     </div>
@@ -79,7 +79,7 @@ $says = ['member' => 'Update their record and classes', 'existing_user' => 'Invi
             <button class="btn btn-primary" type="submit" form="import-confirm"><?= icon('check2') ?>Import the ready rows<?= $review > 0 ? ' and those ticked' : '' ?></button>
         <?php endif; ?>
         <a class="btn btn-outline-secondary" href="<?= e(url($base)) ?>"><?= icon('x') ?>Start again</a>
-        <?php if ($bad > 0): ?><span class="small text-muted">Rows that cannot be imported are left out. Fix them in the spreadsheet and import it again: rows already done are not repeated.</span><?php endif; ?>
+        <?php if ($bad > 0): ?><span class="small text-muted">Fix the left-out rows and import again.</span><?php endif; ?>
     </div>
 </div>
 <?php endif; ?>

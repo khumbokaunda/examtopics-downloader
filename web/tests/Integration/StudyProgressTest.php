@@ -144,7 +144,7 @@ final class StudyProgressTest extends HttpTestCase
         $this->attempt(1, $this->answer(1)['wrong']);
         $mine = $this->get('/progress')->body;
         self::assertStringContainsString('My progress', $mine);
-        self::assertStringContainsString('Administrators can see this page.', $mine);
+        self::assertStringContainsString('Exams you have read or practised.', $mine);
         self::assertMatchesRegularExpression('#kpi-value d-block">50%<#', $mine);
         self::assertStringContainsString('2 of 5', $mine);
         self::assertStringContainsString('>Continue</a>', $mine);
@@ -158,7 +158,7 @@ final class StudyProgressTest extends HttpTestCase
         self::assertStringContainsString('Mercy Member', $everyone);
         $member = '/progress/people/' . $this->s->users()->findByUsername('member')['uuid'];
         self::assertStringContainsString('href="' . $member . '"', $everyone, 'by id, not username');
-        self::assertStringContainsString('1 of 2 accounts have read or practised an exam', $everyone);
+        self::assertStringContainsString('1 of 2 accounts studying', $everyone);
         self::assertSame($member, $this->get('/progress/people/member')->headers['Location'], 'an old link by username moves to the id');
         $theirs = $this->get($member)->body;
         self::assertStringContainsString('Mercy Member\'s progress', $theirs);

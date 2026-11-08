@@ -51,7 +51,7 @@ $base = '/institutions/' . $institution['uuid'] . '/credentials';
         <form method="post" action="<?= e(url($base . '/' . $c['uuid'] . '/correct')) ?>" class="card" data-once><?= csrf_field() ?>
             <div class="card-header"><span class="card-title"><?= icon('pencil-square') ?>Issue a corrected version</span></div>
             <div class="card-body">
-                <p class="small">A new credential replaces this one; this one stays, marked replaced, and its verification page names the new number.</p>
+                <p class="small">Replaces this one. The original stays, marked replaced.</p>
                 <div class="mb-2"><label class="form-label small" for="holder_name">Holder's name</label><input class="form-control form-control-sm" id="holder_name" name="holder_name" maxlength="160" required value="<?= e($c['holder_name']) ?>"></div>
                 <div class="mb-2"><label class="form-label small" for="achievement">What it certifies</label><textarea class="form-control form-control-sm" id="achievement" name="achievement" rows="2" maxlength="1000" required><?= e($c['achievement']) ?></textarea></div>
                 <div class="mb-2"><label class="form-label small" for="why">What was corrected</label><input class="form-control form-control-sm" id="why" name="reason" maxlength="500" required></div>
