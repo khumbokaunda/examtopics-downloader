@@ -879,3 +879,5 @@ a.job-chip:hover { text-decoration: none; filter: brightness(.96); }
 .sitting-paused { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: var(--space-4); background: rgba(15, 23, 42, .55); }
 .sitting-paused .card { max-width: 30rem; }
 .sitting-paused .bi { font-size: 2rem; color: var(--color-warning); }
+.sitting-messages:empty { display: none; }
+.sitting-messages .alert { display: flex; gap: var(--space-2); align-items: flex-start; margin-bottom: var(--space-2); }

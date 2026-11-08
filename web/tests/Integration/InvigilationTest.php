@@ -141,4 +141,43 @@ final class InvigilationTest extends HttpTestCase
         $this->as('carol');
         self::assertSame('terminated', $this->getJson('/api/sit/' . $uuid)['json']['status']);
     }
+
+    public function testMessagesReachTheCandidateAndShowWhenSeen(): void
+    {
+        $uuid = $this->start('carol');
+        $this->start('dan');
+        $this->as('bob');
+        $this->post($this->path . '/live/' . $uuid . '/message', ['body' => 'Not watching']);
+        self::assertSame(0, (int) $this->db('SELECT COUNT(*) FROM invigilator_messages'), 'only watchers send messages');
+
+        $this->as('erin');
+        $this->post($this->path . '/live/' . $uuid . '/message', ['body' => '   ']);
+        self::assertSame(0, (int) $this->db('SELECT COUNT(*) FROM invigilator_messages'));
+        $this->post($this->path . '/live/' . $uuid . '/message', ['body' => 'Please sit up straight, <b>Carol</b>.']);
+        $this->post($this->path . '/live/message', ['body' => 'Fifteen minutes left.']);
+        self::assertSame(3, (int) $this->db('SELECT COUNT(*) FROM invigilator_messages'), 'one to carol, then one to each of the two writing');
+        $feed = $this->getJson('/api/institutions/' . $this->a . '/assessments/' . $this->assessment . '/live')['json'];
+        $rows = array_column($feed['rows'], null, 'member');
+        self::assertSame(2, $rows[$this->memberUuid($this->a, 'carol')]['unseen']);
+        $live = $this->get($this->path . '/live')->body;
+        self::assertStringContainsString('2 messages, 2 not yet seen', $live);
+        self::assertStringContainsString('data-live-count="writing">2<', $live);
+
+        $this->as('carol');
+        $status = $this->getJson('/api/sit/' . $uuid)['json'];
+        self::assertSame(['Please sit up straight, <b>Carol</b>.', 'Fifteen minutes left.'], array_column($status['messages'], 'body'));
+        $page = $this->get('/sit/' . $uuid)->body;
+        self::assertStringContainsString('Please sit up straight, &lt;b&gt;Carol&lt;/b&gt;.', $page, 'escaped');
+        self::assertSame(0, (int) $this->db('SELECT COUNT(*) FROM invigilator_messages m JOIN assessment_sessions s ON s.id = m.session_id WHERE s.uuid = ? AND m.seen_at IS NULL', [$uuid]));
+
+        $this->as('erin');
+        self::assertStringContainsString('seen', $this->get($this->path . '/results/' . $uuid)->body);
+        $this->as('dan');
+        self::assertSame(404, $this->getJson('/api/sit/' . $uuid)['status'], 'a candidate reads only their own');
+        $this->as('carol');
+        $this->post('/sit/' . $uuid . '/submit');
+        $this->as('erin');
+        $this->post($this->path . '/live/' . $uuid . '/message', ['body' => 'Too late']);
+        self::assertSame(3, (int) $this->db('SELECT COUNT(*) FROM invigilator_messages'));
+    }
 }

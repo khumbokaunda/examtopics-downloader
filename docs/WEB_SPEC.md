@@ -421,7 +421,7 @@ banks, assessments and results come in later phases.
   to candidates before they start. Staff see neutral indicators and a timeline per sitting and
   record conclusions. Keystrokes and clipboard contents are never collected.
 - **Live invigilation** (`/institutions/<id>/assessments/<id>/live`): every candidate's state,
-  refreshed every 15 seconds; observations; pausing, extra time and ending a sitting; assigning
+  refreshed every 15 seconds; messages to one candidate or everyone writing; observations; pausing, extra time and ending a sitting; assigning
   invigilators.
 - **Registering without an account** (`/join`): an account and an institution in one form,
   registered once the email address is confirmed.
@@ -507,7 +507,7 @@ overview only.
 | Branding | `GET /branding/theme.css`, `/branding/{file}` | public |
 | Institutions | `GET /institutions`, `/institutions/register`, `/institutions/{ref}`, `/institutions/{ref}/profile`, `/institutions/{ref}/members`, `/institutions/{ref}/activity`; `POST /institutions/register`, `/institutions/{ref}/profile`, `/institutions/{ref}/resubmit`, `/institutions/{ref}/invitations`, `/institutions/{ref}/invitations/{id}/revoke`, `/institutions/{ref}/members/{member}/role`, `/institutions/{ref}/members/{member}/remove`, `/institutions/{ref}/leave` | signed-in, then membership and institution permission |
 | Institution classes and students | `GET/POST /institutions/{ref}/structure[...]`, `/institutions/{ref}/classes[/{class}[...]]`, `/institutions/{ref}/students[/{member}]`, `/institutions/{ref}/students/import[...]`, `/institutions/{ref}/banks[/review]`, `/institutions/{ref}/banks/{bank}[...]` (topics, editors, questions, versions, status), `/institutions/{ref}/assessments[/{assessment}[...]]` (settings, schedule, add, questions, blueprint, assignments, status, preview) | signed-in, then membership and institution permission |
-| Institution results, integrity and invigilation | `GET /institutions/{ref}/assessments/{assessment}/results`, `.../results.csv`, `.../results/{sitting}`, `.../results/{sitting}/report.pdf`, `.../live`, `/api/institutions/{ref}/assessments/{assessment}/live`; `POST .../results/publication`, `.../results/{sitting}/integrity`, `.../invigilators`, `.../live/{sitting}/observe`, `.../live/{sitting}/intervene` | signed-in, then membership and institution permission |
+| Institution results, integrity and invigilation | `GET /institutions/{ref}/assessments/{assessment}/results`, `.../results.csv`, `.../results/{sitting}`, `.../results/{sitting}/report.pdf`, `.../live`, `/api/institutions/{ref}/assessments/{assessment}/live`; `POST .../results/publication`, `.../results/{sitting}/integrity`, `.../invigilators`, `.../live/{sitting}/observe`, `.../live/{sitting}/intervene`, `.../live/{sitting}/message`, `.../live/message` | signed-in, then membership and institution permission |
 | Sittings | `GET /my/assessments`, `/my/assessments/{institution}/{assessment}`, `/sit/{uuid}`, `/sit/{uuid}/done`, `/sit/{uuid}/result`, `/sit/{uuid}/result.pdf`, `/api/sit/{uuid}`; `POST /my/assessments/{institution}/{assessment}/start`, `/sit/{uuid}/submit`, `/api/sit/{uuid}/answer`, `/api/sit/{uuid}/events` | signed-in, then the candidate's own sitting |
 | Certificates | `POST /mock/{uuid}/certificate`; `GET /certificates`, `/certificates/{uuid}`, `/certificates/{uuid}/pdf` | library.view (own certificates only) |
 | | `GET /verify/{token}` | public |
@@ -525,12 +525,12 @@ overview only.
 | Members | `question_comments` (with answer votes), `question_reports`, `question_notes` (notes and bookmarks) |
 | Studying | `study_answers` (latest answer per question, with spaced review box and due day), `study_days`, `study_places`, `saved_exams`, `mock_exams` |
 | Output | `documents`, `media` (saved images) |
-| Institutions | `institutions`, `institution_reviews` (decisions), `institution_memberships`, `institution_invitations`, `institution_departments`, `institution_programmes`, `institution_classes`, `class_instructors`, `class_enrolments`, `institution_students`, `question_banks`, `question_bank_editors`, `bank_topics`, `bank_questions`, `question_versions`, `assessments`, `assessment_items`, `assessment_blueprints`, `assessment_assignments`, `assessment_sessions`, `assessment_session_questions`, `assessment_responses`, `assessment_response_history`, `assessment_events`, `integrity_reviews`, `invigilator_assignments`, `invigilator_observations` |
+| Institutions | `institutions`, `institution_reviews` (decisions), `institution_memberships`, `institution_invitations`, `institution_departments`, `institution_programmes`, `institution_classes`, `class_instructors`, `class_enrolments`, `institution_students`, `question_banks`, `question_bank_editors`, `bank_topics`, `bank_questions`, `question_versions`, `assessments`, `assessment_items`, `assessment_blueprints`, `assessment_assignments`, `assessment_sessions`, `assessment_session_questions`, `assessment_responses`, `assessment_response_history`, `assessment_events`, `integrity_reviews`, `invigilator_assignments`, `invigilator_observations`, `invigilator_messages` |
 | Readiness | `certificates` |
 | Worked out, rebuilt on demand (not backed up) | `exam_checks` (Integrity figures), `question_index` (search) |
 | System | `settings`, `notifications`, `mail_queue`, `exam_requests`, `audit_log`, `throttle_events`, `schema_migrations` |
 
-Migrations `001` to `035` in `web/database/migrations` create all of it; `php bin/migrate.php`
+Migrations `001` to `036` in `web/database/migrations` create all of it; `php bin/migrate.php`
 applies them.
 
 ### Background processes

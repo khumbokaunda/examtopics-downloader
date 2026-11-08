@@ -63,6 +63,7 @@ final class SittingController extends Controller
             'title' => $session['title'], 'session' => $session, 'questions' => $this->s->sittings()->repo()->questions((int) $session['id']),
             'responses' => $this->s->sittings()->repo()->responses((int) $session['id']), 'secondsLeft' => Sittings::secondsLeft($session),
             'seq' => $this->s->sittings()->repo()->maxSeq((int) $session['id']),
+            'messages' => $this->s->invigilation()->messages((int) $session['id'], true),
         ], 'sitting/layout'));
     }
 
@@ -105,6 +106,8 @@ final class SittingController extends Controller
             $session = $this->mine($uuid);
         }
         return Response::json(['status' => $session['status'], 'paused' => $session['paused_at'] !== null,
+            'messages' => $session['status'] === 'in_progress' ? array_map(static fn(array $g): array => ['id' => $g['id'], 'body' => $g['body']],
+                $this->s->invigilation()->messages((int) $session['id'], true)) : [],
             'seconds_left' => $session['status'] === 'in_progress' ? Sittings::secondsLeft($session) : 0]);
     }
 

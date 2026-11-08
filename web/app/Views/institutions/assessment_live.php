@@ -11,13 +11,20 @@ $counts = array_count_values(array_column($rows, 'state'));
 <?= \App\Core\View::current()->partial('institutions/_header', ['institution' => $institution, 'membership' => $membership, 'tab' => $tab,
     'crumb' => ['Assessments' => '/institutions/' . $institution['uuid'] . '/assessments', $a['title'] => $base, 'Live' => null]]) ?>
 <div class="kpi-strip">
-    <?php foreach ([['Candidates', count($rows), 'people', 'neutral'], ['Writing', ($counts['writing'] ?? 0), 'pencil', 'primary'], ['Paused', ($counts['paused'] ?? 0), 'pause-circle', 'warning'],
-        ['Handed in', ($counts['handed_in'] ?? 0), 'check2-square', 'success']] as [$l, $v, $ic, $t]): ?>
-        <div class="kpi" data-tone="<?= e($t) ?>"><span class="kpi-icon"><?= icon($ic) ?></span><span class="kpi-text"><span class="kpi-value d-block"><?= (int) $v ?></span><span class="kpi-label d-block"><?= e($l) ?></span></span></div>
+    <?php foreach ([['Candidates', count($rows), 'people', 'neutral', 'all'], ['Not started', ($counts['not_started'] ?? 0), 'hourglass', 'neutral', 'not_started'], ['Writing', ($counts['writing'] ?? 0), 'pencil', 'primary', 'writing'],
+        ['Paused', ($counts['paused'] ?? 0), 'pause-circle', 'warning', 'paused'], ['Handed in', ($counts['handed_in'] ?? 0), 'check2-square', 'success', 'handed_in']] as [$l, $v, $ic, $t, $k]): ?>
+        <div class="kpi" data-tone="<?= e($t) ?>"><span class="kpi-icon"><?= icon($ic) ?></span><span class="kpi-text"><span class="kpi-value d-block" data-live-count="<?= e($k) ?>"><?= (int) $v ?></span><span class="kpi-label d-block"><?= e($l) ?></span></span></div>
     <?php endforeach; ?>
 </div>
 <div class="card mb-4" data-live data-live-url="<?= e(url('/api/institutions/' . $institution['uuid'] . '/assessments/' . $a['uuid'] . '/live')) ?>">
     <div class="card-header"><span class="card-title"><?= icon('broadcast') ?>Live</span><span class="small text-muted" data-live-state>Updates every 15 seconds</span></div>
+    <?php if (($counts['writing'] ?? 0) + ($counts['paused'] ?? 0) > 0): ?>
+    <form method="post" action="<?= e(url($base . '/live/message')) ?>" class="card-body toolbar border-bottom" data-once><?= csrf_field() ?>
+        <label class="visually-hidden" for="broadcast">Message to everyone writing</label>
+        <input class="form-control form-control-sm" id="broadcast" name="body" maxlength="500" required placeholder="Message to everyone writing (for example: 15 minutes left)">
+        <button class="btn btn-sm btn-primary" type="submit"><?= icon('megaphone') ?>Send to everyone</button>
+    </form>
+    <?php endif; ?>
     <?php if ($rows === []): ?>
         <div class="card-body"><?= empty_state('people', 'Nobody to watch', 'The assessment reaches no students yet.', null, true) ?></div>
     <?php else: ?>
@@ -32,11 +39,13 @@ $counts = array_count_values(array_column($rows, 'state'));
                         <span data-field="progress"><?= $r['id'] !== null ? (int) $r['answered'] . ' of ' . (int) $r['question_count'] . ' answered' : '' ?></span>
                         <span data-field="time"><?= $live ? ' · ' . intdiv((int) $r['seconds_left'], 60) . ' min left' : '' ?></span>
                         <span data-field="connection"><?= $live && $r['state'] === 'writing' ? ($r['connected'] ? ' · connected' : ' · not heard from in 2 minutes') : '' ?></span>
+                        <span data-field="messages"><?= (int) $r['messages_sent'] > 0 ? ' · ' . (int) $r['messages_sent'] . ' ' . ((int) $r['messages_sent'] === 1 ? 'message' : 'messages') . ((int) $r['messages_unseen'] > 0 ? ', ' . (int) $r['messages_unseen'] . ' not yet seen' : ', seen') : '' ?></span>
                     </div>
                 </div></div>
                 <?php if ($r['id'] !== null): ?>
                 <div class="request-actions">
                     <button class="btn btn-sm btn-outline-secondary" type="button" data-toggle-panel="obs-<?= e($r['uuid']) ?>"><?= icon('eye') ?>Observe</button>
+                    <?php if ($live): ?><button class="btn btn-sm btn-outline-secondary" type="button" data-toggle-panel="msg-<?= e($r['uuid']) ?>"><?= icon('chat-left-text') ?>Message</button><?php endif; ?>
                     <?php if ($canIntervene && $live): ?><button class="btn btn-sm btn-outline-warning" type="button" data-toggle-panel="act-<?= e($r['uuid']) ?>"><?= icon('sliders') ?>Act</button><?php endif; ?>
                     <a class="btn btn-sm btn-outline-secondary" href="<?= e(url($base . '/results/' . $r['uuid'])) ?>"><?= icon('file-text') ?>Sitting</a>
                 </div>
@@ -47,6 +56,13 @@ $counts = array_count_values(array_column($rows, 'state'));
                         <input class="form-control form-control-sm" id="note-<?= e($r['uuid']) ?>" name="note" maxlength="2000" placeholder="What you observed (optional for identity checked)">
                         <button class="btn btn-sm btn-primary" type="submit">Record</button></div>
                 </form>
+                <?php if ($live): ?>
+                <form method="post" action="<?= e(url($base . '/live/' . $r['uuid'] . '/message')) ?>" class="request-answer-body" id="msg-<?= e($r['uuid']) ?>" hidden data-once><?= csrf_field() ?>
+                    <div class="toolbar"><label class="visually-hidden" for="body-<?= e($r['uuid']) ?>">Message</label>
+                        <input class="form-control form-control-sm" id="body-<?= e($r['uuid']) ?>" name="body" maxlength="500" required placeholder="Shown on the candidate's screen">
+                        <button class="btn btn-sm btn-primary" type="submit">Send</button></div>
+                </form>
+                <?php endif; ?>
                 <?php if ($canIntervene && $live): ?>
                 <div class="request-answer-body" id="act-<?= e($r['uuid']) ?>" hidden>
                     <form method="post" action="<?= e(url($base . '/live/' . $r['uuid'] . '/intervene')) ?>" class="d-inline" data-once><?= csrf_field() ?>

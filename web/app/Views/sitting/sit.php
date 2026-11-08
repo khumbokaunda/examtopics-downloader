@@ -6,7 +6,7 @@
  * time, each answer is saved as it is picked (and kept on this device until the server has it),
  * and the clock, set by the server, hands it in at zero.
  *
- * @var array $session @var list<array> $questions @var array<int,array> $responses @var int $secondsLeft @var int $seq
+ * @var array $session @var list<array> $questions @var array<int,array> $responses @var int $secondsLeft @var int $seq @var list<array> $messages
  */
 use App\Controllers\InstitutionBankController;
 
@@ -22,6 +22,9 @@ $answered = count(array_filter($responses, static fn(array $r): bool => $r['answ
       data-monitor="<?= e(implode(' ', \App\Services\Integrity::types((string) $session['monitoring']))) ?>" data-ends-in="<?= $secondsLeft ?>" data-minutes="<?= (int) $session['duration_minutes'] ?>" data-seq="<?= $seq ?>"
       data-confirm="You cannot change your answers after handing in." data-confirm-title="Hand in your answers?" data-confirm-button="Hand in">
     <?= csrf_field() ?><input type="hidden" name="sent" value="1">
+    <div class="sitting-messages" data-messages aria-live="polite">
+        <?php foreach (array_reverse($messages) as $g): ?><div class="alert alert-info" data-message-id="<?= (int) $g['id'] ?>"><?= icon('chat-left-text') ?><span><strong>From the invigilator:</strong> <?= e($g['body']) ?></span></div><?php endforeach; ?>
+    </div>
     <div class="mock-bar">
         <div class="mock-bar-title">
             <span class="fw-semibold"><?= e($session['title']) ?></span>

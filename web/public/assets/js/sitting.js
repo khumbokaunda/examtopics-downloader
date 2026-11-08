@@ -194,6 +194,20 @@
       .then(function (r) { return r.json(); })
       .then(function (d) {
         if (d.status && d.status !== 'in_progress') { finished(form.action.replace(/\/submit$/, '/done')); return; }
+        var box = form.querySelector('[data-messages]');
+        (d.messages || []).forEach(function (g) {
+          if (!box || box.querySelector('[data-message-id="' + g.id + '"]')) return;
+          var div = document.createElement('div');
+          div.className = 'alert alert-info';
+          div.setAttribute('data-message-id', String(g.id));
+          var span = document.createElement('span');
+          var strong = document.createElement('strong');
+          strong.textContent = 'From the invigilator: ';
+          span.appendChild(strong);
+          span.appendChild(document.createTextNode(g.body));
+          div.appendChild(span);
+          box.insertBefore(div, box.firstChild);
+        });
         var overlay = document.querySelector('[data-paused]');
         if (d.paused) {
           paused = true;

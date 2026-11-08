@@ -78,7 +78,9 @@ final class Invigilation
                                        (SELECT COUNT(*) FROM assessment_responses r WHERE r.session_id = s.id AND r.answer <> '') AS answered,
                                        GREATEST(COALESCE((SELECT MAX(r.saved_at) FROM assessment_responses r WHERE r.session_id = s.id), '1970-01-01'),
                                                 COALESCE((SELECT MAX(e.received_at) FROM assessment_events e WHERE e.session_id = s.id), '1970-01-01'),
-                                                COALESCE(s.started_at, '1970-01-01')) AS last_seen
+                                                COALESCE(s.started_at, '1970-01-01')) AS last_seen,
+                                       (SELECT COUNT(*) FROM invigilator_messages g WHERE g.session_id = s.id) AS messages_sent,
+                                       (SELECT COUNT(*) FROM invigilator_messages g WHERE g.session_id = s.id AND g.seen_at IS NULL) AS messages_unseen
                                 FROM institution_memberships m JOIN users u ON u.id = m.user_id
                                 LEFT JOIN institution_students st ON st.membership_id = m.id
                                 LEFT JOIN assessment_sessions s ON s.id = (SELECT MAX(t.id) FROM assessment_sessions t WHERE t.assessment_id = ? AND t.membership_id = m.id)
@@ -111,6 +113,70 @@ final class Invigilation
         $this->db->run('INSERT INTO invigilator_observations (session_id, institution_id, category, note, membership_id, created_at) VALUES (?, ?, ?, ?, ?, ?)',
             [(int) $session['id'], (int) $i['id'], $category, $note !== '' ? $note : 'Identity checked.', (int) $m['id'], Database::now()]);
         $this->audit->record('institution.observation_recorded', ['institution' => $i['name'], 'student' => $session['username'], 'category' => $category], 'institution', (string) $i['uuid']);
+    }
+
+    /**
+     * Send a message to one candidate's sitting in progress.
+     *
+     * @param array<string,mixed> $i @param array<string,mixed> $m @param array<string,mixed> $session
+     */
+    public function message(array $i, array $m, array $session, string $body): void
+    {
+        if ($session['status'] !== 'in_progress') {
+            throw new RuntimeException('That sitting has been handed in.');
+        }
+        $this->insertMessage($i, $m, (int) $session['id'], self::cleanMessage($body));
+        $this->audit->record('institution.message_sent', ['institution' => $i['name'], 'student' => $session['username'], 'assessment' => $session['title']],
+            'institution', (string) $i['uuid']);
+    }
+
+    /**
+     * Send a message to everyone writing the assessment now. @param array<string,mixed> $i @param array<string,mixed> $m @param array<string,mixed> $a
+     * @return int how many sittings it reached
+     */
+    public function broadcast(array $i, array $m, array $a, string $body): int
+    {
+        $body = self::cleanMessage($body);
+        $ids = array_map('intval', array_column($this->db->all("SELECT id FROM assessment_sessions WHERE institution_id = ? AND assessment_id = ? AND status = 'in_progress'",
+            [(int) $i['id'], (int) $a['id']]), 'id'));
+        if ($ids === []) {
+            throw new RuntimeException('Nobody is writing it now.');
+        }
+        foreach ($ids as $id) {
+            $this->insertMessage($i, $m, $id, $body);
+        }
+        $this->audit->record('institution.message_sent', ['institution' => $i['name'], 'assessment' => $a['title'], 'count' => count($ids)], 'institution', (string) $i['uuid']);
+        return count($ids);
+    }
+
+    /**
+     * A sitting's messages, oldest first. For the candidate's page, unseen ones are marked seen.
+     *
+     * @return list<array{id:int,body:string,created_at:string,seen_at:?string}>
+     */
+    public function messages(int $sessionId, bool $markSeen = false): array
+    {
+        if ($markSeen) {
+            $this->db->run('UPDATE invigilator_messages SET seen_at = ? WHERE session_id = ? AND seen_at IS NULL', [Database::now(), $sessionId]);
+        }
+        return array_map(static fn(array $r): array => ['id' => (int) $r['id'], 'body' => (string) $r['body'], 'created_at' => (string) $r['created_at'],
+            'seen_at' => $r['seen_at']], $this->db->all('SELECT id, body, created_at, seen_at FROM invigilator_messages WHERE session_id = ? ORDER BY id', [$sessionId]));
+    }
+
+    private static function cleanMessage(string $body): string
+    {
+        $body = mb_substr(trim((string) preg_replace('/\s+/u', ' ', $body)), 0, 500);
+        if ($body === '') {
+            throw new RuntimeException('Write the message.');
+        }
+        return $body;
+    }
+
+    /** @param array<string,mixed> $i @param array<string,mixed> $m */
+    private function insertMessage(array $i, array $m, int $sessionId, string $body): void
+    {
+        $this->db->run('INSERT INTO invigilator_messages (session_id, institution_id, body, membership_id, created_at) VALUES (?, ?, ?, ?, ?)',
+            [$sessionId, (int) $i['id'], $body, (int) $m['id'], Database::now()]);
     }
 
     /** @return list<array<string,mixed>> with who wrote each */

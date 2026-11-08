@@ -243,6 +243,7 @@ final class InstitutionAssessmentController extends TenantController
                 'reviews' => $this->s->examIntegrity()->reviews((int) $s['id'])] : null,
             'canReview' => InstitutionAccess::can($m, 'integrity.manage'),
             'observations' => $this->s->invigilation()->observations((int) $s['id']),
+            'messages' => $this->s->invigilation()->messages((int) $s['id']),
         ]);
     }
 
