@@ -42,21 +42,21 @@ final class CertificateController extends Controller
     public function index(): Response
     {
         return $this->render('certificates/index', ['title' => 'My certificates', 'nav' => 'certificates',
-            'rows' => $this->s->readiness()->mine((int) $this->auth->user()['id'])]);
+            'rows' => $this->s->readiness()->mine((int) $this->auth->user()['id']), 'credentials' => $this->s->credentials()->heldBy((int) $this->auth->user()['id'])]);
     }
 
     public function show(string $uuid): Response
     {
         $cert = $this->find($uuid);
         return $this->render('certificates/show', ['title' => 'Certificate ' . $cert['number'], 'nav' => 'certificates', 'cert' => $cert,
-            'verifyUrl' => $this->verifyUrl($cert)]);
+            'verifyUrl' => $this->verifyUrl((string) $cert['token'])]);
     }
 
     public function pdf(string $uuid): Response
     {
         $cert = $this->find($uuid);
         $view = new View($this->app, $this->session, $this->auth->user());
-        $html = $view->render('certificates/pdf', ['cert' => $cert, 'verifyUrl' => $this->verifyUrl($cert), 'brand' => $this->s->branding()->get()['name']], null);
+        $html = $view->render('certificates/pdf', ['cert' => $cert, 'verifyUrl' => $this->verifyUrl((string) $cert['token']), 'brand' => $this->s->branding()->get()['name']], null);
         return new Response(\App\Services\Results::pdf($html, $this->app->paths()->storage() . '/tmp/pdf'), 200,
             ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="certificate-' . $cert['number'] . '.pdf"']);
     }
@@ -65,8 +65,30 @@ final class CertificateController extends Controller
     public function verify(string $token): Response
     {
         $cert = $this->s->readiness()->byToken($token);
+        $credential = $cert === null ? $this->s->credentials()->byToken($token) : null;
+        if ($credential !== null) {
+            return $this->render('credentials/verify', ['title' => 'Verify a credential', 'c' => $credential,
+                'authentic' => $this->s->credentials()->authentic($credential), 'state' => \App\Services\Credentials::state($credential)]);
+        }
         return $this->render('certificates/verify', ['title' => 'Verify a certificate', 'cert' => $cert, 'brand' => $this->s->branding()->get()['name']],
             $cert === null ? 404 : 200);
+    }
+
+    /** Public: the keys that sign credentials, so a copy can be checked offline. */
+    public function keys(): Response
+    {
+        return Response::json(['algorithm' => 'Ed25519', 'signs' => 'the SHA-256 fingerprint (hex) of the credential fields', 'keys' => $this->s->credentials()->signer()->publicKeys()]);
+    }
+
+    /** The holder's own copy of an institutional credential. */
+    public function credentialPdf(string $uuid): Response
+    {
+        $c = \App\Core\Ids::isUuid($uuid) ? $this->app->db()->one("SELECT c.* FROM credentials c JOIN institution_memberships m ON m.id = c.membership_id
+                                                                     WHERE c.uuid = ? AND m.user_id = ? AND c.status IN ('issued', 'revoked', 'replaced')", [$uuid, (int) $this->auth->user()['id']]) : null;
+        if ($c === null) {
+            throw HttpException::notFound('Credential');
+        }
+        return InstitutionCredentialController::document($this, (array) $this->s->institutions()->repo()->find((int) $c['institution_id']), $c);
     }
 
     public function platform(): Response
@@ -99,9 +121,4 @@ final class CertificateController extends Controller
     }
 
     /** @param array<string,mixed> $cert */
-    private function verifyUrl(array $cert): string
-    {
-        $path = '/verify/' . $cert['token'];
-        return $this->s->mailer()->link($path) ?? View::buildUrl((string) $this->app->config()->get('base_path', ''), $path);
-    }
 }

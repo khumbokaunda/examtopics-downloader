@@ -66,6 +66,8 @@ final class JoinTest extends HttpTestCase
         $this->post('/verify', ['code' => $this->code()]);
         $i = $this->app->db()->one('SELECT * FROM institutions');
         self::assertSame(['Zomba Skills Centre', 'draft'], [$i['name'], $i['status']], 'an application starts as a draft');
+        self::assertSame(1, (int) $this->app->db()->value("SELECT COUNT(*) FROM policy_acceptances WHERE policy = 'account_notice' AND context = 'account'"),
+            'the account notice is recorded when the account is made');
         $grace = $this->s->users()->findByUsername('grace');
         self::assertSame('owner', $this->app->db()->value('SELECT role FROM institution_memberships WHERE user_id = ?', [(int) $grace['id']]));
         self::assertSame(200, $this->get('/institutions/' . $i['uuid'])->status, 'signed in, the owner lands on it');

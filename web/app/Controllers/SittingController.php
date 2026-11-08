@@ -40,6 +40,11 @@ final class SittingController extends Controller
         $row = $this->assigned($institution, $assessment);
         try {
             $uuid = $this->s->sittings()->start($row, $this->request->input('accept') === '1');
+            $started = $this->s->sittings()->repo()->session($uuid);
+            if ($started !== null && (int) $started['attempt'] === (int) $row['attempts_used'] + 1 && $row['open_session'] === null) {
+                $this->s->policies()->accept((int) $this->auth->user()['id'], ($started['monitoring'] ?? 'basic') === 'basic' ? ['exam_participation'] : ['exam_participation', 'exam_monitoring'],
+                    'sitting', (int) $started['id'], $this->request->ip());
+            }
             return $this->redirect('/sit/' . $uuid);
         } catch (RuntimeException $e) {
             $this->flash('warning', $e->getMessage());

@@ -60,7 +60,8 @@ $base = '/my/assessments/' . $a['institution_uuid'] . '/' . $a['uuid'];
                 <?php else: ?>
                     <form method="post" action="<?= e(url($base . '/start')) ?>" data-once><?= csrf_field() ?>
                         <div class="form-check mb-3"><input class="form-check-input" type="checkbox" id="accept" name="accept" value="1" required>
-                            <label class="form-check-label" for="accept">I have read the rules and what is recorded, and I accept them.</label></div>
+                            <label class="form-check-label" for="accept">I have read the rules and what is recorded, and I accept them.</label>
+                            <div class="form-text">See <a href="<?= e(url('/policies/exam_participation')) ?>" target="_blank" rel="noopener">taking an assessment</a><?= ($a['monitoring'] ?? 'basic') !== 'basic' ? ' and <a href="' . e(url('/policies/exam_monitoring')) . '" target="_blank" rel="noopener">assessment monitoring</a>' : '' ?>.</div></div>
                         <button class="btn btn-primary btn-lg" type="submit"><?= icon('play-fill') ?>Start: the clock starts now</button>
                     </form>
                 <?php endif; ?>

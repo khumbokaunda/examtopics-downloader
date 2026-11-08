@@ -126,6 +126,18 @@ final class AuditText
             'institution.transcript_issued' => [$who . ' issued a transcript to ' . $named('student') . ' in ' . $named('institution') . (!empty($d['provisional']) ? ' (with provisional results)' : ''), 'file-earmark-text', 'primary'],
             'institution.transcript_withdrawn' => [$who . ' withdrew transcript ' . $named('number') . ' in ' . $named('institution'), 'file-earmark-x', 'warning'],
             'institution.guardian_saved' => [$who . ' saved the under-18 details of ' . $named('student') . ' in ' . $named('institution'), 'shield-check', 'neutral'],
+            'institution.signatory_set' => [$who . (!empty($d['active']) ? ' authorised ' . $named('person') . ' (' . $named('position') . ') to sign credentials at '
+                : ' stopped ' . $named('person') . ' signing credentials at ') . $named('institution'), 'pen', 'warning'],
+            'institution.credential_template_saved' => [$who . ' saved the credential template ' . $named('template') . ' of ' . $named('institution'), 'award', 'neutral'],
+            'institution.credentials_requested' => [$who . ' issued ' . (int) ($d['issued'] ?? 0) . ' and asked approval for ' . (int) ($d['pending'] ?? 0) . ' of ' . $named('template')
+                . ' at ' . $named('institution'), 'award', 'primary'],
+            'institution.credential_issued' => [$who . ' signed and issued ' . $named('number') . ' to ' . $named('holder') . ' at ' . $named('institution'), 'patch-check', 'success'],
+            'institution.credential_declined' => [$who . ' declined ' . $named('number') . ' at ' . $named('institution'), 'x-circle', 'neutral'],
+            'institution.credential_revoked' => [$who . ' revoked ' . $named('number') . ' at ' . $named('institution') . ': ' . $named('reason'), 'x-octagon', 'danger'],
+            'institution.credential_corrected' => [$who . ' replaced ' . $named('number') . ' with ' . $named('replacement') . ' at ' . $named('institution') . ': ' . $named('reason'), 'arrow-repeat', 'warning'],
+            'institution.logo_changed' => [$who . ' changed the logo of ' . $named('institution'), 'image', 'neutral'],
+            'institution.awarding_body_set' => [$who . (($d['body'] ?? '') !== '' ? ' recorded ' . $named('institution') . ' as an awarding body for ' . $named('body')
+                : ' recorded that ' . $named('institution') . ' may not award qualifications'), 'mortarboard', 'warning'],
             'institution.submitted' => [$who . (($d['from'] ?? '') === 'draft' ? ' sent the application of ' : ' sent again the application of ') . $named('institution'), 'send', 'primary'],
             'institution.document_added' => [$who . ' added a document to the application of ' . $named('institution') . ': '
                 . strtolower(\App\Services\Onboarding::DOCUMENTS[(string) ($d['kind'] ?? '')] ?? '?'), 'file-earmark-plus', 'neutral'],

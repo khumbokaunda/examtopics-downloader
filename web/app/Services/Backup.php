@@ -39,11 +39,11 @@ final class Backup
     /** Of those, the ones worked out from the data: emptied by a restore, so they are worked out again from what was restored. */
     public const DERIVED = ['exam_checks', 'question_index'];
     /** Storage areas, and whether a backup includes them unless told otherwise. */
-    public const AREAS = ['cache' => true, 'inventory' => true, 'branding' => true, 'uploads' => true, 'media' => true, 'documents' => true, 'institution_documents' => true];
+    public const AREAS = ['cache' => true, 'inventory' => true, 'branding' => true, 'uploads' => true, 'media' => true, 'documents' => true, 'institution_documents' => true, 'keys' => true];
     /** Areas that can be left out, and the table whose rows describe their files. */
     public const OPTIONAL = ['media' => 'media', 'documents' => 'documents'];
     private const NAME_RE = '/^examtopics-backup-\d{8}-\d{6}(?:-[a-z]+(?:-[a-z]+)*)?\.zip$/';
-    private const ENTRY_RE = '#^(?:manifest\.json|data/[a-z0-9_]{1,64}\.json|files/(cache|inventory|branding|uploads|media|documents|institution_documents)/[A-Za-z0-9._@+=-]+(?:/[A-Za-z0-9._@+=-]+)*)$#';
+    private const ENTRY_RE = '#^(?:manifest\.json|data/[a-z0-9_]{1,64}\.json|files/(cache|inventory|branding|uploads|media|documents|institution_documents|keys)/[A-Za-z0-9._@+=-]+(?:/[A-Za-z0-9._@+=-]+)*)$#';
 
     public function __construct(private App $app)
     {

@@ -1,8 +1,8 @@
-<?php /** @var list<array> $rows */ ?>
+<?php /** @var list<array> $rows @var list<array> $credentials */ ?>
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title">My certificates</h1>
-        <p class="page-subtitle">Certificates of demonstrated readiness you earned on timed mock exams. Each has a link anyone can use to check it.</p>
+        <p class="page-subtitle">Credentials your institutions issued you, and ExamLib's certificates of demonstrated readiness from timed mock exams. Each has a link anyone can use to check it.</p>
     </div>
 </header>
 <div class="card">
@@ -19,3 +19,17 @@
     </ul>
     <?php endif; ?>
 </div>
+<?php if ($credentials !== []): ?>
+<div class="card mt-4">
+    <div class="card-header"><span class="card-title"><?= icon('award') ?>From your institutions</span></div>
+    <ul class="list-rows">
+        <?php foreach ($credentials as $c): $st = \App\Services\Credentials::state($c); ?>
+            <li class="request-row"><div class="row-main"><div class="row-text">
+                <div class="row-title"><?= e($c['title']) ?> <?= chip($st === 'expired' ? 'Expired' : (\App\Services\Credentials::STATUSES[$st] ?? $st), $st === 'issued' ? 'success' : ($st === 'revoked' ? 'danger' : 'neutral')) ?></div>
+                <div class="row-meta"><?= e($c['institution_name']) ?> · <span class="mono"><?= e($c['number']) ?></span> · <?= e(substr((string) $c['issued_at'], 0, 10)) ?></div>
+            </div></div>
+            <div class="request-actions"><a class="btn btn-sm btn-outline-primary" href="<?= e(url('/credentials/' . $c['uuid'] . '/pdf')) ?>"><?= icon('download') ?>PDF</a></div></li>
+        <?php endforeach; ?>
+    </ul>
+</div>
+<?php endif; ?>

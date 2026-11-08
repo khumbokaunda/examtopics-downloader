@@ -16,6 +16,7 @@
             <div class="mb-3"><label class="form-label" for="username">Username</label><input class="form-control" id="username" name="username" value="<?= e($form['username']) ?>" pattern="[A-Za-z0-9._\-]{3,64}" autocomplete="username" required><div class="form-text">3 to 64 letters, digits, dots, hyphens or underscores.</div></div>
             <div class="mb-3"><label class="form-label" for="password">Password</label><input class="form-control" id="password" name="password" type="password" minlength="12" autocomplete="new-password" required><div class="form-text">At least 12 characters.</div></div>
             <div class="mb-4"><label class="form-label" for="repeat_password">Repeat password</label><input class="form-control" id="repeat_password" name="repeat_password" type="password" minlength="12" autocomplete="new-password" required></div>
+            <p class="form-text">Creating an account means accepting the <a href="<?= e(url('/policies/account_notice')) ?>" target="_blank" rel="noopener">account notice</a>.</p>
             <button class="btn btn-primary w-100" type="submit"><?= icon('person-plus') ?>Create account</button>
         </form>
         <p class="small text-center text-muted mt-4 mb-0">Already have one? <a href="<?= e(url('/login')) ?>">Sign in</a></p>

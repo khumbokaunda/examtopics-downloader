@@ -78,6 +78,15 @@ $rows = [
         </div>
     </div>
     <div class="col-xl-5">
+        <form method="post" action="<?= e(url('/platform/institutions/' . $i['uuid'] . '/awarding')) ?>" class="card mb-4" data-once><?= csrf_field() ?>
+            <div class="card-header"><span class="card-title"><?= icon('mortarboard') ?>Formal qualifications</span></div>
+            <div class="card-body">
+                <p class="small">Only an institution recorded here as an authorised awarding body can issue formal qualification certificates. Record the body whose qualifications it may award, once you have seen the authority.</p>
+                <div class="toolbar"><label class="visually-hidden" for="awarding_body">Awarding body</label>
+                    <input class="form-control form-control-sm" id="awarding_body" name="awarding_body" maxlength="160" value="<?= e((string) ($i['awarding_body'] ?? '')) ?>" placeholder="Not authorised">
+                    <button class="btn btn-sm btn-outline-primary" type="submit">Save</button></div>
+            </div>
+        </form>
         <div class="card mb-4">
             <div class="card-header"><span class="card-title"><?= icon('shield-check') ?>Verification</span></div>
             <div class="card-body">

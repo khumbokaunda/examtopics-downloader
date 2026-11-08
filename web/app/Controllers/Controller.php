@@ -25,6 +25,13 @@ abstract class Controller
     ) {
     }
 
+    /** The public address of a certificate or credential's verification page, from its token. */
+    protected function verifyUrl(string $token): string
+    {
+        $path = '/verify/' . $token;
+        return $this->s->mailer()->link($path) ?? View::buildUrl((string) $this->app->config()->get('base_path', ''), $path);
+    }
+
     /** The signed-in person's timezone: theirs if they chose one, else the system's. */
     protected function timezone(): string
     {

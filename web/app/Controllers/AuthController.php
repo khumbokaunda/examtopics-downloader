@@ -171,6 +171,7 @@ final class AuthController extends Controller
         $this->app->logger()->info('security', 'Account created by sign-up', ['username' => $form['username'], 'ip' => $this->ip()]);
         $this->s->audit()->record('auth.signed_up', ['email' => $form['email']], 'user', $form['username'], $user);
         $this->session->set('pending_user_id', $id);
+        $this->s->policies()->accept($id, ['account_notice'], 'account', $id, $this->request->ip());
         return [$form, null, 200];
     }
 

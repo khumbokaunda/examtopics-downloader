@@ -15,6 +15,7 @@ $tabs = array_filter([
     'assessments' => [$base . '/assessments', 'Assessments', 'clipboard-check', $verified && array_filter(['assessments.view', 'assessments.create', 'assessments.assign', 'assessments.schedule'],
         static fn(string $p): bool => InstitutionAccess::can($membership, $p)) !== []],
     'structure' => [$base . '/structure', 'Programmes', 'diagram-3', $verified && InstitutionAccess::can($membership, 'departments.manage')],
+    'credentials' => [$base . '/credentials', 'Credentials', 'award', $verified && (InstitutionAccess::can($membership, 'credentials.issue') || InstitutionAccess::can($membership, 'credentials.manage'))],
     'profile' => [$base . '/profile', 'Profile', 'building-gear', InstitutionAccess::can($membership, 'institution.manage')],
     'application' => [$base . '/application', 'Application', 'file-earmark-check', InstitutionAccess::can($membership, 'institution.manage')],
     'activity' => [$base . '/activity', 'Activity', 'activity', $verified && InstitutionAccess::can($membership, 'activity.view')],
