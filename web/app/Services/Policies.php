@@ -53,6 +53,12 @@ final class Policies
             'Do not try to reach another institution\'s records, test the platform\'s security without permission, or overload it.',
             'Report suspected misuse to ExamLib. Accounts and institutions that misuse the platform can be suspended.',
         ]],
+        'account_notice' => ['title' => 'Your ExamLib account', 'version' => '2026-11', 'points' => [
+            'Your account holds your name, email address, sign-in details, preferences and your own study: progress, notes, mock exams and readiness certificates.',
+            'Your email address is used to confirm the account, reset your password and send the notices you choose. It is not shown to other members.',
+            'Joining an institution is separate and needs your agreement; the institution then sees only what the membership notice says.',
+            'You can change your details on your account page, and ask an administrator to delete the account.',
+        ]],
         'membership_notice' => ['title' => 'Joining an institution', 'version' => '2026-11', 'points' => [
             'The institution sees your name, email address, the student record it keeps about you (such as your student number, programme and classes), and what you do in its assessments.',
             'It does not see your personal study in the library, your other institutions or anything you do elsewhere on ExamLib.',

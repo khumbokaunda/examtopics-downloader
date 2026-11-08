@@ -207,7 +207,7 @@ final class Results
     }
 
     /** A small HTML document as PDF bytes (reports), with no remote loading. */
-    public static function pdf(string $html, string $tempDir): string
+    public static function pdf(string $html, string $tempDir, string $orientation = 'portrait'): string
     {
         $options = new Options();
         $options->setIsRemoteEnabled(false);
@@ -219,7 +219,7 @@ final class Results
         }
         $dompdf = new Dompdf($options);
         $dompdf->loadHtml($html, 'UTF-8');
-        $dompdf->setPaper('A4');
+        $dompdf->setPaper('A4', $orientation);
         $dompdf->render();
         return (string) $dompdf->output();
     }

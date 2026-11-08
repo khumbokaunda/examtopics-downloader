@@ -53,16 +53,18 @@ final class InstitutionAccess
         'assessments.monitor' => 'Watch every assessment\'s sittings live and record observations. Invigilators watch the assessments they are assigned to.',
         'assessments.intervene' => 'Pause and resume a sitting, give extra time, or end it.',
         'transcripts.issue' => 'Issue and withdraw transcripts of students\' academic records.',
+        'credentials.issue' => 'Ask for credentials to be issued to eligible students. A signatory approves them unless the template lets a signatory issue directly.',
+        'credentials.manage' => 'Keep credential templates and the institution\'s logo, revoke and correct issued credentials. Owners choose the signatories.',
     ];
 
     /** What each role gives. The owner is not listed: it holds every institution permission. */
     public const ROLE_PERMISSIONS = [
         self::ADMIN => ['members.view', 'members.manage', 'activity.view', 'departments.manage', 'classes.view', 'classes.manage', 'students.manage',
             'question_banks.view', 'question_banks.create', 'question_banks.edit', 'question_banks.publish',
-            'assessments.view', 'assessments.create', 'assessments.assign', 'assessments.schedule', 'results.publish', 'results.export', 'integrity.view', 'integrity.manage', 'assessments.monitor', 'assessments.intervene', 'transcripts.issue'],
+            'assessments.view', 'assessments.create', 'assessments.assign', 'assessments.schedule', 'results.publish', 'results.export', 'integrity.view', 'integrity.manage', 'assessments.monitor', 'assessments.intervene', 'transcripts.issue', 'credentials.issue', 'credentials.manage'],
         'instructor' => ['members.view', 'question_banks.create', 'assessments.create', 'assessments.assign'],
         'exam_officer' => ['members.view', 'classes.view', 'question_banks.view', 'question_banks.publish',
-            'assessments.view', 'assessments.create', 'assessments.assign', 'assessments.schedule', 'results.publish', 'results.export', 'integrity.view', 'integrity.manage', 'assessments.monitor', 'assessments.intervene', 'transcripts.issue'],
+            'assessments.view', 'assessments.create', 'assessments.assign', 'assessments.schedule', 'results.publish', 'results.export', 'integrity.view', 'integrity.manage', 'assessments.monitor', 'assessments.intervene', 'transcripts.issue', 'credentials.issue'],
         'invigilator' => [],
         self::STUDENT => [],
     ];

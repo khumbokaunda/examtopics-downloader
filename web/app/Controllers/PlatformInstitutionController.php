@@ -44,6 +44,17 @@ final class PlatformInstitutionController extends Controller
         return InstitutionApplicationController::serve($this->s->onboarding(), $i, $document);
     }
 
+    /** Record, or clear, that the institution is an authorised awarding body (only then may it issue formal qualifications). */
+    public function awarding(string $ref): Response
+    {
+        $i = $this->s->institutions()->repo()->findByUuid($ref) ?? throw HttpException::notFound('Institution');
+        $body = mb_substr(trim((string) $this->request->input('awarding_body', '')), 0, 160);
+        $this->app->db()->run('UPDATE institutions SET awarding_body = ? WHERE id = ?', [$body !== '' ? $body : null, (int) $i['id']]);
+        $this->s->audit()->record('institution.awarding_body_set', ['institution' => $i['name'], 'body' => $body], 'institution', (string) $i['uuid']);
+        $this->flash('success', $body !== '' ? $i['name'] . ' may issue formal qualifications of ' . $body . '.' : $i['name'] . ' may not issue formal qualifications.');
+        return $this->redirect('/platform/institutions/' . $i['uuid']);
+    }
+
     public function decide(string $ref): Response
     {
         $i = $this->s->institutions()->repo()->findByUuid($ref) ?? throw HttpException::notFound('Institution');

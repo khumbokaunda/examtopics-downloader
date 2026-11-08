@@ -778,3 +778,59 @@ only, withdrawal, permissions, programme history and the under-18 record.
   staff rather than enforced.
 - Transcripts are verified by the issuing institution for now; public verification of
   transcripts comes with the credential stage.
+
+## Stage 4: credential management (delivered)
+
+Migration 040. ExamLib's own readiness certificates (stage 6 above) stay as they are; this
+stage adds credentials that **institutions** issue in their own name.
+
+- **Categories with their own rules**: assessment completion, institutional achievement, and
+  formal qualification. A formal qualification can be issued only by an institution that a
+  platform reviewer recorded as an authorised awarding body (`/platform/institutions/{ref}`,
+  "Formal qualifications"), naming the body whose qualifications it may award.
+- **Templates** (credentials.manage: owners and administrators) say what is printed (title, what
+  it certifies, footer), how long it is valid, whether each one needs a signatory's approval, and
+  who is eligible: passing an assessment (results published, optionally at a minimum percentage),
+  completing a programme (from the academic record), or chosen by staff. Once a template has
+  issued anything, its kind and eligibility cannot change; a different rule is a new template.
+- **Authorised signatories**: owners choose which staff may approve and sign which kinds of
+  credential, with their position (Principal, Director of Studies, Examinations Officer...).
+  Students cannot sign. Their name and position are printed on what they sign.
+- **Issuing** (credentials.issue: owners, administrators, examination officers): the eligible
+  students are listed with what they rest on; issuing asks a signatory for approval, or, when the
+  template allows and the issuer is a signatory, issues directly. Signatories see what waits for
+  them and approve or decline. The holder is told and finds it under My certificates.
+- **No accidental duplicates**: one pending or issued credential per holder and achievement (a
+  unique key, so two clicks cannot make two); issuing again needs an explicit "duplicate" tick,
+  which is recorded.
+- **What it contains**: the institution's logo (uploaded on the credentials page) and name at
+  issue, title, holder, what it certifies, programme or assessment, achievement and issue dates,
+  expiry where applicable, a number `EXL-YYYY-XXXXXXXX`, the signatory, a QR code and the
+  verification address. The PDF is landscape A4.
+- **Verification** (`/verify/{token}`, the same public page as readiness certificates): genuine
+  and current, expired, revoked (with the reason) or replaced (naming the replacement); the
+  holder, achievement, dates, signatory, and the issuer with its verification dimensions as they
+  are (so "accreditation: not verified" is said when it is). If the issuer is suspended, the page
+  says so and still shows what it issued. Nothing else about the holder is disclosed: no answers,
+  contact details or monitoring records.
+- **Authenticity**: each issued credential stores a SHA-256 fingerprint of its printed fields,
+  signed with an Ed25519 key kept in `storage/keys` (outside the web root, included in backups;
+  public keys at `/verify/keys`). The verification page recomputes both, so a record changed in
+  the database shows as not matching its signature. The page stays authoritative: a QR code only
+  points to it. No blockchain.
+- **Lifecycle**: issued credentials are never edited. Revoking needs a reason and keeps the
+  credential, verifiable as revoked. A correction (for example a corrected name) is a new
+  credential signed again that replaces the old one, which stays, marked replaced. Every step is
+  in the credential's history. If results behind a completion credential are taken back, the
+  register flags it for review.
+
+`CredentialsTest` (2 tests): the category rule, templates, eligibility, signatories (owners only,
+staff only), approval, duplicates refused and deliberately allowed, verification content and
+privacy, a tampered record caught, holder-only PDFs, correction and replacement, revocation with
+its reason, results taken back, a suspended issuer, expiry, and an authorised awarding body.
+
+**Notices** (with this stage): besides the institutional agreement and the membership notice,
+creating an account now records the account notice, and starting an assessment records the
+participation notice, plus the monitoring notice when the assessment monitors more than the
+basics. Public verification links the verification notice. Every notice is versioned at
+`/policies` and each acceptance is kept in `policy_acceptances` with its context.

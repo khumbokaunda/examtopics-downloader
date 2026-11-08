@@ -427,6 +427,9 @@ banks, assessments and results come in later phases.
   documents by kind of institution, sent for review with the platform agreement (`/policies`);
   reviewers verify identity, registration, accreditation and the representative's authority
   separately, then approve, ask for more information, decline or suspend.
+- **Credentials** (`/institutions/<id>/credentials`): templates with eligibility rules,
+  authorised signatories, issuing with approval, a register, revoking and correcting; holders
+  find them under My certificates, and anyone can check one at `/verify/<token>`.
 - **Academic records** (`/my/record`, and each student's page for staff): programme history,
   modules completed (from published results, or recorded by staff), final and provisional
   results, and transcripts issued as numbered PDF snapshots.
@@ -526,6 +529,10 @@ overview only.
 | | `GET /platform/institutions/{ref}/documents/{document}` | institutions.manage |
 | Policies | `GET /policies`, `/policies/{key}` | public |
 | Enrolment | `GET /enrol`; `POST /enrol`, `/enrol/join` | signed-in |
+| Credentials | `GET /institutions/{ref}/credentials[...]` (templates, eligible, a credential, its PDF); `POST .../templates[/{template}]`, `.../templates/{template}/issue`, `.../signatories`, `.../logo`, `.../{credential}/decision`, `.../{credential}/revoke`, `.../{credential}/correct` | signed-in, then credentials.issue, credentials.manage, a signatory, or an owner |
+| | `GET /verify/keys` | public |
+| | `GET /credentials/{uuid}/pdf` | signed-in, the holder |
+| | `POST /platform/institutions/{ref}/awarding` | institutions.manage |
 | Records | `GET /my/record`, `/my/record/{institution}/transcripts/{transcript}.pdf` | signed-in, own record |
 | | `GET /institutions/{ref}/structure/programmes/{programme}`; `POST .../details`, `.../modules`, `.../modules/{module}`, `.../modules/{module}/retire` | departments.manage |
 | | `POST /institutions/{ref}/students/{member}/programme/complete`, `.../modules`, `.../guardian` | students.manage |
@@ -544,12 +551,12 @@ overview only.
 | Members | `question_comments` (with answer votes), `question_reports`, `question_notes` (notes and bookmarks) |
 | Studying | `study_answers` (latest answer per question, with spaced review box and due day), `study_days`, `study_places`, `saved_exams`, `mock_exams` |
 | Output | `documents`, `media` (saved images) |
-| Institutions | `institutions`, `institution_reviews` (decisions and verification changes), `institution_documents`, `policy_acceptances`, `enrolment_codes`, `enrolment_requests`, `programme_modules`, `programme_enrolments`, `module_completions`, `transcripts`, `institution_memberships`, `institution_invitations`, `institution_departments`, `institution_programmes`, `institution_classes`, `class_instructors`, `class_enrolments`, `institution_students`, `question_banks`, `question_bank_editors`, `bank_topics`, `bank_questions`, `question_versions`, `assessments`, `assessment_items`, `assessment_blueprints`, `assessment_assignments`, `assessment_sessions`, `assessment_session_questions`, `assessment_responses`, `assessment_response_history`, `assessment_events`, `integrity_reviews`, `invigilator_assignments`, `invigilator_observations`, `invigilator_messages` |
+| Institutions | `institutions`, `institution_reviews` (decisions and verification changes), `institution_documents`, `policy_acceptances`, `enrolment_codes`, `enrolment_requests`, `programme_modules`, `programme_enrolments`, `module_completions`, `transcripts`, `credential_signatories`, `credential_templates`, `credentials`, `credential_events`, `institution_memberships`, `institution_invitations`, `institution_departments`, `institution_programmes`, `institution_classes`, `class_instructors`, `class_enrolments`, `institution_students`, `question_banks`, `question_bank_editors`, `bank_topics`, `bank_questions`, `question_versions`, `assessments`, `assessment_items`, `assessment_blueprints`, `assessment_assignments`, `assessment_sessions`, `assessment_session_questions`, `assessment_responses`, `assessment_response_history`, `assessment_events`, `integrity_reviews`, `invigilator_assignments`, `invigilator_observations`, `invigilator_messages` |
 | Readiness | `certificates` |
 | Worked out, rebuilt on demand (not backed up) | `exam_checks` (Integrity figures), `question_index` (search) |
 | System | `settings`, `notifications`, `mail_queue`, `exam_requests`, `audit_log`, `throttle_events`, `schema_migrations` |
 
-Migrations `001` to `039` in `web/database/migrations` create all of it; `php bin/migrate.php`
+Migrations `001` to `040` in `web/database/migrations` create all of it; `php bin/migrate.php`
 applies them.
 
 ### Background processes

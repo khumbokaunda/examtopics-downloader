@@ -6,6 +6,7 @@ use App\Controllers\AccountController;
 use App\Controllers\ActivityController;
 use App\Controllers\AnswerController;
 use App\Controllers\AuthController;
+use App\Controllers\InstitutionCredentialController;
 use App\Controllers\InstitutionProgrammeController;
 use App\Controllers\MyRecordController;
 use App\Controllers\EnrolController;
@@ -137,7 +138,9 @@ return static function (Router $r): void {
     $r->get('/certificates', [CertificateController::class, 'index'], can: $read);
     $r->get('/certificates/{uuid}', [CertificateController::class, 'show'], can: $read);
     $r->get('/certificates/{uuid}/pdf', [CertificateController::class, 'pdf'], can: $read);
+    $r->get('/verify/keys', [CertificateController::class, 'keys'], public: true);
     $r->get('/verify/{token}', [CertificateController::class, 'verify'], public: true);
+    $r->get('/credentials/{uuid}/pdf', [CertificateController::class, 'credentialPdf'], can: $me);
     $r->get('/policies', [PolicyController::class, 'index'], public: true);
     $r->get('/policies/{key}', [PolicyController::class, 'show'], public: true);
     $r->get('/platform/certificates', [CertificateController::class, 'platform'], can: 'certificates.manage');
@@ -245,6 +248,20 @@ return static function (Router $r): void {
     $r->post('/institutions/{ref}/students/{member}/transcripts', [InstitutionStudentController::class, 'issueTranscript'], can: $me);
     $r->post('/institutions/{ref}/students/{member}/transcripts/{transcript}/withdraw', [InstitutionStudentController::class, 'withdrawTranscript'], can: $me);
     $r->get('/institutions/{ref}/students/{member}/transcripts/{transcript}.pdf', [InstitutionStudentController::class, 'transcriptPdf'], can: $me);
+    $r->get('/institutions/{ref}/credentials', [InstitutionCredentialController::class, 'index'], can: $me);
+    $r->get('/institutions/{ref}/credentials/templates/new', [InstitutionCredentialController::class, 'templateForm'], can: $me);
+    $r->post('/institutions/{ref}/credentials/templates', [InstitutionCredentialController::class, 'saveTemplate'], can: $me);
+    $r->get('/institutions/{ref}/credentials/templates/{template}', [InstitutionCredentialController::class, 'templateForm'], can: $me);
+    $r->post('/institutions/{ref}/credentials/templates/{template}', [InstitutionCredentialController::class, 'saveTemplate'], can: $me);
+    $r->get('/institutions/{ref}/credentials/templates/{template}/eligible', [InstitutionCredentialController::class, 'eligible'], can: $me);
+    $r->post('/institutions/{ref}/credentials/templates/{template}/issue', [InstitutionCredentialController::class, 'issue'], can: $me);
+    $r->post('/institutions/{ref}/credentials/signatories', [InstitutionCredentialController::class, 'signatory'], can: $me);
+    $r->post('/institutions/{ref}/credentials/logo', [InstitutionCredentialController::class, 'logo'], can: $me);
+    $r->get('/institutions/{ref}/credentials/{credential}', [InstitutionCredentialController::class, 'show'], can: $me);
+    $r->get('/institutions/{ref}/credentials/{credential}/pdf', [InstitutionCredentialController::class, 'pdf'], can: $me);
+    $r->post('/institutions/{ref}/credentials/{credential}/decision', [InstitutionCredentialController::class, 'decide'], can: $me);
+    $r->post('/institutions/{ref}/credentials/{credential}/revoke', [InstitutionCredentialController::class, 'revoke'], can: $me);
+    $r->post('/institutions/{ref}/credentials/{credential}/correct', [InstitutionCredentialController::class, 'correct'], can: $me);
     $r->get('/institutions/{ref}/structure/programmes/{programme}', [InstitutionProgrammeController::class, 'show'], can: $me);
     $r->post('/institutions/{ref}/structure/programmes/{programme}/details', [InstitutionProgrammeController::class, 'saveDetails'], can: $me);
     $r->post('/institutions/{ref}/structure/programmes/{programme}/modules', [InstitutionProgrammeController::class, 'saveModule'], can: $me);
@@ -317,6 +334,7 @@ return static function (Router $r): void {
     $r->get('/platform/institutions', [PlatformInstitutionController::class, 'index'], can: 'institutions.manage');
     $r->get('/platform/institutions/{ref}', [PlatformInstitutionController::class, 'show'], can: 'institutions.manage');
     $r->post('/platform/institutions/{ref}/decision', [PlatformInstitutionController::class, 'decide'], can: 'institutions.manage');
+    $r->post('/platform/institutions/{ref}/awarding', [PlatformInstitutionController::class, 'awarding'], can: 'institutions.manage');
     $r->get('/platform/institutions/{ref}/documents/{document}', [PlatformInstitutionController::class, 'document'], can: 'institutions.manage');
 
     $r->get('/requests', [RequestController::class, 'index'], can: 'exams.request');

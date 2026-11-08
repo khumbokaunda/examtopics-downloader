@@ -213,6 +213,12 @@ final class Services
         return $this->app->service(Integrity::class, fn() => new Integrity($this->app->db(), $this->audit()));
     }
 
+    public function credentials(): Credentials
+    {
+        return $this->app->service(Credentials::class, fn() => new Credentials($this->app->db(), $this->audit(), $this->notifier(),
+            new CredentialSigner($this->app->paths()->storage() . '/keys')));
+    }
+
     public function records(): AcademicRecords
     {
         return $this->app->service(AcademicRecords::class, fn() => new AcademicRecords($this->app->db(), $this->audit()));

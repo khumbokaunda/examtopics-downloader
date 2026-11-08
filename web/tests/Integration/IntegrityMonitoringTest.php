@@ -49,6 +49,8 @@ final class IntegrityMonitoringTest extends HttpTestCase
         $uuid = $this->start('carol');
         $page = $this->get('/sit/' . $uuid)->body;
         self::assertStringContainsString('data-monitor="hidden visible blur focus offline online"', $page);
+        self::assertSame(['exam_monitoring', 'exam_participation'], array_column($this->app->db()->all("SELECT policy FROM policy_acceptances WHERE context = 'sitting' ORDER BY policy"), 'policy'),
+            'the participation and monitoring notices are recorded with the sitting');
         $this->app->db()->run("UPDATE assessments SET monitoring = 'enhanced'");
 
         $sent = $this->send($uuid, [
