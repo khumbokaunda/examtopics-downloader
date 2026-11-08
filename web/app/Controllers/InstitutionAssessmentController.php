@@ -55,6 +55,7 @@ final class InstitutionAssessmentController extends TenantController
         $canAssign = $svc->canAssign($m, $a);
         return $this->render('institutions/assessment', $this->pageVars($i, $m, 'assessments') + [
             'assessment' => $a, 'items' => $svc->repo()->items($iid, (int) $a['id']), 'blueprints' => $svc->repo()->blueprints($iid, (int) $a['id']),
+            'modules' => $this->s->records()->allModules($iid),
             'assignments' => $svc->repo()->assignments($iid, (int) $a['id']), 'candidates' => $svc->repo()->candidateCount($iid, (int) $a['id']),
             'checks' => $a['status'] === 'draft' ? $svc->checks($i, $a) : [],
             'canEdit' => $svc->canEdit($m, $a), 'canAssign' => $canAssign, 'canSchedule' => InstitutionAccess::can($m, 'assessments.schedule'),
@@ -73,7 +74,10 @@ final class InstitutionAssessmentController extends TenantController
         foreach (\App\Repositories\AssessmentRepository::SETTINGS as $f) {
             $in[$f] = $this->request->input($f, '');
         }
-        return $this->attempt($i, $a, fn() => $this->s->assessments()->saveSettings($i, $a, $in, $this->timezone()), 'Settings saved.', 'settings');
+        return $this->attempt($i, $a, function () use ($i, $a, $in): void {
+            $this->s->assessments()->saveSettings($i, $a, $in, $this->timezone());
+            $this->s->records()->linkAssessment($i, $a, (string) $this->request->input('module', ''));
+        }, 'Settings saved.', 'settings');
     }
 
     public function schedule(string $ref, string $assessment): Response

@@ -103,6 +103,11 @@ $creator = (int) $a['created_by'] === (int) $membership['id'];
                         <div class="col-sm-6"><label class="form-label" for="negative_marking">Taken off for a wrong answer (times its marks)</label><input class="form-control" type="number" min="0" max="1" step="0.05" id="negative_marking" name="negative_marking" value="<?= e(C::marks($a['negative_marking'])) ?>"><div class="form-text">0 for none; 0.25 takes off a quarter. Unanswered questions lose nothing.</div></div>
                         <div class="col-sm-6"><label class="form-label" for="review_policy">After results are published, candidates see</label><select class="form-select" id="review_policy" name="review_policy">
                             <?php foreach (Assessments::REVIEW_POLICIES as $k => $v): ?><option value="<?= e($k) ?>" <?= $a['review_policy'] === $k ? 'selected' : '' ?>><?= e($v) ?></option><?php endforeach; ?></select></div>
+                        <?php if (!empty($modules)): ?>
+                        <div class="col-12"><label class="form-label" for="module">Module</label><select class="form-select" id="module" name="module"><option value="">Not part of a module</option>
+                            <?php foreach ($modules as $mod): ?><option value="<?= e($mod['uuid']) ?>" <?= (int) ($a['module_id'] ?? 0) === (int) $mod['id'] ? 'selected' : '' ?>><?= e($mod['programme_name'] . ': ' . ($mod['code'] !== null ? $mod['code'] . ' ' : '') . $mod['name']) ?></option><?php endforeach; ?></select>
+                            <div class="form-text">Passing it, once its results are published, completes the module in the student's record.</div></div>
+                        <?php endif; ?>
                         <div class="col-12"><label class="form-label" for="monitoring">Monitoring during the sitting</label><select class="form-select" id="monitoring" name="monitoring">
                             <?php foreach (\App\Services\Integrity::POLICIES as $k => $p): ?><option value="<?= e($k) ?>" <?= ($a['monitoring'] ?? 'basic') === $k ? 'selected' : '' ?>><?= e($p['name'] . ': ' . $p['text']) ?></option><?php endforeach; ?></select>
                             <div class="form-text">Candidates are told before they start. Observations are shown to people with integrity.view as prompts, never as proof.</div></div>

@@ -733,3 +733,48 @@ link, cancel, staff invitations kept out, the membership notice, codes with and 
 (class applied, uses counted, expiry, withdrawal, guessing limit), import categories with
 conflicts held for a decision, the problems file, a safe second import, and standing stopping
 assessments.
+
+## Stage 3: programmes, academic records and transcripts (delivered)
+
+Migration 039.
+
+- **Programmes in detail** (`/institutions/{ref}/structure/programmes/{programme}`,
+  departments.manage): description, duration, learning objectives, completion requirements,
+  whether it is still offered, and its **modules** (code, name, description, required or
+  optional, retired or offered). Classes keep their intake (an academic year or intake such as
+  "January 2027"), which is how intakes and academic years are represented.
+- **Assessments belong to modules.** An assessment's settings take a module. Passing it, once
+  its results are published, completes the module for that student. Staff can also record a
+  module completed elsewhere. Completions are written once and kept: relinking an assessment,
+  retiring a module or changing a programme never rewrites what a student completed.
+- **Programme history.** Each programme a student is on is kept with its start and end dates and
+  how it ended (current, completed, withdrawn, moved to another programme). Changing a student's
+  programme closes the old one; it is never edited away.
+- **The academic record** on each student's page: programme history, modules with their
+  completion date and result, and every assessment marked **final** (results published) or
+  **provisional** (handed in, not yet published). When every required module is complete the
+  record offers "Mark completed", which ends the programme as completed and sets the standing to
+  completed; completing without every required module needs an explicit tick and is recorded as
+  such.
+- **Students see their own record** at `/my/record`, across all their institutions: final
+  results only, modules completed, and the transcripts issued to them.
+- **Transcripts** (transcripts.issue: owners, administrators, examination officers): a snapshot
+  of the record when issued, numbered `TR-YYYY-NNNNNN`, as a PDF. Including provisional results
+  is a choice and they are marked as such on the document. A transcript is never regenerated;
+  a correction means issuing a new one and withdrawing the old one with a reason. A withdrawn
+  transcript disappears from the student's record, and staff copies are marked WITHDRAWN.
+- **Students under 18**: date of birth, guardian name and contact, and when the institution
+  recorded the guardian's agreement. The record warns that the institution is responsible for
+  the guardian's involvement and the lawful basis, as the data processing agreement says.
+
+`AcademicRecordsTest` (2 tests): programme details and modules, completion only after
+publication, final and provisional results, completion requirements with the override, a
+completion surviving relinking, transcripts as immutable snapshots, PDF access for the holder
+only, withdrawal, permissions, programme history and the under-18 record.
+
+### Known limitations (stage 3)
+
+- Attendance is not tracked, so "completion requirements" beyond modules are written down for
+  staff rather than enforced.
+- Transcripts are verified by the issuing institution for now; public verification of
+  transcripts comes with the credential stage.

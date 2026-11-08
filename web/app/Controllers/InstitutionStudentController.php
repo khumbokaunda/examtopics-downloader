@@ -115,7 +115,84 @@ final class InstitutionStudentController extends TenantController
             'student' => $st, 'history' => $repo->enrolmentsOf((int) $i['id'], (int) $st['id']),
             'programmes' => $repo->programmes((int) $i['id']), 'manage' => InstitutionAccess::can($m, 'students.manage'),
             'results' => $this->s->results()->student((int) $i['id'], (int) $st['id']),
+            'record' => $this->s->records()->record($i, $st, true),
+            'transcripts' => $this->s->records()->transcripts((int) $i['id'], (int) $st['id']),
+            'canIssue' => InstitutionAccess::can($m, 'transcripts.issue'),
+            'modules' => $this->s->records()->allModules((int) $i['id']),
         ]);
+    }
+
+    public function completeProgramme(string $ref, string $member): Response
+    {
+        [$i, , $st] = $this->managed($ref, $member, 'students.manage');
+        return $this->recordAction($i, $st, fn() => $this->s->records()->completeProgramme($i, $st, $this->auth->user(), $this->request->input('override') === '1'),
+            'Programme completed. The student\'s standing is now completed.');
+    }
+
+    public function recordCompletion(string $ref, string $member): Response
+    {
+        [$i, , $st] = $this->managed($ref, $member, 'students.manage');
+        return $this->recordAction($i, $st, fn() => $this->s->records()->recordCompletion($i, $st, (string) $this->request->input('module', ''), $this->auth->user()),
+            'Module recorded as completed.');
+    }
+
+    public function saveGuardian(string $ref, string $member): Response
+    {
+        [$i, , $st] = $this->managed($ref, $member, 'students.manage');
+        return $this->recordAction($i, $st, fn() => $this->s->records()->saveGuardian($i, $st, (string) $this->request->input('date_of_birth', ''),
+            (string) $this->request->input('guardian_name', ''), (string) $this->request->input('guardian_contact', ''), $this->request->input('consent') === '1', $this->auth->user()),
+            'Saved.');
+    }
+
+    public function issueTranscript(string $ref, string $member): Response
+    {
+        [$i, , $st] = $this->managed($ref, $member, 'transcripts.issue');
+        return $this->recordAction($i, $st, fn() => $this->s->records()->issueTranscript($i, $st, $this->auth->user(), $this->request->input('provisional') === '1'),
+            'Transcript issued. The student can download it from their record.');
+    }
+
+    public function withdrawTranscript(string $ref, string $member, string $transcript): Response
+    {
+        [$i, , $st] = $this->managed($ref, $member, 'transcripts.issue');
+        $t = $this->s->records()->transcript((int) $i['id'], $transcript);
+        if ($t === null || (int) $t['membership_id'] !== (int) $st['id']) {
+            throw HttpException::notFound('Transcript');
+        }
+        return $this->recordAction($i, $st, fn() => $this->s->records()->withdrawTranscript($i, $t, (string) $this->request->input('reason', '')), 'Transcript withdrawn.');
+    }
+
+    public function transcriptPdf(string $ref, string $member, string $transcript): Response
+    {
+        [$i] = $this->readable($ref);
+        $st = $this->s->structure()->repo()->student((int) $i['id'], $member) ?? throw HttpException::notFound('Student');
+        $t = $this->s->records()->transcript((int) $i['id'], $transcript);
+        if ($t === null || (int) $t['membership_id'] !== (int) $st['id']) {
+            throw HttpException::notFound('Transcript');
+        }
+        return MyRecordController::pdf($this, $i, $t);
+    }
+
+    /** @return array{0:array<string,mixed>,1:array<string,mixed>,2:array<string,mixed>} */
+    private function managed(string $ref, string $member, string $permission): array
+    {
+        [$i, $m] = $this->tenant($ref, $permission);
+        $st = $this->s->structure()->repo()->student((int) $i['id'], $member) ?? throw HttpException::notFound('Student');
+        if ($st['role'] !== InstitutionAccess::STUDENT) {
+            throw HttpException::notFound('Student');
+        }
+        return [$i, $m, $st];
+    }
+
+    /** @param array<string,mixed> $i @param array<string,mixed> $st */
+    private function recordAction(array $i, array $st, \Closure $fn, string $ok): Response
+    {
+        try {
+            $fn();
+            $this->flash('success', $ok);
+        } catch (RuntimeException $e) {
+            $this->flash('warning', $e->getMessage());
+        }
+        return $this->redirect('/institutions/' . $i['uuid'] . '/students/' . $st['uuid']);
     }
 
     public function save(string $ref, string $member): Response

@@ -291,6 +291,7 @@ final class StructureRepository
             return null;
         }
         return $this->db->one("SELECT m.*, u.username, u.display_name, u.email, s.student_number, s.programme_id, s.status AS student_status, s.enrolled_on,
+                                      s.date_of_birth, s.guardian_name, s.guardian_contact, s.guardian_consent_at,
                                       p.uuid AS programme_uuid, p.name AS programme_name
                                FROM institution_memberships m JOIN users u ON u.id = m.user_id
                                LEFT JOIN institution_students s ON s.membership_id = m.id LEFT JOIN institution_programmes p ON p.id = s.programme_id
@@ -322,6 +323,29 @@ final class StructureRepository
                         ON DUPLICATE KEY UPDATE student_number = VALUES(student_number), programme_id = VALUES(programme_id), status = VALUES(status),
                             enrolled_on = VALUES(enrolled_on), updated_at = VALUES(updated_at)',
             [$membershipId, $iid, $number, $programmeId, $status, $enrolledOn, Database::now()]);
+        $this->syncProgrammeEnrolment($iid, $membershipId, $programmeId, $status);
+    }
+
+    /**
+     * Keep the programme history in step with the student's current programme: a change closes
+     * the open programme ("changed") and opens the new one; completing or withdrawing closes it
+     * with that outcome. Nothing already closed is touched.
+     */
+    public function syncProgrammeEnrolment(int $iid, int $membershipId, ?int $programmeId, string $status, ?int $by = null): void
+    {
+        $open = $this->db->one("SELECT * FROM programme_enrolments WHERE institution_id = ? AND membership_id = ? AND outcome = 'active' ORDER BY id DESC LIMIT 1", [$iid, $membershipId]);
+        $today = gmdate('Y-m-d');
+        $now = Database::now();
+        if ($open !== null && ($programmeId === null || (int) $open['programme_id'] !== $programmeId || in_array($status, ['completed', 'withdrawn'], true))) {
+            $outcome = (int) $open['programme_id'] === $programmeId && in_array($status, ['completed', 'withdrawn'], true) ? $status : 'changed';
+            $this->db->run('UPDATE programme_enrolments SET outcome = ?, ended_on = ?, recorded_by = COALESCE(?, recorded_by), updated_at = ? WHERE id = ?',
+                [$outcome, $today, $by, $now, (int) $open['id']]);
+            $open = null;
+        }
+        if ($open === null && $programmeId !== null && !in_array($status, ['completed', 'withdrawn'], true)) {
+            $this->db->run('INSERT INTO programme_enrolments (institution_id, membership_id, programme_id, started_on, recorded_by, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+                [$iid, $membershipId, $programmeId, $today, $by, $now]);
+        }
     }
 
     /** @return array<string,int> */
