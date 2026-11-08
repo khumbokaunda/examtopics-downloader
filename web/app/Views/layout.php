@@ -30,6 +30,7 @@ $groups = [
     'Institutions' => [
         'institutions' => ['/institutions', 'My institutions', 'building', \App\Core\View::current()->inInstitution() ? \App\Services\Access::SIGNED_IN : null],
         'my-assessments' => ['/my/assessments', 'My assessments', 'pencil-square', \App\Core\View::current()->inInstitution() ? \App\Services\Access::SIGNED_IN : null],
+        'my-record' => ['/my/record', 'My academic record', 'journal-bookmark', \App\Core\View::current()->inInstitution() ? \App\Services\Access::SIGNED_IN : null],
     ],
     'Collect' => [
         'collect' => ['/collect', 'Collect exam', 'cloud-arrow-down', 'exams.collect'],

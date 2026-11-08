@@ -213,6 +213,11 @@ final class Services
         return $this->app->service(Integrity::class, fn() => new Integrity($this->app->db(), $this->audit()));
     }
 
+    public function records(): AcademicRecords
+    {
+        return $this->app->service(AcademicRecords::class, fn() => new AcademicRecords($this->app->db(), $this->audit()));
+    }
+
     public function policies(): Policies
     {
         return $this->app->service(Policies::class, fn() => new Policies($this->app->db()));

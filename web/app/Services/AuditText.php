@@ -116,6 +116,16 @@ final class AuditText
             'institution.enrolment_approved' => [$who . ' approved the request of ' . $named('student') . ' to join ' . $named('institution'), 'person-check', 'success'],
             'institution.enrolment_declined' => [$who . ' declined the request of ' . $named('student') . ' to join ' . $named('institution'), 'person-x', 'warning'],
             'institution.joined_with_code' => [$who . ' joined ' . $named('institution') . ' as a student with the code ' . $named('code'), 'person-check', 'primary'],
+            'institution.programme_details_saved' => [$who . ' changed the details of the programme ' . $named('programme') . ' in ' . $named('institution'), 'journal-text', 'neutral'],
+            'institution.module_saved' => [$who . ' saved the module ' . $named('module') . ' of ' . $named('programme') . ' in ' . $named('institution'), 'list-ol', 'neutral'],
+            'institution.module_retired' => [$who . ' retired the module ' . $named('module') . ' in ' . $named('institution'), 'list-ol', 'neutral'],
+            'institution.module_restored' => [$who . ' offered the module ' . $named('module') . ' again in ' . $named('institution'), 'list-ol', 'neutral'],
+            'institution.module_completion_recorded' => [$who . ' recorded that ' . $named('student') . ' completed ' . $named('module') . ' in ' . $named('institution'), 'check2-circle', 'neutral'],
+            'institution.programme_completed' => [$who . ' recorded that ' . $named('student') . ' completed ' . $named('programme') . ' in ' . $named('institution')
+                . (!empty($d['override']) ? ' (not every required module was completed)' : ''), 'mortarboard', 'success'],
+            'institution.transcript_issued' => [$who . ' issued a transcript to ' . $named('student') . ' in ' . $named('institution') . (!empty($d['provisional']) ? ' (with provisional results)' : ''), 'file-earmark-text', 'primary'],
+            'institution.transcript_withdrawn' => [$who . ' withdrew transcript ' . $named('number') . ' in ' . $named('institution'), 'file-earmark-x', 'warning'],
+            'institution.guardian_saved' => [$who . ' saved the under-18 details of ' . $named('student') . ' in ' . $named('institution'), 'shield-check', 'neutral'],
             'institution.submitted' => [$who . (($d['from'] ?? '') === 'draft' ? ' sent the application of ' : ' sent again the application of ') . $named('institution'), 'send', 'primary'],
             'institution.document_added' => [$who . ' added a document to the application of ' . $named('institution') . ': '
                 . strtolower(\App\Services\Onboarding::DOCUMENTS[(string) ($d['kind'] ?? '')] ?? '?'), 'file-earmark-plus', 'neutral'],

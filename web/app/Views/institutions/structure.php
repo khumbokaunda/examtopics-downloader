@@ -13,7 +13,7 @@ $base = '/institutions/' . $institution['uuid'] . '/structure';
                 <?php foreach ($programmes as $p): ?>
                     <li class="request-row">
                         <div class="row-main"><div class="row-text">
-                            <div class="row-title"><?= e($p['name']) ?><?= $p['code'] !== null ? ' <span class="text-muted fw-normal mono">' . e($p['code']) . '</span>' : '' ?></div>
+                            <div class="row-title"><a href="<?= e(url($base . '/programmes/' . $p['uuid'])) ?>"><?= e($p['name']) ?></a><?= $p['code'] !== null ? ' <span class="text-muted fw-normal mono">' . e($p['code']) . '</span>' : '' ?></div>
                             <div class="row-meta"><?= e($p['department_name'] ?? 'No department') ?> · <?= (int) $p['class_count'] ?> classes · <?= (int) $p['student_count'] ?> students</div>
                         </div></div>
                         <div class="request-actions">
