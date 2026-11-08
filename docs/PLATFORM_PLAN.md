@@ -18,8 +18,8 @@ acceptance criteria.
 | 2a | Programmes, classes, student records and student import | Done |
 | 2b | Question bank management | Done |
 | 3 | Institutional examination builder | Done |
-| 4 | Examination execution engine (first major milestone) | Next |
-| 5 | Results and analytics | |
+| 4 | Examination execution engine (first major milestone) | Done |
+| 5 | Results and analytics | Next |
 | 6 | Readiness assessment and certificates | |
 | 7 | Integrity monitoring | |
 | 8 | Live invigilation | |
@@ -374,4 +374,77 @@ refusing a cross-institution item. Checked in a browser at 1440 and 380 pixels.
 - No sections with their own timing; one time limit for the whole assessment.
 - Total marks of a blueprint-drawn form depend on the questions drawn; percentages are worked out
   per candidate.
+
+---
+
+## Phase 4: the examination engine (delivered)
+
+### Database
+
+Migration 031 adds `assessment_sessions` (one per attempt: start, the server's end time,
+status, score), `assessment_session_questions` (each sitting's exact form: the question
+version ids in the order shown, each one's choice order and marks, and the grade),
+`assessment_responses` (the latest saved answer per question, with an ordering number) and
+`assessment_response_history` (every kept change, append-only).
+
+### What it does
+
+- **My assessments** (`/my/assessments`, in the menu for anyone in an institution): what is set
+  for the person as a student, through a class they are in now or by name, with whether it is
+  open, not open yet or closed, attempts left and any sitting in progress; and everything they
+  have sat.
+- **Instructions** before starting: questions, time allowed, pass mark, attempts left, wrong
+  answer deductions, closing time, the institution's instructions, the rules and exactly what is
+  recorded. Starting needs the rules accepted. A second start carries on the sitting in progress;
+  two starts at once cannot both succeed (a unique attempt number).
+- **The form** is drawn once, at the start, with a seed, and stored: the same questions in the
+  same order and with the same choice order every time the sitting is opened, whatever happens to
+  the assessment or its questions afterwards.
+- **The clock is the server's.** A sitting ends at start plus the time allowed, or at the
+  assessment's closing time if that is sooner. The page counts down what the server says and checks
+  with it every minute; answers arriving after the end are refused, and the sitting is handed in
+  with what had arrived. Sittings nobody comes back to are handed in by `bin/sittings.php` (cron,
+  every minute), when next opened, and when their results are opened.
+- **Answers are saved as they are picked** (`POST /api/sit/{uuid}/answer`). Each save carries a
+  number that only goes up; the server keeps a save only when its number is higher than the stored
+  one, so a slow request never overwrites a newer answer. An answer the server has not confirmed is
+  kept on the device and sent again with growing pauses; the bar says how many have not arrived.
+  Handing in also sends every answer on the page.
+- **The sitting page** has its own plain layout (no menu, inbox or search), one question at a time
+  with a panel to jump between them, "mark to look at again", clearing an answer, and a hand-in
+  confirmation that counts answered, unanswered and marked questions. Without JavaScript every
+  question shows and handing in still works. Nothing about the right answers is ever on the page.
+- **Grading**, on the server, from the stored form: single choice and true or false earn their
+  marks when right; multiple select earns them for exactly the right choices, or with part marks
+  each right pick earns its share and each wrong pick takes one off (never below zero); a wrong
+  answer loses the assessment's deduction; unanswered loses nothing; the total never goes below
+  zero. Percentage and pass or fail follow.
+- **Results for staff** (`/assessments/{a}/results`): every sitting with class, attempt, status
+  (live progress for sittings in progress), score, percentage, pass, start and time taken; totals
+  for handed in, sitting now, average and passed; and each sitting's answers question by question,
+  with the letters as that candidate saw them.
+- **Candidates** see that they handed in and how many they answered. Their results appear when
+  the institution publishes them (Phase 5).
+- **Only the candidate** reaches their sitting: anyone else, staff and administrators included,
+  gets "not found" there. An assessment that has been sat can no longer go back to a draft, and
+  restoring an archived one that was sat restores it as closed.
+
+### Validation
+
+`SittingsTest` (5 tests): the whole path from the list to the result with exact scores
+(3.5 of 6 for a right single choice, half of a part-marks multiple select and a wrong true or
+false); a late save ignored; history kept; handing in twice and starting a used attempt refused;
+staff results; back to draft refused once sat. The server's clock: the end set at start, a save
+after the end refused with the sitting handed in with what had arrived, and the background check.
+Nobody but the candidate reaches a sitting; a student it is not assigned to does not see it. Not
+open yet, and never running past the closing time. Marking rules for each kind of question. In a
+browser: answering, losing the connection (the answer kept and shown as not saved), reconnecting
+(sent), cancelling the hand-in (saving and the clock carry on), handing in; at 1280 and 380 pixels.
+
+### Known limitations (4)
+
+- Results are not shown to candidates yet; publishing them is Phase 5.
+- No pause or extra time for one candidate (invigilation, Phase 8).
+- If the device is offline when the time runs out, answers it never sent are not counted, as the
+  specification requires.
 

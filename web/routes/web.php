@@ -35,6 +35,7 @@ use App\Controllers\RequestController;
 use App\Controllers\SearchController;
 use App\Controllers\SettingsController;
 use App\Controllers\SignInsController;
+use App\Controllers\SittingController;
 use App\Controllers\TwoStepController;
 use App\Controllers\UserController;
 use App\Controllers\ViewerController;
@@ -239,6 +240,17 @@ return static function (Router $r): void {
     $r->post('/institutions/{ref}/assessments/{assessment}/assignments/{assignment}/remove', [InstitutionAssessmentController::class, 'unassign'], can: $me);
     $r->post('/institutions/{ref}/assessments/{assessment}/status', [InstitutionAssessmentController::class, 'status'], can: $me);
     $r->get('/institutions/{ref}/assessments/{assessment}/preview', [InstitutionAssessmentController::class, 'preview'], can: $me);
+    $r->get('/institutions/{ref}/assessments/{assessment}/results', [InstitutionAssessmentController::class, 'results'], can: $me);
+    $r->get('/institutions/{ref}/assessments/{assessment}/results/{sitting}', [InstitutionAssessmentController::class, 'sitting'], can: $me);
+    // Candidates: only their own assignments and sittings (SittingController checks both).
+    $r->get('/my/assessments', [SittingController::class, 'index'], can: $me);
+    $r->get('/my/assessments/{institution}/{assessment}', [SittingController::class, 'show'], can: $me);
+    $r->post('/my/assessments/{institution}/{assessment}/start', [SittingController::class, 'start'], can: $me);
+    $r->get('/sit/{uuid}', [SittingController::class, 'sit'], can: $me);
+    $r->get('/sit/{uuid}/done', [SittingController::class, 'done'], can: $me);
+    $r->post('/sit/{uuid}/submit', [SittingController::class, 'submit'], can: $me);
+    $r->get('/api/sit/{uuid}', [SittingController::class, 'status'], can: $me);
+    $r->post('/api/sit/{uuid}/answer', [SittingController::class, 'save'], can: $me);
     $r->get('/invitations/{token}', [InvitationController::class, 'show'], public: true);
     $r->post('/invitations/{token}/accept', [InvitationController::class, 'accept'], can: $me);
     $r->post('/invitations/{token}/decline', [InvitationController::class, 'decline'], can: $me);
