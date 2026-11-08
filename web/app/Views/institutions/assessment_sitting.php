@@ -1,5 +1,5 @@
 <?php /** @var array $institution @var array $membership @var string $tab @var array $assessment @var array $sitting @var list<array> $questions @var array<int,array> $responses @var list<array> $topics @var bool $canExport
- *  @var array|null $integrity @var bool $canReview @var list<array> $observations */
+ *  @var array|null $integrity @var bool $canReview @var list<array> $observations @var list<array> $messages */
 use App\Controllers\InstitutionAssessmentController as C;
 use App\Services\Integrity;
 use App\Services\Access;
@@ -72,6 +72,12 @@ $letters = static function (string $order, string $keys): string {
         <?php foreach ($observations as $ob): ?>
             <p class="small mb-2"><?= chip(\App\Services\Invigilation::CATEGORIES[$ob['category']] ?? $ob['category'], $ob['category'] === 'incident' ? 'warning' : 'neutral') ?> <?= e($ob['note']) ?> <span class="text-muted">· <?= e((string) $ob['author']) ?>, <?= e(fmt_time((string) $ob['created_at'])) ?></span></p>
         <?php endforeach; ?>
+        <?php if ($messages !== []): ?>
+        <h2 class="section-heading">Messages sent to the candidate</h2>
+        <?php foreach ($messages as $g): ?>
+            <p class="small mb-2"><?= e($g['body']) ?> <span class="text-muted">· sent <?= e(fmt_time($g['created_at'])) ?>, <?= $g['seen_at'] !== null ? 'seen ' . e(fmt_time((string) $g['seen_at'])) : 'not seen' ?></span></p>
+        <?php endforeach; ?>
+        <?php endif; ?>
         <h2 class="section-heading">Conclusions</h2>
         <?php if ($integrity['reviews'] === []): ?><p class="small text-muted">None recorded.</p><?php endif; ?>
         <?php foreach ($integrity['reviews'] as $rv): ?>

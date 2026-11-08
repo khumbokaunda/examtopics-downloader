@@ -37,6 +37,7 @@ final class InvigilationController extends TenantController
         return Response::json(['rows' => array_map(static fn(array $r): array => [
             'member' => $r['membership_uuid'], 'state' => $r['state'], 'seconds_left' => $r['seconds_left'], 'answered' => (int) $r['answered'],
             'questions' => (int) $r['question_count'], 'connected' => $r['connected'], 'level' => $r['level'],
+            'messages' => (int) $r['messages_sent'], 'unseen' => (int) $r['messages_unseen'],
         ], $this->s->invigilation()->live((int) $i['id'], (int) $a['id']))]);
     }
 
@@ -59,6 +60,25 @@ final class InvigilationController extends TenantController
         $s = $this->sitting($i, $a, $sitting);
         return $this->attempt($i, $a, fn() => $this->s->invigilation()->observe($i, $m, $s, (string) $this->request->input('category', ''),
             (string) $this->request->input('note', '')), 'Observation recorded.');
+    }
+
+    public function message(string $ref, string $assessment, string $sitting): Response
+    {
+        [$i, $m, $a] = $this->watchable($ref, $assessment);
+        $s = $this->sitting($i, $a, $sitting);
+        return $this->attempt($i, $a, fn() => $this->s->invigilation()->message($i, $m, $s, (string) $this->request->input('body', '')), 'Message sent.');
+    }
+
+    public function broadcast(string $ref, string $assessment): Response
+    {
+        [$i, $m, $a] = $this->watchable($ref, $assessment);
+        try {
+            $n = $this->s->invigilation()->broadcast($i, $m, $a, (string) $this->request->input('body', ''));
+            $this->flash('success', 'Message sent to ' . $n . ' ' . ($n === 1 ? 'candidate' : 'candidates') . '.');
+        } catch (RuntimeException $e) {
+            $this->flash('warning', $e->getMessage());
+        }
+        return $this->redirect('/institutions/' . $i['uuid'] . '/assessments/' . $a['uuid'] . '/live');
     }
 
     public function intervene(string $ref, string $assessment, string $sitting): Response

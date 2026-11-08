@@ -16,6 +16,12 @@
     fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
       .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
       .then(function (d) {
+        var counts = { all: 0, not_started: 0, writing: 0, paused: 0, handed_in: 0 };
+        (d.rows || []).forEach(function (r) { counts.all++; if (counts[r.state] !== undefined) counts[r.state]++; });
+        Object.keys(counts).forEach(function (k) {
+          var el = document.querySelector('[data-live-count="' + k + '"]');
+          if (el) el.textContent = String(counts[k]);
+        });
         (d.rows || []).forEach(function (r) {
           var row = box.querySelector('[data-member="' + r.member + '"]');
           if (!row) return;
@@ -26,6 +32,7 @@
           var live = r.state === 'writing' || r.state === 'paused';
           setText(row, 'time', live ? ' · ' + Math.floor((r.seconds_left || 0) / 60) + ' min left' : '');
           setText(row, 'connection', r.state === 'writing' ? (r.connected ? ' · connected' : ' · not heard from in 2 minutes') : '');
+          setText(row, 'messages', r.messages ? ' · ' + r.messages + (r.messages === 1 ? ' message' : ' messages') + (r.unseen ? ', ' + r.unseen + ' not yet seen' : ', seen') : '');
         });
         if (state) state.textContent = 'Updated ' + new Date().toLocaleTimeString();
       })

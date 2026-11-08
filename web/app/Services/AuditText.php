@@ -186,6 +186,8 @@ final class AuditText
             'institution.invigilators_set' => [$who . ' set the invigilators of ' . $named('assessment') . ': '
                 . (((array) ($d['invigilators'] ?? [])) !== [] ? implode(', ', array_map('strval', (array) $d['invigilators'])) : 'none'), 'eye', 'neutral'],
             'institution.observation_recorded' => [$who . ' recorded an observation about ' . $named('student') . ': ' . strtolower(Invigilation::CATEGORIES[(string) ($d['category'] ?? '')] ?? '?'), 'eye', 'neutral'],
+            'institution.message_sent' => [isset($d['student']) ? $who . ' sent a message to ' . $named('student') . ' in ' . $named('assessment')
+                : $who . ' sent a message to everyone writing ' . $named('assessment') . ' (' . (int) ($d['count'] ?? 0) . ')', 'chat-left-text', 'neutral'],
             'institution.sitting_paused' => [$who . ' paused the sitting of ' . $named('student') . ' in ' . $named('assessment'), 'pause-circle', 'warning'],
             'institution.sitting_resumed' => [$who . ' resumed the sitting of ' . $named('student') . ' in ' . $named('assessment'), 'play-circle', 'neutral'],
             'institution.sitting_extended' => [$who . ' gave ' . $named('student') . ' ' . (int) ($d['minutes'] ?? 0) . ' extra minutes in ' . $named('assessment') . ': ' . $named('reason'), 'stopwatch', 'warning'],

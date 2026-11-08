@@ -261,6 +261,8 @@ return static function (Router $r): void {
     $r->post('/institutions/{ref}/assessments/{assessment}/invigilators', [InvigilationController::class, 'invigilators'], can: $me);
     $r->post('/institutions/{ref}/assessments/{assessment}/live/{sitting}/observe', [InvigilationController::class, 'observe'], can: $me);
     $r->post('/institutions/{ref}/assessments/{assessment}/live/{sitting}/intervene', [InvigilationController::class, 'intervene'], can: $me);
+    $r->post('/institutions/{ref}/assessments/{assessment}/live/{sitting}/message', [InvigilationController::class, 'message'], can: $me);
+    $r->post('/institutions/{ref}/assessments/{assessment}/live/message', [InvigilationController::class, 'broadcast'], can: $me);
     $r->get('/sit/{uuid}/result', [SittingController::class, 'result'], can: $me);
     $r->get('/sit/{uuid}/result.pdf', [SittingController::class, 'resultPdf'], can: $me);
     // Candidates: only their own assignments and sittings (SittingController checks both).

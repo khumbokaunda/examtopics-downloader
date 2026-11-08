@@ -582,6 +582,12 @@ Migration 035 adds `paused_at` and `extra_minutes` to `assessment_sessions`, and
   by the server's clock; whether the sitting has been heard from in the last two minutes; and its
   integrity level. It refreshes every 15 seconds by polling, updating the rows in place. The feed
   carries no questions or answers.
+- **Messages**: a watcher sends a message to one candidate, or to everyone writing (for example
+  "15 minutes left"). It appears at the top of the candidate's page within about 15 seconds, and
+  the live page shows how many were sent and whether they have been seen. Messages are kept with
+  the sitting (migration 036) and shown on the staff sitting page with when each was seen.
+- **The counts** at the top of the live page (not started, writing, paused, handed in) update with
+  each refresh.
 - **Observations**: an invigilator records a note, an incident, a technical difficulty, an
   interruption or an identity check against a sitting. They are kept append-only and shown on the
   staff sitting page with who wrote them and when.
@@ -595,16 +601,14 @@ Migration 035 adds `paused_at` and `extra_minutes` to `assessment_sessions`, and
   Each is recorded as a server event on the sitting's integrity timeline and in the activity
   history with its reason. A paused sitting is never handed in by the expiry run.
 
-`InvigilationTest` (4 tests): who may watch and intervene, assigning invigilators (staff only),
-the live feed, observations, pausing and resuming with the time given back, extra time, and
-ending a sitting.
+`InvigilationTest` (5 tests): who may watch and intervene, assigning invigilators (staff only),
+the live feed, observations, pausing and resuming with the time given back, extra time, ending a
+sitting, and messages with their seen state.
 
 ### Known limitations (8)
 
 - Polling, not a socket: the live page is up to 15 seconds behind, and a candidate's page notices
   a pause within about 15 seconds.
-- No messages from invigilator to candidate yet; the candidate sees only that the sitting is
-  paused.
 - No room or seat plans.
 
 ## Phase 9: formal examination capabilities (not started, by design)
