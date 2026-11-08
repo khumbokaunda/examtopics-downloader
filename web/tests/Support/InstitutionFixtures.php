@@ -74,4 +74,55 @@ trait InstitutionFixtures
         return (string) $this->app->db()->value('SELECT m.uuid FROM institution_memberships m JOIN institutions i ON i.id = m.institution_id
             JOIN users u ON u.id = m.user_id WHERE i.uuid = ? AND u.username = ?', [$institution, $username]);
     }
+
+    /**
+     * An institution with an instructor (bob), an examination officer (erin), two students in
+     * class CCNA 1 (carol, dan) and one not (fay), three published questions, and a published
+     * assessment assigned to the class. Signed in as the owner (olive) at the end.
+     *
+     * @return array{0:string,1:string,2:string} the institution's uuid, the assessment's path and uuid
+     */
+    protected function sittingScenario(): array
+    {
+        $this->people('fay');
+        $a = $this->institution('olive', 'Lilongwe ICT Academy');
+        $this->join($a, 'olive', 'bob', 'instructor');
+        $this->join($a, 'olive', 'erin', 'exam_officer');
+        $this->join($a, 'olive', 'carol', 'student');
+        $this->join($a, 'olive', 'dan', 'student');
+        $this->join($a, 'olive', 'fay', 'student');
+        $base = '/institutions/' . $a;
+
+        $this->as('olive');
+        $this->post($base . '/classes', ['name' => 'CCNA 1']);
+        $class = (string) $this->app->db()->value('SELECT uuid FROM institution_classes');
+        $this->post($base . '/classes/' . $class . '/students', ['students' => [$this->memberUuid($a, 'carol'), $this->memberUuid($a, 'dan')]]);
+
+        // Three published questions: single choice (2 marks, B right), multiple select with part
+        // marks (3 marks, A and C right), true or false (1 mark, true).
+        $this->post($base . '/banks', ['name' => 'Bank']);
+        $bank = $base . '/banks/' . $this->app->db()->value('SELECT uuid FROM question_banks');
+        $this->post($bank . '/questions', ['type' => 'single', 'text' => 'Which layer routes?', 'choice_text' => ['Physical', 'Network', 'Session'], 'correct' => ['1'],
+            'marks' => '2', 'difficulty' => 'easy', 'explanation' => 'SECRET EXPLANATION']);
+        $this->post($bank . '/questions', ['type' => 'multiple', 'text' => 'Which are routing protocols?', 'choice_text' => ['OSPF', 'HTTP', 'EIGRP', 'FTP'],
+            'correct' => ['0', '2'], 'partial_credit' => '1', 'marks' => '3', 'difficulty' => 'medium']);
+        $this->post($bank . '/questions', ['type' => 'true_false', 'text' => 'OSPF is link-state.', 'tf_answer' => 'T', 'marks' => '1', 'difficulty' => 'easy']);
+        $questions = array_column($this->app->db()->all('SELECT uuid FROM bank_questions ORDER BY id'), 'uuid');
+        foreach ($questions as $q) {
+            $this->post($bank . '/questions/' . $q . '/status', ['action' => 'submit']);
+            $this->post($bank . '/questions/' . $q . '/status', ['action' => 'publish']);
+        }
+
+        $this->post($base . '/assessments', ['title' => 'Module test', 'type' => 'summative']);
+        $assessment = (string) $this->app->db()->value('SELECT uuid FROM assessments');
+        $path = $base . '/assessments/' . $assessment;
+        $this->post($path . '/settings', ['title' => 'Module test', 'type' => 'summative', 'description' => '', 'instructions' => 'Answer every question.',
+            'duration_minutes' => '30', 'pass_percent' => '50', 'max_attempts' => '1', 'opens_at' => '', 'closes_at' => '', 'shuffle_questions' => '1',
+            'shuffle_choices' => '1', 'negative_marking' => '0', 'review_policy' => 'answers']);
+        $this->post($path . '/questions', ['bank' => (string) $this->app->db()->value('SELECT uuid FROM question_banks'), 'questions' => $questions]);
+        $this->post($path . '/assignments', ['class' => $class]);
+        $this->post($path . '/status', ['action' => 'publish']);
+        self::assertSame('published', $this->app->db()->value('SELECT status FROM assessments'));
+        return [$a, $path, $assessment];
+    }
 }

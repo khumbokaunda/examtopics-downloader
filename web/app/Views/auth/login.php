@@ -27,6 +27,7 @@
         </form>
         <?php if ($canRegister): ?>
             <p class="small text-center text-muted mt-4 mb-0">New here? <a href="<?= e(url('/register')) ?>">Create an account</a></p>
+            <p class="small text-center text-muted mt-2 mb-0">Running a training institution? <a href="<?= e(url('/join')) ?>">Register it</a></p>
         <?php endif; ?>
     </div>
 </div>

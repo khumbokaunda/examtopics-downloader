@@ -1,6 +1,6 @@
 <?php
 /** @var array $institution @var array $membership @var string $tab @var array<string,int> $roleCounts @var int|null $invitations
- *  @var list<array>|null $activity @var list<array> $reviews @var array<string,int> $counts @var list<array> $myClasses @var list<array> $teaching */
+ *  @var list<array>|null $activity @var list<array> $reviews @var array<string,int> $counts @var list<array> $myClasses @var list<array> $teaching @var array|null $overview */
 use App\Services\InstitutionAccess;
 use App\Services\Institutions;
 $base = '/institutions/' . $institution['uuid'];
@@ -29,6 +29,9 @@ $staff = $people - ($roleCounts['student'] ?? 0);
         ['Staff', number_format($staff), 'person-badge', 'info'],
         ['Students', number_format($roleCounts['student'] ?? 0), 'mortarboard', 'success'],
         ['Classes', number_format($counts['classes']), 'collection', 'neutral'],
+        ...($overview !== null ? [['Sittings handed in', number_format($overview['sittings']), 'check2-square', 'primary'],
+            ['Average score', $overview['average'] !== null ? $overview['average'] . '%' : 'n/a', 'graph-up', 'info'],
+            ['Pass rate', $overview['pass_rate'] !== null ? $overview['pass_rate'] . '%' : 'n/a', 'patch-check', 'success']] : []),
         ...($invitations !== null ? [['Invitations waiting', number_format($invitations), 'envelope', $invitations > 0 ? 'warning' : 'neutral']] : []),
     ] as [$label, $value, $iconName, $tone]): ?>
         <div class="kpi" data-tone="<?= e($tone) ?>">

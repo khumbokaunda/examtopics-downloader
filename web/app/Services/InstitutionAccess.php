@@ -46,16 +46,18 @@ final class InstitutionAccess
         'assessments.create' => 'Build assessments: their settings, questions and blueprints, while they are drafts.',
         'assessments.assign' => 'Assign assessments to classes and students. Without classes.view, only to the classes they teach.',
         'assessments.schedule' => 'Publish assessments, set when they open and close, and close them.',
+        'results.publish' => 'Publish an assessment\'s results to its candidates, or take them back.',
+        'results.export' => 'Download results as CSV and candidates\' reports as PDF.',
     ];
 
     /** What each role gives. The owner is not listed: it holds every institution permission. */
     public const ROLE_PERMISSIONS = [
         self::ADMIN => ['members.view', 'members.manage', 'activity.view', 'departments.manage', 'classes.view', 'classes.manage', 'students.manage',
             'question_banks.view', 'question_banks.create', 'question_banks.edit', 'question_banks.publish',
-            'assessments.view', 'assessments.create', 'assessments.assign', 'assessments.schedule'],
+            'assessments.view', 'assessments.create', 'assessments.assign', 'assessments.schedule', 'results.publish', 'results.export'],
         'instructor' => ['members.view', 'question_banks.create', 'assessments.create', 'assessments.assign'],
         'exam_officer' => ['members.view', 'classes.view', 'question_banks.view', 'question_banks.publish',
-            'assessments.view', 'assessments.create', 'assessments.assign', 'assessments.schedule'],
+            'assessments.view', 'assessments.create', 'assessments.assign', 'assessments.schedule', 'results.publish', 'results.export'],
         'invigilator' => [],
         self::STUDENT => [],
     ];

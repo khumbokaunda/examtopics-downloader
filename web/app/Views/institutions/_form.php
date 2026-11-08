@@ -1,8 +1,11 @@
 <?php
-/** The institution profile fields, for registering and for editing. @var array<string,mixed> $form @var array<string,string> $errors */
+/** The institution profile fields, for registering and for editing. @var array<string,mixed> $form @var array<string,string> $errors
+ *  @var string|null $prefix put before every field name (the join page's account has its own email field) */
 use App\Services\Institutions;
-$field = static function (string $name, string $label, string $type = 'text', array $attrs = [], ?string $hint = null) use ($form, $errors): string {
+$prefix ??= '';
+$field = static function (string $name, string $label, string $type = 'text', array $attrs = [], ?string $hint = null) use ($form, $errors, $prefix): string {
     $id = 'inst-' . $name;
+    $field = $prefix . $name;
     $bad = isset($errors[$name]);
     $extra = '';
     foreach ($attrs as $k => $v) {
@@ -10,9 +13,9 @@ $field = static function (string $name, string $label, string $type = 'text', ar
     }
     $html = '<div class="mb-3"><label class="form-label" for="' . $id . '">' . e($label) . '</label>';
     if ($type === 'textarea') {
-        $html .= '<textarea class="form-control' . ($bad ? ' is-invalid' : '') . '" id="' . $id . '" name="' . $name . '"' . $extra . '>' . e((string) ($form[$name] ?? '')) . '</textarea>';
+        $html .= '<textarea class="form-control' . ($bad ? ' is-invalid' : '') . '" id="' . $id . '" name="' . $field . '"' . $extra . '>' . e((string) ($form[$name] ?? '')) . '</textarea>';
     } else {
-        $html .= '<input class="form-control' . ($bad ? ' is-invalid' : '') . '" id="' . $id . '" name="' . $name . '" type="' . $type . '" value="' . e((string) ($form[$name] ?? '')) . '"' . $extra . '>';
+        $html .= '<input class="form-control' . ($bad ? ' is-invalid' : '') . '" id="' . $id . '" name="' . $field . '" type="' . $type . '" value="' . e((string) ($form[$name] ?? '')) . '"' . $extra . '>';
     }
     if ($bad) {
         $html .= '<div class="invalid-feedback">' . e($errors[$name]) . '</div>';
@@ -21,10 +24,10 @@ $field = static function (string $name, string $label, string $type = 'text', ar
     }
     return $html . '</div>';
 };
-$select = static function (string $name, string $label, array $options) use ($form, $errors): string {
+$select = static function (string $name, string $label, array $options) use ($form, $errors, $prefix): string {
     $id = 'inst-' . $name;
     $bad = isset($errors[$name]);
-    $html = '<div class="mb-3"><label class="form-label" for="' . $id . '">' . e($label) . '</label><select class="form-select' . ($bad ? ' is-invalid' : '') . '" id="' . $id . '" name="' . $name . '" required><option value="">Choose…</option>';
+    $html = '<div class="mb-3"><label class="form-label" for="' . $id . '">' . e($label) . '</label><select class="form-select' . ($bad ? ' is-invalid' : '') . '" id="' . $id . '" name="' . $prefix . $name . '" required><option value="">Choose…</option>';
     foreach ($options as $k => $v) {
         $html .= '<option value="' . e($k) . '"' . ((string) ($form[$name] ?? '') === (string) $k ? ' selected' : '') . '>' . e($v) . '</option>';
     }

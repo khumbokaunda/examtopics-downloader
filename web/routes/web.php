@@ -54,6 +54,8 @@ return static function (Router $r): void {
     $r->post('/login', [AuthController::class, 'login'], public: true);
     $r->get('/register', [AuthController::class, 'showRegister'], public: true);
     $r->post('/register', [AuthController::class, 'register'], public: true);
+    $r->get('/join', [AuthController::class, 'showJoin'], public: true);
+    $r->post('/join', [AuthController::class, 'join'], public: true);
     $r->get('/verify', [AuthController::class, 'showVerify'], public: true);
     $r->post('/verify', [AuthController::class, 'verify'], public: true);
     $r->post('/verify/resend', [AuthController::class, 'resendVerify'], public: true);
@@ -241,7 +243,12 @@ return static function (Router $r): void {
     $r->post('/institutions/{ref}/assessments/{assessment}/status', [InstitutionAssessmentController::class, 'status'], can: $me);
     $r->get('/institutions/{ref}/assessments/{assessment}/preview', [InstitutionAssessmentController::class, 'preview'], can: $me);
     $r->get('/institutions/{ref}/assessments/{assessment}/results', [InstitutionAssessmentController::class, 'results'], can: $me);
+    $r->get('/institutions/{ref}/assessments/{assessment}/results.csv', [InstitutionAssessmentController::class, 'exportResults'], can: $me);
+    $r->post('/institutions/{ref}/assessments/{assessment}/results/publication', [InstitutionAssessmentController::class, 'publishResults'], can: $me);
     $r->get('/institutions/{ref}/assessments/{assessment}/results/{sitting}', [InstitutionAssessmentController::class, 'sitting'], can: $me);
+    $r->get('/institutions/{ref}/assessments/{assessment}/results/{sitting}/report.pdf', [InstitutionAssessmentController::class, 'sittingPdf'], can: $me);
+    $r->get('/sit/{uuid}/result', [SittingController::class, 'result'], can: $me);
+    $r->get('/sit/{uuid}/result.pdf', [SittingController::class, 'resultPdf'], can: $me);
     // Candidates: only their own assignments and sittings (SittingController checks both).
     $r->get('/my/assessments', [SittingController::class, 'index'], can: $me);
     $r->get('/my/assessments/{institution}/{assessment}', [SittingController::class, 'show'], can: $me);

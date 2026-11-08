@@ -81,6 +81,63 @@ final class AuthController extends Controller
         if (!$this->s->registration()->available($this->s->mailer())) {
             return $this->registerPage(['display_name' => '', 'username' => '', 'email' => ''], null, 403);
         }
+        [$form, $error, $status] = $this->createAccount();
+        if ($error !== null) {
+            return $this->registerPage($form, $error, $status);
+        }
+        $this->flash('success', 'We sent a six-digit code to ' . $form['email'] . '. Type it below to finish.');
+        return $this->redirect('/verify');
+    }
+
+    /**
+     * Registering an institution for someone without an account: the account and the institution
+     * in one form. The institution is kept in this browser's session and registered only once the
+     * email address is verified, so an address nobody confirms never leaves an institution behind.
+     */
+    public function showJoin(): Response
+    {
+        if ($this->auth->check()) {
+            return $this->redirect('/institutions/register');
+        }
+        $profile = array_fill_keys(\App\Repositories\InstitutionRepository::PROFILE, '');
+        return $this->joinPage(['display_name' => '', 'username' => '', 'email' => ''], $profile, [], null);
+    }
+
+    public function join(): Response
+    {
+        if ($this->auth->check()) {
+            return $this->redirect('/institutions/register');
+        }
+        $in = [];
+        foreach (\App\Repositories\InstitutionRepository::PROFILE as $f) {
+            $in[$f] = $this->request->input('inst_' . $f);
+        }
+        [$profile, $errors] = \App\Services\Institutions::validate($in);
+        $account = ['display_name' => trim((string) $this->request->input('display_name', '')), 'username' => trim((string) $this->request->input('username', '')),
+            'email' => UserRepository::normalizeEmail((string) $this->request->input('email', ''))];
+        if (!$this->s->registration()->available($this->s->mailer())) {
+            return $this->joinPage($account, $profile, [], null, 403);
+        }
+        if ($errors !== []) {
+            return $this->joinPage($account, $profile, $errors, null, 422);
+        }
+        [$account, $error, $status] = $this->createAccount();
+        if ($error !== null) {
+            return $this->joinPage($account, $profile, [], $error, $status);
+        }
+        $this->session->set('pending_institution', ['user' => (int) $this->session->get('pending_user_id'), 'profile' => $profile]);
+        $this->flash('success', 'We sent a six-digit code to ' . $account['email'] . '. Type it below: ' . $profile['name'] . ' is registered as soon as your address is confirmed.');
+        return $this->redirect('/verify');
+    }
+
+    /**
+     * Check the posted account fields and create the account, unverified, with a code emailed to
+     * it. The new account waits in the session for its code.
+     *
+     * @return array{0:array{display_name:string,username:string,email:string},1:?string,2:int} the form, an error, and the status for it
+     */
+    private function createAccount(): array
+    {
         $form = [
             'display_name' => trim((string) $this->request->input('display_name', '')),
             'username' => trim((string) $this->request->input('username', '')),
@@ -100,7 +157,7 @@ final class AuthController extends Controller
             default => null,
         };
         if ($error !== null) {
-            return $this->registerPage($form, $error, 422);
+            return [$form, $error, 422];
         }
         $id = $users->create($form['username'], $password, Access::MEMBER, [
             'display_name' => $form['display_name'], 'email' => $form['email'], 'status' => 'unverified',
@@ -109,13 +166,21 @@ final class AuthController extends Controller
         $sendError = $this->s->codes()->send($user, 'verify', $form['email']);
         if ($sendError !== null) {
             $users->delete($id); // nothing to verify with, so no half-made account is left
-            return $this->registerPage($form, $sendError, 503);
+            return [$form, $sendError, 503];
         }
         $this->app->logger()->info('security', 'Account created by sign-up', ['username' => $form['username'], 'ip' => $this->ip()]);
         $this->s->audit()->record('auth.signed_up', ['email' => $form['email']], 'user', $form['username'], $user);
         $this->session->set('pending_user_id', $id);
-        $this->flash('success', 'We sent a six-digit code to ' . $form['email'] . '. Type it below to finish.');
-        return $this->redirect('/verify');
+        return [$form, null, 200];
+    }
+
+    /** @param array<string,string> $account @param array<string,?string> $profile @param array<string,string> $errors */
+    private function joinPage(array $account, array $profile, array $errors, ?string $error, int $status = 200): Response
+    {
+        $registration = $this->s->registration();
+        return $this->render('auth/join', ['title' => 'Register your institution', 'wide' => true, 'account' => $account, 'profile' => $profile,
+            'errors' => $errors, 'error' => $error, 'available' => $registration->available($this->s->mailer()),
+            'approval' => $registration->mode() === 'approval'], $status);
     }
 
     /** @param array{display_name:string,username:string,email:string} $form */
@@ -151,13 +216,39 @@ final class AuthController extends Controller
         }
         $this->session->remove('pending_user_id');
         $this->s->audit()->record('auth.email_verified', ['email' => (string) $user['email']], 'user', (string) $user['username'], $user);
-        if ($this->s->registration()->verified($user) === 'active') {
+        $status = $this->s->registration()->verified($user);
+        $institution = $this->registerJoined($user);
+        if ($status === 'active') {
             $this->auth->signIn((array) $this->s->users()->find((int) $user['id']), $this->ip());
             $this->flash('success', 'Your email address is verified. Welcome, ' . Access::displayName($user) . '.');
+            if ($institution !== null) {
+                return $this->redirect('/institutions/' . $institution['uuid']);
+            }
             return $this->redirect('/');
         }
         $this->flash('success', 'Your email address is verified. An administrator will now approve your account; you will get an email when it is ready.');
         return $this->redirect('/login');
+    }
+
+    /**
+     * The institution filled in on the join page by this account, registered now its address is
+     * confirmed. @param array<string,mixed> $user @return array<string,mixed>|null
+     */
+    private function registerJoined(array $user): ?array
+    {
+        $pending = $this->session->get('pending_institution');
+        $this->session->remove('pending_institution');
+        if (!is_array($pending) || (int) ($pending['user'] ?? 0) !== (int) $user['id'] || !is_array($pending['profile'] ?? null)) {
+            return null;
+        }
+        try {
+            $institution = $this->s->institutions()->register($pending['profile'], (array) $this->s->users()->find((int) $user['id']));
+            $this->flash('success', $institution['name'] . ' is registered and waits for verification by the platform. You are its owner.');
+            return $institution;
+        } catch (\RuntimeException $e) {
+            $this->flash('warning', 'Your account is ready, but the institution could not be registered: ' . $e->getMessage());
+            return null;
+        }
     }
 
     public function resendVerify(): Response

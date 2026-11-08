@@ -409,6 +409,12 @@ banks, assessments and results come in later phases.
   kept by the server, answers saved as they are picked (and kept on the device when the connection
   drops), handed in by the student or by the server when time is up, and graded on the server.
   Staff see every sitting's score and answers on the assessment's results page.
+- **Results** (`/institutions/<id>/assessments/<id>/results`): every sitting, a score
+  distribution, topics, and question statistics with the wrong choice picked most; CSV export and
+  PDF reports; publishing results to candidates, who then see their score, topics and (if the
+  assessment allows) their answers with explanations at `/sit/<id>/result`, with a PDF.
+- **Registering without an account** (`/join`): an account and an institution in one form,
+  registered once the email address is confirmed.
 - **Students** (`/institutions/<id>/students`): each student's institutional number, programme,
   standing and enrolment date, and an import from a CSV spreadsheet with a preview of every row
   before anything is saved, and a results file afterwards.
@@ -508,7 +514,7 @@ overview only.
 | Worked out, rebuilt on demand (not backed up) | `exam_checks` (Integrity figures), `question_index` (search) |
 | System | `settings`, `notifications`, `mail_queue`, `exam_requests`, `audit_log`, `throttle_events`, `schema_migrations` |
 
-Migrations `001` to `031` in `web/database/migrations` create all of it; `php bin/migrate.php`
+Migrations `001` to `032` in `web/database/migrations` create all of it; `php bin/migrate.php`
 applies them.
 
 ### Background processes

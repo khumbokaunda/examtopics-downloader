@@ -1,4 +1,4 @@
-<?php /** @var array $institution @var array $membership @var string $tab @var array $assessment @var list<array> $rows @var array $summary */
+<?php /** @var array $institution @var array $membership @var string $tab @var array $assessment @var list<array> $rows @var array $summary @var array $stats @var bool $canPublish @var bool $canExport */
 use App\Controllers\InstitutionAssessmentController as C;
 use App\Services\Access;
 use App\Services\InstitutionStructure;
@@ -19,8 +19,58 @@ $base = '/institutions/' . $institution['uuid'] . '/assessments/' . $a['uuid'];
             <span class="kpi-text"><span class="kpi-value d-block"><?= e($value) ?></span><span class="kpi-label d-block"><?= e($label) ?></span></span></div>
     <?php endforeach; ?>
 </div>
+<div class="card mb-4"><div class="card-body d-flex flex-wrap align-items-center gap-3">
+    <div class="flex-grow-1"><?php if ($a['results_published_at'] !== null): ?><?= chip('Results published', 'success', 'megaphone') ?> <span class="small text-muted"><?= e(fmt_time((string) $a['results_published_at'])) ?>. Candidates see <?= e(strtolower(\App\Services\Assessments::REVIEW_POLICIES[$a['review_policy']] ?? '')) ?>.</span>
+        <?php else: ?><?= chip('Results not published', 'neutral') ?> <span class="small text-muted">Candidates know only that they handed in.</span><?php endif; ?></div>
+    <?php if ($canPublish): ?>
+    <form method="post" action="<?= e(url($base . '/results/publication')) ?>"<?= $a['results_published_at'] === null ? ' data-confirm="Every candidate who handed in is told, and sees ' . e(strtolower(\App\Services\Assessments::REVIEW_POLICIES[$a['review_policy']] ?? '')) . '." data-confirm-title="Publish the results?" data-confirm-button="Publish"' : '' ?>><?= csrf_field() ?>
+        <?php if ($a['results_published_at'] === null): ?><button class="btn btn-sm btn-success" type="submit" name="action" value="publish"><?= icon('megaphone') ?>Publish results</button>
+        <?php else: ?><button class="btn btn-sm btn-outline-secondary" type="submit" name="action" value="unpublish"><?= icon('eye-slash') ?>Take back</button><?php endif; ?>
+    </form>
+    <?php endif; ?>
+    <?php if ($canExport && $rows !== []): ?><a class="btn btn-sm btn-outline-secondary" href="<?= e(url($base . '/results.csv')) ?>"><?= icon('download') ?>Download CSV</a><?php endif; ?>
+</div></div>
+
+<?php if ($stats['count'] > 0): $peak = max(1, max($stats['distribution'])); ?>
+<div class="row g-4 mb-4">
+    <div class="col-xl-6">
+        <div class="card h-100">
+            <div class="card-header"><span class="card-title"><?= icon('bar-chart') ?>Score distribution</span><span class="small text-muted"><?= (int) $stats['count'] ?> sittings</span></div>
+            <div class="card-body">
+                <div class="score-bars" role="img" aria-label="Sittings per band of 10 percent">
+                    <?php foreach ($stats['distribution'] as $band => $n): ?>
+                        <div class="score-bar" title="<?= $band * 10 ?> to <?= $band === 9 ? 100 : $band * 10 + 9 ?>%: <?= (int) $n ?>"><span class="score-bar-n"><?= $n > 0 ? (int) $n : '' ?></span><span class="score-bar-fill topic-h-<?= (int) round($n / $peak * 20) * 5 ?>"></span><span class="score-bar-label"><?= $band * 10 ?></span></div>
+                    <?php endforeach; ?>
+                </div>
+                <table class="visually-hidden"><caption>Sittings per band</caption><?php foreach ($stats['distribution'] as $band => $n): ?><tr><th><?= $band * 10 ?>%</th><td><?= (int) $n ?></td></tr><?php endforeach; ?></table>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-6"><?= \App\Core\View::current()->partial('sitting/_topics', ['topics' => $stats['topics']]) ?></div>
+</div>
+<div class="card mb-4">
+    <div class="card-header"><span class="card-title"><?= icon('question-circle') ?>Questions</span><span class="small text-muted">Hardest first. Flags are prompts to look again, not proof a question is wrong.</span></div>
+    <div class="table-responsive">
+        <table class="table align-middle mb-0 table-stack" data-table="assessment-questions" data-order='[[2,"asc"]]'>
+            <thead><tr><th>Question</th><th data-type="num">Given</th><th data-type="num">Right</th><th data-type="num">Unanswered</th><th>Wrong choice picked most</th></tr></thead>
+            <tbody>
+            <?php foreach ($stats['questions'] as $q): ?>
+                <tr>
+                    <td class="stack-title"><?= e(\App\Services\QuestionBanks::excerpt($q['text'], 110)) ?> <?= $q['flag'] === 'hard' ? chip('Very hard', 'danger') : ($q['flag'] === 'easy' ? chip('Very easy', 'info') : '') ?></td>
+                    <td class="small" data-label="Given"><?= (int) $q['shown'] ?></td>
+                    <td class="small" data-label="Right" data-order="<?= e((string) $q['percent']) ?>"><?= e(C::marks($q['percent'])) ?>%</td>
+                    <td class="small" data-label="Unanswered"><?= (int) $q['unanswered'] ?></td>
+                    <td class="small" data-label="Wrong choice picked most"><?= $q['distractor'] !== null ? e(\App\Services\QuestionBanks::excerpt((string) $q['distractor']['text'], 60)) . ' <span class="text-muted">(' . (int) $q['distractor']['count'] . ')</span>' : '<span class="text-muted">none</span>' ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+<?php endif; ?>
+
 <div class="card">
-    <div class="card-header"><span class="card-title"><?= icon('table') ?>Sittings</span><span class="small text-muted">Results are kept here; candidates see theirs once results are published.</span></div>
+    <div class="card-header"><span class="card-title"><?= icon('table') ?>Sittings</span></div>
     <?php if ($rows === []): ?>
         <div class="card-body"><?= empty_state('table', 'Nobody has sat it yet', 'Sittings show here as candidates start them.', null, true) ?></div>
     <?php else: ?>

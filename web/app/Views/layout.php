@@ -193,7 +193,7 @@ $flashIcons = ['success' => 'check-circle', 'info' => 'info-circle', 'warning' =
     <button class="icon-btn auth-theme" type="button" data-action="theme-toggle" aria-label="Switch between light and dark">
         <span class="when-light"><?= icon('moon-stars') ?></span><span class="when-dark"><?= icon('sun') ?></span>
     </button>
-    <div class="auth-wrap">
+    <div class="auth-wrap<?= !empty($wide) ? ' is-wide' : '' ?>">
         <div class="auth-brand">
             <?php if ($logoUrl !== null): ?><img class="brand-logo-lg" src="<?= e($logoUrl) ?>" alt=""><?php else: ?><span class="brand-mark brand-mark-lg"><?= icon('mortarboard-fill') ?></span><?php endif; ?>
             <span class="name"><?= e($appName) ?></span>
