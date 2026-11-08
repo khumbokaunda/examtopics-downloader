@@ -108,6 +108,14 @@ final class AuditText
             'request.answered' => [$who . ' marked the request by ' . $named('requester') . ' for ' . $exam() . ' as ' . $named('status'), 'inbox', 'neutral'],
             'institution.registered' => [$who . ' registered the institution ' . $named('institution'), 'building-add', 'primary'],
             'institution.updated' => [$who . ' changed the profile of ' . $named('institution') . ': ' . self::fields($d['fields'] ?? []), 'building-gear', 'neutral'],
+            'institution.invitation_resent' => [$who . ' sent the invitation of ' . $named('email') . ' to ' . $named('institution') . ' again', 'envelope-arrow-up', 'neutral'],
+            'institution.enrolment_code_created' => [$who . ' made the enrolment code ' . $named('code') . ' for ' . $named('institution')
+                . (!empty($d['approval']) ? ' (each request approved)' : ' (joins at once)'), 'key', 'primary'],
+            'institution.enrolment_code_revoked' => [$who . ' withdrew the enrolment code ' . $named('code') . ' of ' . $named('institution'), 'key', 'neutral'],
+            'institution.enrolment_requested' => [$who . ' asked to join ' . $named('institution') . ' with the code ' . $named('code'), 'person-plus', 'neutral'],
+            'institution.enrolment_approved' => [$who . ' approved the request of ' . $named('student') . ' to join ' . $named('institution'), 'person-check', 'success'],
+            'institution.enrolment_declined' => [$who . ' declined the request of ' . $named('student') . ' to join ' . $named('institution'), 'person-x', 'warning'],
+            'institution.joined_with_code' => [$who . ' joined ' . $named('institution') . ' as a student with the code ' . $named('code'), 'person-check', 'primary'],
             'institution.submitted' => [$who . (($d['from'] ?? '') === 'draft' ? ' sent the application of ' : ' sent again the application of ') . $named('institution'), 'send', 'primary'],
             'institution.document_added' => [$who . ' added a document to the application of ' . $named('institution') . ': '
                 . strtolower(\App\Services\Onboarding::DOCUMENTS[(string) ($d['kind'] ?? '')] ?? '?'), 'file-earmark-plus', 'neutral'],

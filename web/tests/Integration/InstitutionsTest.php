@@ -228,7 +228,7 @@ final class InstitutionsTest extends HttpTestCase
 
         $this->as('carol');
         self::assertStringContainsString('This invitation is for bob@example.com', $this->get('/invitations/' . $token)->body);
-        $this->post('/invitations/' . $token . '/accept');
+        $this->post('/invitations/' . $token . '/accept', ['notice' => '1']);
         self::assertSame(404, $this->get('/institutions/' . $a)->status, 'a forwarded link does not let someone else in');
 
         $this->as('olive');

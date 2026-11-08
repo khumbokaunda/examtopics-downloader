@@ -22,10 +22,88 @@ final class InstitutionStudentController extends TenantController
     public function index(string $ref): Response
     {
         [$i, $m] = $this->readable($ref);
+        $manage = InstitutionAccess::can($m, 'students.manage');
+        $students = $this->s->structure()->repo()->students((int) $i['id']);
+        $waiting = $manage ? $this->s->enrolment()->waiting((int) $i['id']) : [];
         return $this->render('institutions/students', $this->pageVars($i, $m, 'students') + [
-            'students' => $this->s->structure()->repo()->students((int) $i['id']),
-            'manage' => InstitutionAccess::can($m, 'students.manage'),
+            'students' => $students, 'manage' => $manage, 'waiting' => $waiting,
+            'requests' => $manage ? $this->s->enrolment()->requests((int) $i['id']) : [],
+            'states' => \App\Services\Enrolment::counts($students, $waiting),
         ]);
+    }
+
+    public function codes(string $ref): Response
+    {
+        [$i, $m] = $this->tenant($ref, 'students.manage');
+        $repo = $this->s->structure()->repo();
+        return $this->render('institutions/codes', $this->pageVars($i, $m, 'students') + [
+            'codes' => $this->s->enrolment()->codes((int) $i['id']), 'programmes' => $repo->programmes((int) $i['id']),
+            'classes' => $repo->classes((int) $i['id'], 'active'),
+        ]);
+    }
+
+    public function createCode(string $ref): Response
+    {
+        [$i] = $this->tenant($ref, 'students.manage');
+        try {
+            $code = $this->s->enrolment()->createCode($i, $this->auth->user(), ['label' => (string) $this->request->input('label', ''),
+                'programme' => (string) $this->request->input('programme', ''), 'class' => (string) $this->request->input('class', ''),
+                'requires_approval' => $this->request->input('requires_approval') === '1', 'max_uses' => (string) $this->request->input('max_uses', ''),
+                'expires_on' => (string) $this->request->input('expires_on', '')]);
+            $this->flash('success', 'The code ' . $code . ' is ready. Students enter it at /enrol after signing in.');
+        } catch (RuntimeException $e) {
+            $this->flash('warning', $e->getMessage());
+        }
+        return $this->redirect('/institutions/' . $i['uuid'] . '/students/codes');
+    }
+
+    public function revokeCode(string $ref, string $code): Response
+    {
+        [$i] = $this->tenant($ref, 'students.manage');
+        try {
+            $this->s->enrolment()->revokeCode($i, $code);
+            $this->flash('success', 'The code no longer works. Students who joined with it stay.');
+        } catch (RuntimeException $e) {
+            $this->flash('warning', $e->getMessage());
+        }
+        return $this->redirect('/institutions/' . $i['uuid'] . '/students/codes');
+    }
+
+    public function decideRequest(string $ref, string $request): Response
+    {
+        [$i] = $this->tenant($ref, 'students.manage');
+        try {
+            $approve = $this->request->input('decision') === 'approve';
+            $this->s->enrolment()->decide($i, $this->auth->user(), $request, $approve);
+            $this->flash('success', $approve ? 'Approved. They are now a student here.' : 'Declined. They are told.');
+        } catch (RuntimeException $e) {
+            $this->flash('warning', $e->getMessage());
+        }
+        return $this->redirect('/institutions/' . $i['uuid'] . '/students');
+    }
+
+    public function resend(string $ref, string $id): Response
+    {
+        [$i] = $this->tenant($ref, 'students.manage');
+        try {
+            $sent = $this->s->institutions()->resend($i, $this->auth->user(), $this->studentInvitation($i, $id));
+            $this->flash('success', $sent['emailed'] ? 'Sent again, with a new link. The old link no longer works.' : 'A new link is ready (email is not set up, so send it yourself): ' . $sent['link']);
+        } catch (RuntimeException $e) {
+            $this->flash('warning', $e->getMessage());
+        }
+        return $this->redirect('/institutions/' . $i['uuid'] . '/students');
+    }
+
+    public function cancel(string $ref, string $id): Response
+    {
+        [$i] = $this->tenant($ref, 'students.manage');
+        try {
+            $this->s->institutions()->revoke($i, $this->studentInvitation($i, $id));
+            $this->flash('success', 'Invitation cancelled. Its link no longer works.');
+        } catch (RuntimeException $e) {
+            $this->flash('warning', $e->getMessage());
+        }
+        return $this->redirect('/institutions/' . $i['uuid'] . '/students');
     }
 
     public function show(string $ref, string $member): Response
@@ -97,11 +175,20 @@ final class InstitutionStudentController extends TenantController
             $this->flash('warning', 'That preview has expired. Upload the file again.');
             return $this->redirect('/institutions/' . $i['uuid'] . '/students/import');
         }
-        $done = $this->s->studentImport()->apply($i, $m, $this->auth->user(), (array) $pending['rows'], $this->s->institutions(), $this->s->structure());
+        $confirmed = array_values(array_filter((array) ($this->request->post['confirm'] ?? []), 'is_string'));
+        $done = $this->s->studentImport()->apply($i, $m, $this->auth->user(), (array) $pending['rows'], $this->s->institutions(), $this->s->structure(), $confirmed);
         $this->session->set(self::RESULTS, ['institution' => $i['uuid'], 'rows' => $done['rows'], 'at' => time()]);
-        $this->flash($done['failed'] > 0 ? 'warning' : 'success', sprintf('%d students updated and put in their classes, %d invited, %d not imported. Download the results to see every row.',
-            $done['enrolled'], $done['invited'], $done['failed']));
+        $this->flash($done['failed'] + $done['skipped'] > 0 ? 'warning' : 'success', sprintf('%d students updated and put in their classes, %d invited, %d invitations already waiting, %d left for a decision, %d not imported. Download the results to see every row.',
+            $done['enrolled'], $done['invited'], $done['kept'], $done['skipped'], $done['failed']));
         return $this->redirect('/institutions/' . $i['uuid'] . '/students/import');
+    }
+
+    public function problems(string $ref): Response
+    {
+        [$i] = $this->tenant($ref, 'students.manage');
+        $pending = $this->sessionFor($i, self::IMPORT) ?? throw HttpException::notFound('Import preview');
+        return new Response(StudentImport::problemsCsv((array) $pending['rows']), 200, ['Content-Type' => 'text/csv; charset=utf-8',
+            'Content-Disposition' => 'attachment; filename="student-import-problems.csv"']);
     }
 
     public function results(string $ref): Response
@@ -110,6 +197,16 @@ final class InstitutionStudentController extends TenantController
         $results = $this->sessionFor($i, self::RESULTS) ?? throw HttpException::notFound('Import results');
         return new Response(StudentImport::resultsCsv($results['rows']), 200, ['Content-Type' => 'text/csv; charset=utf-8',
             'Content-Disposition' => 'attachment; filename="student-import-results.csv"']);
+    }
+
+    /** The id of an open student invitation of this institution (staff invitations are managed on the People page). @param array<string,mixed> $i */
+    private function studentInvitation(array $i, string $id): int
+    {
+        $inv = ctype_digit($id) ? $this->s->institutions()->repo()->pendingInvitation((int) $i['id'], (int) $id) : null;
+        if ($inv === null || $inv['role'] !== InstitutionAccess::STUDENT) {
+            throw new RuntimeException('That student invitation is no longer open.');
+        }
+        return (int) $inv['id'];
     }
 
     /** @return array{0:array<string,mixed>,1:array<string,mixed>} */

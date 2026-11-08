@@ -427,6 +427,9 @@ banks, assessments and results come in later phases.
   documents by kind of institution, sent for review with the platform agreement (`/policies`);
   reviewers verify identity, registration, accreditation and the representative's authority
   separately, then approve, ask for more information, decline or suspend.
+- **Joining with a code** (`/enrol`): a student with an account enters an institution's
+  enrolment code, reads what joining means, and joins or asks to; the institution manages codes
+  and requests from its students page, along with invitations waiting to be accepted.
 - **Registering without an account** (`/join`): an account and an institution in one form,
   registered once the email address is confirmed.
 - **Students** (`/institutions/<id>/students`): each student's institutional number, programme,
@@ -519,6 +522,8 @@ overview only.
 | Institution applications | `GET /institutions/{ref}/application`, `.../application/documents/{document}`; `POST .../application/documents`, `.../application/documents/{document}/remove`, `.../application/submit` | signed-in, then institution.manage |
 | | `GET /platform/institutions/{ref}/documents/{document}` | institutions.manage |
 | Policies | `GET /policies`, `/policies/{key}` | public |
+| Enrolment | `GET /enrol`; `POST /enrol`, `/enrol/join` | signed-in |
+| | `GET /institutions/{ref}/students/codes`, `.../students/import/problems.csv`; `POST .../students/codes`, `.../students/codes/{code}/revoke`, `.../students/requests/{request}`, `.../students/invitations/{id}/resend`, `.../students/invitations/{id}/cancel` | signed-in, then students.manage |
 | Invitations | `GET /invitations/{token}` public; `POST /invitations/{token}/accept`, `/invitations/{token}/decline` signed-in | |
 | Institution review | `GET /platform/institutions`, `/platform/institutions/{ref}`; `POST /platform/institutions/{ref}/decision` | institutions.manage |
 
@@ -532,12 +537,12 @@ overview only.
 | Members | `question_comments` (with answer votes), `question_reports`, `question_notes` (notes and bookmarks) |
 | Studying | `study_answers` (latest answer per question, with spaced review box and due day), `study_days`, `study_places`, `saved_exams`, `mock_exams` |
 | Output | `documents`, `media` (saved images) |
-| Institutions | `institutions`, `institution_reviews` (decisions and verification changes), `institution_documents`, `policy_acceptances`, `institution_memberships`, `institution_invitations`, `institution_departments`, `institution_programmes`, `institution_classes`, `class_instructors`, `class_enrolments`, `institution_students`, `question_banks`, `question_bank_editors`, `bank_topics`, `bank_questions`, `question_versions`, `assessments`, `assessment_items`, `assessment_blueprints`, `assessment_assignments`, `assessment_sessions`, `assessment_session_questions`, `assessment_responses`, `assessment_response_history`, `assessment_events`, `integrity_reviews`, `invigilator_assignments`, `invigilator_observations`, `invigilator_messages` |
+| Institutions | `institutions`, `institution_reviews` (decisions and verification changes), `institution_documents`, `policy_acceptances`, `enrolment_codes`, `enrolment_requests`, `institution_memberships`, `institution_invitations`, `institution_departments`, `institution_programmes`, `institution_classes`, `class_instructors`, `class_enrolments`, `institution_students`, `question_banks`, `question_bank_editors`, `bank_topics`, `bank_questions`, `question_versions`, `assessments`, `assessment_items`, `assessment_blueprints`, `assessment_assignments`, `assessment_sessions`, `assessment_session_questions`, `assessment_responses`, `assessment_response_history`, `assessment_events`, `integrity_reviews`, `invigilator_assignments`, `invigilator_observations`, `invigilator_messages` |
 | Readiness | `certificates` |
 | Worked out, rebuilt on demand (not backed up) | `exam_checks` (Integrity figures), `question_index` (search) |
 | System | `settings`, `notifications`, `mail_queue`, `exam_requests`, `audit_log`, `throttle_events`, `schema_migrations` |
 
-Migrations `001` to `037` in `web/database/migrations` create all of it; `php bin/migrate.php`
+Migrations `001` to `038` in `web/database/migrations` create all of it; `php bin/migrate.php`
 applies them.
 
 ### Background processes

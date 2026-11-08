@@ -186,7 +186,7 @@ final class ClassesTest extends HttpTestCase
         file_put_contents($tmp, $csv);
         $preview = $this->postFiles($this->base() . '/students/import', [], ['file' => ['name' => 's.csv', 'tmp_name' => $tmp, 'size' => strlen($csv), 'error' => UPLOAD_ERR_OK]]);
         self::assertSame(200, $preview->status);
-        self::assertStringContainsString('2 ready, 5 with problems', $preview->body);
+        self::assertStringContainsString('2 ready, 0 to decide, 5 not importable', $preview->body);
         foreach (['not Exam officer', 'not valid', 'also on line 2', 'already has the number TAKEN', 'no single open class called &quot;Nope&quot;', 'same email address is on line 2'] as $why) {
             if ($why === 'not Exam officer') {
                 self::assertStringContainsString('as Examination officer, not as a student', $preview->body);
@@ -198,7 +198,7 @@ final class ClassesTest extends HttpTestCase
         self::assertSame(0, (int) $this->db("SELECT COUNT(*) FROM institution_invitations WHERE email = 'newperson@example.com'"));
 
         $this->post($this->base() . '/students/import/confirm');
-        self::assertStringContainsString('1 students updated and put in their classes, 1 invited, 5 not imported', $this->lastFlash());
+        self::assertStringContainsString('1 students updated and put in their classes, 1 invited, 0 invitations already waiting, 0 left for a decision, 5 not imported', $this->lastFlash());
         self::assertSame('A-1', $this->db('SELECT student_number FROM institution_students s JOIN institution_memberships m ON m.id = s.membership_id WHERE m.uuid = ?',
             [$this->memberUuid($this->a, 'carol')]));
         self::assertSame(1, (int) $this->db("SELECT COUNT(*) FROM class_enrolments WHERE status = 'active'"));
@@ -211,7 +211,7 @@ final class ClassesTest extends HttpTestCase
         // The invited person signs up and accepts: the number and class apply.
         $this->s->users()->create('newperson', self::$pw, 'member', ['email' => 'newperson@example.com', 'email_verified' => true]);
         $this->as('newperson');
-        $this->post('/invitations/' . $m[1] . '/accept');
+        $this->post('/invitations/' . $m[1] . '/accept', ['notice' => '1']);
         $member = $this->memberUuid($this->a, 'newperson');
         self::assertSame('A-2', $this->db('SELECT student_number FROM institution_students s JOIN institution_memberships m ON m.id = s.membership_id WHERE m.uuid = ?', [$member]));
         self::assertSame(1, (int) $this->db("SELECT COUNT(*) FROM class_enrolments e JOIN institution_memberships m ON m.id = e.membership_id WHERE m.uuid = ? AND e.status = 'active'", [$member]));
