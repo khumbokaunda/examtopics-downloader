@@ -15,7 +15,7 @@ final class AssessmentRepository
 {
     /** Settings columns a form may set. */
     public const SETTINGS = ['title', 'description', 'type', 'instructions', 'duration_minutes', 'pass_percent', 'max_attempts', 'opens_at', 'closes_at',
-        'shuffle_questions', 'shuffle_choices', 'negative_marking', 'review_policy'];
+        'shuffle_questions', 'shuffle_choices', 'negative_marking', 'review_policy', 'monitoring'];
 
     public function __construct(private Database $db)
     {

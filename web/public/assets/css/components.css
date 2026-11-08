@@ -863,3 +863,19 @@ a.job-chip:hover { text-decoration: none; filter: brightness(.96); }
 .topic-w-90 { width: 90%; } .topic-h-90 { height: 90%; }
 .topic-w-95 { width: 95%; } .topic-h-95 { height: 95%; }
 .topic-w-100 { width: 100%; } .topic-h-100 { height: 100%; }
+
+/* ---- Readiness and certificates ---------------------------------------------------------- */
+.readiness-conditions { list-style: none; padding: 0; margin: 0 0 var(--space-3); }
+.readiness-conditions li { display: flex; gap: 8px; align-items: flex-start; padding: 3px 0; color: var(--color-text-muted); }
+.readiness-conditions li.is-met { color: var(--color-text); }
+.readiness-conditions li.is-met .bi { color: var(--color-success); }
+.certificate-card { border: 3px double var(--color-primary); }
+.certificate-card .card-body { padding: var(--space-6, 3rem) var(--space-4); }
+.certificate-kicker { letter-spacing: .12em; text-transform: uppercase; color: var(--color-primary); font-weight: var(--weight-semibold, 600); }
+.certificate-name { font-size: 2rem; margin: var(--space-3) 0; }
+.certificate-exam { font-size: 1.25rem; }
+.certificate-link { overflow-wrap: anywhere; }
+.certificate-disclaimer { max-width: 40rem; margin: var(--space-4) auto 0; }
+.sitting-paused { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: var(--space-4); background: rgba(15, 23, 42, .55); }
+.sitting-paused .card { max-width: 30rem; }
+.sitting-paused .bi { font-size: 2rem; color: var(--color-warning); }

@@ -13,9 +13,13 @@ use App\Controllers\InstitutionBankController;
 $total = count($questions);
 $answered = count(array_filter($responses, static fn(array $r): bool => $r['answer'] !== ''));
 ?>
+<div class="sitting-paused" data-paused<?= $session['paused_at'] === null ? ' hidden' : '' ?> role="alert"><div class="card"><div class="card-body text-center py-5">
+    <?= icon('pause-circle') ?><h2 class="h5 mt-2">Paused by the invigilator</h2><p class="mb-0 text-muted">Your clock has stopped and your answers are kept. This page carries on by itself when the sitting resumes.</p>
+</div></div></div>
 <form class="mock sitting" method="post" action="<?= e(url('/sit/' . $session['uuid'] . '/submit')) ?>" data-sitting
       data-uuid="<?= e($session['uuid']) ?>" data-save-url="<?= e(url('/api/sit/' . $session['uuid'] . '/answer')) ?>"
-      data-status-url="<?= e(url('/api/sit/' . $session['uuid'])) ?>" data-ends-in="<?= $secondsLeft ?>" data-minutes="<?= (int) $session['duration_minutes'] ?>" data-seq="<?= $seq ?>"
+      data-status-url="<?= e(url('/api/sit/' . $session['uuid'])) ?>" data-events-url="<?= e(url('/api/sit/' . $session['uuid'] . '/events')) ?>"
+      data-monitor="<?= e(implode(' ', \App\Services\Integrity::types((string) $session['monitoring']))) ?>" data-ends-in="<?= $secondsLeft ?>" data-minutes="<?= (int) $session['duration_minutes'] ?>" data-seq="<?= $seq ?>"
       data-confirm="You cannot change your answers after handing in." data-confirm-title="Hand in your answers?" data-confirm-button="Hand in">
     <?= csrf_field() ?><input type="hidden" name="sent" value="1">
     <div class="mock-bar">
@@ -25,6 +29,7 @@ $answered = count(array_filter($responses, static fn(array $r): bool => $r['answ
         </div>
         <span class="mock-timer" data-mock-timer role="timer" aria-live="off" title="Time left, kept by the server"><?= icon('stopwatch') ?><span data-field="time"><?= sprintf('%d:%02d', intdiv($secondsLeft, 60), $secondsLeft % 60) ?></span></span>
         <span class="sitting-save" data-save-state role="status"><?= icon('cloud-check') ?><span>Saved</span></span>
+        <button class="btn btn-sm btn-outline-secondary" type="button" data-fullscreen hidden><?= icon('arrows-fullscreen') ?>Full screen</button>
         <button class="btn btn-primary" type="submit"><?= icon('check2-square') ?>Hand in</button>
     </div>
 

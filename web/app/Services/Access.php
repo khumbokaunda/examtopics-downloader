@@ -46,6 +46,7 @@ final class Access
         'progress.view_all' => 'See every member\'s study progress: the exams they read and practised, and how many answers they got right.',
         'activity.view' => 'See the activity history: sign-ins, and changes to accounts, settings, the library and backups.',
         'institutions.manage' => 'Review registered institutions: verify them, decline them and suspend them. This does not open an institution\'s own pages or its people.',
+        'certificates.manage' => 'See every readiness certificate, and revoke one with a reason (it is never deleted).',
         'security.manage' => 'Review sign-in attempts, unlock accounts and unblock networks, and be told when either is locked.',
     ];
 

@@ -20,10 +20,10 @@ acceptance criteria.
 | 3 | Institutional examination builder | Done |
 | 4 | Examination execution engine (first major milestone) | Done |
 | 5 | Results and analytics, and the public registration page | Done |
-| 6 | Readiness assessment and certificates | |
-| 7 | Integrity monitoring | |
-| 8 | Live invigilation | |
-| 9 | Formal examination capabilities | Only after pilot experience |
+| 6 | Readiness assessment and certificates | Done |
+| 7 | Integrity monitoring | Done |
+| 8 | Live invigilation | Done |
+| 9 | Formal examination capabilities | Not started: only after pilot experience |
 
 ---
 
@@ -492,3 +492,127 @@ Migration 032 adds `results_published_at` and `results_published_by` to `assessm
 the notification, what each review policy shows, taking results back, who may publish and export,
 and the class, student and institution views.
 
+
+## Phase 6: readiness assessment and certificates (delivered)
+
+Migration 033 adds `certificates`.
+
+- **Readiness** is worked out from a finished mock exam of a certification in the library, by
+  fixed rules in `Readiness`, and shown on the mock exam's result page with the reasons:
+  - **Ready**: 80% or more, timed, at least 30 questions, at most 10% unanswered, and another
+    attempt at the same exam scoring 70% or more in the 60 days before it (consistency).
+  - **Nearly ready**: 70% or more without every Ready condition met.
+  - **Developing**: 55% or more. **Not yet ready**: below that.
+  The page says which conditions held and which did not, so a learner knows what to do next.
+- **Certificates of readiness** can be issued by the learner for an attempt rated Ready, once per
+  attempt. Each carries a number (`EL-YYYY-NNNNNN`), the holder's name, the exam, the score and
+  the date, and the disclaimer the specification asks for: it is ExamLib's readiness estimate, not
+  a certification and not endorsed by the exam's owner. "My certificates" lists them, each with a
+  PDF.
+- **Anyone can check a certificate** at `/verify/{token}` without signing in: the token is 32
+  random hex characters printed on the PDF, so certificates cannot be listed by guessing. The page
+  shows the holder, exam, score, date and whether it still stands, and nothing else about the
+  person.
+- **Revoking** (`certificates.manage`, platform administrators): from `/platform/certificates`,
+  with a reason. A revoked certificate stays, and its verification page says it was revoked and
+  when. Issuing and revoking are in the activity history.
+
+`ReadinessTest`: the rules at every level, issuing only for Ready and only once, the PDF, the
+public verification page, and revoking.
+
+### Known limitations (6)
+
+- Readiness reads mock exams of library certifications only. Readiness from an institution's own
+  assessments, and a separate readiness model per provider, are left for when there is data to
+  set them.
+- The thresholds are constants in `Readiness`, not settings, until pilot use says what they
+  should be.
+
+## Phase 7: integrity monitoring (delivered)
+
+Migration 034 adds `monitoring` to `assessments` and `assessment_sessions`, and the
+`assessment_events` and `integrity_reviews` tables.
+
+- **Three policies**, chosen per assessment and fixed into each sitting when it starts, so
+  changing the assessment later never changes what a running sitting collects:
+  - **Basic**: nothing from the browser. The server still records the page being opened, handing
+    in, time running out, and any invigilator action.
+  - **Standard**: the page being hidden and shown again (with how long), the window losing and
+    regaining focus, and the connection dropping and returning.
+  - **Enhanced**: the same, plus copy, cut and paste (that they happened, never what), and leaving
+    full screen. The sitting page offers a full-screen button.
+  Candidates are told the policy and what it collects on the instructions page before they start.
+  **Keystrokes and clipboard contents are never collected under any policy.**
+- **Events** are queued in the browser (kept on the device through a dropped connection) and sent
+  every few seconds. The server keeps only types the sitting's policy allows, drops repeats by
+  sequence number, caps a sitting at 2,000, and stamps when each arrived next to the browser's
+  own time.
+- **Indicators** are worked out by fixed rules and worded neutrally ("The page was hidden for 75
+  seconds"): `info` (noted), `review` ("Worth a look": the page hidden or out of focus five or
+  more times, hidden for two minutes in all or one minute at a stretch, or three or more pastes
+  or full-screen exits) and `technical` (the page opened again three or more times, or the
+  connection dropping three or more times). They are prompts for a person, never a verdict, and nothing happens to a
+  result because of one.
+- **The sitting page for staff** (`integrity.view`) shows the indicators and the full timeline;
+  the results list has a chip for each sitting worth a look. People with `integrity.manage`
+  record a conclusion (no concern, concern noted, referred for a decision) with a note, which is kept and
+  recorded in the activity history. The indicators are never changed by a conclusion.
+
+`IntegrityMonitoringTest`: what each policy collects and that it is fixed at the start, repeats
+and unknown types dropped, the server's own events, only the candidate sending for their sitting,
+the indicator rules, neutral wording, and conclusions.
+
+### Known limitations (7)
+
+- No camera, microphone or screen recording. The specification puts proctoring of that kind
+  outside the minimum release, and the privacy questions need a decision first.
+- A browser can always be made to send nothing; what Standard and Enhanced collect shows what a
+  cooperating browser saw, which is why they are prompts and not evidence on their own.
+
+## Phase 8: live invigilation (delivered)
+
+Migration 035 adds `paused_at` and `extra_minutes` to `assessment_sessions`, and the
+`invigilator_assignments` and `invigilator_observations` tables.
+
+- **Who watches**: anyone with `assessments.monitor` (examination officers, administrators,
+  owners), or a staff member assigned as an invigilator of that assessment by someone with
+  `assessments.schedule`. Everyone else gets 404 for the live page.
+- **The live page** (`/institutions/{ref}/assessments/{assessment}/live`) lists every candidate
+  the assessment reaches: not started, writing, paused or handed in; answered so far; minutes left
+  by the server's clock; whether the sitting has been heard from in the last two minutes; and its
+  integrity level. It refreshes every 15 seconds by polling, updating the rows in place. The feed
+  carries no questions or answers.
+- **Observations**: an invigilator records a note, an incident, a technical difficulty, an
+  interruption or an identity check against a sitting. They are kept append-only and shown on the
+  staff sitting page with who wrote them and when.
+- **Interventions** (`assessments.intervene`):
+  - **Pause** stops the sitting's clock. The candidate's page shows that the invigilator has
+    paused it, refuses answers, and carries on by itself when it resumes.
+  - **Resume** adds the paused time back to the end time.
+  - **Extra time**, 1 to 240 minutes with a reason (for example a power cut).
+  - **End the sitting**, with a reason: it is handed in and marked with the answers it had, and
+    shows as "Ended by the institution".
+  Each is recorded as a server event on the sitting's integrity timeline and in the activity
+  history with its reason. A paused sitting is never handed in by the expiry run.
+
+`InvigilationTest` (4 tests): who may watch and intervene, assigning invigilators (staff only),
+the live feed, observations, pausing and resuming with the time given back, extra time, and
+ending a sitting.
+
+### Known limitations (8)
+
+- Polling, not a socket: the live page is up to 15 seconds behind, and a candidate's page notices
+  a pause within about 15 seconds.
+- No messages from invigilator to candidate yet; the candidate sees only that the sitting is
+  paused.
+- No room or seat plans.
+
+## Phase 9: formal examination capabilities (not started, by design)
+
+The specification says formal examinations (secure browsers, venue management, seat plans,
+candidate identity documents, external moderation, accreditation reporting) should come only
+after operational experience with Phases 4 to 8. They are not built. What exists already covers
+part of the ground: identity checks can be recorded as invigilator observations, every sitting
+keeps an append-only answer history and integrity timeline, results are published deliberately,
+and the activity history records every decision. The next step is a pilot with one or two
+institutions, then a decision on which formal capabilities they actually need.

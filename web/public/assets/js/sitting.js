@@ -167,8 +167,10 @@
   var label = timer ? timer.querySelector('[data-field="time"]') : null;
   var end = Date.now() + (parseInt(form.getAttribute('data-ends-in') || '0', 10) * 1000);
   var low = Math.min(300, Math.round(parseInt(form.getAttribute('data-minutes') || '0', 10) * 60 / 5));
+  var paused = false;
   function tick() {
     if (ended) return;
+    if (paused) { setTimeout(tick, 500); return; }
     var s = Math.max(0, Math.round((end - Date.now()) / 1000));
     var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
     if (label) label.textContent = (h > 0 ? h + ':' + (m < 10 ? '0' : '') + m : String(m)) + ':' + (sec < 10 ? '0' : '') + sec;
@@ -192,10 +194,69 @@
       .then(function (r) { return r.json(); })
       .then(function (d) {
         if (d.status && d.status !== 'in_progress') { finished(form.action.replace(/\/submit$/, '/done')); return; }
+        var overlay = document.querySelector('[data-paused]');
+        if (d.paused) {
+          paused = true;
+          if (overlay) overlay.hidden = false;
+        } else if (paused) {
+          window.location.reload();
+          return;
+        }
         if (typeof d.seconds_left === 'number') end = Date.now() + d.seconds_left * 1000;
       })
       .catch(function () { /* offline: keep counting */ });
-  }, 60000);
+  }, 15000);
+
+  // --- Monitoring: only what the sitting's policy names (data-monitor), never what is typed or
+  // copied. Observations are queued on this device and sent in batches; each carries its own
+  // number, so a batch sent twice is stored once.
+  var monitor = (form.getAttribute('data-monitor') || '').split(' ').filter(Boolean);
+  var eventsUrl = form.getAttribute('data-events-url');
+  if (monitor.length && eventsUrl) {
+    var evKey = storeKey + ':events';
+    var evQueue = (function () { try { return JSON.parse(localStorage.getItem(evKey) || '[]') || []; } catch (e) { return []; } })();
+    var evSeq = Date.now();
+    var keepEvents = function () { try { localStorage.setItem(evKey, JSON.stringify(evQueue.slice(-500))); } catch (e) { /* memory only */ } };
+    var note = function (type, durationMs) {
+      if (monitor.indexOf(type) === -1) return;
+      evSeq = Math.max(evSeq + 1, Date.now());
+      var ev = { seq: evSeq, type: type, at: Date.now() };
+      if (typeof durationMs === 'number') ev.duration_ms = Math.max(0, Math.round(durationMs));
+      evQueue.push(ev);
+      keepEvents();
+    };
+    var sendingEvents = false;
+    var sendEvents = function () {
+      if (sendingEvents || evQueue.length === 0) return;
+      sendingEvents = true;
+      var batch = evQueue.slice(0, 50);
+      fetch(eventsUrl, { method: 'POST', credentials: 'same-origin', body: 'events=' + encodeURIComponent(JSON.stringify(batch)),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrf, Accept: 'application/json' } })
+        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function () { evQueue.splice(0, batch.length); keepEvents(); sendingEvents = false; if (evQueue.length) sendEvents(); })
+        .catch(function () { sendingEvents = false; });
+    };
+    var hiddenSince = null;
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'hidden') { hiddenSince = Date.now(); note('hidden'); }
+      else { note('visible', hiddenSince ? Date.now() - hiddenSince : undefined); hiddenSince = null; sendEvents(); }
+    });
+    window.addEventListener('blur', function () { note('blur'); });
+    window.addEventListener('focus', function () { note('focus'); });
+    var offlineSince = null;
+    window.addEventListener('offline', function () { offlineSince = Date.now(); note('offline'); });
+    window.addEventListener('online', function () { note('online', offlineSince ? Date.now() - offlineSince : undefined); offlineSince = null; sendEvents(); });
+    ['copy', 'cut', 'paste'].forEach(function (t) { document.addEventListener(t, function () { note(t); }); });
+    document.addEventListener('fullscreenchange', function () { note(document.fullscreenElement ? 'fullscreen_enter' : 'fullscreen_exit'); });
+    var fsBtn = form.querySelector('[data-fullscreen]');
+    if (fsBtn && monitor.indexOf('fullscreen_exit') !== -1 && document.documentElement.requestFullscreen) {
+      fsBtn.hidden = false;
+      fsBtn.addEventListener('click', function () { document.documentElement.requestFullscreen().catch(function () { /* refused */ }); });
+    }
+    setInterval(sendEvents, 5000);
+    form.addEventListener('submit', function (ev) { if (!ev.defaultPrevented) sendEvents(); });
+    sendEvents();
+  }
 
   flush();
 })();

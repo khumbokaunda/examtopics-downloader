@@ -38,7 +38,10 @@ $base = '/my/assessments/' . $a['institution_uuid'] . '/' . $a['uuid'];
                     <li>Do the work on your own, using only what the institution allows.</li>
                 </ul>
                 <h2 class="section-heading">What is recorded</h2>
-                <p class="small mb-0">When you started and handed in, the questions you were given, and each answer you picked with the time it reached the server. Nothing else about your device or what you do outside this page is recorded. The institution sees your answers and result.</p>
+                <?php $policy = \App\Services\Integrity::POLICIES[$a['monitoring'] ?? 'basic'] ?? \App\Services\Integrity::POLICIES['basic']; ?>
+                <p class="small mb-2">When you started and handed in, the questions you were given, and each answer you picked with the time it reached the server. The institution sees your answers and result.</p>
+                <p class="small mb-0"><strong>Monitoring: <?= e($policy['name']) ?>.</strong> <?= e($policy['text']) ?>
+                    <?= ($a['monitoring'] ?? 'basic') !== 'basic' ? ' These are observations with many innocent causes (a notification, a call, a lost connection); they are shown to the institution as prompts, never as proof. What you type is never recorded.' : '' ?></p>
             </div>
         </div>
     </div>

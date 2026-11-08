@@ -34,7 +34,8 @@ $creator = (int) $a['created_by'] === (int) $membership['id'];
     <div class="col-xl-8">
         <div class="card mb-4" id="questions">
             <div class="card-header"><span class="card-title"><?= icon('list-check') ?>Questions</span>
-                <span class="d-flex gap-2"><?php if ($a['status'] !== 'draft'): ?><a class="btn btn-sm btn-outline-primary" href="<?= e(url($base . '/results')) ?>"><?= icon('table') ?>Results</a><?php endif; ?>
+                <span class="d-flex gap-2"><?php if ($a['status'] !== 'draft' && !empty($canWatch)): ?><a class="btn btn-sm btn-outline-primary" href="<?= e(url($base . '/live')) ?>"><?= icon('broadcast') ?>Live</a><?php endif; ?>
+                <?php if ($a['status'] !== 'draft'): ?><a class="btn btn-sm btn-outline-primary" href="<?= e(url($base . '/results')) ?>"><?= icon('table') ?>Results</a><?php endif; ?>
                 <a class="btn btn-sm btn-outline-secondary" href="<?= e(url($base . '/preview')) ?>"><?= icon('eye') ?>Preview a form</a>
                 <?php if ($canEdit): ?><a class="btn btn-sm btn-primary" href="<?= e(url($base . '/add')) ?>"><?= icon('plus') ?>Add questions</a><?php endif; ?></span></div>
             <?php if ($items === [] && $blueprints === []): ?>
@@ -102,6 +103,9 @@ $creator = (int) $a['created_by'] === (int) $membership['id'];
                         <div class="col-sm-6"><label class="form-label" for="negative_marking">Taken off for a wrong answer (times its marks)</label><input class="form-control" type="number" min="0" max="1" step="0.05" id="negative_marking" name="negative_marking" value="<?= e(C::marks($a['negative_marking'])) ?>"><div class="form-text">0 for none; 0.25 takes off a quarter. Unanswered questions lose nothing.</div></div>
                         <div class="col-sm-6"><label class="form-label" for="review_policy">After results are published, candidates see</label><select class="form-select" id="review_policy" name="review_policy">
                             <?php foreach (Assessments::REVIEW_POLICIES as $k => $v): ?><option value="<?= e($k) ?>" <?= $a['review_policy'] === $k ? 'selected' : '' ?>><?= e($v) ?></option><?php endforeach; ?></select></div>
+                        <div class="col-12"><label class="form-label" for="monitoring">Monitoring during the sitting</label><select class="form-select" id="monitoring" name="monitoring">
+                            <?php foreach (\App\Services\Integrity::POLICIES as $k => $p): ?><option value="<?= e($k) ?>" <?= ($a['monitoring'] ?? 'basic') === $k ? 'selected' : '' ?>><?= e($p['name'] . ': ' . $p['text']) ?></option><?php endforeach; ?></select>
+                            <div class="form-text">Candidates are told before they start. Observations are shown to people with integrity.view as prompts, never as proof.</div></div>
                         <div class="col-12">
                             <div class="form-check"><input class="form-check-input" type="checkbox" id="shuffle_questions" name="shuffle_questions" value="1" <?= (int) $a['shuffle_questions'] ? 'checked' : '' ?>><label class="form-check-label" for="shuffle_questions">Put the questions in a different order for each candidate</label></div>
                             <div class="form-check"><input class="form-check-input" type="checkbox" id="shuffle_choices" name="shuffle_choices" value="1" <?= (int) $a['shuffle_choices'] ? 'checked' : '' ?>><label class="form-check-label" for="shuffle_choices">Put the choices of each question in a different order (true or false stays as it is)</label></div>
@@ -119,6 +123,7 @@ $creator = (int) $a['created_by'] === (int) $membership['id'];
                     <dt class="col-sm-4">Closes</dt><dd class="col-sm-8"><?= $a['closes_at'] !== null ? e(fmt_time((string) $a['closes_at'])) : 'when closed by hand' ?></dd>
                     <dt class="col-sm-4">Wrong answers</dt><dd class="col-sm-8"><?= (float) $a['negative_marking'] > 0 ? 'lose ' . e(C::marks($a['negative_marking'])) . ' times their marks' : 'lose nothing' ?></dd>
                     <dt class="col-sm-4">Order</dt><dd class="col-sm-8"><?= (int) $a['shuffle_questions'] ? 'Questions shuffled' : 'Questions in order' ?>, <?= (int) $a['shuffle_choices'] ? 'choices shuffled' : 'choices in order' ?></dd>
+                    <dt class="col-sm-4">Monitoring</dt><dd class="col-sm-8"><?= e((\App\Services\Integrity::POLICIES[$a['monitoring'] ?? 'basic'] ?? \App\Services\Integrity::POLICIES['basic'])['name']) ?></dd>
                     <dt class="col-sm-4">Afterwards</dt><dd class="col-sm-8"><?= e(Assessments::REVIEW_POLICIES[$a['review_policy']] ?? '') ?></dd>
                     <dt class="col-sm-4">Instructions</dt><dd class="col-sm-8"><?= nl2br(e((string) ($a['instructions'] ?? ''))) ?></dd>
                 </dl>
