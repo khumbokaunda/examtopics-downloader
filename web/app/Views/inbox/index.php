@@ -28,7 +28,7 @@ $icons = ['exam_request' => 'inbox', 'request_update' => 'journal-check', 'accou
 
 <div class="card">
     <?php if ($items === []): ?>
-        <div class="card-body"><?= empty_state('bell', 'Nothing here', 'Exam requests, answers to your requests and new accounts show here.', null, true) ?></div>
+        <div class="card-body"><?= empty_state('bell', 'Nothing here', 'Notifications show here.', null, true) ?></div>
     <?php else: ?>
     <ul class="list-rows">
         <?php foreach ($items as $n): $isUnread = $n['read_at'] === null; ?>

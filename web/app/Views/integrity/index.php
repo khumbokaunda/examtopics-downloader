@@ -19,7 +19,7 @@ $plural = static fn(int $n, string $one, string $many): string => number_format(
         <p class="page-subtitle"><?= match (true) {
             $counts['all'] === 0 => 'Nothing is in the library yet.',
             $totals['found'] > 0 => $plural($totals['found'], 'exam needs', 'exams need') . ' checking, of ' . number_format($counts['all']) . ' in the library.',
-            $totals['pending'] > 0 => 'Nothing found to check so far; the library is still being checked.',
+            $totals['pending'] > 0 => 'Still checking the library.',
             default => 'All ' . $plural($counts['all'], 'exam looks', 'exams look') . ' right.',
         } ?></p>
     </div>
@@ -57,7 +57,7 @@ $plural = static fn(int $n, string $one, string $many): string => number_format(
     <?php if ($rows === []): ?>
         <div class="card-body"><?= $counts['all'] === 0
             ? empty_state('journal-bookmark', 'Nothing to check yet', 'Exams appear here once they are collected.', $collector ? ['Collect an exam', url('/collect')] : null)
-            : empty_state('check2-all', 'Nothing to show here', $show === 'attention' ? 'Every exam looks right: no doubtful answers, nothing missing and nothing to rebuild.' : 'No exam has this problem.', ['Show all exams', url('/integrity', ['show' => 'all'])], true) ?></div>
+            : empty_state('check2-all', 'Nothing to show here', $show === 'attention' ? 'Every exam looks right.' : 'No exam has this problem.', ['Show all exams', url('/integrity', ['show' => 'all'])], true) ?></div>
     <?php else: ?>
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0 table-stack" id="integrity-table" data-table="integrity" data-order='[]'>

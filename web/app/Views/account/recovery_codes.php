@@ -2,7 +2,7 @@
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title">Save your recovery codes</h1>
-        <p class="page-subtitle">If you lose your phone, each of these lets you sign in once instead of a code from your app. This is the only time they are shown.</p>
+        <p class="page-subtitle">Each works once if you lose your phone. Shown only now.</p>
     </div>
 </header>
 <div class="card recovery-card">
@@ -10,7 +10,7 @@
         <ol class="recovery-codes">
             <?php foreach ($codes as $c): ?><li class="mono"><?= e($c) ?></li><?php endforeach; ?>
         </ol>
-        <p class="small text-muted">Keep them somewhere other than your phone: a password manager, or printed and put away. Making new codes stops these from working.</p>
+        <p class="small text-muted">Keep them away from your phone. New codes replace these.</p>
         <div class="d-flex flex-wrap gap-2">
             <a class="btn btn-outline-secondary" href="<?= e(url('/account/two-step/codes.txt')) ?>"><?= icon('download') ?>Download as a text file</a>
             <form method="post" action="<?= e(url('/account/two-step/codes/done')) ?>"><?= csrf_field() ?>

@@ -7,7 +7,7 @@ $base = '/institutions/' . $institution['uuid'] . '/structure';
         <div class="card mb-4">
             <div class="card-header"><span class="card-title"><?= icon('journal-text') ?>Programmes</span></div>
             <?php if ($programmes === []): ?>
-                <div class="card-body"><?= empty_state('journal-text', 'No programmes yet', 'A programme is a course of study, such as a diploma. Classes and students can belong to one.', null, true) ?></div>
+                <div class="card-body"><?= empty_state('journal-text', 'No programmes yet', 'Add a course of study, such as a diploma.', null, true) ?></div>
             <?php else: ?>
             <ul class="list-rows">
                 <?php foreach ($programmes as $p): ?>

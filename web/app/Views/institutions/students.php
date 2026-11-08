@@ -50,7 +50,7 @@ $tone = ['active' => 'success', 'suspended' => 'warning', 'completed' => 'info',
         <?php if ($manage): ?><span class="d-flex gap-2"><a class="btn btn-sm btn-outline-primary" href="<?= e(url($base . '/codes')) ?>"><?= icon('key') ?>Enrolment codes</a>
             <a class="btn btn-sm btn-outline-primary" href="<?= e(url($base . '/import')) ?>"><?= icon('filetype-csv') ?>Import from a spreadsheet</a></span><?php endif; ?></div>
     <?php if ($students === []): ?>
-        <div class="card-body"><?= empty_state('mortarboard', 'No students yet', 'Invite students on the People page, or import many at once from a spreadsheet.', $manage ? ['Import students', url($base . '/import')] : null, true) ?></div>
+        <div class="card-body"><?= empty_state('mortarboard', 'No students yet', 'Invite them or import a spreadsheet.', $manage ? ['Import students', url($base . '/import')] : null, true) ?></div>
     <?php else: ?>
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0 table-stack" data-table="institution-students" data-order='[[0,"asc"]]'>

@@ -57,7 +57,7 @@ $describe = static function (string $kind, ?array $s): string {
 
 <div class="card">
     <?php if ($entries === []): ?>
-        <div class="card-body"><?= empty_state('clock-history', 'No changes yet', 'Corrections to this question, and who made them, are listed here.', null, true) ?></div>
+        <div class="card-body"><?= empty_state('clock-history', 'No changes yet', 'Corrections show here.', null, true) ?></div>
     <?php else: ?>
     <ul class="list-rows history-list">
         <?php foreach ($entries as $i => $h): $who = $h['user_id'] !== null ? Access::displayName($h) : 'Someone no longer here'; ?>

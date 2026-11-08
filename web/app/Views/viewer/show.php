@@ -103,13 +103,13 @@ $img = static function (string $url, string $alt) use ($localImages): string {
 
 <?php if ($questions === []): ?>
     <div class="card"><div class="card-body"><?= $review && $q === ''
-        ? empty_state('check2-all', 'Nothing left to check', 'Every answer that looked doubtful has been corrected or checked.', null, true)
+        ? empty_state('check2-all', 'Nothing left to check', 'All doubtful answers are done.', null, true)
         : ($reported && $q === '' ? empty_state('check2-all', 'No reports waiting', 'Every problem members reported has been dealt with.', null, true)
-        : ($due && $q === '' ? empty_state('calendar-check', 'Nothing due today', 'Every question you answered is scheduled for another day. Answering one right makes it come back later.', ['Practise all questions', url($base . '/view', ['mode' => 'practice'])], true)
+        : ($due && $q === '' ? empty_state('calendar-check', 'Nothing due today', 'Come back tomorrow.', ['Practise all questions', url($base . '/view', ['mode' => 'practice'])], true)
         : ($bookmarked && $q === '' ? empty_state('bookmark', 'No bookmarked questions', 'Bookmark a question with the bookmark beside its number.', null, true)
         : ($mistakes && $q === ''
             ? empty_state('check2-all', 'No mistakes to go over', 'Every question you checked, you last answered right.', ['Practise all questions', url($base . '/view', ['mode' => 'practice'])], true)
-            : empty_state('search', 'No questions match', 'Search looks in question and answer-choice text. Try fewer words.', null, true))))) ?></div></div>
+            : empty_state('search', 'No questions match', 'Try fewer words.', null, true))))) ?></div></div>
 <?php endif; ?>
 
 <?php if ($practice && $questions !== []): ?>
@@ -232,7 +232,7 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                                             <label class="letter-pick"><input type="checkbox" name="letter_<?= e($l) ?>" value="1"<?= in_array($l, $answerLetters, true) ? ' checked' : '' ?>><span><?= e($l) ?></span></label>
                                         <?php endforeach; ?>
                                     </div>
-                                    <div class="form-text">Tick every correct letter. Saving the collected letters unchanged marks the answer as checked.</div>
+                                    <div class="form-text">Tick every correct letter.</div>
                                 </fieldset>
                             <?php endif; ?>
                             <label class="form-label" for="note-<?= $n ?>">Note <span class="text-muted fw-normal">(optional, shown with the answer)</span></label>

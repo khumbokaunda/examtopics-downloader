@@ -13,7 +13,7 @@ $limit = SearchIndex::LIMIT;
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title">Search questions</h1>
-        <p class="page-subtitle">Every exam in the library, by words in a question or its choices. Every word must appear.</p>
+        <p class="page-subtitle">Find questions across the library.</p>
     </div>
 </header>
 
@@ -27,11 +27,11 @@ $limit = SearchIndex::LIMIT;
 <?php endif; ?>
 
 <?php if ($q === ''): ?>
-    <div class="card"><div class="card-body"><?= empty_state('search', 'Find a question anywhere', 'Type a few words you remember from a question or its choices: which exam it is in, and where, is listed here.', null, true) ?></div></div>
+    <div class="card"><div class="card-body"><?= empty_state('search', 'Find a question anywhere', 'Type words from a question.', null, true) ?></div></div>
 <?php elseif ($words === []): ?>
     <div class="card"><div class="card-body"><?= empty_state('search', 'Type a longer word', 'Each word needs at least two letters.', null, true) ?></div></div>
 <?php elseif ($groups === []): ?>
-    <div class="card"><div class="card-body"><?= empty_state('search', 'No questions match', 'Every word has to appear in the question or its choices. Try fewer words.', null, true) ?></div></div>
+    <div class="card"><div class="card-body"><?= empty_state('search', 'No questions match', 'Try fewer words.', null, true) ?></div></div>
 <?php else: ?>
     <p class="text-muted small"><?= $more ? 'The first ' . $limit . ' questions found' : ($count === 1 ? '1 question' : number_format($count) . ' questions') ?>, in <?= count($groups) === 1 ? '1 exam' : count($groups) . ' exams' ?>.<?= $more ? ' Add a word to narrow it down.' : '' ?></p>
     <?php foreach ($groups as $rows): $x = $rows[0];

@@ -4,7 +4,7 @@ use App\Services\Readiness;
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title">Certificates</h1>
-        <p class="page-subtitle">Every readiness certificate issued. Revoking keeps the record and makes its verification page say it is revoked, with the reason.</p>
+        <p class="page-subtitle">Readiness certificates issued.</p>
     </div>
 </header>
 <form class="toolbar mb-3" method="get" action="<?= e(url('/platform/certificates')) ?>">

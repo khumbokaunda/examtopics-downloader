@@ -2,7 +2,7 @@
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title">My certificates</h1>
-        <p class="page-subtitle">Credentials your institutions issued you, and ExamLib's certificates of demonstrated readiness from timed mock exams. Each has a link anyone can use to check it.</p>
+        <p class="page-subtitle">Your credentials and readiness certificates.</p>
     </div>
 </header>
 <div class="card">

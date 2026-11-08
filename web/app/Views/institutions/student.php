@@ -85,7 +85,7 @@ $active = $student['status'] === 'active';
         <div class="card">
             <div class="card-header"><span class="card-title"><?= icon('journal-bookmark') ?>Academic record</span></div>
             <?php if ($record['programmes'] === []): ?>
-                <div class="card-body"><?= empty_state('journal', 'Not on a programme', 'Give the student a programme in their record to follow their modules.', null, true) ?></div>
+                <div class="card-body"><?= empty_state('journal', 'Not on a programme', 'Set a programme in their record.', null, true) ?></div>
             <?php endif; ?>
             <?php foreach ($record['programmes'] as $p): ?>
                 <div class="card-body border-bottom">
@@ -134,7 +134,7 @@ $active = $student['status'] === 'active';
             <form method="post" action="<?= e(url($sbase . '/transcripts')) ?>" class="card-body" data-once><?= csrf_field() ?>
                 <div class="form-check small mb-2"><input class="form-check-input" type="checkbox" name="provisional" value="1" id="provisional"><label class="form-check-label" for="provisional">Include provisional results, marked as provisional</label></div>
                 <button class="btn btn-sm btn-primary" type="submit"><?= icon('file-earmark-plus') ?>Issue a transcript</button>
-                <p class="form-text mb-0">A transcript keeps the record as it is now. A later change needs a new transcript.</p>
+                <p class="form-text mb-0">Keeps the record as it is now.</p>
             </form>
             <?php endif; ?>
             <?php if ($transcripts !== []): ?>
@@ -158,7 +158,7 @@ $active = $student['status'] === 'active';
             <div class="card-header"><span class="card-title"><?= icon('shield-check') ?>Under 18</span></div>
             <form method="post" action="<?= e(url($sbase . '/guardian')) ?>" class="card-body" data-once><?= csrf_field() ?>
                 <?php if (\App\Services\AcademicRecords::minor($student['date_of_birth'] ?? null)): ?>
-                    <div class="alert alert-warning small" role="status"><?= icon('exclamation-triangle') ?><div class="alert-body">Under 18. Your institution is responsible for the guardian's involvement and the lawful basis for processing their information.</div></div>
+                    <div class="alert alert-warning small" role="status"><?= icon('exclamation-triangle') ?><div class="alert-body">Under 18. Guardian involvement is your responsibility.</div></div>
                 <?php endif; ?>
                 <div class="mb-2"><label class="form-label small" for="dob">Date of birth</label><input class="form-control form-control-sm" type="date" id="dob" name="date_of_birth" value="<?= e((string) ($student['date_of_birth'] ?? '')) ?>"></div>
                 <div class="mb-2"><label class="form-label small" for="gname">Guardian's name</label><input class="form-control form-control-sm" id="gname" name="guardian_name" maxlength="120" value="<?= e((string) ($student['guardian_name'] ?? '')) ?>"></div>

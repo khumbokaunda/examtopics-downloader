@@ -55,7 +55,7 @@ $order = array_flip($mock['keys']);
     <div class="card-body">
         <div class="row g-4">
             <div class="col-lg-7">
-                <p class="small text-muted mb-2">What this attempt shows, by fixed rules. It measures performance on these practice questions, not a prediction of the real exam.</p>
+                <p class="small text-muted mb-2">Based on this attempt. Not a prediction of the real exam.</p>
                 <ul class="readiness-conditions">
                     <?php foreach ($readiness['conditions'] as $c): ?><li class="<?= $c['ok'] ? 'is-met' : '' ?>"><?= icon($c['ok'] ? 'check-circle-fill' : 'circle') ?><span><?= e($c['text']) ?></span></li><?php endforeach; ?>
                 </ul>

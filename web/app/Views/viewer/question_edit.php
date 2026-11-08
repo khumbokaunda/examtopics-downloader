@@ -66,7 +66,7 @@ $pictures = ['question' => ['Question pictures', (array) ($item['question_images
                     <input class="form-control form-control-sm" type="file" id="qimg-<?= $prefix ?>-<?= $n ?>" name="<?= $prefix ?>_image" accept="<?= e($accept) ?>">
                 </fieldset>
             <?php endforeach; ?>
-            <div class="form-text">Edits show in every version of this exam and in documents made after them. Collecting the exam again keeps them.</div>
+            <div class="form-text">Applies to every version of this exam.</div>
             <div class="answer-edit-actions"><button class="btn btn-sm btn-primary" type="submit"><?= icon('check2') ?>Save</button></div>
         </form>
         <?php if ($edited !== null): ?>

@@ -21,7 +21,7 @@ $base = '/institutions/' . $institution['uuid'] . '/assessments/' . $a['uuid'];
         <div class="card">
             <div class="card-header"><span class="card-title"><?= icon('check2-square') ?>Choose questions one by one</span></div>
             <?php if ($questions === []): ?>
-                <div class="card-body"><?= empty_state('list-check', 'No published questions to add', 'Only published questions can go in an assessment, and ones already in it are not listed.', null, true) ?></div>
+                <div class="card-body"><?= empty_state('list-check', 'No published questions to add', 'Publish questions first.', null, true) ?></div>
             <?php else: ?>
             <form method="post" action="<?= e(url($base . '/questions')) ?>" data-once><?= csrf_field() ?>
                 <input type="hidden" name="bank" value="<?= e($bank['uuid']) ?>">

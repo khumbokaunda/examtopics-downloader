@@ -8,7 +8,7 @@ $examUrl = static fn(array $p, array $e): string => url('/library/' . rawurlenco
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title">Collect exam</h1>
-        <p class="page-subtitle">Choose a provider and an exam. Exams already in your library are reused, not collected again, unless you ask for a refresh.</p>
+        <p class="page-subtitle">Pick a provider and an exam.</p>
     </div>
 </header>
 
@@ -42,7 +42,7 @@ $examUrl = static fn(array $p, array $e): string => url('/library/' . rawurlenco
                 <div class="card-body">
                     <?= $providers === []
                         ? empty_state('buildings', 'No providers yet', 'Add one on the <a href="' . e(url('/providers')) . '">Providers &amp; inventory</a> page first.')
-                        : empty_state('hand-index', 'Choose a provider', 'Its exams are listed here, with what is already in your library.') ?>
+                        : empty_state('hand-index', 'Choose a provider', 'Its exams show here.') ?>
                 </div>
             <?php else: ?>
                 <?php if ($lastRefresh === null): ?>
@@ -76,9 +76,7 @@ $examUrl = static fn(array $p, array $e): string => url('/library/' . rawurlenco
             <details class="card mt-4 links-import"<?= $exams === [] && $lastRefresh !== null ? ' open' : '' ?>>
                 <summary class="card-header"><span class="card-title"><?= icon('link-45deg') ?>Exam not listed? Collect from links</span><?= icon('chevron-down', 'links-import-caret') ?></summary>
                 <div class="card-body">
-                    <p class="small text-muted">ExamTopics leaves some exams' discussions off its listing pages, so the inventory cannot find them, but the pages still open.
-                        Search for them, for example <code>site:examtopics.com "H19-101_V6.0" discussion</code>, then select the whole results page (Ctrl+A), copy it and paste it here.
-                        Discussion links, one per line, work too. Old spellings of the exam in search results are corrected. Only the questions you paste can be collected.</p>
+                    <p class="small text-muted">Paste search results or discussion links, one per line. For example search <code>site:examtopics.com "H19-101_V6.0" discussion</code>.</p>
                     <form method="post" action="<?= e(url('/collect/links')) ?>" data-once data-busy="Reading…">
                         <?= csrf_field() ?>
                         <input type="hidden" name="provider" value="<?= e($provider['slug']) ?>">
@@ -99,7 +97,7 @@ $examUrl = static fn(array $p, array $e): string => url('/library/' . rawurlenco
 
     <div class="col-xl-5">
         <?php if (!$exam): ?>
-            <div class="card"><div class="card-body"><?= empty_state('ui-checks', 'Select an exam', 'Its question count, library status and collection options appear here.', null, true) ?></div></div>
+            <div class="card"><div class="card-body"><?= empty_state('ui-checks', 'Select an exam', 'Its details show here.', null, true) ?></div></div>
         <?php else: ?>
             <div class="card exam-panel">
                 <div class="card-body">
@@ -112,7 +110,7 @@ $examUrl = static fn(array $p, array $e): string => url('/library/' . rawurlenco
                         <dt>In library</dt>
                         <dd><?php if ($best): ?><?= status_badge($best['status']) ?> <?= (int) $best['collected_count'] ?> questions<div class="text-muted small"><?= e(fmt_time($best['collected_at'])) ?></div><?php else: ?><span class="text-muted">not collected</span><?php endif; ?></dd>
                     </dl>
-                    <p class="form-text mb-4">The reported count comes from the inventory. It shows what is listed, not a promise that every question can be collected.</p>
+                    <p class="form-text mb-4">As listed. Not every question may be collectable.</p>
 
                     <?php if ($best): ?>
                         <div class="d-grid gap-2 mb-4">
@@ -158,7 +156,7 @@ $examUrl = static fn(array $p, array $e): string => url('/library/' . rawurlenco
                             <?php if ($best): ?>
                                 <div class="form-check mb-3">
                                     <input class="form-check-input" type="checkbox" value="1" id="confirm_refresh" name="confirm_refresh" required>
-                                    <label class="form-check-label small" for="confirm_refresh">Collect a fresh version. The current version stays available until the new one passes validation.</label>
+                                    <label class="form-check-label small" for="confirm_refresh">Collect a fresh version.</label>
                                 </div>
                             <?php endif; ?>
                             <?php if ($activeCollect): ?>
@@ -168,7 +166,7 @@ $examUrl = static fn(array $p, array $e): string => url('/library/' . rawurlenco
                             <button class="btn <?= $best ? 'btn-outline-primary' : 'btn-primary' ?> w-100" type="submit" data-job-slot>
                                 <?= icon($best ? 'arrow-clockwise' : 'cloud-arrow-down') ?><?= $queue !== [] ? ($best ? 'Add a refresh to the queue' : 'Add to the queue') : ($best ? 'Refresh this exam' : 'Start collection') ?></button>
                             <?php endif; ?>
-                            <p class="form-text mb-0 mt-2">Comments are always collected. Choose whether to include them when you generate documents.</p>
+                            <p class="form-text mb-0 mt-2">Comments are always collected.</p>
                         </div>
                     </form>
                     <?php if ($addedLinks > 0): ?>

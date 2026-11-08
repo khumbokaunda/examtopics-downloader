@@ -2,7 +2,7 @@
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title">Jobs &amp; history</h1>
-        <p class="page-subtitle">Every collection, inventory refresh and provider discovery, newest first.</p>
+        <p class="page-subtitle">Collections and refreshes, newest first.</p>
     </div>
     <div class="page-actions"><?= $workerRunning ? chip('Worker running', 'success', 'cpu') : chip('Worker idle', 'neutral', 'cpu') ?></div>
 </header>

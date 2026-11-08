@@ -12,7 +12,7 @@ $v = static fn(string $k, string $d = ''): string => (string) ($t[$k] ?? $d);
         <div class="row g-3">
             <div class="col-md-6"><label class="form-label" for="category">Kind</label><select class="form-select" id="category" name="category" required>
                 <?php foreach ($categories as $k => $label): ?><option value="<?= e($k) ?>"<?= $v('category') === $k ? ' selected' : '' ?>><?= e($label) ?></option><?php endforeach; ?></select>
-                <div class="form-text">Formal qualifications appear only for an institution ExamLib recorded as an authorised awarding body.</div></div>
+                <div class="form-text">Formal qualifications need an authorised awarding body.</div></div>
             <div class="col-md-6"><label class="form-label" for="name">Name (for staff)</label><input class="form-control" id="name" name="name" maxlength="120" required value="<?= e($v('name')) ?>"></div>
             <div class="col-md-6"><label class="form-label" for="title">Title printed on it</label><input class="form-control" id="title" name="title" maxlength="160" required value="<?= e($v('title')) ?>" placeholder="Certificate of Achievement"></div>
             <div class="col-md-6"><label class="form-label" for="validity_months">Valid for (months)</label><input class="form-control" id="validity_months" name="validity_months" inputmode="numeric" maxlength="3" value="<?= e($v('validity_months')) ?>" placeholder="Does not expire"></div>
@@ -27,7 +27,7 @@ $v = static fn(string $k, string $d = ''): string => (string) ($t[$k] ?? $d);
                 <?php foreach ($programmes as $p): ?><option value="<?= e($p['uuid']) ?>"<?= (int) ($t['programme_id'] ?? 0) === (int) $p['id'] ? ' selected' : '' ?>><?= e($p['name']) ?></option><?php endforeach; ?></select></div>
             <?php if ($t !== null): ?><div class="col-md-6"><label class="form-label" for="status">In use</label><select class="form-select" id="status" name="status"><option value="active">Yes</option><option value="retired"<?= $t['status'] === 'retired' ? ' selected' : '' ?>>Retired</option></select></div><?php endif; ?>
             <div class="col-12"><div class="form-check"><input type="hidden" name="requires_approval" value="0"><input class="form-check-input" type="checkbox" id="requires_approval" name="requires_approval" value="1" <?= $t === null || (int) $t['requires_approval'] === 1 ? 'checked' : '' ?>>
-                <label class="form-check-label" for="requires_approval">A signatory approves each one (recommended for formal and final credentials). Unticked, a signatory may issue directly.</label></div></div>
+                <label class="form-check-label" for="requires_approval">A signatory approves each one</label></div></div>
         </div>
     </div>
     <div class="card-footer"><button class="btn btn-primary" type="submit"><?= icon('check2') ?>Save</button> <a class="btn btn-outline-secondary" href="<?= e(url($base)) ?>">Cancel</a></div>

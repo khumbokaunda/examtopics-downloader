@@ -175,7 +175,7 @@ final class Credentials
             if ((int) $this->db->value('SELECT COUNT(*) FROM credentials WHERE template_id = ?', [(int) $t['id']]) > 0
                 && ($category !== $t['category'] || $rule !== $t['rule'] || ($vals[6] ?? null) !== ($t['assessment_id'] !== null ? (int) $t['assessment_id'] : null)
                     || ($vals[7] ?? null) !== ($t['programme_id'] !== null ? (int) $t['programme_id'] : null))) {
-                throw new RuntimeException('Credentials were issued from this template, so its kind and eligibility stay as they are. Make a new template instead.');
+                throw new RuntimeException('Already used to issue credentials. Make a new template instead.');
             }
             $this->db->run('UPDATE credential_templates SET category = ?, name = ?, title = ?, body = ?, footer = ?, rule = ?, assessment_id = ?, programme_id = ?, min_percent = ?,
                             requires_approval = ?, validity_months = ?, status = ?, updated_at = ? WHERE id = ? AND institution_id = ?',

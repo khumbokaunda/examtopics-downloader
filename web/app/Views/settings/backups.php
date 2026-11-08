@@ -13,7 +13,7 @@ $areaLabels = ['cache' => 'Exam data', 'inventory' => 'Question links', 'brandin
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title">Backups</h1>
-        <p class="page-subtitle">One file with everything: accounts, settings, the exam data and, if you choose, saved images and built documents. Use it to keep a copy, or to move the system to a new server.</p>
+        <p class="page-subtitle">Download or restore everything.</p>
     </div>
 </header>
 
@@ -69,8 +69,8 @@ $areaLabels = ['cache' => 'Exam data', 'inventory' => 'Question links', 'brandin
             </div>
             <div class="job-message" data-field="message"><?= e($status['message']) ?></div>
         </div>
-        <?php if ($running && $restoring): ?><p class="small text-muted mb-0 mt-2">It runs on the server, so closing this page does not stop it. When it finishes, everyone, you included, is signed out, and this page goes to the sign-in form.</p>
-        <?php elseif ($running): ?><p class="small text-muted mb-0 mt-2">You can leave this page: the backup carries on, and it is listed below when it is ready.</p><?php endif; ?>
+        <?php if ($running && $restoring): ?><p class="small text-muted mb-0 mt-2">Keeps running if you close this page. Everyone is signed out when it ends.</p>
+        <?php elseif ($running): ?><p class="small text-muted mb-0 mt-2">You can leave this page.</p><?php endif; ?>
     </div>
 </div>
 <?php endif; ?>
@@ -113,9 +113,9 @@ $areaLabels = ['cache' => 'Exam data', 'inventory' => 'Question links', 'brandin
                             <details class="request-answer">
                                 <summary class="btn btn-sm btn-outline-danger"><?= icon('arrow-counterclockwise') ?>Restore</summary>
                                 <form method="post" action="<?= e(url('/backups/' . rawurlencode($b['name']) . '/restore')) ?>" class="request-answer-body" data-once data-busy="Starting…" data-confirm="Every account, setting and exam record is replaced with the backup's. A backup of the current data is made first. Everyone, you included, is signed out." data-confirm-title="Restore this backup?" data-confirm-button="Restore" data-confirm-tone="danger"><?= csrf_field() ?>
-                                    <p class="small mb-2">Every account, setting and exam record is replaced with this backup's, after a safety backup of the current data.</p>
+                                    <p class="small mb-2">Replaces everything. A safety backup is made first.</p>
                                     <button class="btn btn-sm btn-danger" type="submit" <?= $running ? 'disabled' : '' ?>>Restore this backup</button>
-                                    <div class="form-text">It runs on the server in the background, and this page shows its progress.</div>
+                                    <div class="form-text">Runs in the background.</div>
                                 </form>
                             </details>
                             <?php endif; ?>
@@ -127,7 +127,7 @@ $areaLabels = ['cache' => 'Exam data', 'inventory' => 'Question links', 'brandin
                 <?php endforeach; ?>
             </ul>
             <?php endif; ?>
-            <div class="card-footer small text-muted">Backups hold password hashes and the email password. Keep downloaded copies private, and keep one off this server.</div>
+            <div class="card-footer small text-muted">Backups hold sensitive data. Keep them private.</div>
         </div>
     </div>
     <div class="col-xl-4">
@@ -142,7 +142,7 @@ $areaLabels = ['cache' => 'Exam data', 'inventory' => 'Question links', 'brandin
                             <label class="form-check-label" for="opt-<?= $area ?>"><?= e($areaLabels[$area]) ?> <span class="text-muted">(<?= e(fmt_bytes($sizes[$area] ?? 0)) ?>)</span></label>
                         </div>
                     <?php endforeach; ?>
-                    <p class="form-text">Without images they can be downloaded again later; without documents they can be built again.</p>
+                    <p class="form-text">Both can be rebuilt later.</p>
                     <button class="btn btn-primary" type="submit" <?= $zip && !$running ? '' : 'disabled' ?>><?= icon('archive') ?>Make a backup</button>
                 </form>
             </div>
@@ -153,7 +153,7 @@ $areaLabels = ['cache' => 'Exam data', 'inventory' => 'Question links', 'brandin
                 <form method="post" action="<?= e(url('/backups/upload')) ?>" enctype="multipart/form-data" data-chunked-upload
                       data-start-url="<?= e(url('/backups/uploads')) ?>" data-done-url="<?= e(url('/backups')) ?>"><?= csrf_field() ?>
                     <input class="form-control mb-2" type="file" name="archive" accept=".zip,application/zip" required>
-                    <div class="form-text mb-3" data-upload-hint>The file is sent in small pieces, so a large one is fine. If the connection drops or the page closes, choose the same file again and it carries on where it stopped.</div>
+                    <div class="form-text mb-3" data-upload-hint>Large files are fine. It resumes if interrupted.</div>
                     <div class="job-progress mb-3" data-upload-progress hidden>
                         <div class="job-progress-head">
                             <div><span data-field="status"></span><span class="job-phase" data-field="phase"></span></div>

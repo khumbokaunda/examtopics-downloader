@@ -125,7 +125,7 @@ final class AcademicRecordsTest extends HttpTestCase
         $this->post($base . '/students/' . $dan . '/guardian', ['date_of_birth' => gmdate('Y-m-d', strtotime('-15 years')), 'guardian_name' => 'Ruth Banda',
             'guardian_contact' => '+265 999 111 222', 'consent' => '1']);
         $page = $this->get($base . '/students/' . $dan)->body;
-        self::assertStringContainsString('Under 18. Your institution is responsible', $page);
+        self::assertStringContainsString('Under 18. Guardian involvement is your responsibility.', $page);
         self::assertNotNull($this->db('SELECT guardian_consent_at FROM institution_students WHERE guardian_name = ?', ['Ruth Banda']));
         $this->as('bob');
         self::assertSame(403, $this->post($base . '/students/' . $dan . '/guardian', ['date_of_birth' => ''])->status);

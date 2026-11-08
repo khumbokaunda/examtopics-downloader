@@ -45,8 +45,8 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
 <?php if ($activeJob): ?>
 <div class="card mb-4"><div class="card-body">
     <div class="job-item-title"><?= ($activeJob['type'] ?? '') === 'images'
-        ? 'Images for this exam are being downloaded. They are added when the download finishes.'
-        : 'A refresh is running. This version stays available until the new one passes validation.' ?></div>
+        ? 'Images are downloading.'
+        : 'A refresh is running.' ?></div>
     <?= \App\Core\View::current()->partial('partials/job_progress', ['job' => $activeJob, 'reload' => true]) ?>
 </div></div>
 <?php endif; ?>
@@ -174,7 +174,7 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
                     </tbody>
                 </table>
             </div>
-            <div class="card-footer small text-muted"><?php if ($builder): ?>Existing documents are reused when nothing has changed. PDFs include the images saved on this server; Markdown files link to them on ExamTopics. PDFs are built in the background: large exams take a few minutes, and the progress shows here.<?php else: ?>PDFs include the images saved on this server; Markdown files link to them on ExamTopics. A document that is not built yet can be built by an administrator.<?php endif; ?></div>
+            <div class="card-footer small text-muted"><?php if ($builder): ?>PDFs build in the background.<?php else: ?>Ask an administrator to build missing documents.<?php endif; ?></div>
         </div>
     </div>
 

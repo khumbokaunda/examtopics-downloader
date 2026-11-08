@@ -7,7 +7,7 @@ $waiting = count(array_filter($users, static fn(array $u): bool => $u['status'] 
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title">Users</h1>
-        <p class="page-subtitle">Who can sign in and what each person may do. Members read and practise the collected exams; administrators do everything.</p>
+        <p class="page-subtitle">Accounts and what each can do.</p>
     </div>
     <div class="page-actions"><a class="btn btn-primary" href="<?= e(url('/users/new')) ?>"><?= icon('person-plus') ?>New user</a></div>
 </header>

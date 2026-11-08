@@ -38,7 +38,7 @@ final class InstitutionAssessmentController extends TenantController
         [$i, $m] = $this->tenant($ref, 'assessments.create');
         try {
             $uuid = $this->s->assessments()->create($i, $m, (string) $this->request->input('title', ''), (string) $this->request->input('type', ''));
-            $this->flash('success', 'Assessment created as a draft. Set it up below, add its questions, assign it and publish it.');
+            $this->flash('success', 'Draft created. Add questions, then publish.');
             return $this->redirect('/institutions/' . $i['uuid'] . '/assessments/' . $uuid);
         } catch (RuntimeException $e) {
             $this->flash('warning', $e->getMessage());

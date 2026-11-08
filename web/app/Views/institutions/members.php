@@ -68,7 +68,7 @@ $mine = InstitutionAccess::permissions($membership);
                         <select class="form-select" id="invite-role" name="role">
                             <?php foreach ($offer as $k => $r): ?><option value="<?= e($k) ?>" <?= $k === InstitutionAccess::STUDENT ? 'selected' : '' ?>><?= e($r['name']) ?></option><?php endforeach; ?>
                         </select></div>
-                    <p class="form-text">They accept it signed in to an account with this email address; someone without an account can create one from the invitation. It lasts <?= \App\Services\Institutions::INVITE_DAYS ?> days.</p>
+                    <p class="form-text">Lasts <?= \App\Services\Institutions::INVITE_DAYS ?> days.</p>
                     <button class="btn btn-primary" type="submit"><?= icon('send') ?>Send the invitation</button>
                 </form>
             </div>

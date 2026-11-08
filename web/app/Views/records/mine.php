@@ -2,7 +2,7 @@
 use App\Services\AcademicRecords;
 ?>
 <header class="page-header"><div class="page-header-text"><h1 class="page-title">My academic record</h1>
-    <p class="page-subtitle">Your record with each institution you are a student of: final results, the modules you completed and the transcripts issued to you. Each institution keeps its own record.</p></div></header>
+    <p class="page-subtitle">Your results, modules and transcripts.</p></div></header>
 <?php if ($records === []): ?>
     <div class="card"><div class="card-body"><?= empty_state('journal-bookmark', 'No institutional record', 'You are not a student of an institution on ExamLib.', ['Join with a code', url('/enrol')]) ?></div></div>
 <?php endif; ?>

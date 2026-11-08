@@ -11,7 +11,7 @@ $tone = ['sent' => 'success', 'queued' => 'neutral', 'sending' => 'info', 'faile
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title">Email</h1>
-        <p class="page-subtitle">The mail server used for sign-up codes, password resets and notifications.</p>
+        <p class="page-subtitle">Mail server for codes and notices.</p>
     </div>
     <div class="page-actions"><?= $configured ? chip('set up', 'success', 'check2-circle') : chip('not set up', 'warning', 'exclamation-triangle') ?></div>
 </header>
@@ -72,7 +72,7 @@ $tone = ['sent' => 'success', 'queued' => 'neutral', 'sending' => 'info', 'faile
                     <li>Username: the full Gmail address.</li>
                     <li>Password: a 16-character <strong>app password</strong>, not your normal one. Two-step verification must be on first; create one in your Google account under Security, App passwords (<code>myaccount.google.com/apppasswords</code>).</li>
                 </ol>
-                <p class="text-muted mb-0">The password is stored in the database, so backups contain it. Keep backup files private.</p>
+                <p class="text-muted mb-0">Stored in backups. Keep them private.</p>
             </div>
         </div>
     </div>
@@ -94,7 +94,7 @@ $tone = ['sent' => 'success', 'queued' => 'neutral', 'sending' => 'info', 'faile
                     </li>
                 <?php endforeach; ?>
             </ul>
-            <div class="card-footer small text-muted">Everyone also sees their notifications under the bell. Someone who makes a request is not notified of their own request.</div>
+            <div class="card-footer small text-muted">Notifications also show under the bell.</div>
         </div>
     </div>
 
@@ -103,7 +103,7 @@ $tone = ['sent' => 'success', 'queued' => 'neutral', 'sending' => 'info', 'faile
             <div class="card-header"><span class="card-title"><?= icon('mailbox') ?>Notification emails</span>
                 <span class="chip-group"><?php foreach ($counts as $status => $n): ?><?= chip($n . ' ' . $status, $tone[$status] ?? 'neutral') ?><?php endforeach; ?></span></div>
             <?php if ($recent === []): ?>
-                <div class="card-body"><?= empty_state('mailbox', 'No notification emails yet', 'Emails about requests and sign-ups are listed here, and retried if a send fails.', null, true) ?></div>
+                <div class="card-body"><?= empty_state('mailbox', 'No notification emails yet', 'Sent emails show here.', null, true) ?></div>
             <?php else: ?>
             <div class="table-responsive">
                 <table class="table align-middle mb-0 table-stack">

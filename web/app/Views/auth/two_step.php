@@ -19,7 +19,7 @@
                     <label class="form-label small" for="recovery">Recovery code</label>
                     <input class="form-control mono mb-2" id="recovery" name="code" maxlength="20" autocomplete="off" spellcheck="false" placeholder="XXXXX-XXXXX" required>
                     <button class="btn btn-outline-secondary btn-sm" type="submit">Use this code</button>
-                    <p class="form-text mb-0">Each recovery code works once. Without your phone or a code, an administrator can turn two-step sign-in off for you.</p>
+                    <p class="form-text mb-0">Each recovery code works once.</p>
                 </form>
             </details>
             <form method="post" action="<?= e(url('/login/two-step/cancel')) ?>" class="mt-3 text-center"><?= csrf_field() ?>

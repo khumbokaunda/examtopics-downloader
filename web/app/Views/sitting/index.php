@@ -6,13 +6,13 @@ $label = ['open' => 'Open', 'upcoming' => 'Not open yet', 'closed' => 'Closed'];
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title">My assessments</h1>
-        <p class="page-subtitle">Assessments your institutions have set you. Each one keeps its own time, kept by the server, and saves your answers as you pick them.</p>
+        <p class="page-subtitle">Assessments set for you.</p>
     </div>
 </header>
 <div class="card mb-4">
     <div class="card-header"><span class="card-title"><?= icon('pencil-square') ?>Set for you</span></div>
     <?php if ($rows === []): ?>
-        <div class="card-body"><?= empty_state('pencil-square', 'Nothing set for you', 'When an institution you study at assigns you an assessment, it shows here.', null, true) ?></div>
+        <div class="card-body"><?= empty_state('pencil-square', 'Nothing set for you', 'Assigned assessments show here.', null, true) ?></div>
     <?php else: ?>
     <ul class="list-rows">
         <?php foreach ($rows as $a): $w = Sittings::window($a); $left = (int) $a['max_attempts'] - (int) $a['attempts_used']; ?>

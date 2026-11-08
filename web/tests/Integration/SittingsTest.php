@@ -101,7 +101,7 @@ final class SittingsTest extends HttpTestCase
         self::assertStringContainsString('58.33%', $results);
         self::assertSame(200, $this->get($this->path . '/results/' . $uuid)->status);
         $this->post($this->path . '/status', ['action' => 'unpublish']);
-        self::assertStringContainsString('stays published', $this->lastFlash());
+        self::assertStringContainsString('Candidates have sat it', $this->lastFlash());
         $this->as('olive');
         self::assertStringContainsString('handed in the assessment Module test', $this->get('/institutions/' . $this->a . '/activity')->body);
     }

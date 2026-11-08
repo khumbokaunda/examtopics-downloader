@@ -13,7 +13,7 @@ $action = $new ? url('/users') : url('/users/' . $account['uuid']);
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title"><?= e($new ? 'New user' : Access::displayName($account)) ?></h1>
-        <p class="page-subtitle"><?= $new ? 'Create an account and share its password with the person privately.' : 'Created ' . e(fmt_time($account['created_at'])) . ' · last sign-in ' . e($account['last_login_at'] ? fmt_time($account['last_login_at']) : 'never') ?></p>
+        <p class="page-subtitle"><?= $new ? 'Share the password privately.' : 'Created ' . e(fmt_time($account['created_at'])) . ' · last sign-in ' . e($account['last_login_at'] ? fmt_time($account['last_login_at']) : 'never') ?></p>
     </div>
 </header>
 
@@ -39,7 +39,7 @@ $action = $new ? url('/users') : url('/users/' . $account['uuid']);
                 <div class="mb-3">
                     <label class="form-label" for="username">Username</label>
                     <input class="form-control" id="username" name="username" value="<?= e($form['username']) ?>" <?= $new ? 'required pattern="[A-Za-z0-9._\-]{3,64}" autocomplete="off"' : 'disabled' ?>>
-                    <?php if ($new): ?><div class="form-text">3 to 64 letters, digits, dots, hyphens or underscores. People sign in with this or their email address.</div><?php endif; ?>
+                    <?php if ($new): ?><div class="form-text">3 to 64 letters, digits, dots, hyphens or underscores.</div><?php endif; ?>
                 </div>
                 <div class="mb-3"><label class="form-label" for="display_name">Name</label><input class="form-control" id="display_name" name="display_name" maxlength="128" value="<?= e($form['display_name']) ?>"></div>
                 <div class="mb-3"><label class="form-label" for="email">Email address</label><input class="form-control" id="email" name="email" type="email" maxlength="190" value="<?= e($form['email']) ?>">
@@ -68,12 +68,12 @@ $action = $new ? url('/users') : url('/users/' . $account['uuid']);
                     <select class="form-select" id="status" name="status" <?= $self ? 'disabled' : '' ?>>
                         <?php foreach (Access::STATUSES as $slug => $name): ?><option value="<?= e($slug) ?>" <?= $form['status'] === $slug ? 'selected' : '' ?>><?= e($name) ?></option><?php endforeach; ?>
                     </select>
-                    <div class="form-text">Only active accounts can sign in. A disabled account is signed out on its next page.</div>
+                    <div class="form-text">Only active accounts can sign in.</div>
                 </div>
                 <?php if ($form['role'] !== Access::ADMIN): $given = Access::ROLE_PERMISSIONS[$form['role']] ?? []; ?>
                 <fieldset class="settings-section" <?= $self ? 'disabled' : '' ?>>
                     <legend class="section-heading">Permissions</legend>
-                    <p class="small text-muted">Ticked and greyed: given by the role. Tick others to give this person more without making them an administrator.</p>
+                    <p class="small text-muted">Greyed ones come from the role.</p>
                     <?php foreach (Access::PERMISSIONS as $perm => $description): $byRole = in_array($perm, $given, true); ?>
                         <div class="form-check mb-2">
                             <input class="form-check-input" type="checkbox" id="perm-<?= e($perm) ?>" <?= $byRole ? 'checked disabled' : 'name="permissions[]" value="' . e($perm) . '"' . (in_array($perm, $form['permissions'], true) ? ' checked' : '') ?>>
@@ -97,7 +97,7 @@ $action = $new ? url('/users') : url('/users/' . $account['uuid']);
 <?php if (!$new && !$self && ($twoStepOn ?? false)): ?>
 <div class="card mt-4">
     <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
-        <div><strong><?= icon('phone') ?> Two-step sign-in is on</strong><div class="small text-muted">If they lost their phone and their recovery codes, turn it off so they can sign in with their password, then set it up again.</div></div>
+        <div><strong><?= icon('phone') ?> Two-step sign-in is on</strong><div class="small text-muted">Turn off if they lost their phone and codes.</div></div>
         <form method="post" action="<?= e(url('/users/' . $account['uuid'] . '/two-step/off')) ?>" data-confirm="They are told by email, and can turn it on again from their account page." data-confirm-title="Turn off two-step sign-in for <?= e($account['username']) ?>?" data-confirm-button="Turn off" data-confirm-tone="danger"><?= csrf_field() ?>
             <button class="btn btn-outline-danger" type="submit">Turn off two-step sign-in</button>
         </form>
@@ -107,7 +107,7 @@ $action = $new ? url('/users') : url('/users/' . $account['uuid']);
 <?php if (!$new && !$self): ?>
 <div class="card mt-4 border-danger-subtle">
     <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
-        <div><strong>Delete this account</strong><div class="small text-muted">Their requests and notifications go with it. To keep them, set the status to Disabled instead.</div></div>
+        <div><strong>Delete this account</strong><div class="small text-muted">Their data goes too. Disable instead to keep it.</div></div>
         <form method="post" action="<?= e(url('/users/' . $account['uuid'] . '/delete')) ?>" data-confirm="This cannot be undone." data-confirm-title="Delete <?= e($account['username']) ?>?" data-confirm-button="Delete"><?= csrf_field() ?>
             <button class="btn btn-outline-danger" type="submit"><?= icon('trash') ?>Delete account</button>
         </form>

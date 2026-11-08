@@ -7,7 +7,7 @@ use App\Services\SystemSettings;
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title">Settings</h1>
-        <p class="page-subtitle">How this installation is set up. Your own password and appearance are on your <a href="<?= e(url('/account')) ?>">account page</a>.</p>
+        <p class="page-subtitle">How this site is set up.</p>
     </div>
 </header>
 
@@ -57,7 +57,7 @@ use App\Services\SystemSettings;
                             <select class="form-select" id="timezone" name="timezone">
                                 <?php foreach (array_merge(['UTC'], $timezones) as $tz): ?><option value="<?= e($tz) ?>" <?= $system['timezone'] === $tz ? 'selected' : '' ?>><?= e($tz) ?></option><?php endforeach; ?>
                             </select>
-                            <div class="form-text">For accounts without their own timezone (each person can choose one on their account page). Malawi, for example, is Africa/Blantyre.</div>
+                            <div class="form-text">Default for accounts without their own. Malawi is Africa/Blantyre.</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label" for="idle_timeout">Sign out after inactivity</label>

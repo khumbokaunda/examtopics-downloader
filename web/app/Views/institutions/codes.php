@@ -33,7 +33,7 @@ $base = '/institutions/' . $institution['uuid'] . '/students/codes';
         <div class="card">
             <div class="card-header"><span class="card-title"><?= icon('list-ul') ?>Codes</span></div>
             <?php if ($codes === []): ?>
-                <div class="card-body"><?= empty_state('key', 'No codes yet', 'Make one to let students in a room join without collecting their addresses first.', null, true) ?></div>
+                <div class="card-body"><?= empty_state('key', 'No codes yet', 'Let students join without inviting each one.', null, true) ?></div>
             <?php else: ?>
             <ul class="list-rows">
                 <?php foreach ($codes as $c): $open = $c['revoked_at'] === null && ($c['expires_at'] === null || (string) $c['expires_at'] > gmdate('Y-m-d H:i:s')) && ($c['max_uses'] === null || (int) $c['uses'] < (int) $c['max_uses']); ?>

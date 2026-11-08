@@ -6,7 +6,7 @@
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title">Register an institution</h1>
-        <p class="page-subtitle">You become its owner. A platform reviewer checks the registration before people can be invited. Verification here confirms a reviewer looked at it; it is not accreditation or government recognition.</p>
+        <p class="page-subtitle">You become its owner. We review it before you can invite people.</p>
     </div>
 </header>
 <form method="post" action="<?= e(url('/institutions/register')) ?>" data-once><?= csrf_field() ?>

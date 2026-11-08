@@ -27,7 +27,7 @@ $default = min(20, $available['all']);
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title">Mock exam</h1>
-        <p class="page-subtitle"><?= e(Editions::title($exam)) ?>: a random set of questions, against the clock if you like. No answers are shown until you hand it in.</p>
+        <p class="page-subtitle"><?= e(Editions::title($exam)) ?>: random questions, timed if you like.</p>
     </div>
     <div class="page-actions">
         <a class="btn btn-outline-secondary" href="<?= e(url($base . '/view', ['version' => $version['version'], 'mode' => 'practice'])) ?>"><?= icon('patch-question') ?>Practice instead</a>
@@ -49,7 +49,7 @@ $default = min(20, $available['all']);
     </div>
 </div>
 <?php elseif ($available['all'] === 0): ?>
-<div class="card mb-4"><div class="card-body"><?= empty_state('patch-question', 'No questions can be graded', 'A mock exam asks questions whose answer is a set of letters. This exam has none.', null, true) ?></div></div>
+<div class="card mb-4"><div class="card-body"><?= empty_state('patch-question', 'No questions can be graded', 'This exam has no gradable questions.', null, true) ?></div></div>
 <?php else: ?>
 <div class="card mb-4">
     <div class="card-header"><span class="card-title"><?= icon('stopwatch') ?>New mock exam</span></div>
@@ -84,7 +84,7 @@ $default = min(20, $available['all']);
                     </div>
                 </div>
             </div>
-            <div class="form-text mb-3">Only questions whose answer is a set of letters are asked, since only those can be graded. Your answers count towards your progress, like answers checked in practice mode.</div>
+            <div class="form-text mb-3">Only gradable questions are asked. Answers count towards your progress.</div>
             <button class="btn btn-primary" type="submit"><?= icon('play-fill') ?>Start</button>
         </form>
     </div>

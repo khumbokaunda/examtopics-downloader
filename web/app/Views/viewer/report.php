@@ -29,7 +29,7 @@ $n = (int) $item['number'];
         </select>
         <label class="form-label mt-2" for="report-body-<?= $n ?>">Details</label>
         <textarea class="form-control" id="report-body-<?= $n ?>" name="body" rows="2" maxlength="5000" required placeholder="For example: the answer should be C, because…"></textarea>
-        <div class="form-text">Sent to the people who check questions. You are told when it has been dealt with.</div>
+        <div class="form-text">You are told when it is dealt with.</div>
         <div class="post-actions"><button class="btn btn-sm btn-primary" type="submit"><?= icon('send') ?>Send</button></div>
     </form>
 </details>

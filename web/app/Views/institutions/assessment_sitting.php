@@ -60,7 +60,7 @@ $letters = static function (string $order, string $keys): string {
 <div class="card mt-4" id="integrity">
     <div class="card-header"><span class="card-title"><?= icon('shield-check') ?>Integrity</span><span class="small text-muted">Monitoring: <?= e((Integrity::POLICIES[$s['monitoring']] ?? Integrity::POLICIES['basic'])['name']) ?></span></div>
     <div class="card-body">
-        <p class="small text-muted">Observations, then indicators worked out from them by fixed rules, then people's conclusions. An observation has many innocent causes; nothing here is a finding by itself.</p>
+        <p class="small text-muted">Prompts for review, not findings.</p>
         <h2 class="section-heading">Indicators</h2>
         <?php if ($integrity['indicators'] === []): ?><p class="small">Nothing to note.</p><?php else: ?>
         <ul class="list-unstyled small">

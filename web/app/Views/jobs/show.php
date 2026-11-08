@@ -26,7 +26,7 @@ $active = in_array($job['status'], ['queued', 'running'], true);
 <?php if ($active): ?>
 <div class="card mb-4"><div class="card-body">
     <?= \App\Core\View::current()->partial('partials/job_progress', ['job' => $job, 'reload' => true]) ?>
-    <p class="form-text mb-0 mt-3"><?= icon('info-circle') ?> You can close this page or lose your connection: the job keeps running on the server. Come back any time to see its status.</p>
+    <p class="form-text mb-0 mt-3"><?= icon('info-circle') ?> It keeps running if you close this page.</p>
 </div></div>
 <?php endif; ?>
 
