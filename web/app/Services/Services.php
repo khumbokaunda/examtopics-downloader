@@ -213,6 +213,17 @@ final class Services
         return $this->app->service(Integrity::class, fn() => new Integrity($this->app->db(), $this->audit()));
     }
 
+    public function policies(): Policies
+    {
+        return $this->app->service(Policies::class, fn() => new Policies($this->app->db()));
+    }
+
+    public function onboarding(): Onboarding
+    {
+        return $this->app->service(Onboarding::class, fn() => new Onboarding($this->app->db(), $this->institutions()->repo(), $this->policies(), $this->audit(),
+            $this->notifier(), $this->app->paths()->storage()));
+    }
+
     public function invigilation(): Invigilation
     {
         return $this->app->service(Invigilation::class, fn() => new Invigilation($this->app->db(), $this->examIntegrity(), $this->audit()));

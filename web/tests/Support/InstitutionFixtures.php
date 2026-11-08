@@ -37,7 +37,7 @@ trait InstitutionFixtures
     {
         return ['name' => $name, 'short_name' => '', 'type' => 'private_centre', 'address' => 'Area 47, Plot 12', 'region' => 'Central',
             'district' => 'Lilongwe', 'email' => 'info@example.org', 'phone' => '+265 999 123 456', 'website' => 'https://example.org',
-            'registration_info' => '', 'contact_name' => 'Olive Banda', 'contact_position' => 'Director',
+            'registration_info' => '', 'contact_name' => 'Olive Banda', 'contact_position' => 'Director', 'contact_phone' => '+265 888 000 111',
             'intended_use' => 'Assessing our networking students during the course.'];
     }
 
@@ -49,8 +49,10 @@ trait InstitutionFixtures
         self::assertSame(303, $r->status, $r->body);
         $uuid = (string) $this->app->db()->value('SELECT uuid FROM institutions WHERE name = ?', [$name]);
         if ($verify) {
+            $this->post('/institutions/' . $uuid . '/application/submit', ['accept' => '1']);
             $this->as('admin');
-            $this->post('/platform/institutions/' . $uuid . '/decision', ['decision' => 'verify', 'evidence' => 'Phoned the office.']);
+            $this->post('/platform/institutions/' . $uuid . '/decision', ['decision' => 'verify', 'identity' => 'verified', 'representative' => 'verified',
+                'evidence' => 'Phoned the office.']);
             self::assertSame('verified', $this->app->db()->value('SELECT status FROM institutions WHERE uuid = ?', [$uuid]));
         }
         return $uuid;

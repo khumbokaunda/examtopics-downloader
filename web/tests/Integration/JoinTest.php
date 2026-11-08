@@ -30,7 +30,7 @@ final class JoinTest extends HttpTestCase
     {
         $profile = ['name' => 'Zomba Skills Centre', 'short_name' => '', 'type' => 'tevet', 'address' => 'Old Town Road', 'region' => 'Southern', 'district' => 'Zomba',
             'email' => 'office@zsc.example', 'phone' => '+265 1 525 000', 'website' => '', 'registration_info' => 'TEVETA 123', 'contact_name' => 'Grace Phiri',
-            'contact_position' => 'Principal', 'intended_use' => 'End of term tests for our ICT students.'];
+            'contact_position' => 'Principal', 'contact_phone' => '+265 999 000 222', 'intended_use' => 'End of term tests for our ICT students.'];
         $out = ['display_name' => 'Grace Phiri', 'username' => 'grace', 'email' => 'grace@zsc.example', 'password' => 'a long enough password', 'repeat_password' => 'a long enough password'];
         foreach ($profile as $k => $v) {
             $out['inst_' . $k] = $v;
@@ -65,12 +65,13 @@ final class JoinTest extends HttpTestCase
 
         $this->post('/verify', ['code' => $this->code()]);
         $i = $this->app->db()->one('SELECT * FROM institutions');
-        self::assertSame(['Zomba Skills Centre', 'pending'], [$i['name'], $i['status']]);
+        self::assertSame(['Zomba Skills Centre', 'draft'], [$i['name'], $i['status']], 'an application starts as a draft');
         $grace = $this->s->users()->findByUsername('grace');
         self::assertSame('owner', $this->app->db()->value('SELECT role FROM institution_memberships WHERE user_id = ?', [(int) $grace['id']]));
         self::assertSame(200, $this->get('/institutions/' . $i['uuid'])->status, 'signed in, the owner lands on it');
         $admin = $this->s->users()->findByUsername('admin');
-        self::assertSame(1, (int) $this->app->db()->value("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND kind = 'institution'", [(int) $admin['id']]));
+        self::assertSame(0, (int) $this->app->db()->value("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND kind = 'institution'", [(int) $admin['id']]),
+            'reviewers are told once it is sent, not before');
 
         self::assertSame('/institutions/register', $this->get('/join')->headers['Location'] ?? null, 'signed in, it goes to the ordinary form');
     }

@@ -108,10 +108,20 @@ final class AuditText
             'request.answered' => [$who . ' marked the request by ' . $named('requester') . ' for ' . $exam() . ' as ' . $named('status'), 'inbox', 'neutral'],
             'institution.registered' => [$who . ' registered the institution ' . $named('institution'), 'building-add', 'primary'],
             'institution.updated' => [$who . ' changed the profile of ' . $named('institution') . ': ' . self::fields($d['fields'] ?? []), 'building-gear', 'neutral'],
+            'institution.submitted' => [$who . (($d['from'] ?? '') === 'draft' ? ' sent the application of ' : ' sent again the application of ') . $named('institution'), 'send', 'primary'],
+            'institution.document_added' => [$who . ' added a document to the application of ' . $named('institution') . ': '
+                . strtolower(\App\Services\Onboarding::DOCUMENTS[(string) ($d['kind'] ?? '')] ?? '?'), 'file-earmark-plus', 'neutral'],
+            'institution.document_removed' => [$who . ' removed a document from the application of ' . $named('institution') . ': '
+                . strtolower(\App\Services\Onboarding::DOCUMENTS[(string) ($d['kind'] ?? '')] ?? '?'), 'file-earmark-minus', 'neutral'],
+            'institution.verification_changed' => [$who . ' set ' . strtolower(\App\Services\Onboarding::DIMENSIONS[(string) ($d['dimension'] ?? '')]['label'] ?? '?')
+                . ' of ' . $named('institution') . ' to ' . strtolower(\App\Services\Onboarding::DIMENSIONS[(string) ($d['dimension'] ?? '')]['states'][(string) ($d['to'] ?? '')] ?? '?'),
+                'shield-check', ($d['to'] ?? '') === 'verified' ? 'success' : 'neutral'],
             'institution.resubmitted' => [$who . ' sent ' . $named('institution') . ' for verification again', 'building-up', 'neutral'],
             'institution.status_changed' => [$who . ' ' . match ((string) ($d['to'] ?? '')) {
-                'verified' => (($d['from'] ?? '') === 'suspended' ? 'reinstated ' : 'verified ') . $named('institution'),
-                'rejected' => 'did not verify ' . $named('institution'),
+                'verified' => (($d['from'] ?? '') === 'suspended' ? 'reinstated ' : 'approved ') . $named('institution'),
+                'rejected' => 'did not approve ' . $named('institution'),
+                'under_review' => 'started reviewing ' . $named('institution'),
+                'info_requested' => 'asked ' . $named('institution') . ' for more information',
                 'suspended' => 'suspended ' . $named('institution'),
                 default => 'changed the status of ' . $named('institution'),
             }, 'building-check', ($d['to'] ?? '') === 'verified' ? 'success' : 'warning'],

@@ -41,22 +41,40 @@ $select = static function (string $name, string $label, array $options) use ($fo
 <?php endif; ?>
 <div class="row g-4">
     <div class="col-lg-6">
-        <div class="card h-100">
-            <div class="card-header"><span class="card-title"><?= icon('building') ?>The institution</span></div>
+        <div class="card mb-4">
+            <div class="card-header"><span class="card-title"><?= icon('building') ?>Organisation</span></div>
             <div class="card-body">
-                <?= $field('name', 'Official name', 'text', ['required' => true, 'maxlength' => '160']) ?>
-                <?= $field('short_name', 'Commonly used name (optional)', 'text', ['maxlength' => '80'], 'Shown in menus and page titles when given.') ?>
-                <?= $select('type', 'Kind of institution', Institutions::TYPES) ?>
-                <?= $field('registration_info', 'Registration or accreditation details (optional)', 'textarea', ['rows' => '2', 'maxlength' => '500'],
-                    'For example a registration number and the body that issued it. It helps the reviewer; verification here is not accreditation.') ?>
-                <?= $field('intended_use', 'How you plan to use the platform', 'textarea', ['rows' => '3', 'required' => true, 'maxlength' => '1000'],
+                <?= $field('name', 'Official registered name', 'text', ['required' => true, 'maxlength' => '160']) ?>
+                <?= $field('short_name', 'Trading or commonly used name (optional)', 'text', ['maxlength' => '80'], 'Shown in menus and page titles when given.') ?>
+                <div class="row g-3">
+                    <div class="col-sm-8"><?= $select('type', 'Kind of institution', Institutions::TYPES) ?></div>
+                    <div class="col-sm-4"><?= $field('year_established', 'Year established', 'text', ['inputmode' => 'numeric', 'maxlength' => '4', 'placeholder' => 'e.g. 2014']) ?></div>
+                </div>
+                <?= $field('services', 'The training it offers (optional)', 'textarea', ['rows' => '2', 'maxlength' => '1000'], 'For example: Cisco and CompTIA courses, short ICT courses.') ?>
+                <?= $field('intended_use', 'How you plan to use the platform', 'textarea', ['rows' => '2', 'required' => true, 'maxlength' => '1000'],
                     'For example: assessing our CCNA students during the course.') ?>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header"><span class="card-title"><?= icon('patch-check') ?>Registration and accreditation</span></div>
+            <div class="card-body">
+                <p class="form-text mt-0">Give what applies to your institution; leave the rest empty. Registration (for example with the Registrar of Companies, NCHE or TEVETA) and accreditation of courses are different things, and are verified separately.</p>
+                <div class="row g-3">
+                    <div class="col-sm-7"><?= $field('registration_authority', 'Registration authority', 'text', ['maxlength' => '160']) ?></div>
+                    <div class="col-sm-5"><?= $field('registration_number', 'Registration number', 'text', ['maxlength' => '80']) ?></div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-sm-7"><?= $field('accreditation_authority', 'Accrediting body', 'text', ['maxlength' => '160']) ?></div>
+                    <div class="col-sm-5"><?= $field('accreditation_reference', 'Accreditation reference', 'text', ['maxlength' => '80']) ?></div>
+                </div>
+                <?= $field('accreditation_expires', 'Accreditation valid until', 'date') ?>
+                <?= $field('registration_info', 'Anything else the reviewer should know (optional)', 'textarea', ['rows' => '2', 'maxlength' => '500']) ?>
             </div>
         </div>
     </div>
     <div class="col-lg-6">
-        <div class="card h-100">
-            <div class="card-header"><span class="card-title"><?= icon('geo-alt') ?>Where and who to contact</span></div>
+        <div class="card mb-4">
+            <div class="card-header"><span class="card-title"><?= icon('geo-alt') ?>Where and how to reach it</span></div>
             <div class="card-body">
                 <?= $field('address', 'Physical address', 'text', ['required' => true, 'maxlength' => '255']) ?>
                 <div class="row g-3">
@@ -65,13 +83,20 @@ $select = static function (string $name, string $label, array $options) use ($fo
                 </div>
                 <datalist id="inst-districts"><?php foreach (Institutions::DISTRICTS as $d): ?><option value="<?= e($d) ?>"><?php endforeach; ?></datalist>
                 <div class="row g-3">
-                    <div class="col-sm-6"><?= $field('email', 'Contact email', 'email', ['required' => true, 'maxlength' => '190']) ?></div>
-                    <div class="col-sm-6"><?= $field('phone', 'Contact telephone', 'tel', ['required' => true, 'maxlength' => '40']) ?></div>
+                    <div class="col-sm-6"><?= $field('email', 'Official email', 'email', ['required' => true, 'maxlength' => '190']) ?></div>
+                    <div class="col-sm-6"><?= $field('phone', 'Official telephone', 'tel', ['required' => true, 'maxlength' => '40']) ?></div>
                 </div>
                 <?= $field('website', 'Website (optional)', 'url', ['maxlength' => '255', 'placeholder' => 'https://']) ?>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header"><span class="card-title"><?= icon('person-badge') ?>Authorised representative</span></div>
+            <div class="card-body">
+                <p class="form-text mt-0">The person applying for the institution. A reviewer confirms they are authorised to represent it, so a letter of authority among the documents helps.</p>
+                <?= $field('contact_name', 'Full name', 'text', ['required' => true, 'maxlength' => '120']) ?>
                 <div class="row g-3">
-                    <div class="col-sm-6"><?= $field('contact_name', 'Contact person', 'text', ['required' => true, 'maxlength' => '120']) ?></div>
-                    <div class="col-sm-6"><?= $field('contact_position', 'Their position', 'text', ['required' => true, 'maxlength' => '120']) ?></div>
+                    <div class="col-sm-6"><?= $field('contact_position', 'Position at the institution', 'text', ['required' => true, 'maxlength' => '120']) ?></div>
+                    <div class="col-sm-6"><?= $field('contact_phone', 'Telephone', 'tel', ['required' => true, 'maxlength' => '40']) ?></div>
                 </div>
             </div>
         </div>

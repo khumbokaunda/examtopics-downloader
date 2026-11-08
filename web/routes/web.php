@@ -6,6 +6,8 @@ use App\Controllers\AccountController;
 use App\Controllers\ActivityController;
 use App\Controllers\AnswerController;
 use App\Controllers\AuthController;
+use App\Controllers\InstitutionApplicationController;
+use App\Controllers\PolicyController;
 use App\Controllers\BackupController;
 use App\Controllers\BrandingController;
 use App\Controllers\CertificateController;
@@ -133,6 +135,8 @@ return static function (Router $r): void {
     $r->get('/certificates/{uuid}', [CertificateController::class, 'show'], can: $read);
     $r->get('/certificates/{uuid}/pdf', [CertificateController::class, 'pdf'], can: $read);
     $r->get('/verify/{token}', [CertificateController::class, 'verify'], public: true);
+    $r->get('/policies', [PolicyController::class, 'index'], public: true);
+    $r->get('/policies/{key}', [PolicyController::class, 'show'], public: true);
     $r->get('/platform/certificates', [CertificateController::class, 'platform'], can: 'certificates.manage');
     $r->post('/platform/certificates/{uuid}/revoke', [CertificateController::class, 'revoke'], can: 'certificates.manage');
     $r->post('/api/mock/{uuid}/answer', [MockController::class, 'save'], can: $read);
@@ -188,6 +192,11 @@ return static function (Router $r): void {
     $r->get('/institutions/{ref}/profile', [InstitutionController::class, 'profile'], can: $me);
     $r->post('/institutions/{ref}/profile', [InstitutionController::class, 'saveProfile'], can: $me);
     $r->post('/institutions/{ref}/resubmit', [InstitutionController::class, 'resubmit'], can: $me);
+    $r->get('/institutions/{ref}/application', [InstitutionApplicationController::class, 'show'], can: $me);
+    $r->post('/institutions/{ref}/application/documents', [InstitutionApplicationController::class, 'upload'], can: $me);
+    $r->get('/institutions/{ref}/application/documents/{document}', [InstitutionApplicationController::class, 'download'], can: $me);
+    $r->post('/institutions/{ref}/application/documents/{document}/remove', [InstitutionApplicationController::class, 'remove'], can: $me);
+    $r->post('/institutions/{ref}/application/submit', [InstitutionApplicationController::class, 'submit'], can: $me);
     $r->get('/institutions/{ref}/members', [InstitutionController::class, 'members'], can: $me);
     $r->post('/institutions/{ref}/invitations', [InstitutionController::class, 'invite'], can: $me);
     $r->post('/institutions/{ref}/invitations/{id}/revoke', [InstitutionController::class, 'revoke'], can: $me);
@@ -282,6 +291,7 @@ return static function (Router $r): void {
     $r->get('/platform/institutions', [PlatformInstitutionController::class, 'index'], can: 'institutions.manage');
     $r->get('/platform/institutions/{ref}', [PlatformInstitutionController::class, 'show'], can: 'institutions.manage');
     $r->post('/platform/institutions/{ref}/decision', [PlatformInstitutionController::class, 'decide'], can: 'institutions.manage');
+    $r->get('/platform/institutions/{ref}/documents/{document}', [PlatformInstitutionController::class, 'document'], can: 'institutions.manage');
 
     $r->get('/requests', [RequestController::class, 'index'], can: 'exams.request');
     $r->post('/requests', [RequestController::class, 'store'], can: 'exams.request');

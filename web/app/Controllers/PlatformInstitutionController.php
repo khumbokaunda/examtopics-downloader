@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Core\Http\HttpException;
 use App\Core\Http\Response;
 use App\Services\Institutions;
+use App\Services\Onboarding;
 use RuntimeException;
 
 /**
@@ -32,7 +33,15 @@ final class PlatformInstitutionController extends Controller
         $i = $repo->findByUuid($ref) ?? throw HttpException::notFound('Institution');
         return $this->render('platform/institution', ['title' => $i['name'], 'nav' => 'platform-institutions', 'institution' => $i,
             'reviews' => $repo->reviews((int) $i['id']), 'owners' => $repo->owners((int) $i['id']),
+            'documents' => $this->s->onboarding()->documents((int) $i['id']), 'acceptances' => $this->s->policies()->acceptances('institution', (int) $i['id']),
+            'missing' => $this->s->onboarding()->missing($i),
             'memberCount' => array_sum($repo->roleCounts((int) $i['id']))]);
+    }
+
+    public function document(string $ref, string $document): Response
+    {
+        $i = $this->s->institutions()->repo()->findByUuid($ref) ?? throw HttpException::notFound('Institution');
+        return InstitutionApplicationController::serve($this->s->onboarding(), $i, $document);
     }
 
     public function decide(string $ref): Response
@@ -40,8 +49,22 @@ final class PlatformInstitutionController extends Controller
         $i = $this->s->institutions()->repo()->findByUuid($ref) ?? throw HttpException::notFound('Institution');
         try {
             $decision = (string) $this->request->input('decision', '');
-            $this->s->institutions()->decide($i, $decision, (string) $this->request->input('note', ''), (string) $this->request->input('evidence', ''), $this->auth->user());
-            $this->flash('success', $i['name'] . ': ' . strtolower(Institutions::STATUSES[Institutions::DECISIONS[$decision]['to']]) . '. Its owners are told.');
+            $note = (string) $this->request->input('note', '');
+            $evidence = (string) $this->request->input('evidence', '');
+            $changed = 0;
+            foreach (array_keys(Onboarding::DIMENSIONS) as $dim) {
+                $state = (string) $this->request->input($dim, '');
+                if ($state !== '') {
+                    $changed += $this->s->onboarding()->setDimension($i, $dim, $state, $decision === 'dimensions' ? $note : '', $evidence, $this->auth->user()) ? 1 : 0;
+                    $i = (array) $this->s->institutions()->repo()->findByUuid($ref);
+                }
+            }
+            if ($decision === 'dimensions') {
+                $this->flash('success', $changed === 0 ? 'Nothing changed.' : 'Verification saved.');
+            } else {
+                $this->s->institutions()->decide($i, $decision, $note, $evidence, $this->auth->user());
+                $this->flash('success', $i['name'] . ': ' . strtolower(Institutions::STATUSES[Institutions::DECISIONS[$decision]['to']]) . '. Its owners are told.');
+            }
         } catch (RuntimeException $e) {
             $this->flash('warning', $e->getMessage());
         }

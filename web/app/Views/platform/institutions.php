@@ -1,6 +1,6 @@
 <?php /** @var list<array> $rows @var string $status @var array<string,int> $counts */
 use App\Services\Institutions;
-$tone = ['pending' => 'warning', 'verified' => 'success', 'rejected' => 'danger', 'suspended' => 'danger'];
+$tone = \App\Services\Institutions::TONES;
 ?>
 <header class="page-header">
     <div class="page-header-text">

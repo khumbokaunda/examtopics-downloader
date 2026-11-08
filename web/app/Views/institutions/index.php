@@ -2,7 +2,7 @@
 /** @var list<array> $mine */
 use App\Services\InstitutionAccess;
 use App\Services\Institutions;
-$tone = ['pending' => 'warning', 'verified' => 'success', 'rejected' => 'danger', 'suspended' => 'danger'];
+$tone = \App\Services\Institutions::TONES;
 ?>
 <header class="page-header">
     <div class="page-header-text">

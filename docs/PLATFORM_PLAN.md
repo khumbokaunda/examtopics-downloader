@@ -620,3 +620,71 @@ part of the ground: identity checks can be recorded as invigilator observations,
 keeps an append-only answer history and integrity timeline, results are published deliberately,
 and the activity history records every decision. The next step is a pilot with one or two
 institutions, then a decision on which formal capabilities they actually need.
+
+---
+
+# Addendum: institutional onboarding, student lifecycle and credentials
+
+The specification addendum ("Institutional Onboarding, Student Lifecycle and Credential
+Management") is delivered in its own priority order: institution registration and verification,
+then student identity and membership, bulk enrolment and enrolment codes, programmes and academic
+records, and credentials with signatories, transcripts and corrections.
+
+## Stage 1: institution registration and verification (delivered)
+
+Migration 037.
+
+- **An application, not a switch.** Registering (`/institutions/register`, or `/join` without an
+  account) starts a **draft**. The application page (`/institutions/{ref}/application`, for
+  managers) lists what is still needed, takes the supporting documents, and sends it. The
+  lifecycle is draft, submitted, under review, more information requested, approved, not
+  approved, suspended; every step is kept in the review history with who, when and why.
+  Reviewers are told only once an application is sent.
+- **What is collected**, in four sections: the organisation (official and trading name, kind,
+  year established, the training it offers, address, district and region, official email and
+  telephone, website); registration and accreditation (registration authority and number,
+  accrediting body, reference and expiry, other notes); the authorised representative (name,
+  position, telephone; their email is their verified account); and the agreement.
+- **Documents by kind of institution.** Universities, colleges, technical colleges and
+  examination providers must send their registration certificate; anyone naming an accrediting
+  body must send its evidence; a private centre or corporate department is not asked for what it
+  may not have. Documents are PDF, JPEG or PNG (checked by content), up to 10 MB, stored outside
+  the web root under `storage/institution_documents` (included in backups), served only to the
+  institution's managers and platform reviewers, with a SHA-256 kept. Once an application is
+  sent, documents can be added but not removed: they may be evidence for a decision.
+- **The agreement.** Sending the application means accepting, on the institution's behalf, the
+  institutional terms, the data processing agreement, the examination usage policy, the question
+  ownership terms, the certificate issuance rules and the acceptable use policy. They are public
+  at `/policies`, each with a version, and `policy_acceptances` records which version who
+  accepted when and in what context. The data processing agreement puts the lawful basis for
+  processing students' information, including guardian involvement for minors, with the
+  institution: accepting a notice is not treated as that basis.
+- **Verification dimensions.** Organisation identity (pending, verified, rejected), legal
+  registration and accreditation (not verified, verified, not applicable), representative
+  authority (pending, verified, rejected), and the platform approval (the status). A reviewer
+  sets each with a note and what they checked; each change is its own history row. Approving
+  needs identity and representative authority verified; registration and accreditation are shown
+  exactly as set, so a verified private centre is never presented as accredited. The header shows
+  "Registration verified" or "Accreditation verified" only when they are.
+- **Decisions**: start the review, ask for more information (the owners answer on the
+  application page and send it again), approve, do not approve (they can correct and send again),
+  suspend and reinstate. Suspension closes the institution's pages but keeps every membership,
+  result and certificate.
+- **Activation and setup.** On approval the owners are told and the overview shows a
+  "Getting started" checklist worked out from what exists: two-step sign-in on the owner's account,
+  staff invited, programmes, a class, students, a question bank, a first assessment.
+- Institutions approved before this stage have identity and representative authority marked
+  verified (a reviewer had checked them) and registration and accreditation not verified.
+
+`OnboardingTest` (3 tests) and the updated `InstitutionsTest` and `JoinTest`: required documents by
+kind, content-checked uploads, document access, the agreement and its versions, asking for and
+answering more information, approval needing identity and authority, dimension history,
+registration shown verified while accreditation is not, suspension keeping records, public
+policies.
+
+### Known limitations (stage 1)
+
+- The representative's telephone is recorded and checked by a reviewer (for example by calling),
+  not by an automatic SMS code.
+- Ownership: the applicant becomes the owner, and the reviewer verifies their authority before
+  approval. Transferring ownership afterwards uses the existing role change by another owner.

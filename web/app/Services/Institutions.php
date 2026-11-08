@@ -39,17 +39,29 @@ final class Institutions
         'Lilongwe', 'Machinga', 'Mangochi', 'Mchinji', 'Mulanje', 'Mwanza', 'Mzimba', 'Neno', 'Nkhata Bay', 'Nkhotakota', 'Nsanje',
         'Ntcheu', 'Ntchisi', 'Phalombe', 'Rumphi', 'Salima', 'Thyolo', 'Zomba'];
 
+    /**
+     * The application's lifecycle; 'pending' is a submitted application and 'verified' an
+     * approved one (the stored names predate the lifecycle and every check reads them).
+     */
     public const STATUSES = [
-        'pending' => 'Waiting for verification',
-        'verified' => 'Verified',
-        'rejected' => 'Not verified',
+        'draft' => 'Draft, not sent',
+        'pending' => 'Submitted',
+        'under_review' => 'Under review',
+        'info_requested' => 'More information requested',
+        'verified' => 'Approved',
+        'rejected' => 'Not approved',
         'suspended' => 'Suspended',
     ];
 
+    public const TONES = ['draft' => 'neutral', 'pending' => 'warning', 'under_review' => 'info', 'info_requested' => 'warning', 'verified' => 'success',
+        'rejected' => 'danger', 'suspended' => 'danger'];
+
     /** The decisions a platform reviewer can make, from the statuses each applies to. */
     public const DECISIONS = [
-        'verify' => ['to' => 'verified', 'from' => ['pending', 'rejected', 'suspended'], 'label' => 'Verify', 'note' => false],
-        'reject' => ['to' => 'rejected', 'from' => ['pending'], 'label' => 'Do not verify', 'note' => true],
+        'review' => ['to' => 'under_review', 'from' => ['pending'], 'label' => 'Start the review', 'note' => false],
+        'request_info' => ['to' => 'info_requested', 'from' => ['pending', 'under_review'], 'label' => 'Ask for more information', 'note' => true],
+        'verify' => ['to' => 'verified', 'from' => ['pending', 'under_review', 'suspended'], 'label' => 'Approve', 'note' => false],
+        'reject' => ['to' => 'rejected', 'from' => ['pending', 'under_review', 'info_requested'], 'label' => 'Do not approve', 'note' => true],
         'suspend' => ['to' => 'suspended', 'from' => ['verified'], 'label' => 'Suspend', 'note' => true],
     ];
 
@@ -95,11 +107,31 @@ final class Institutions
                 $errors[$f] = $label . ' needs ' . $min . ' to ' . $max . ' characters.';
             }
         }
-        foreach (['short_name' => 80, 'website' => 255, 'registration_info' => 500] as $f => $max) {
+        foreach (['short_name' => 80, 'website' => 255, 'registration_info' => 500, 'services' => 1000, 'registration_authority' => 160, 'registration_number' => 80,
+            'accreditation_authority' => 160, 'accreditation_reference' => 80, 'year_established' => 4, 'accreditation_expires' => 10, 'contact_phone' => 40] as $f => $max) {
             if ($len($f) > $max) {
                 $errors[$f] = 'At most ' . $max . ' characters.';
             }
             $v[$f] = $v[$f] === '' ? null : $v[$f];
+        }
+        if ($v['year_established'] !== null && (preg_match('/^\d{4}$/', (string) $v['year_established']) !== 1 || (int) $v['year_established'] < 1850
+            || (int) $v['year_established'] > (int) gmdate('Y'))) {
+            $errors['year_established'] = 'Give the year it was established, for example 2014, or leave it empty.';
+        }
+        if ($v['accreditation_expires'] !== null) {
+            $d = \DateTimeImmutable::createFromFormat('!Y-m-d', (string) $v['accreditation_expires']);
+            if ($d === false || $d->format('Y-m-d') !== $v['accreditation_expires']) {
+                $errors['accreditation_expires'] = 'Give the date the accreditation expires, or leave it empty.';
+            }
+        }
+        if ($v['accreditation_authority'] === null && ($v['accreditation_reference'] !== null || $v['accreditation_expires'] !== null)) {
+            $errors['accreditation_authority'] = 'Name the accrediting body for the accreditation you describe.';
+        }
+        if ($v['registration_number'] !== null && $v['registration_authority'] === null) {
+            $errors['registration_authority'] = 'Name the authority that issued the registration number.';
+        }
+        if (preg_match('/^\+?[0-9 ()\-]{7,40}$/', (string) $v['contact_phone']) !== 1) {
+            $errors['contact_phone'] = 'Give the representative\'s telephone number: digits, spaces and an optional + at the start.';
         }
         if (!isset(self::TYPES[(string) $v['type']])) {
             $errors['type'] = 'Choose the kind of institution.';
@@ -121,8 +153,9 @@ final class Institutions
     }
 
     /**
-     * Register an institution; the person registering becomes its owner. It waits for a
-     * reviewer, who is told in their inbox.
+     * Start an institution's application, as a draft. The person registering becomes its owner
+     * (their authority to represent it is one of the things a reviewer verifies). Reviewers are
+     * told once the application is sent (Onboarding::submit()), not before.
      *
      * @param array<string,?string> $profile already validated
      * @param array<string,mixed> $user
@@ -131,16 +164,12 @@ final class Institutions
     public function register(array $profile, array $user): array
     {
         if ($this->repo->pendingCreatedBy((int) $user['id']) >= self::MAX_PENDING) {
-            throw new RuntimeException('You already have ' . self::MAX_PENDING . ' registrations waiting for verification. Wait for a decision on those first.');
+            throw new RuntimeException('You already have ' . self::MAX_PENDING . ' applications open. Finish or wait for a decision on those first.');
         }
         $id = $this->repo->create($profile, (int) $user['id']);
         $this->repo->join($id, (int) $user['id'], InstitutionAccess::OWNER, [], null);
         $institution = (array) $this->repo->find($id);
         $this->record('institution.registered', $institution, ['type' => $institution['type']]);
-        $this->notifier->notifyPermission('institutions.manage', 'institution', 'Institution to verify: ' . $institution['name'],
-            Access::displayName($user) . ' registered ' . $institution['name'] . ' (' . (self::TYPES[$institution['type']] ?? $institution['type']) . ', '
-            . $institution['district'] . ').', '/platform/institutions/' . $institution['uuid'], 'institution-review:' . $institution['uuid'],
-            'institution-registered:' . $institution['uuid'], (int) $user['id']);
         return $institution;
     }
 
@@ -160,22 +189,11 @@ final class Institutions
         $this->record('institution.updated', $institution, ['fields' => $changed]);
     }
 
-    /** A registration that was not verified, sent back for another look. @param array<string,mixed> $institution @param array<string,mixed> $user */
-    public function resubmit(array $institution, array $user): void
-    {
-        if ($institution['status'] !== 'rejected') {
-            throw new RuntimeException('Only a registration that was not verified can be sent again.');
-        }
-        $this->repo->setStatus((int) $institution['id'], 'rejected', 'pending', null, null, (int) $user['id']);
-        $this->record('institution.resubmitted', $institution);
-        $this->notifier->notifyPermission('institutions.manage', 'institution', 'Institution to verify again: ' . $institution['name'],
-            Access::displayName($user) . ' sent the registration of ' . $institution['name'] . ' again.', '/platform/institutions/' . $institution['uuid'],
-            'institution-review:' . $institution['uuid'], 'institution-resubmitted:' . $institution['uuid'] . ':' . time(), (int) $user['id']);
-    }
-
     /**
-     * A platform reviewer's decision. Rejecting and suspending need a reason, which the owners
-     * see.
+     * A platform reviewer's decision. Asking for information, declining and suspending need a
+     * reason, which the owners see. Approving needs the organisation's identity and the
+     * representative's authority verified (Onboarding::setDimension()); registration and
+     * accreditation may stay unverified or not applicable.
      *
      * @param array<string,mixed> $institution @param array<string,mixed> $reviewer
      */
@@ -184,28 +202,39 @@ final class Institutions
         $d = self::DECISIONS[$decision] ?? throw new RuntimeException('Choose a decision.');
         $from = (string) $institution['status'];
         if (!in_array($from, $d['from'], true)) {
-            throw new RuntimeException('An institution that is "' . (self::STATUSES[$from] ?? $from) . '" cannot be given that decision.');
+            throw new RuntimeException('An application that is "' . (self::STATUSES[$from] ?? $from) . '" cannot be given that decision.');
         }
         $note = mb_substr(trim($note), 0, 1000);
         $evidence = mb_substr(trim($evidence), 0, 1000);
         if ($d['note'] && $note === '') {
             throw new RuntimeException('Give the reason. The institution\'s owners will see it.');
         }
+        if ($decision === 'verify' && $from !== 'suspended'
+            && ($institution['identity_status'] !== 'verified' || $institution['representative_status'] !== 'verified')) {
+            throw new RuntimeException('Verify the organisation\'s identity and the representative\'s authority before approving.');
+        }
         $this->repo->setStatus((int) $institution['id'], $from, $d['to'], $note !== '' ? $note : null, $evidence !== '' ? $evidence : null, (int) $reviewer['id']);
         $this->record('institution.status_changed', $institution, ['from' => $from, 'to' => $d['to']]);
-        $this->notifier->resolve('institution-review:' . $institution['uuid']);
+        if (in_array($d['to'], ['verified', 'rejected', 'info_requested', 'suspended'], true)) {
+            $this->notifier->resolve('institution-review:' . $institution['uuid']);
+        }
+        if ($d['to'] === 'under_review') {
+            return;
+        }
         $title = match ($d['to']) {
-            'verified' => $institution['name'] . ' is verified',
-            'rejected' => $institution['name'] . ' was not verified',
+            'verified' => $from === 'suspended' ? $institution['name'] . ' is reinstated' : $institution['name'] . ' is approved',
+            'rejected' => $institution['name'] . ' was not approved',
+            'info_requested' => $institution['name'] . ': more information is needed',
             default => $institution['name'] . ' is suspended',
         };
         $body = match ($d['to']) {
-            'verified' => 'You can now invite people to the institution.',
-            'rejected' => 'Reason: ' . $note . ' You can correct the profile and send it again.',
-            default => 'Reason: ' . $note . ' Its members cannot use it until it is reinstated.',
+            'verified' => 'Your institution\'s workspace is ready. Start with the setup steps on its overview.',
+            'rejected' => 'Reason: ' . $note . ' You can correct the application and send it again.',
+            'info_requested' => 'The reviewer asks: ' . $note . ' Answer it on the application page and send it again.',
+            default => 'Reason: ' . $note . ' Its members cannot use it until it is reinstated. Its records and certificates are kept.',
         };
         foreach ($this->repo->owners((int) $institution['id']) as $owner) {
-            $this->notifier->notify($owner, 'institution', $title, $body, '/institutions/' . $institution['uuid'], null,
+            $this->notifier->notify($owner, 'institution', $title, $body, '/institutions/' . $institution['uuid'] . ($d['to'] === 'verified' ? '' : '/application'), null,
                 'institution-decision:' . $institution['uuid'] . ':' . $d['to'] . ':' . time());
         }
     }
