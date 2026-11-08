@@ -688,3 +688,48 @@ policies.
   not by an automatic SMS code.
 - Ownership: the applicant becomes the owner, and the reviewer verifies their authority before
   approval. Transferring ownership afterwards uses the existing role change by another owner.
+
+## Stage 2: student identity, membership lifecycle, bulk enrolment and codes (delivered)
+
+Migration 038.
+
+- **One account, many relationships.** A student has one ExamLib account. Each institution they
+  belong to holds a membership and its own student record (number, programme, classes, standing).
+  Neither institution sees the other's records, and accounts are never created, merged or matched
+  by name on anyone's behalf.
+- **The lifecycle**, shown as counts on the students page: invited (sent, link not opened, no
+  account), pending registration (the person needs to create or confirm an account), pending
+  acceptance (an account with the address exists), then active, suspended, withdrawn or completed
+  (the student's standing). Standing belongs to the relationship: a student who is withdrawn,
+  suspended or has completed keeps their account, study and other institutions, and their results
+  stay in the institution's records. **A student who is not active can no longer start the
+  institution's assessments**; before this stage the sitting query ignored standing.
+- **Invitations**: created, delivered, opened (recorded), accepted, expired, cancelled and
+  resent. Resending issues a fresh link (the old one stops working), lasting another 14 days, and
+  works on an invitation that expired unanswered. The students page lists open student
+  invitations with their state, how often and when they were sent, and Resend and Cancel; staff
+  invitations stay on the People page.
+- **Membership notice.** Joining as a student, by invitation or by code, shows what the
+  institution will and will not see and needs the box ticked; the acceptance is recorded with the
+  notice's version in `policy_acceptances`.
+- **Bulk enrolment** matches by email address only and puts every row in a category: existing
+  member (record updated), existing ExamLib user (invited to join), new user (invited to create an
+  account), already invited (kept, never sent twice), needs a decision, or not importable. A
+  name that differs from the account's, or a student number that differs from the one on record,
+  is held for someone to tick in the preview. A student number that belongs to another student or
+  waits in another invitation is refused. The preview offers the problem rows as a CSV, the
+  results CSV covers every row, and importing the same file again sends nothing twice.
+- **Enrolment codes** (`/institutions/{ref}/students/codes`, students.manage): generated codes
+  such as `BLAN-DNKC-GFTN`, optionally limited to a programme or class, with an expiry date, a
+  maximum number of uses and whether each request needs approval. Students enter a code at
+  `/enrol` after signing in, see the institution and what joining means, then join or ask to.
+  Requests appear on the students page to approve or decline, and the student is told. A code
+  establishes eligibility to ask, not identity, and the codes page says so. Ten wrong codes in an
+  hour stop an account from trying more, so codes cannot be found by guessing. Withdrawing a code
+  leaves everyone who joined with it in place.
+
+`StudentLifecycleTest` (4 tests) and the updated `ClassesTest`: invitation states, resend with a new
+link, cancel, staff invitations kept out, the membership notice, codes with and without approval
+(class applied, uses counted, expiry, withdrawal, guessing limit), import categories with
+conflicts held for a decision, the problems file, a safe second import, and standing stopping
+assessments.

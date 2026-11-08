@@ -20,8 +20,12 @@ $here = '/invitations/' . $token;
             </div>
             <?php endif; ?>
         <?php elseif ($refusal === null): ?>
-            <div class="d-flex flex-wrap gap-2">
-                <form method="post" action="<?= e(url($here . '/accept')) ?>" data-once><?= csrf_field() ?><button class="btn btn-primary" type="submit"><?= icon('check2') ?>Accept and join</button></form>
+            <div class="d-flex flex-wrap gap-2 align-items-start">
+                <form method="post" action="<?= e(url($here . '/accept')) ?>" data-once><?= csrf_field() ?>
+                    <?php if ($invitation['role'] === InstitutionAccess::STUDENT): ?>
+                        <?= \App\Core\View::current()->partial('policies/_notice', ['key' => 'membership_notice', 'name' => 'notice', 'institution' => $invitation['institution_name']]) ?>
+                    <?php endif; ?>
+                    <button class="btn btn-primary" type="submit"><?= icon('check2') ?>Accept and join</button></form>
                 <form method="post" action="<?= e(url($here . '/decline')) ?>" data-once><?= csrf_field() ?><button class="btn btn-outline-secondary" type="submit"><?= icon('x') ?>Decline</button></form>
             </div>
         <?php endif; ?>

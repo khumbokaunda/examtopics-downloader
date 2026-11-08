@@ -283,6 +283,33 @@ final class Institutions
         return ['path' => $path, 'link' => $url ?? $path, 'emailed' => $emailed];
     }
 
+    /**
+     * Send an open invitation again, with a fresh link (the old one stops working) lasting
+     * another INVITE_DAYS. Works on an invitation that expired without being answered.
+     *
+     * @param array<string,mixed> $institution @param array<string,mixed> $user
+     * @return array{link:string,emailed:bool}
+     */
+    public function resend(array $institution, array $user, int $invitationId): array
+    {
+        $inv = $this->repo->pendingInvitation((int) $institution['id'], $invitationId) ?? throw new RuntimeException('That invitation is no longer open.');
+        $token = bin2hex(random_bytes(24));
+        $this->repo->renewInvitation((int) $institution['id'], $invitationId, hash('sha256', $token), gmdate('Y-m-d H:i:s', time() + self::INVITE_DAYS * 86400));
+        $path = '/invitations/' . $token;
+        $this->record('institution.invitation_resent', $institution, ['email' => $inv['email']]);
+        $title = 'Reminder: ' . Access::displayName($user) . ' invited you to ' . $institution['name'];
+        $line = 'You are invited to join ' . $institution['name'] . ' as ' . InstitutionAccess::roleName((string) $inv['role']) . '. This link lasts ' . self::INVITE_DAYS . ' days.';
+        $existing = $this->users->findByEmail((string) $inv['email']);
+        if ($existing !== null && $existing['status'] === 'active') {
+            $this->notifier->notify(['email' => null] + $existing, 'institution', $title, $line, $path, 'invitation:' . $invitationId, 'invitation:' . $invitationId . ':' . time());
+        }
+        $url = $this->mailer->link($path);
+        $emailed = $this->mailer->configured() && $url !== null && $this->mail->enqueue('invitation:' . $invitationId . ':' . time(), (string) $inv['email'], null, $title,
+            '<p>' . e($line) . '</p><p><a href="' . e($url) . '">See the invitation</a></p>'
+            . '<p style="color:#6b7280;font-size:13px">Accept it while signed in to an account with this email address. If you did not expect it, ignore this email.</p>');
+        return ['link' => $url ?? $path, 'emailed' => $emailed];
+    }
+
     /** @param array<string,mixed> $institution */
     public function revoke(array $institution, int $invitationId): void
     {
@@ -321,7 +348,7 @@ final class Institutions
     }
 
     /** @param array<string,mixed> $inv @param array<string,mixed> $user */
-    public function accept(array $inv, array $user): void
+    public function accept(array $inv, array $user, ?Policies $policies = null, ?string $ip = null): void
     {
         if (($why = $this->refusal($inv, $user)) !== null) {
             throw new RuntimeException($why);
@@ -340,6 +367,10 @@ final class Institutions
             $this->structure->applyInvitationDetails((int) $institution['id'], (int) $m['id'], $details, $inv['invited_by'] !== null ? (int) $inv['invited_by'] : null);
         }
         $this->notifier->resolve('invitation:' . $inv['id']);
+        if ($policies !== null) {
+            $joined = $this->repo->membership((int) $institution['id'], (int) $user['id']);
+            $policies->accept((int) $user['id'], ['membership_notice'], 'membership', (int) $joined['id'], $ip);
+        }
         $this->record('institution.invitation_accepted', $institution, ['role' => $inv['role']]);
     }
 

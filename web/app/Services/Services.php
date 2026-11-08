@@ -229,6 +229,12 @@ final class Services
         return $this->app->service(Invigilation::class, fn() => new Invigilation($this->app->db(), $this->examIntegrity(), $this->audit()));
     }
 
+    public function enrolment(): Enrolment
+    {
+        return $this->app->service(Enrolment::class, fn() => new Enrolment($this->app->db(), $this->institutions()->repo(), $this->structure()->repo(),
+            $this->structure(), $this->users(), $this->policies(), $this->audit(), $this->notifier(), $this->throttle()));
+    }
+
     public function studentImport(): StudentImport
     {
         return $this->app->service(StudentImport::class, fn() => new StudentImport($this->structure()->repo(), $this->institutions()->repo(), $this->users()));

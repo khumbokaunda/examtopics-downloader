@@ -35,6 +35,7 @@ final class SittingRepository
                 JOIN institutions i ON i.id = m.institution_id AND i.status = 'verified'
                 JOIN assessments a ON a.institution_id = m.institution_id AND a.status IN ('published', 'closed')
                 WHERE m.user_id = ? AND m.status = 'active' AND m.role = 'student'
+                  AND NOT EXISTS (SELECT 1 FROM institution_students st WHERE st.membership_id = m.id AND st.status <> 'active')
                   AND EXISTS (SELECT 1 FROM assessment_assignments x WHERE x.assessment_id = a.id AND (x.membership_id = m.id
                        OR x.class_id IN (SELECT e.class_id FROM class_enrolments e WHERE e.membership_id = m.id AND e.status = 'active')))";
         $args = [$userId];

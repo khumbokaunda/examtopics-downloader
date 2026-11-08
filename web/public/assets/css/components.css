@@ -881,3 +881,4 @@ a.job-chip:hover { text-decoration: none; filter: brightness(.96); }
 .sitting-paused .bi { font-size: 2rem; color: var(--color-warning); }
 .sitting-messages:empty { display: none; }
 .sitting-messages .alert { display: flex; gap: var(--space-2); align-items: flex-start; margin-bottom: var(--space-2); }
+.notice-box { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-3); background: var(--color-surface-2, var(--color-surface)); }

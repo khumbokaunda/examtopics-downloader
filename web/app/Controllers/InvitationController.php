@@ -18,6 +18,7 @@ final class InvitationController extends Controller
     public function show(string $token): Response
     {
         $inv = $this->find($token);
+        $this->s->institutions()->repo()->markInvitationViewed((int) $inv['id']);
         $user = $this->auth->check() ? $this->auth->user() : null;
         return $this->render('invitations/show', ['title' => 'Invitation', 'nav' => '', 'invitation' => $inv, 'token' => $token,
             'refusal' => $this->s->institutions()->refusal($inv, $user), 'signedIn' => $user !== null,
@@ -28,7 +29,10 @@ final class InvitationController extends Controller
     {
         $inv = $this->find($token);
         try {
-            $this->s->institutions()->accept($inv, $this->auth->user());
+            if ($inv['role'] === \App\Services\InstitutionAccess::STUDENT && $this->request->input('notice') !== '1') {
+                throw new RuntimeException('Read what joining means and tick the box to go on.');
+            }
+            $this->s->institutions()->accept($inv, $this->auth->user(), $this->s->policies(), $this->request->ip());
             $this->flash('success', 'Welcome to ' . $inv['institution_name'] . '.');
             return $this->redirect('/institutions/' . $inv['institution_uuid']);
         } catch (RuntimeException $e) {

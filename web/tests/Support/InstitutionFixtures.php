@@ -67,7 +67,7 @@ trait InstitutionFixtures
         self::assertMatchesRegularExpression('#/invitations/[a-f0-9]{48}#', $flash);
         preg_match('#/invitations/([a-f0-9]{48})#', $flash, $m);
         $this->as($who);
-        self::assertSame(303, $this->post('/invitations/' . $m[1] . '/accept')->status);
+        self::assertSame(303, $this->post('/invitations/' . $m[1] . '/accept', ['notice' => '1'])->status);
         self::assertSame('success', $this->flashes()[0]['type']);
     }
 

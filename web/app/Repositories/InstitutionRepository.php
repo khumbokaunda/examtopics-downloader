@@ -227,10 +227,37 @@ final class InstitutionRepository
         // A newer invitation to the same address replaces any still open.
         $this->db->run('UPDATE institution_invitations SET revoked_at = ? WHERE institution_id = ? AND email = ?
                         AND accepted_at IS NULL AND declined_at IS NULL AND revoked_at IS NULL', [$now, $institutionId, $email]);
-        $this->db->run('INSERT INTO institution_invitations (institution_id, email, role, details, token_sha256, invited_by, created_at, expires_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [$institutionId, $email, $role, $details === null ? null : json_encode($details, JSON_UNESCAPED_SLASHES),
-                        $tokenSha256, $by, $now, $expiresAt]);
+        $this->db->run('INSERT INTO institution_invitations (institution_id, email, role, details, token_sha256, invited_by, created_at, expires_at, last_sent_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [$institutionId, $email, $role, $details === null ? null : json_encode($details, JSON_UNESCAPED_SLASHES),
+                        $tokenSha256, $by, $now, $expiresAt, $now]);
         return $this->db->lastId();
+    }
+
+    /** A fresh link for an open invitation (the old one stops working), lasting from now. */
+    public function renewInvitation(int $institutionId, int $id, string $tokenSha256, string $expiresAt): void
+    {
+        $this->db->run('UPDATE institution_invitations SET token_sha256 = ?, expires_at = ?, sent_count = sent_count + 1, last_sent_at = ?
+                        WHERE institution_id = ? AND id = ? AND accepted_at IS NULL AND declined_at IS NULL AND revoked_at IS NULL',
+            [$tokenSha256, $expiresAt, Database::now(), $institutionId, $id]);
+    }
+
+    public function markInvitationViewed(int $id): void
+    {
+        $this->db->run('UPDATE institution_invitations SET viewed_at = ? WHERE id = ? AND viewed_at IS NULL', [Database::now(), $id]);
+    }
+
+    /** @return array<string,mixed>|null an invitation of this institution that is still open, expired or not */
+    public function pendingInvitation(int $institutionId, int $id): ?array
+    {
+        return $this->db->one('SELECT * FROM institution_invitations WHERE institution_id = ? AND id = ? AND accepted_at IS NULL AND declined_at IS NULL AND revoked_at IS NULL',
+            [$institutionId, $id]);
+    }
+
+    /** @return array<string,mixed>|null the open invitation to this address, if any */
+    public function openInvitationFor(int $institutionId, string $email): ?array
+    {
+        return $this->db->one('SELECT * FROM institution_invitations WHERE institution_id = ? AND email = ? AND accepted_at IS NULL AND declined_at IS NULL
+                               AND revoked_at IS NULL AND expires_at > ? ORDER BY id DESC LIMIT 1', [$institutionId, $email, Database::now()]);
     }
 
     /** @return array<string,mixed>|null an invitation by its token's hash, with its institution */
