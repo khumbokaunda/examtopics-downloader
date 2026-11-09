@@ -152,7 +152,8 @@ final class LibraryShelvesTest extends HttpTestCase
         $base = '/library/microsoft/az-500';
         $eid = (int) $this->app->db()->value("SELECT id FROM exams WHERE code = 'az-500'");
         self::assertStringContainsString('id="rename-exam"', $this->get($base)->body);
-        $this->post($base . '/name', ['name' => '  Azure   Security Engineer  ']);
+        $this->post($base . '/name', ['name' => '  Azure   Security Engineer  ', 'edition' => 'V2']);
+        self::assertSame('V2', $this->app->db()->value('SELECT edition_label FROM exams WHERE id = ?', [$eid]));
         self::assertSame(['Azure Security Engineer', 1], array_values(array_map(static fn($v) => is_numeric($v) ? (int) $v : $v,
             $this->app->db()->one('SELECT name, name_locked FROM exams WHERE id = ?', [$eid]))));
         self::assertStringContainsString('Azure Security Engineer', $this->get($base)->body);

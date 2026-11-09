@@ -177,7 +177,7 @@ final class DocumentStore
         $variant = Variant::get($variantKey);
         $options = $variant->options() + ['format' => $format, 'renderer' => self::RENDERER_VERSION];
         // A renamed exam, or new branding on the cover, makes its documents again.
-        $options['title'] = trim((string) ($version['exam_name'] ?? ''));
+        $options['title'] = trim((string) ($version['exam_name'] ?? '')) . '|' . trim((string) ($version['exam_edition'] ?? ''));
         if ($format === 'pdf') {
             $options['cover'] = substr(hash('sha256', (string) json_encode($this->cover())), 0, 16);
         }
@@ -482,6 +482,7 @@ final class DocumentStore
             'provider' => (\App\Repositories\ProviderRepository::splitName((string) $version['provider_name'])[0] ?: ucfirst((string) $version['provider_slug'])),
             'exam' => $examName !== '' ? $examName : strtoupper((string) $version['exam_code']),
             'exam_code' => (string) $version['exam_code'],
+            'edition' => \App\Services\Editions::edition(['code' => $version['exam_code'], 'name' => $examName, 'edition_label' => $version['exam_edition'] ?? null]),
             'version' => (string) $version['version'],
             'collected_at' => gmdate('Y-m-d H:i', (int) strtotime($version['collected_at'] . ' UTC')) . ' UTC',
             'status' => (string) $version['status'],

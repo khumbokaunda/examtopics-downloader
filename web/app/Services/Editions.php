@@ -43,6 +43,35 @@ final class Editions
         return $tail !== [] && preg_match('/\d/', $short) === 1 && $parts !== [] ? $short : $code;
     }
 
+    /**
+     * The edition an exam's name or code shows, or null: "V1.0" from "HCIA-Datacom V1.0" or
+     * from a code ending "-v1-0", "V12" from "Veeam Certified Engineer v12", or a year from
+     * "Veeam Certified Engineer 2021". An edition set by an administrator comes first.
+     *
+     * @param array<string,mixed> $row an exam (code, name, edition_label)
+     */
+    public static function edition(array $row): ?string
+    {
+        $set = trim((string) ($row['edition_label'] ?? ''));
+        if ($set !== '') {
+            return $set;
+        }
+        $name = (string) ($row['name'] ?? '');
+        if (strcasecmp($name, (string) ($row['code'] ?? '')) === 0) {
+            $name = ''; // a name that is only the code is read as the code
+        }
+        if (preg_match('/(?<![A-Za-z0-9])v\s?(\d+(?:\.\d+)*)(?![A-Za-z0-9.])/i', $name, $m) === 1) {
+            return 'V' . $m[1];
+        }
+        if (preg_match('/(?:^|-)v(\d+(?:-\d+)*)(?:-|$)/i', (string) ($row['code'] ?? ''), $m) === 1) {
+            return 'V' . str_replace('-', '.', $m[1]);
+        }
+        if (preg_match('/(?<!\d)((?:19|20)\d{2})(?!\d)/', $name, $m) === 1) {
+            return $m[1];
+        }
+        return null;
+    }
+
     /** The automatic key editions share, or a key of the exam's own when it has no usable name. */
     public static function autoKey(string $provider, string $code, ?string $name): string
     {

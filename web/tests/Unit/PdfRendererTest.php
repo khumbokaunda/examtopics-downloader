@@ -159,13 +159,15 @@ final class PdfRendererTest extends TestCase
     public function testTheCoverCarriesTheSiteBrandingAndTheContentsMoveToPageTwo(): void
     {
         $r = new PdfRenderer(null, self::tmp(), ['name' => 'ExamLib', 'primary' => '#7C3AED', 'logo' => null, 'site' => 'https://examlib.example.com']);
-        $html = $r->html(self::dataset(3), self::META, Variant::get('study'));
+        $html = $r->html(self::dataset(3), self::META + ['edition' => 'V1.0'], Variant::get('study'));
         $cover = substr($html, (int) strpos($html, '<div class="cover">'), (int) strpos($html, '<div class="kicker">') - (int) strpos($html, '<div class="cover">'));
         self::assertStringContainsString('ExamLib', $cover);
         self::assertStringContainsString('HCIA-Datacom', $cover);
         self::assertStringContainsString('H12-811', $cover);
         self::assertStringContainsString('https://examlib.example.com', $cover);
         self::assertStringContainsString('Edition', $cover);
+        self::assertStringContainsString('V1.0', $cover, 'the edition');
+        self::assertStringContainsString('Questions with answers', $cover, 'and the kind of PDF');
         self::assertStringNotContainsString('Contents', $cover, 'the contents are on the next page');
         self::assertStringContainsString('#7C3AED', $html, 'the inside pages use the accent too');
         self::assertStringNotContainsString('#1C7293', $html, 'no default teal left');

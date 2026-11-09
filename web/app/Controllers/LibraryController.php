@@ -151,12 +151,14 @@ final class LibraryController extends Controller
         $e = $this->findExam($p, $exam);
         $back = '/library/' . rawurlencode((string) $p['slug']) . '/' . rawurlencode((string) $e['code']);
         $name = trim((string) preg_replace('/\s+/u', ' ', (string) $this->request->input('name', '')));
-        if (mb_strlen($name) > 255) {
-            $this->flash('warning', 'A name can be at most 255 characters.');
+        $edition = trim((string) preg_replace('/\s+/u', ' ', (string) $this->request->input('edition', '')));
+        if (mb_strlen($name) > 255 || mb_strlen($edition) > 40) {
+            $this->flash('warning', 'A name can be at most 255 characters, and an edition 40.');
             return $this->redirect($back);
         }
-        $this->s->exams()->rename((int) $e['id'], $name);
-        $this->s->audit()->record('exam.renamed', ['provider' => provider_name($p), 'exam' => $e['code'], 'from' => (string) ($e['name'] ?? ''), 'to' => $name],
+        $this->s->exams()->rename((int) $e['id'], $name, $edition);
+        $this->s->audit()->record('exam.renamed', ['provider' => provider_name($p), 'exam' => $e['code'], 'from' => (string) ($e['name'] ?? ''), 'to' => $name,
+            'edition' => $edition],
             'exam', $p['slug'] . '/' . $e['code']);
         $this->flash('success', $name === '' ? 'The name from the source is used again.' : 'Renamed. PDFs are made again with the new name.');
         return $this->redirect($back);

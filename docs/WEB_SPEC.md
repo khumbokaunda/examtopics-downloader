@@ -570,7 +570,7 @@ overview only.
 | Worked out, rebuilt on demand (not backed up) | `exam_checks` (Integrity figures), `question_index` (search) |
 | System | `settings`, `notifications`, `mail_queue`, `exam_requests`, `audit_log`, `throttle_events`, `schema_migrations` |
 
-Migrations `001` to `042` in `web/database/migrations` create all of it; `php bin/migrate.php`
+Migrations `001` to `043` in `web/database/migrations` create all of it; `php bin/migrate.php`
 applies them.
 
 ### Background processes
