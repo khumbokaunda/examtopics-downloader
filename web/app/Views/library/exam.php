@@ -48,7 +48,11 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
     <form method="post" action="<?= e(url($base . '/name')) ?>" class="row g-2 align-items-end" data-once><?= csrf_field() ?>
         <div class="col-md"><label class="form-label" for="exam-name">Exam name</label>
             <input class="form-control" id="exam-name" name="name" maxlength="255" value="<?= e((string) ($exam['name'] ?? '')) ?>" placeholder="<?= e(strtoupper((string) $exam['code'])) ?>">
-            <div class="form-text">Shown in the library and on PDF covers. Leave empty to use the source's name.</div></div>
+            <div class="form-text">Leave empty to use the source's name.</div></div>
+        <?php $autoEdition = Editions::edition(['code' => $exam['code'], 'name' => $exam['name'] ?? '']); ?>
+        <div class="col-md-3"><label class="form-label" for="exam-edition">Edition</label>
+            <input class="form-control" id="exam-edition" name="edition" maxlength="40" value="<?= e((string) ($exam['edition_label'] ?? '')) ?>" placeholder="<?= e($autoEdition ?? 'e.g. V1.0') ?>">
+            <div class="form-text">On PDF covers. Empty: <?= $autoEdition !== null ? e($autoEdition) : 'none' ?>.</div></div>
         <div class="col-md-auto pb-md-4"><button class="btn btn-primary" type="submit"><?= icon('check2') ?>Save</button></div>
     </form>
 </div></div>

@@ -95,10 +95,10 @@ final class ExamRepository
      * Name an exam by hand ('' goes back to the name the source gives, at the next exam list
      * or collection). A hand-set name is kept when the source brings another.
      */
-    public function rename(int $examId, string $name): void
+    public function rename(int $examId, string $name, string $edition = ''): void
     {
-        $this->db->run('UPDATE exams SET name = ?, name_locked = ?, updated_at = ? WHERE id = ?',
-            [$name === '' ? null : $name, $name === '' ? 0 : 1, Database::now(), $examId]);
+        $this->db->run('UPDATE exams SET name = ?, name_locked = ?, edition_label = ?, updated_at = ? WHERE id = ?',
+            [$name === '' ? null : $name, $name === '' ? 0 : 1, $edition === '' ? null : $edition, Database::now(), $examId]);
     }
 
     public function setName(int $examId, string $name): void

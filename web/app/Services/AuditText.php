@@ -71,7 +71,8 @@ final class AuditText
             'job.failed' => ['A ' . str_replace('_', ' ', $named('type')) . ' job failed' . (isset($d['exam']) ? ' for ' . $exam() : (isset($d['provider']) ? ' for ' . $d['provider'] : ''))
                 . (isset($d['message']) ? ': ' . $d['message'] : ''), 'x-circle', 'danger'],
             'job.cancelled' => [$who . ' cancelled a ' . str_replace('_', ' ', $named('type')) . ' job' . (isset($d['exam']) ? ' for ' . $exam() : ''), 'slash-circle', 'warning'],
-            'exam.renamed' => [$who . ' renamed ' . $exam() . (($d['to'] ?? '') === '' ? ' back to the source\'s name' : ' to "' . $named('to') . '"'), 'pencil', 'neutral'],
+            'exam.renamed' => [$who . ' renamed ' . $exam() . (($d['to'] ?? '') === '' ? ' back to the source\'s name' : ' to "' . $named('to') . '"')
+                . (($d['edition'] ?? '') !== '' ? ', edition ' . $named('edition') : ''), 'pencil', 'neutral'],
             'exam.version_deleted' => [$who . ' deleted version ' . $named('version') . ' of ' . $exam(), 'trash3', 'danger'],
             'exam.editions_changed' => [$who . ' ' . match ((string) ($d['change'] ?? '')) {
                 'separate' => 'gave ' . $exam() . ' a card of its own',

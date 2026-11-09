@@ -100,4 +100,16 @@ final class EditionsTest extends TestCase
         self::assertSame('AZ-500', Editions::title(self::row('microsoft', 'az-500', '')));
         self::assertSame('Azure Security', Editions::title(self::row('microsoft', 'az-500', 'Azure Security')));
     }
+
+    public function testTheEditionComesFromTheNameOrTheCode(): void
+    {
+        $e = static fn(string $code, ?string $name, ?string $set = null): ?string => Editions::edition(['code' => $code, 'name' => $name, 'edition_label' => $set]);
+        self::assertSame('V1.0', $e('h12-811', 'HCIA-Datacom V1.0'));
+        self::assertSame('V1.0', $e('h12-811-v1-0-hcia-datacom-v1-0', 'h12-811-v1-0-hcia-datacom-v1-0'), 'a name that is only the code');
+        self::assertSame('V12', $e('vmce', 'Veeam Certified Engineer v12'));
+        self::assertSame('2021', $e('vmce-2021', 'Veeam Certified Engineer 2021'));
+        self::assertNull($e('az-500', 'Microsoft Azure Security Technologies'));
+        self::assertNull($e('saa-c03', 'AWS Solutions Architect Associate SAA-C03'), 'an exam code is not an edition');
+        self::assertSame('2024 refresh', $e('az-500', 'Microsoft Azure Security Technologies', '2024 refresh'), 'an administrator\'s choice comes first');
+    }
 }

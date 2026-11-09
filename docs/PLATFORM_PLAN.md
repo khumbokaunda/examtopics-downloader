@@ -881,4 +881,8 @@ asked, approving a draft, and every deletion protection.
 - **Renaming an exam** (`library.manage`): a pencil beside the exam's title on its library page.
   The name is kept when the source's exam list or a new collection brings another (migration
   `042`, `exams.name_locked`); an empty name goes back to the source's. Audited as `exam.renamed`.
+- **Edition on the cover.** The cover shows the exam's edition (for example V1.0) with the kind
+  of PDF under it. The edition is read from the name ("v12", "V1.0", a year) or from a code
+  ending "-v1-0"; the rename form takes one by hand when that is wrong (migration `043`,
+  `exams.edition_label`). With no edition, the kind of PDF stands alone.
 

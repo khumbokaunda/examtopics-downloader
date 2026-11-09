@@ -422,6 +422,7 @@ final class PdfRenderer
         $note = ($part !== null ? 'Part ' . (int) $part['n'] . ' of ' . (int) $part['of'] . ', questions ' . (int) $part['first'] . ' to ' . (int) $part['last']
             : $count . ' question' . ($count === 1 ? '' : 's')) . ' · collected ' . substr((string) $meta['collected_at'], 0, 10);
         $site = trim((string) ($this->cover['site'] ?? ''));
+        $edition = trim((string) ($meta['edition'] ?? ''));
         $out = '<div class="cover">';
         // An uploaded logo keeps its proportions: 19 mm tall, at most 70 mm wide.
         [$lw, $lh] = [19.0, 19.0];
@@ -444,7 +445,9 @@ final class PdfRenderer
             . '<div class="cover-label" style="color: ' . $css($pal['primary']) . '; margin-top: 0">Exam code</div>'
             . '<div class="cover-value" style="color: ' . $css($pal['deep']) . '">' . $t(strtoupper((string) $meta['exam_code'])) . '</div>'
             . '<div class="cover-label" style="color: ' . $css($pal['primary']) . '">Edition</div>'
-            . '<div class="cover-value" style="color: ' . $css($pal['deep']) . '">' . $h($variant->label()) . '</div>'
+            . ($edition !== '' ? '<div class="cover-value" style="color: ' . $css($pal['deep']) . '">' . $t($edition) . '</div>'
+                . '<div class="cover-kind" style="color: ' . $css($pal['deep']) . '">' . $h($variant->label()) . '</div>'
+                : '<div class="cover-value" style="color: ' . $css($pal['deep']) . '">' . $h($variant->label()) . '</div>')
             . '<div class="cover-note" style="color: ' . $css($pal['title']) . '">' . $h($note) . '</div></div>';
         if ($site !== '') {
             $out .= '<div class="cover-site" style="background-color: ' . $css($pal['soft']) . '; color: ' . $css($pal['ink']) . '">' . $h($site) . '</div>';
@@ -833,6 +836,7 @@ final class PdfRenderer
 .cover-facts { position: absolute; top: 176mm; left: 30mm; right: 22mm; }
 .cover-label { font-size: 13pt; margin-top: 8mm; }
 .cover-value { font-family: "Poppins", "DejaVu Sans", sans-serif; font-weight: bold; font-size: 17pt; line-height: 1.15; }
+.cover-kind { font-family: "Poppins SemiBold", "DejaVu Sans", sans-serif; font-size: 12pt; margin-top: 1mm; }
 .cover-note { font-size: 9.5pt; margin-top: 2mm; }
 .cover-site { position: absolute; top: 250.5mm; left: 52.5mm; width: 104.5mm; padding: 3.4mm 0 3.6mm 0; border-radius: 6.5mm;
     font-size: 13pt; line-height: 1.2; }
