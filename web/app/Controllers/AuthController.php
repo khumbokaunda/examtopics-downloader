@@ -108,24 +108,31 @@ final class AuthController extends Controller
         if ($this->auth->check()) {
             return $this->redirect('/institutions/register');
         }
+        $req = $this->s->onboarding()->requirements();
+        $hidden = $req->hiddenColumns();
         $in = [];
         foreach (\App\Repositories\InstitutionRepository::PROFILE as $f) {
-            $in[$f] = $this->request->input('inst_' . $f);
+            $in[$f] = in_array($f, $hidden, true) ? null : $this->request->input('inst_' . $f);
         }
         [$profile, $errors] = \App\Services\Institutions::validate($in);
+        $posted = is_array($this->request->post['inst_custom'] ?? null) ? $this->request->post['inst_custom'] : [];
+        [$custom, $customErrors] = $req->check((string) $profile['type'], $posted);
+        foreach ($customErrors as $uuid => $msg) {
+            $errors['custom.' . $uuid] = $msg;
+        }
         $account = ['display_name' => trim((string) $this->request->input('display_name', '')), 'username' => trim((string) $this->request->input('username', '')),
             'email' => UserRepository::normalizeEmail((string) $this->request->input('email', ''))];
         if (!$this->s->registration()->available($this->s->mailer())) {
-            return $this->joinPage($account, $profile, [], null, 403);
+            return $this->joinPage($account, $profile, [], null, 403, $posted);
         }
         if ($errors !== []) {
-            return $this->joinPage($account, $profile, $errors, null, 422);
+            return $this->joinPage($account, $profile, $errors, null, 422, $posted);
         }
         [$account, $error, $status] = $this->createAccount();
         if ($error !== null) {
-            return $this->joinPage($account, $profile, [], $error, $status);
+            return $this->joinPage($account, $profile, [], $error, $status, $posted);
         }
-        $this->session->set('pending_institution', ['user' => (int) $this->session->get('pending_user_id'), 'profile' => $profile]);
+        $this->session->set('pending_institution', ['user' => (int) $this->session->get('pending_user_id'), 'profile' => $profile, 'custom' => $custom]);
         $this->flash('success', 'We sent a six-digit code to ' . $account['email'] . '. Type it below: ' . $profile['name'] . ' is registered as soon as your address is confirmed.');
         return $this->redirect('/verify');
     }
@@ -175,11 +182,12 @@ final class AuthController extends Controller
         return [$form, null, 200];
     }
 
-    /** @param array<string,string> $account @param array<string,?string> $profile @param array<string,string> $errors */
-    private function joinPage(array $account, array $profile, array $errors, ?string $error, int $status = 200): Response
+    /** @param array<string,string> $account @param array<string,?string> $profile @param array<string,string> $errors @param array<string,mixed>|null $custom */
+    private function joinPage(array $account, array $profile, array $errors, ?string $error, int $status = 200, ?array $custom = null): Response
     {
         $registration = $this->s->registration();
         return $this->render('auth/join', ['title' => 'Register your institution', 'wide' => true, 'account' => $account, 'profile' => $profile,
+            'extras' => $this->s->onboarding()->requirements()->form(null, $custom),
             'errors' => $errors, 'error' => $error, 'available' => $registration->available($this->s->mailer()),
             'approval' => $registration->mode() === 'approval'], $status);
     }
@@ -244,6 +252,7 @@ final class AuthController extends Controller
         }
         try {
             $institution = $this->s->institutions()->register($pending['profile'], (array) $this->s->users()->find((int) $user['id']));
+            $this->s->onboarding()->requirements()->store((int) $institution['id'], is_array($pending['custom'] ?? null) ? $pending['custom'] : []);
             $this->flash('success', $institution['name'] . ' is registered and waits for verification by the platform. You are its owner.');
             return $institution;
         } catch (\RuntimeException $e) {

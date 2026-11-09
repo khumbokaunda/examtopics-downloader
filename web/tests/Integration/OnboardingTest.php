@@ -31,6 +31,13 @@ final class OnboardingTest extends HttpTestCase
         return ['name' => $name, 'tmp_name' => $tmp, 'size' => strlen($content), 'error' => UPLOAD_ERR_OK];
     }
 
+    /** The document slot for one of the starting documents. */
+    private function slot(string $key): string
+    {
+        (new \App\Services\Services($this->app))->onboarding()->requirements()->all('document'); // the defaults are put in place on first use
+        return (string) $this->db("SELECT uuid FROM institution_requirements WHERE kind = 'document' AND field_key = ?", [$key]);
+    }
+
     private function pdf(): string
     {
         return "%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n";
@@ -56,13 +63,13 @@ final class OnboardingTest extends HttpTestCase
         $uuid = (string) $this->db("SELECT uuid FROM institutions WHERE name = 'Zomba Technical College'");
         $app = '/institutions/' . $uuid . '/application';
         $page = $this->get($app)->body;
-        self::assertStringContainsString('Upload the registration certificate', $page, 'a technical college must send its registration');
+        self::assertStringContainsString('Upload: Registration certificate', $page, 'a technical college must send its registration');
 
         $this->post($app . '/submit', ['accept' => '1']);
         self::assertSame('draft', $this->db('SELECT status FROM institutions WHERE uuid = ?', [$uuid]));
-        $this->postFiles($app . '/documents', ['kind' => 'registration_certificate'], ['document' => $this->file('evil.pdf', '<?php echo 1;')]);
+        $this->postFiles($app . '/documents', ['slot' => $this->slot('registration_certificate')], ['document' => $this->file('evil.pdf', '<?php echo 1;')]);
         self::assertStringContainsString('PDF, JPEG or PNG', $this->lastFlash(), 'judged by content, not name');
-        $this->postFiles($app . '/documents', ['kind' => 'registration_certificate'], ['document' => $this->file('TEVETA cert.pdf', $this->pdf())]);
+        $this->postFiles($app . '/documents', ['slot' => $this->slot('registration_certificate')], ['document' => $this->file('TEVETA cert.pdf', $this->pdf())]);
         $doc = (string) $this->db('SELECT uuid FROM institution_documents');
         $this->post($app . '/submit', []);
         self::assertStringContainsString('accept it on behalf', $this->lastFlash(), 'the agreement must be accepted');
@@ -84,7 +91,7 @@ final class OnboardingTest extends HttpTestCase
 
         $this->as('olive');
         self::assertStringContainsString('Send a letter showing Olive', $this->get('/institutions/' . $uuid)->body);
-        $this->postFiles($app . '/documents', ['kind' => 'authority_letter'], ['document' => $this->file('letter.pdf', $this->pdf())]);
+        $this->postFiles($app . '/documents', ['slot' => $this->slot('authority_letter')], ['document' => $this->file('letter.pdf', $this->pdf())]);
         $this->post($app . '/submit', ['response' => '']);
         self::assertStringContainsString('answer the reviewer', $this->lastFlash());
         $this->post($app . '/submit', ['response' => 'The board\'s letter is attached.']);

@@ -41,16 +41,6 @@ final class Onboarding
         'other' => 'Other supporting document',
     ];
 
-    /**
-     * Documents each kind of institution must send. A university, college or technical college
-     * is registered with a regulator; a private centre or corporate department may not be, so
-     * it is not asked for what it cannot have. Accreditation evidence is needed only when an
-     * accrediting body is named.
-     */
-    public const REQUIRED = [
-        'university' => ['registration_certificate'], 'college' => ['registration_certificate'], 'tevet' => ['registration_certificate'],
-        'exam_provider' => ['registration_certificate'],
-    ];
 
     public const MIMES = ['application/pdf' => 'pdf', 'image/jpeg' => 'jpg', 'image/png' => 'png'];
     public const MAX_BYTES = 10 * 1024 * 1024;
@@ -60,8 +50,29 @@ final class Onboarding
     public const EDITABLE = ['draft', 'info_requested', 'rejected'];
 
     public function __construct(private Database $db, private InstitutionRepository $repo, private Policies $policies, private AuditLog $audit,
-        private Notifier $notifier, private string $storage)
+        private Notifier $notifier, private string $storage, private InstitutionRequirements $requirements)
     {
+    }
+
+    public function requirements(): InstitutionRequirements
+    {
+        return $this->requirements;
+    }
+
+    /**
+     * The document slots for this institution, each with its latest upload (or null).
+     *
+     * @param array<string,mixed> $institution @return list<array<string,mixed>>
+     */
+    public function slots(array $institution): array
+    {
+        $docs = $this->documents((int) $institution['id']);
+        $out = [];
+        foreach ($this->requirements->for('document', (string) $institution['type']) as $r) {
+            $mine = array_values(array_filter($docs, static fn(array $d): bool => (int) ($d['requirement_id'] ?? 0) === (int) $r['id']));
+            $out[] = $r + ['files' => $mine];
+        }
+        return $out;
     }
 
     // Documents -------------------------------------------------------------------------------
@@ -89,14 +100,16 @@ final class Onboarding
      *
      * @param array<string,mixed> $institution @param array{name:string,tmp_name:string,size:int,error:int} $file @param array<string,mixed> $user
      */
-    public function upload(array $institution, string $kind, array $file, array $user): void
+    public function upload(array $institution, string $slot, array $file, array $user): void
     {
         if (!in_array($institution['status'], [...self::EDITABLE, 'pending', 'under_review'], true)) {
             throw new RuntimeException('Documents can be added while the application is open.');
         }
-        if (!isset(self::DOCUMENTS[$kind])) {
-            throw new RuntimeException('Choose what the document is.');
+        $req = $this->requirements->find($slot);
+        if ($req === null || $req['kind'] !== 'document' || (int) $req['active'] !== 1) {
+            throw new RuntimeException('That document is not asked for.');
         }
+        $kind = (string) ($req['field_key'] ?? 'custom');
         if ($file['error'] !== UPLOAD_ERR_OK || !is_file($file['tmp_name'])) {
             throw new RuntimeException(in_array($file['error'], [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true) ? 'That file is too large.' : 'Choose a file to upload.');
         }
@@ -121,10 +134,14 @@ final class Onboarding
         if (!copy($file['tmp_name'], $dest)) {
             throw new RuntimeException('The document could not be stored. Tell an administrator.');
         }
-        $this->db->run('INSERT INTO institution_documents (uuid, institution_id, kind, filename, mime, size, sha256, uploaded_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [$uuid, (int) $institution['id'], $kind, $name !== '' ? $name : 'document.' . self::MIMES[$mime], $mime, $size, (string) hash_file('sha256', $dest),
+        if (in_array($institution['status'], self::EDITABLE, true)) {
+            $this->db->run('UPDATE institution_documents SET removed_at = ? WHERE institution_id = ? AND requirement_id = ? AND removed_at IS NULL',
+                [Database::now(), (int) $institution['id'], (int) $req['id']]);
+        }
+        $this->db->run('INSERT INTO institution_documents (uuid, institution_id, kind, requirement_id, filename, mime, size, sha256, uploaded_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [$uuid, (int) $institution['id'], $kind, (int) $req['id'], $name !== '' ? $name : 'document.' . self::MIMES[$mime], $mime, $size, (string) hash_file('sha256', $dest),
                 (int) $user['id'], Database::now()]);
-        $this->audit->record('institution.document_added', ['institution' => $institution['name'], 'kind' => $kind], 'institution', (string) $institution['uuid']);
+        $this->audit->record('institution.document_added', ['institution' => $institution['name'], 'kind' => $req['label']], 'institution', (string) $institution['uuid']);
     }
 
     /** Mark a document removed (the file stays: it may be evidence for a decision already made). @param array<string,mixed> $institution */
@@ -135,7 +152,8 @@ final class Onboarding
         }
         $doc = $this->document((int) $institution['id'], $uuid) ?? throw new RuntimeException('That document is not there.');
         $this->db->run('UPDATE institution_documents SET removed_at = ? WHERE id = ?', [Database::now(), (int) $doc['id']]);
-        $this->audit->record('institution.document_removed', ['institution' => $institution['name'], 'kind' => $doc['kind']], 'institution', (string) $institution['uuid']);
+        $label = $doc['requirement_id'] !== null ? (string) $this->db->value('SELECT label FROM institution_requirements WHERE id = ?', [(int) $doc['requirement_id']]) : (self::DOCUMENTS[$doc['kind']] ?? $doc['kind']);
+        $this->audit->record('institution.document_removed', ['institution' => $institution['name'], 'kind' => $label], 'institution', (string) $institution['uuid']);
     }
 
     // The application -------------------------------------------------------------------------
@@ -152,23 +170,18 @@ final class Onboarding
         if ($errors !== []) {
             $out[] = 'Complete the profile: ' . implode(' ', $errors);
         }
-        $have = array_flip(array_column($this->documents((int) $institution['id']), 'kind'));
-        foreach (self::required($institution) as $kind) {
-            if (!isset($have[$kind])) {
-                $out[] = 'Upload the ' . strtolower(self::DOCUMENTS[$kind]) . '.';
+        foreach ($this->slots($institution) as $slot) {
+            if ((int) $slot['required'] === 1 && $slot['files'] === []) {
+                $out[] = 'Upload: ' . $slot['label'] . '.';
+            }
+        }
+        $values = $this->requirements->values((int) $institution['id']);
+        foreach ($this->requirements->for('field', (string) $institution['type']) as $f) {
+            if ((int) $f['required'] === 1 && trim($values[(int) $f['id']] ?? '') === '') {
+                $out[] = 'Fill in: ' . $f['label'] . '.';
             }
         }
         return $out;
-    }
-
-    /** @param array<string,mixed> $institution @return list<string> the document kinds this institution must send */
-    public static function required(array $institution): array
-    {
-        $kinds = self::REQUIRED[(string) $institution['type']] ?? [];
-        if (trim((string) ($institution['accreditation_authority'] ?? '')) !== '') {
-            $kinds[] = 'accreditation_certificate';
-        }
-        return array_values(array_unique($kinds));
     }
 
     /**

@@ -232,7 +232,7 @@ final class Services
     public function onboarding(): Onboarding
     {
         return $this->app->service(Onboarding::class, fn() => new Onboarding($this->app->db(), $this->institutions()->repo(), $this->policies(), $this->audit(),
-            $this->notifier(), $this->app->paths()->storage()));
+            $this->notifier(), $this->app->paths()->storage(), new InstitutionRequirements($this->app->db(), $this->audit())));
     }
 
     public function invigilation(): Invigilation

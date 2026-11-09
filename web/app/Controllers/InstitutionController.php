@@ -32,21 +32,27 @@ final class InstitutionController extends TenantController
         $blank = array_fill_keys(InstitutionRepository::PROFILE, '');
         $blank['email'] = (string) ($user['email'] ?? '');
         $blank['contact_name'] = (string) ($user['display_name'] ?? '');
-        return $this->render('institutions/register', ['title' => 'Register an institution', 'nav' => 'institutions', 'form' => $blank, 'errors' => []]);
+        return $this->render('institutions/register', ['title' => 'Register an institution', 'nav' => 'institutions', 'form' => $blank, 'errors' => [],
+            'extras' => $this->s->onboarding()->requirements()->form()]);
     }
 
     public function register(): Response
     {
+        $req = $this->s->onboarding()->requirements();
         [$profile, $errors] = Institutions::validate($this->profileInput());
+        [$values, $customErrors] = $req->check((string) $profile['type'], $this->customInput());
+        $errors += $this->customErrors($customErrors);
+        $page = fn(array $errors): Response => $this->render('institutions/register', ['title' => 'Register an institution', 'nav' => 'institutions', 'form' => $profile,
+            'errors' => $errors, 'extras' => $req->form(null, $this->customInput())], 422);
         if ($errors !== []) {
-            return $this->render('institutions/register', ['title' => 'Register an institution', 'nav' => 'institutions', 'form' => $profile, 'errors' => $errors], 422);
+            return $page($errors);
         }
         try {
             $institution = $this->s->institutions()->register($profile, $this->auth->user());
         } catch (RuntimeException $e) {
-            return $this->render('institutions/register', ['title' => 'Register an institution', 'nav' => 'institutions', 'form' => $profile,
-                'errors' => ['_' => $e->getMessage()]], 422);
+            return $page(['_' => $e->getMessage()]);
         }
+        $req->store((int) $institution['id'], $values);
         $this->flash('success', 'The application for ' . $institution['name'] . ' is started. Add its documents and send it for review.');
         return $this->redirect('/institutions/' . $institution['uuid'] . '/application');
     }
@@ -72,17 +78,23 @@ final class InstitutionController extends TenantController
     public function profile(string $ref): Response
     {
         [$i, $m] = $this->tenant($ref, 'institution.manage', false);
-        return $this->render('institutions/profile', $this->pageVars($i, $m, 'profile') + ['form' => $i, 'errors' => []]);
+        return $this->render('institutions/profile', $this->pageVars($i, $m, 'profile') + ['form' => $i, 'errors' => [],
+            'extras' => $this->s->onboarding()->requirements()->form((int) $i['id'])]);
     }
 
     public function saveProfile(string $ref): Response
     {
         [$i, $m] = $this->tenant($ref, 'institution.manage', false);
-        [$profile, $errors] = Institutions::validate($this->profileInput());
+        $req = $this->s->onboarding()->requirements();
+        [$profile, $errors] = Institutions::validate($this->profileInput($i));
+        [$values, $customErrors] = $req->check((string) $profile['type'], $this->customInput());
+        $errors += $this->customErrors($customErrors);
         if ($errors !== []) {
-            return $this->render('institutions/profile', $this->pageVars($i, $m, 'profile') + ['form' => $profile, 'errors' => $errors], 422);
+            return $this->render('institutions/profile', $this->pageVars($i, $m, 'profile') + ['form' => $profile, 'errors' => $errors,
+                'extras' => $req->form((int) $i['id'], $this->customInput())], 422);
         }
         $this->s->institutions()->updateProfile($i, $profile);
+        $req->store((int) $i['id'], $values);
         $this->flash('success', 'The profile is saved.' . (in_array($i['status'], \App\Services\Onboarding::EDITABLE, true) ? ' Send the application for review when it is ready.' : ''));
         return $this->redirect('/institutions/' . $i['uuid'] . '/profile');
     }
@@ -199,14 +211,36 @@ final class InstitutionController extends TenantController
         return array_map(static fn(array $r): array => $r + AuditText::describe($r, $names) + ['who' => AuditText::who($r, $names)], $rows);
     }
 
-    /** @return array<string,?string> */
-    private function profileInput(): array
+    /**
+     * The posted profile. Fields the administrator has hidden keep what the institution held.
+     *
+     * @param array<string,mixed>|null $current @return array<string,?string>
+     */
+    private function profileInput(?array $current = null): array
     {
+        $hidden = $this->s->onboarding()->requirements()->hiddenColumns();
         $in = [];
         foreach (InstitutionRepository::PROFILE as $f) {
-            $in[$f] = $this->request->input($f);
+            $in[$f] = in_array($f, $hidden, true) ? ($current !== null && $current[$f] !== null ? (string) $current[$f] : null) : $this->request->input($f);
         }
         return $in;
+    }
+
+    /** @return array<string,mixed> posted answers to the extra fields, by uuid */
+    private function customInput(): array
+    {
+        $c = $this->request->post['custom'] ?? [];
+        return is_array($c) ? $c : [];
+    }
+
+    /** @param array<string,string> $errors by uuid @return array<string,string> keyed for the form */
+    private function customErrors(array $errors): array
+    {
+        $out = [];
+        foreach ($errors as $uuid => $msg) {
+            $out['custom.' . $uuid] = $msg;
+        }
+        return $out;
     }
 
 }

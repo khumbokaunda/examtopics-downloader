@@ -1,5 +1,5 @@
 <?php /** @var array $institution @var list<array> $reviews @var list<array> $owners @var int $memberCount @var list<array> $documents
- *  @var list<array> $acceptances @var list<string> $missing */
+ *  @var list<array> $acceptances @var list<string> $missing @var list<array> $slots @var list<array{0:string,1:string}> $fields @var string|null $purgeWhy */
 use App\Services\Access;
 use App\Services\Institutions;
 use App\Services\Onboarding;
@@ -29,13 +29,17 @@ $rows = [
         <p class="page-subtitle"><?= chip(Institutions::STATUSES[$i['status']] ?? $i['status'], $tone[$i['status']] ?? 'neutral') ?> Registered <?= e(fmt_time((string) $i['created_at'])) ?> · <?= $memberCount ?> <?= $memberCount === 1 ? 'person' : 'people' ?></p>
     </div>
 </header>
+<?php if ($i['deleted_at'] !== null): ?>
+    <div class="alert alert-danger" role="status"><?= icon('trash') ?><div class="alert-body">Deleted <?= e(fmt_time((string) $i['deleted_at'])) ?><?= $i['delete_reason'] !== null ? ': ' . e((string) $i['delete_reason']) : '' ?>. Hidden and closed; restore below.</div></div>
+<?php endif; ?>
+<div class="card mb-4"><div class="card-body"><?= \App\Core\View::current()->partial('institutions/_milestones', ['institution' => $i]) ?></div></div>
 <div class="row g-4">
     <div class="col-xl-7">
         <div class="card mb-4">
             <div class="card-header"><span class="card-title"><?= icon('building') ?>Registration</span></div>
             <div class="card-body">
                 <dl class="row mb-0 small">
-                    <?php foreach ($rows as $label => $value): ?>
+                    <?php foreach ($fields as [$flabel, $fvalue]) { $rows[$flabel] = $fvalue; } foreach ($rows as $label => $value): ?>
                         <dt class="col-sm-4"><?= e($label) ?></dt><dd class="col-sm-8"><?= $value === null || $value === '' ? '<span class="text-muted">not given</span>' : nl2br(e((string) $value)) ?></dd>
                     <?php endforeach; ?>
                 </dl>
@@ -53,14 +57,14 @@ $rows = [
         </div>
         <div class="card mt-4">
             <div class="card-header"><span class="card-title"><?= icon('file-earmark-text') ?>Documents</span></div>
-            <?php if ($documents === []): ?>
-                <div class="card-body"><?= empty_state('file-earmark', 'No documents', Onboarding::required($i) === [] ? 'None are required for this kind of institution.' : 'Required: ' . implode(', ', array_map(static fn(string $k): string => strtolower(Onboarding::DOCUMENTS[$k]), Onboarding::required($i))) . '.', null, true) ?></div>
+            <?php if ($slots === []): ?>
+                <div class="card-body"><?= empty_state('file-earmark', 'None asked for', '', null, true) ?></div>
             <?php else: ?>
             <ul class="list-rows">
-                <?php foreach ($documents as $d): ?>
+                <?php foreach ($slots as $slot): $d = $slot['files'][0] ?? null; ?>
                     <li class="request-row"><div class="row-main"><div class="row-text">
-                        <div class="row-title"><a href="<?= e(url('/platform/institutions/' . $i['uuid'] . '/documents/' . $d['uuid'])) ?>"><?= e($d['filename']) ?></a></div>
-                        <div class="row-meta"><?= e(Onboarding::DOCUMENTS[$d['kind']] ?? $d['kind']) ?> · <?= e(fmt_bytes((int) $d['size'])) ?> · <?= e(fmt_time((string) $d['created_at'])) ?> · <span class="mono"><?= e(substr((string) $d['sha256'], 0, 12)) ?></span></div>
+                        <div class="row-title"><?= e($slot['label']) ?> <?= (int) $slot['required'] === 1 ? chip('Required', 'warning') : '' ?></div>
+                        <div class="row-meta"><?php if ($d !== null): ?><a href="<?= e(url('/platform/institutions/' . $i['uuid'] . '/documents/' . $d['uuid'])) ?>"><?= e($d['filename']) ?></a> · <?= e(fmt_bytes((int) $d['size'])) ?> · <?= e(fmt_time((string) $d['created_at'])) ?><?php else: ?>Not uploaded<?php endif; ?></div>
                     </div></div></li>
                 <?php endforeach; ?>
             </ul>
@@ -140,6 +144,30 @@ $rows = [
                 <?php endforeach; ?>
             </ul>
             <?php endif; ?>
+        </div>
+            <div class="card mt-4 border-danger-subtle">
+            <div class="card-header"><span class="card-title text-danger"><?= icon('exclamation-triangle') ?>Danger zone</span></div>
+            <div class="card-body">
+                <?php if ($i['deleted_at'] !== null): ?>
+                    <form method="post" action="<?= e(url('/platform/institutions/' . $i['uuid'] . '/restore')) ?>" class="mb-3" data-once><?= csrf_field() ?>
+                        <button class="btn btn-sm btn-outline-primary" type="submit"><?= icon('arrow-counterclockwise') ?>Restore</button></form>
+                    <?php if ($purgeWhy === null): ?>
+                    <form method="post" action="<?= e(url('/platform/institutions/' . $i['uuid'] . '/purge')) ?>" data-confirm="Everything in it is erased. This cannot be undone." data-confirm-title="Remove for good?" data-confirm-button="Remove for good" data-confirm-tone="danger"><?= csrf_field() ?>
+                        <label class="form-label small" for="purge-name">Type <strong><?= e($i['name']) ?></strong> to remove it for good</label>
+                        <input class="form-control form-control-sm mb-2" id="purge-name" name="name" autocomplete="off" required>
+                        <button class="btn btn-sm btn-danger" type="submit"><?= icon('trash') ?>Remove for good</button></form>
+                    <?php else: ?><p class="small text-muted mb-0"><?= e((string) $purgeWhy) ?></p><?php endif; ?>
+                <?php elseif ($i['status'] === 'verified'): ?>
+                    <p class="small mb-0">Suspend it first to delete it.</p>
+                <?php else: ?>
+                    <form method="post" action="<?= e(url('/platform/institutions/' . $i['uuid'] . '/delete')) ?>" data-confirm="Its people lose access. You can restore it." data-confirm-title="Delete <?= e($i['name']) ?>?" data-confirm-button="Delete" data-confirm-tone="danger"><?= csrf_field() ?>
+                        <label class="form-label small" for="del-reason">Reason</label>
+                        <input class="form-control form-control-sm mb-2" id="del-reason" name="reason" maxlength="500" required>
+                        <label class="form-label small" for="del-name">Type <strong><?= e($i['name']) ?></strong> to confirm</label>
+                        <input class="form-control form-control-sm mb-2" id="del-name" name="name" autocomplete="off" required>
+                        <button class="btn btn-sm btn-outline-danger" type="submit"><?= icon('trash') ?>Delete</button></form>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
 </div>

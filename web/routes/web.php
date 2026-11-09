@@ -6,6 +6,7 @@ use App\Controllers\AccountController;
 use App\Controllers\ActivityController;
 use App\Controllers\AnswerController;
 use App\Controllers\AuthController;
+use App\Controllers\PlatformRequirementsController;
 use App\Controllers\InstitutionCredentialController;
 use App\Controllers\InstitutionProgrammeController;
 use App\Controllers\MyRecordController;
@@ -332,9 +333,17 @@ return static function (Router $r): void {
     $r->post('/invitations/{token}/accept', [InvitationController::class, 'accept'], can: $me);
     $r->post('/invitations/{token}/decline', [InvitationController::class, 'decline'], can: $me);
     $r->get('/platform/institutions', [PlatformInstitutionController::class, 'index'], can: 'institutions.manage');
+    $r->get('/platform/institution-requirements', [PlatformRequirementsController::class, 'index'], can: 'institutions.manage');
+    $r->post('/platform/institution-requirements', [PlatformRequirementsController::class, 'save'], can: 'institutions.manage');
+    $r->post('/platform/institution-requirements/{requirement}', [PlatformRequirementsController::class, 'save'], can: 'institutions.manage');
+    $r->post('/platform/institution-requirements/{requirement}/toggle', [PlatformRequirementsController::class, 'toggle'], can: 'institutions.manage');
+    $r->post('/platform/institution-requirements/{requirement}/move', [PlatformRequirementsController::class, 'move'], can: 'institutions.manage');
     $r->get('/platform/institutions/{ref}', [PlatformInstitutionController::class, 'show'], can: 'institutions.manage');
     $r->post('/platform/institutions/{ref}/decision', [PlatformInstitutionController::class, 'decide'], can: 'institutions.manage');
     $r->post('/platform/institutions/{ref}/awarding', [PlatformInstitutionController::class, 'awarding'], can: 'institutions.manage');
+    $r->post('/platform/institutions/{ref}/delete', [PlatformInstitutionController::class, 'delete'], can: 'institutions.manage');
+    $r->post('/platform/institutions/{ref}/restore', [PlatformInstitutionController::class, 'restore'], can: 'institutions.manage');
+    $r->post('/platform/institutions/{ref}/purge', [PlatformInstitutionController::class, 'purge'], can: 'institutions.manage');
     $r->get('/platform/institutions/{ref}/documents/{document}', [PlatformInstitutionController::class, 'document'], can: 'institutions.manage');
 
     $r->get('/requests', [RequestController::class, 'index'], can: 'exams.request');

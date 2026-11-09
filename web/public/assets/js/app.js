@@ -984,6 +984,15 @@
   document.querySelectorAll('select[data-autosubmit]').forEach(function (sel) {
     sel.addEventListener('change', function () { if (sel.form) sel.form.submit(); });
   });
+  // A file picker that sends its form as soon as a file is chosen (one upload slot per document).
+  document.querySelectorAll('input[type="file"][data-autosubmit]').forEach(function (inp) {
+    inp.addEventListener('change', function () {
+      if (!inp.files || !inp.files.length || !inp.form) return;
+      var label = inp.closest('label');
+      if (label) label.classList.add('is-busy');
+      if (inp.form.requestSubmit) inp.form.requestSubmit(); else inp.form.submit();
+    });
+  });
 
   // --- Save an exam to your own shelf without leaving the page --------------------------------
   // Without JavaScript the form posts and the page comes back with a message.

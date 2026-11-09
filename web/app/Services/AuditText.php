@@ -138,11 +138,16 @@ final class AuditText
             'institution.logo_changed' => [$who . ' changed the logo of ' . $named('institution'), 'image', 'neutral'],
             'institution.awarding_body_set' => [$who . (($d['body'] ?? '') !== '' ? ' recorded ' . $named('institution') . ' as an awarding body for ' . $named('body')
                 : ' recorded that ' . $named('institution') . ' may not award qualifications'), 'mortarboard', 'warning'],
+            'institution.deleted' => [$who . ' deleted ' . $named('institution') . ': ' . $named('reason'), 'trash', 'danger'],
+            'institution.restored' => [$who . ' restored ' . $named('institution'), 'arrow-counterclockwise', 'warning'],
+            'institution.purged' => [$who . ' removed ' . $named('institution') . ' for good', 'trash', 'danger'],
+            'platform.requirement_saved' => [$who . ' saved the institution ' . ((($d['kind'] ?? '') === 'document') ? 'document ' : 'field ') . $named('label'), 'list-check', 'neutral'],
+            'platform.requirement_toggled' => [$who . (!empty($d['active']) ? ' switched on ' : ' switched off ') . $named('label') . ' for institutions', 'toggles', 'neutral'],
             'institution.submitted' => [$who . (($d['from'] ?? '') === 'draft' ? ' sent the application of ' : ' sent again the application of ') . $named('institution'), 'send', 'primary'],
             'institution.document_added' => [$who . ' added a document to the application of ' . $named('institution') . ': '
-                . strtolower(\App\Services\Onboarding::DOCUMENTS[(string) ($d['kind'] ?? '')] ?? '?'), 'file-earmark-plus', 'neutral'],
+                . strtolower(\App\Services\Onboarding::DOCUMENTS[(string) ($d['kind'] ?? '')] ?? (string) ($d['kind'] ?? '?')), 'file-earmark-plus', 'neutral'],
             'institution.document_removed' => [$who . ' removed a document from the application of ' . $named('institution') . ': '
-                . strtolower(\App\Services\Onboarding::DOCUMENTS[(string) ($d['kind'] ?? '')] ?? '?'), 'file-earmark-minus', 'neutral'],
+                . strtolower(\App\Services\Onboarding::DOCUMENTS[(string) ($d['kind'] ?? '')] ?? (string) ($d['kind'] ?? '?')), 'file-earmark-minus', 'neutral'],
             'institution.verification_changed' => [$who . ' set ' . strtolower(\App\Services\Onboarding::DIMENSIONS[(string) ($d['dimension'] ?? '')]['label'] ?? '?')
                 . ' of ' . $named('institution') . ' to ' . strtolower(\App\Services\Onboarding::DIMENSIONS[(string) ($d['dimension'] ?? '')]['states'][(string) ($d['to'] ?? '')] ?? '?'),
                 'shield-check', ($d['to'] ?? '') === 'verified' ? 'success' : 'neutral'],

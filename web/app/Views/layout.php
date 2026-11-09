@@ -212,5 +212,6 @@ $flashIcons = ['success' => 'check-circle', 'info' => 'info-circle', 'warning' =
 <script src="<?= e(asset('/assets/js/app.js')) ?>"></script>
 <script src="<?= e(asset('/assets/js/data-table.js')) ?>"></script>
 <script src="<?= e(asset('/assets/js/live.js')) ?>"></script>
+<script src="<?= e(asset('/assets/js/wizard.js')) ?>"></script>
 </body>
 </html>

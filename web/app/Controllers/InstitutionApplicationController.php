@@ -21,7 +21,7 @@ final class InstitutionApplicationController extends TenantController
         [$i, $m] = $this->tenant($ref, 'institution.manage', false);
         $ob = $this->s->onboarding();
         return $this->render('institutions/application', $this->pageVars($i, $m, 'application') + [
-            'documents' => $ob->documents((int) $i['id']), 'missing' => $ob->missing($i), 'required' => Onboarding::required($i),
+            'slots' => $ob->slots($i), 'missing' => $ob->missing($i),
             'accepted' => $this->s->policies()->acceptedAll(Policies::INSTITUTION, 'institution', (int) $i['id']),
             'reviews' => $this->s->institutions()->repo()->reviews((int) $i['id']),
         ]);
@@ -32,7 +32,7 @@ final class InstitutionApplicationController extends TenantController
         [$i] = $this->tenant($ref, 'institution.manage', false);
         try {
             $file = $this->request->file('document') ?? throw new RuntimeException('Choose a file to upload.');
-            $this->s->onboarding()->upload($i, (string) $this->request->input('kind', ''), $file, $this->auth->user());
+            $this->s->onboarding()->upload($i, (string) $this->request->input('slot', ''), $file, $this->auth->user());
             $this->flash('success', 'Document added.');
         } catch (RuntimeException $e) {
             $this->flash('warning', $e->getMessage());

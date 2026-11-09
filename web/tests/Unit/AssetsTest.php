@@ -46,6 +46,17 @@ final class AssetsTest extends TestCase
         }
     }
 
+    /**
+     * A table ignores visually-hidden's 1px height and keeps its full size, which made the page
+     * taller than the app frame and pushed the sidebar up as it scrolled. Hide a wrapper instead.
+     */
+    public function testNoTableIsHiddenDirectly(): void
+    {
+        foreach (self::files(self::web() . '/app/Views', '/\.php$/') as $file) {
+            self::assertDoesNotMatchRegularExpression('#<table\b[^>]*class="[^"]*\bvisually-hidden\b#', (string) file_get_contents($file), "$file hides a table directly");
+        }
+    }
+
     public function testEveryAssetTheLayoutReferencesExists(): void
     {
         $layout = (string) file_get_contents(self::web() . '/app/Views/layout.php');
