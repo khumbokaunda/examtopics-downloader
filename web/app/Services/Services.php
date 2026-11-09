@@ -352,6 +352,7 @@ final class Services
         return $this->app->service(DocumentStore::class, fn() => new DocumentStore(
             $this->app->config(), $this->app->paths(), $this->app->logger(), $this->documentRepo(), $this->cache(), $this->media(),
             $this->corrections(),
-            fn(string $uuid): bool => $this->supervisor()->launchScript('build-document.php', [$uuid], 'documents-build.log')));
+            fn(string $uuid): bool => $this->supervisor()->launchScript('build-document.php', [$uuid], 'documents-build.log'),
+            fn(): array => $this->branding()->pdfCover($this->mailer()->settings()['site_url'])));
     }
 }

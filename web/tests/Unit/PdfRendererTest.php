@@ -72,7 +72,7 @@ final class PdfRendererTest extends TestCase
         self::assertSame(['s1', 's2', 'appA', 'appB'], array_keys($layout['sections']));
         self::assertSame('01 Questions 1 to 50', $layout['sections']['s1']['title']);
         self::assertSame('02 Questions 51 to 60', $layout['sections']['s2']['title']);
-        self::assertSame(2, $layout['sections']['s1']['page'], 'the first section starts after the contents page');
+        self::assertSame(3, $layout['sections']['s1']['page'], 'the first section starts after the cover and the contents page');
         $pages = array_column($layout['sections'], 'page');
         self::assertSame($pages, array_values(array_unique($pages)), 'every section starts on its own page');
         self::assertSame($pages, (function (array $p) { sort($p); return $p; })($pages));
@@ -155,4 +155,30 @@ final class PdfRendererTest extends TestCase
     {
         return '<FEFF' . strtoupper(bin2hex((string) mb_convert_encoding($s, 'UTF-16BE', 'UTF-8'))) . '>';
     }
+
+    public function testTheCoverCarriesTheSiteBrandingAndTheContentsMoveToPageTwo(): void
+    {
+        $r = new PdfRenderer(null, self::tmp(), ['name' => 'ExamLib', 'primary' => '#7C3AED', 'logo' => null, 'site' => 'https://examlib.example.com']);
+        $html = $r->html(self::dataset(3), self::META, Variant::get('study'));
+        $cover = substr($html, (int) strpos($html, '<div class="cover">'), (int) strpos($html, '<div class="kicker">') - (int) strpos($html, '<div class="cover">'));
+        self::assertStringContainsString('ExamLib', $cover);
+        self::assertStringContainsString('HCIA-Datacom', $cover);
+        self::assertStringContainsString('H12-811', $cover);
+        self::assertStringContainsString('https://examlib.example.com', $cover);
+        self::assertStringContainsString('Edition', $cover);
+        self::assertStringNotContainsString('Contents', $cover, 'the contents are on the next page');
+        self::assertStringContainsString('#7C3AED', $html, 'the inside pages use the accent too');
+        self::assertStringNotContainsString('#1C7293', $html, 'no default teal left');
+        $pal = $r->coverPalette();
+        self::assertSame([0x7C, 0x3A, 0xED], $pal['primary']);
+
+        $pdf = $r->render(self::dataset(3), self::META, Variant::get('study'));
+        self::assertStringStartsWith('%PDF-', $pdf);
+        self::assertSame(3, $r->layout()['sections']['s1']['page']);
+
+        $plain = new PdfRenderer(null, self::tmp());
+        self::assertStringContainsString('#1C7293', $plain->html(self::dataset(1), self::META, Variant::get('study')), 'teal without branding');
+        self::assertStringNotContainsString('class="cover-site"', $plain->html(self::dataset(1), self::META, Variant::get('study')), 'no address, no pill');
+    }
 }
+

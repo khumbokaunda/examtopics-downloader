@@ -144,6 +144,24 @@ final class LibraryController extends Controller
      * own card, let it be grouped by name again, show it first on its card, or group it with
      * another exam of the same provider.
      */
+    /** Give an exam a readable name, or go back to the source's ('' ). */
+    public function rename(string $provider, string $exam): Response
+    {
+        $p = $this->findProvider($provider);
+        $e = $this->findExam($p, $exam);
+        $back = '/library/' . rawurlencode((string) $p['slug']) . '/' . rawurlencode((string) $e['code']);
+        $name = trim((string) preg_replace('/\s+/u', ' ', (string) $this->request->input('name', '')));
+        if (mb_strlen($name) > 255) {
+            $this->flash('warning', 'A name can be at most 255 characters.');
+            return $this->redirect($back);
+        }
+        $this->s->exams()->rename((int) $e['id'], $name);
+        $this->s->audit()->record('exam.renamed', ['provider' => provider_name($p), 'exam' => $e['code'], 'from' => (string) ($e['name'] ?? ''), 'to' => $name],
+            'exam', $p['slug'] . '/' . $e['code']);
+        $this->flash('success', $name === '' ? 'The name from the source is used again.' : 'Renamed. PDFs are made again with the new name.');
+        return $this->redirect($back);
+    }
+
     public function editions(string $provider, string $exam): Response
     {
         $p = $this->findProvider($provider);

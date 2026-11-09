@@ -27,7 +27,8 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
 
 <header class="page-header">
     <div class="page-header-text">
-        <h1 class="page-title"><?= e(Editions::title($exam)) ?></h1>
+        <div class="title-row"><h1 class="page-title"><?= e(Editions::title($exam)) ?></h1><?php if (can('library.manage')): ?>
+            <button class="btn btn-sm btn-link title-edit" type="button" data-toggle-panel="rename-exam" aria-label="Rename the exam" title="Rename"><?= icon('pencil') ?></button><?php endif; ?></div>
         <p class="page-subtitle"><?php if (Editions::codeLabel($exam) !== null): ?><span class="code-tag" title="<?= e(strtoupper((string) $exam['code'])) ?>"><?= e(Editions::shortCode((string) $exam['code'])) ?></span> · <?php endif; ?><?= e(provider_name($provider)) ?></p>
     </div>
     <div class="page-actions">
@@ -41,6 +42,17 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
         <a class="btn btn-primary" href="<?= e(url($base . '/view', ['version' => $selected['version']])) ?>"><?= icon('book') ?>Read</a>
     </div>
 </header>
+
+<?php if (can('library.manage')): ?>
+<div class="card mb-4" id="rename-exam" hidden><div class="card-body">
+    <form method="post" action="<?= e(url($base . '/name')) ?>" class="row g-2 align-items-end" data-once><?= csrf_field() ?>
+        <div class="col-md"><label class="form-label" for="exam-name">Exam name</label>
+            <input class="form-control" id="exam-name" name="name" maxlength="255" value="<?= e((string) ($exam['name'] ?? '')) ?>" placeholder="<?= e(strtoupper((string) $exam['code'])) ?>">
+            <div class="form-text">Shown in the library and on PDF covers. Leave empty to use the source's name.</div></div>
+        <div class="col-md-auto pb-md-4"><button class="btn btn-primary" type="submit"><?= icon('check2') ?>Save</button></div>
+    </form>
+</div></div>
+<?php endif; ?>
 
 <?php if ($activeJob): ?>
 <div class="card mb-4"><div class="card-body">

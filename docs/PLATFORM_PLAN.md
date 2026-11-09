@@ -868,3 +868,17 @@ basics. Public verification links the verification notice. Every notice is versi
 `InstitutionSetupTest` (5 tests): the administrator's settings, the form following them, required
 and checked extra fields, a hidden field kept on save, a field for other kinds of institution not
 asked, approving a draft, and every deletion protection.
+
+## PDF covers and exam names (delivered)
+
+- **Cover page.** Every PDF (and every part of a large one) opens with a full-page cover: the
+  site's logo (an uploaded one keeps its proportions; otherwise the site's mark) and name, the
+  exam's name sized to fit, its code, the edition, the question count and collection date, and
+  the site's address. The shapes down the left edge and in the right-hand corners use the
+  site's accent, a deep shade of it and a near-black ink. The guide notes and contents move to
+  page 2. The inside pages use the accent too. A change of branding or of the exam's name makes
+  the PDFs again.
+- **Renaming an exam** (`library.manage`): a pencil beside the exam's title on its library page.
+  The name is kept when the source's exam list or a new collection brings another (migration
+  `042`, `exams.name_locked`); an empty name goes back to the source's. Audited as `exam.renamed`.
+
