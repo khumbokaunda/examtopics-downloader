@@ -63,7 +63,7 @@ The permissions an administrator can hand out one by one:
 | `documents.build` | Build and delete PDF and Markdown documents. |
 | `answers.edit` | Correct answers and questions, add pictures, see the Integrity page, deal with reports, see correction history and carry corrections to other editions. |
 | `exams.collect` | Collect exams, refresh any provider, add providers, download images, see jobs. |
-| `library.manage` | Delete old versions of an exam, and choose which exams share a card as editions. |
+| `library.manage` | Delete old versions of an exam, rename an exam, and choose which exams share a card as editions. |
 | `requests.manage` | See and answer every exam request, and be told of new ones. |
 | `users.manage` | Create, edit, approve and disable accounts, and be told of sign-ups. |
 | `settings.manage` | Change system, email and branding settings. |
@@ -292,7 +292,9 @@ Each exam version can be turned into a document, in four variants, each as PDF o
 | Practice | Questions only, answers hidden |
 | Practice with key | Questions, then an answer key at the end |
 
-- PDFs have a cover, contents, bookmarks and the saved images; large exams are made in parts
+- PDFs open with a cover in the site's branding (logo, name, accent colour, address) showing the
+  exam's name, code and edition; the next page has the guide notes and contents. They have
+  bookmarks and the saved images; large exams are made in parts
   (500 questions each by default) so the server never runs out of memory.
 - PDFs are built in the background with progress shown; Markdown is made at once.
 - A document is reused while nothing has changed, and offered for rebuilding when it was made
@@ -502,7 +504,7 @@ overview only.
 | Dashboard | `GET /` | library.view |
 | Library | `GET /library`, `/search`, `/api/palette`, `/library/{p}/{e}`, `/library/{p}/{e}/{version}/json` | library.view |
 | | `POST /library/{p}/{e}/save`, `/progress/reset` | library.view |
-| | `POST /library/{p}/{e}/editions`, `/library/{p}/{e}/{version}/delete` | library.manage |
+| | `POST /library/{p}/{e}/editions`, `/library/{p}/{e}/name`, `/library/{p}/{e}/{version}/delete` | library.manage |
 | Reader | `GET /library/{p}/{e}/view`; `GET /api/library/{p}/{e}/{version}/questions/{n}`, `/answers`; `POST .../questions/{n}/attempt` | library.view |
 | Notes | `POST /library/{p}/{e}/notes`, `/notes/bookmark` | library.view |
 | Discussion | `POST /library/{p}/{e}/discussion`, `/discussion/{id}/delete`, `/reports` | library.view |
@@ -568,7 +570,7 @@ overview only.
 | Worked out, rebuilt on demand (not backed up) | `exam_checks` (Integrity figures), `question_index` (search) |
 | System | `settings`, `notifications`, `mail_queue`, `exam_requests`, `audit_log`, `throttle_events`, `schema_migrations` |
 
-Migrations `001` to `041` in `web/database/migrations` create all of it; `php bin/migrate.php`
+Migrations `001` to `042` in `web/database/migrations` create all of it; `php bin/migrate.php`
 applies them.
 
 ### Background processes

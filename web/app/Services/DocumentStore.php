@@ -23,7 +23,7 @@ use Throwable;
 final class DocumentStore
 {
     /** Bump when rendering output changes, so stale documents are regenerated. */
-    public const RENDERER_VERSION = 6; // 5: pictures where the cached dataset marks them; 6: Hebrew-read punctuation
+    public const RENDERER_VERSION = 7; // 5: pictures where the cached dataset marks them; 6: Hebrew-read punctuation; 7: cover page
     public const FORMATS = ['md' => 'text/markdown; charset=utf-8', 'pdf' => 'application/pdf'];
 
     public function __construct(
@@ -36,6 +36,8 @@ final class DocumentStore
         private Corrections $corrections,
         /** Starts bin/build-document.php for a document UUID; null builds in the request. */
         private ?\Closure $launcher = null,
+        /** The site's branding for the PDF cover (Branding::pdfCover()). */
+        private ?\Closure $cover = null,
     ) {
     }
 
@@ -174,6 +176,11 @@ final class DocumentStore
         }
         $variant = Variant::get($variantKey);
         $options = $variant->options() + ['format' => $format, 'renderer' => self::RENDERER_VERSION];
+        // A renamed exam, or new branding on the cover, makes its documents again.
+        $options['title'] = trim((string) ($version['exam_name'] ?? ''));
+        if ($format === 'pdf') {
+            $options['cover'] = substr(hash('sha256', (string) json_encode($this->cover())), 0, 16);
+        }
         $imageUrls = [];
         $parts = [];
         if ($format === 'pdf') {
@@ -487,6 +494,16 @@ final class DocumentStore
         $tmp = $this->paths->storage() . '/tmp/dompdf';
         Paths::ensureDir($tmp . '/images');
         $images = $this->media->imageSource($imageUrls, (int) $this->config->get('documents.image_total_bytes', 100 * 1024 * 1024), $tmp . '/images');
-        return new PdfRenderer($images, $tmp);
+        return new PdfRenderer($images, $tmp, $this->cover());
+    }
+
+    /** @return array{name?:string,primary?:string,logo?:?string,site?:string,logo_time?:int} */
+    private function cover(): array
+    {
+        $c = $this->cover !== null ? (array) ($this->cover)() : [];
+        if (is_string($c['logo'] ?? null) && is_file($c['logo'])) {
+            $c['logo_time'] = (int) filemtime($c['logo']);
+        }
+        return $c;
     }
 }

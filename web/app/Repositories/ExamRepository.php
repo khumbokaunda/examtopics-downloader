@@ -78,7 +78,7 @@ final class ExamRepository
                 $db->run(
                     'INSERT INTO exams (provider_id, code, name, reported_count, in_inventory, inventory_refreshed_at, created_at, updated_at)
                      VALUES (?, ?, ?, ?, 1, ?, ?, ?)
-                     ON DUPLICATE KEY UPDATE name = COALESCE(VALUES(name), name), reported_count = VALUES(reported_count),
+                     ON DUPLICATE KEY UPDATE name = IF(name_locked = 1, name, COALESCE(VALUES(name), name)), reported_count = VALUES(reported_count),
                          in_inventory = 1, inventory_refreshed_at = VALUES(inventory_refreshed_at), updated_at = VALUES(updated_at)',
                     [$providerId, $e['code'], $e['name'] === '' ? null : $e['name'], $e['question_count'], $now, $now, $now]
                 );
@@ -89,6 +89,16 @@ final class ExamRepository
     public function setLatestVersion(int $examId, ?int $versionId): void
     {
         $this->db->run('UPDATE exams SET latest_version_id = ?, updated_at = ? WHERE id = ?', [$versionId, Database::now(), $examId]);
+    }
+
+    /**
+     * Name an exam by hand ('' goes back to the name the source gives, at the next exam list
+     * or collection). A hand-set name is kept when the source brings another.
+     */
+    public function rename(int $examId, string $name): void
+    {
+        $this->db->run('UPDATE exams SET name = ?, name_locked = ?, updated_at = ? WHERE id = ?',
+            [$name === '' ? null : $name, $name === '' ? 0 : 1, Database::now(), $examId]);
     }
 
     public function setName(int $examId, string $name): void

@@ -206,6 +206,28 @@ final class Branding
         return preg_match('/^#[0-9A-Fa-f]{6}$/', $color) === 1;
     }
 
+    /** Each preset accent as the light theme shows it (tokens.css). */
+    public const ACCENT_HEX = ['teal' => '#1C7293', 'indigo' => '#4F46E5', 'violet' => '#7C3AED', 'amber' => '#B45309', 'rose' => '#BE185D', 'emerald' => '#047857'];
+
+    /**
+     * What the PDF cover shows of the site: its name, its accent (a custom colour adjusted as
+     * the light theme adjusts it), its logo file and its address.
+     *
+     * @return array{name:string,primary:string,logo:?string,site:string}
+     */
+    public function pdfCover(string $site): array
+    {
+        $b = $this->get();
+        if ($b['accent'] === 'custom' && self::validColor($b['color'])) {
+            $c = self::untilContrast(self::rgb($b['color']), [255, 255, 255], 4.5, [0, 0, 0]);
+            $primary = sprintf('#%02X%02X%02X', $c[0], $c[1], $c[2]);
+        } else {
+            $primary = self::ACCENT_HEX[$b['accent']] ?? self::ACCENT_HEX['teal'];
+        }
+        return ['name' => (string) $b['name'], 'primary' => $primary, 'logo' => $b['logo'] !== null ? $this->path($b['logo']) : null,
+            'site' => (string) preg_replace('#/+$#', '', $site)];
+    }
+
     /** The stylesheet that applies a custom colour (empty for a preset). */
     public function css(): string
     {

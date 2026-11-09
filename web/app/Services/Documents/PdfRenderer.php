@@ -18,8 +18,9 @@ use Dompdf\Options;
  *
  * The layout is an editorial study guide in the app's own type and colours: Poppins and
  * JetBrains Mono, the teal accent with a deep teal-navy for titles and answers, and amber
- * only for warnings. Page 1 has the title, an "About this guide" box and a linked contents
- * list whose page numbers are filled in after layout. Each section starts on a new page and
+ * only for warnings, with the site's accent in place of the teal when it has another. Page 1
+ * is a cover in the site's branding; page 2 has the title, an "About this guide" box and a
+ * linked contents list whose page numbers are filled in after layout. Each section starts on a new page and
  * is a PDF bookmark; question cards are kept whole; appendices hold the answer key and the
  * source of every question.
  *
@@ -42,7 +43,6 @@ final class PdfRenderer
 
     // Print palette, from the app's theme tokens (default teal accent).
     private const TEAL = [0x1C, 0x72, 0x93];
-    private const NAVY = [0x12, 0x40, 0x56];
     private const MUTED = [0x6B, 0x75, 0x80];
     private const LEADER = [0xB9, 0xC1, 0xC9];
 
@@ -52,8 +52,33 @@ final class PdfRenderer
     /** @var array<string,true> folders of the image files in the document; dompdf may read only these and the fonts */
     private array $imageDirs = [];
 
-    public function __construct(private ?ImageSource $images = null, private string $tempDir = '')
+    /**
+     * @param array{name?:string,primary?:string,logo?:?string,site?:string} $cover the site's branding for the cover page:
+     *        its name, its accent colour (#RRGGBB, as the light theme shows it), its logo file (PNG or SVG) and its address
+     */
+    public function __construct(private ?ImageSource $images = null, private string $tempDir = '', private array $cover = [])
     {
+    }
+
+    /**
+     * The cover's colours, all from the accent: the accent itself, a deep shade of it for
+     * titles and the darkest bands, an ink nearly black for the edges, and a pale tint.
+     *
+     * The inside pages use the accent and its navy shade, tint and line in place of the
+     * default teal ones.
+     *
+     * @return array<string,array{int,int,int}> primary, deep, ink, title, soft, navy, tint, line
+     */
+    public function coverPalette(): array
+    {
+        $hex = (string) ($this->cover['primary'] ?? '');
+        $p = preg_match('/^#[0-9A-Fa-f]{6}$/', $hex) === 1 ? [hexdec(substr($hex, 1, 2)), hexdec(substr($hex, 3, 2)), hexdec(substr($hex, 5, 2))] : self::TEAL;
+        $mix = static fn(array $a, array $b, float $t): array => [(int) round($a[0] + ($b[0] - $a[0]) * $t), (int) round($a[1] + ($b[1] - $a[1]) * $t),
+            (int) round($a[2] + ($b[2] - $a[2]) * $t)];
+        $deep = $mix($p, [0, 0, 0], 0.6);
+        return ['primary' => $p, 'deep' => $deep, 'ink' => $mix($p, [0, 0, 0], 0.85), 'title' => $mix($p, $deep, 0.45),
+            'soft' => $mix($p, [255, 255, 255], 0.86), 'navy' => $mix($p, [0, 0, 0], 0.42), 'tint' => $mix($p, [255, 255, 255], 0.94),
+            'line' => $mix($p, [255, 255, 255], 0.75)];
     }
 
     public static function fontDir(): string
@@ -136,7 +161,8 @@ final class PdfRenderer
 
         $this->imageDirs = [];
         $doc = $this->document($dataset, $meta, $variant);
-        $dompdf->getOptions()->setChroot(array_merge([self::fontDir()], array_keys($this->imageDirs)));
+        $logo = (string) ($this->cover['logo'] ?? '');
+        $dompdf->getOptions()->setChroot(array_merge([self::fontDir()], array_keys($this->imageDirs), $logo !== '' && is_file($logo) ? [dirname($logo)] : []));
         $dompdf->loadHtml($doc['html'], 'UTF-8');
         $dompdf->setPaper('A4', 'portrait');
         $dompdf->render();
@@ -164,7 +190,12 @@ final class PdfRenderer
         }
 
         $tocTitles = $doc['toc'];
-        $canvas->page_script(function (int $page, int $count, Canvas $c, FontMetrics $fm) use ($marks, $sectionPages, $tocTitles): void {
+        $palette = $this->coverPalette();
+        $canvas->page_script(function (int $page, int $count, Canvas $c, FontMetrics $fm) use ($marks, $sectionPages, $tocTitles, $palette): void {
+            if ($page === 1) {
+                self::drawCover($c, $palette);
+                return;
+            }
             $numFont = $fm->getFont('Poppins SemiBold') ?? $fm->getFont('DejaVu Sans');
             $footFont = $fm->getFont('Poppins') ?? $fm->getFont('DejaVu Sans');
             if ($page > 1) {
@@ -180,7 +211,7 @@ final class PdfRenderer
                 $label = (string) $target;
                 $w = $fm->getTextWidth($label, $numFont, 9.5);
                 $top = $cell['y'] + ($cell['h'] - 14) / 2 - 1.5;
-                $c->text($cell['x'] + $cell['w'] - $w, $top, $label, $numFont, 9.5, self::rgb(self::NAVY));
+                $c->text($cell['x'] + $cell['w'] - $w, $top, $label, $numFont, 9.5, self::rgb($palette['navy']));
                 // The leader runs from the end of the title to just before the number.
                 $title = $marks['tt:' . $key] ?? null;
                 $from = $title !== null && $title['page'] === $page
@@ -271,9 +302,14 @@ final class PdfRenderer
 
         $b = [];
         $b[] = '<!doctype html><html><head><meta charset="utf-8"><title>' . $h($meta['provider'] . ' ' . $meta['exam']) . '</title>';
-        $b[] = '<style>' . self::CSS . '</style></head><body>';
+        $pal = $this->coverPalette();
+        $hex = static fn(array $c): string => sprintf('#%02X%02X%02X', $c[0], $c[1], $c[2]);
+        $b[] = '<style>' . strtr(self::CSS, ['#1C7293' => $hex($pal['primary']), '#124056' => $hex($pal['navy']), '#F1F7F9' => $hex($pal['tint']),
+            '#C5DEE8' => $hex($pal['line'])]) . '</style></head><body>';
 
-        // Page 1: title, about, contents.
+        $b[] = $this->coverPage($meta, $variant, count($questions), $h, $t);
+
+        // Page 2: title, about, contents.
         $kicker = $meta['provider'] . ' · ' . strtoupper($meta['exam_code']);
         $b[] = '<div class="kicker">' . $t($kicker) . '</div>';
         $b[] = '<h1 class="title">' . $t($meta['exam']) . '</h1>';
@@ -361,6 +397,96 @@ final class PdfRenderer
     }
 
     /** One contents row. Its page number and dotted leader are drawn once the layout is known. */
+    /**
+     * The cover: the site's logo and name, the exam's name, its code and edition, and the
+     * site's address. The shapes around it are drawn by drawCover() once the page is laid out.
+     *
+     * @param array<string,mixed> $meta
+     */
+    private function coverPage(array $meta, Variant $variant, int $count, callable $h, callable $t): string
+    {
+        $pal = $this->coverPalette();
+        $css = static fn(array $c): string => sprintf('#%02X%02X%02X', $c[0], $c[1], $c[2]);
+        $name = trim((string) ($this->cover['name'] ?? '')) ?: 'Examtopics';
+        $logo = (string) ($this->cover['logo'] ?? '');
+        if ($logo === '' || !is_file($logo)) {
+            // The site's own mark, in its colour.
+            $logo = 'data:image/svg+xml;base64,' . base64_encode('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="64" height="64">'
+                . '<rect width="32" height="32" rx="7" fill="' . $css($pal['primary']) . '"/><path fill="#ffffff" d="M16 8 4 13.5l12 5.5 9-4.1V21h2v-7.1l1-.4L16 8zm-7 '
+                . '9.6V21c0 1.9 3.1 3.5 7 3.5s7-1.6 7-3.5v-3.4l-7 3.2-7-3.2z"/></svg>');
+        }
+        $title = (string) $meta['exam'];
+        $len = mb_strlen($title);
+        $size = match (true) { $len <= 10 => 54, $len <= 18 => 44, $len <= 30 => 36, $len <= 48 => 30, $len <= 72 => 25, default => 21 };
+        $part = is_array($meta['part'] ?? null) ? $meta['part'] : null;
+        $note = ($part !== null ? 'Part ' . (int) $part['n'] . ' of ' . (int) $part['of'] . ', questions ' . (int) $part['first'] . ' to ' . (int) $part['last']
+            : $count . ' question' . ($count === 1 ? '' : 's')) . ' · collected ' . substr((string) $meta['collected_at'], 0, 10);
+        $site = trim((string) ($this->cover['site'] ?? ''));
+        $out = '<div class="cover">';
+        // An uploaded logo keeps its proportions: 19 mm tall, at most 70 mm wide.
+        [$lw, $lh] = [19.0, 19.0];
+        if (!str_starts_with($logo, 'data:')) {
+            $dims = @getimagesize($logo);
+            if ($dims === false && str_ends_with(strtolower($logo), '.svg')
+                && preg_match('/viewBox\s*=\s*["\']\s*[-\d.]+[\s,]+[-\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)/i', (string) @file_get_contents($logo), $vb) === 1) {
+                $dims = [(float) $vb[1], (float) $vb[2]];
+            }
+            if (is_array($dims) && $dims[0] > 0 && $dims[1] > 0) {
+                $lw = min(70.0, 19.0 * $dims[0] / $dims[1]);
+                $lh = $lw * $dims[1] / $dims[0];
+            }
+        }
+        $out .= '<div class="cover-brand"><img src="' . $h($logo) . '" alt="" style="width: ' . round($lw, 2) . 'mm; height: ' . round($lh, 2) . 'mm">'
+            . '<div class="cover-name" style="color: ' . $css($pal['deep']) . '">' . $t($name) . '</div></div>';
+        $out .= '<div class="cover-title-box"><table class="cover-title-table"><tr><td class="cover-title-cell"><h1 class="cover-title" style="font-size: ' . $size
+            . 'pt; color: ' . $css($pal['title']) . '">' . $t($title) . '</h1></td></tr></table></div>';
+        $out .= '<div class="cover-facts">'
+            . '<div class="cover-label" style="color: ' . $css($pal['primary']) . '; margin-top: 0">Exam code</div>'
+            . '<div class="cover-value" style="color: ' . $css($pal['deep']) . '">' . $t(strtoupper((string) $meta['exam_code'])) . '</div>'
+            . '<div class="cover-label" style="color: ' . $css($pal['primary']) . '">Edition</div>'
+            . '<div class="cover-value" style="color: ' . $css($pal['deep']) . '">' . $h($variant->label()) . '</div>'
+            . '<div class="cover-note" style="color: ' . $css($pal['title']) . '">' . $h($note) . '</div></div>';
+        if ($site !== '') {
+            $out .= '<div class="cover-site" style="background-color: ' . $css($pal['soft']) . '; color: ' . $css($pal['ink']) . '">' . $h($site) . '</div>';
+        }
+        return $out . '</div>';
+    }
+
+    /**
+     * The cover's shapes: a band down the left edge that deepens into the accent, and layered
+     * corner pieces at the top right and bottom right. Drawn in a 1414 by 2000 frame scaled to
+     * the page.
+     *
+     * @param array<string,array{int,int,int}> $pal from coverPalette()
+     */
+    private static function drawCover(Canvas $c, array $pal): void
+    {
+        $s = $c->get_width() / 1414;
+        $poly = static function (array $pts, array $color) use ($c, $s): void {
+            $c->polygon(array_map(static fn(float|int $v): float => $v * $s, $pts), self::rgb($color), null, [], true);
+        };
+        // Left edge: a solid band, then one that runs from the deep shade to the accent.
+        $c->filled_rectangle(0, 0, 72 * $s, 2000 * $s, self::rgb($pal['ink']));
+        $steps = 80;
+        for ($i = 0; $i < $steps; $i++) {
+            $f = $i / ($steps - 1);
+            $col = [(int) round($pal['deep'][0] + ($pal['primary'][0] - $pal['deep'][0]) * $f), (int) round($pal['deep'][1] + ($pal['primary'][1] - $pal['deep'][1]) * $f),
+                (int) round($pal['deep'][2] + ($pal['primary'][2] - $pal['deep'][2]) * $f)];
+            $c->filled_rectangle(72 * $s, 2000 * $s * $i / $steps, 50 * $s, 2000 * $s / $steps + 0.5, self::rgb($col));
+        }
+        $white = [255, 255, 255];
+        // Top right.
+        $poly([950, 0, 903, 47, 1414, 515, 1414, 0], $pal['ink']);
+        $poly([1048, 0, 1000, 45, 1414, 428, 1414, 0], $white);
+        $poly([1108, 0, 1050, 55, 1414, 390, 1414, 0], $pal['deep']);
+        $poly([1414, 20, 1414, 390, 1190, 183], $pal['primary']);
+        // Bottom right.
+        $poly([1080, 2000, 1322, 1683, 1414, 1770, 1414, 2000], $pal['deep']);
+        $poly([1128, 2000, 1305, 1742, 1414, 1846, 1414, 2000], $white);
+        $poly([1160, 2000, 1303, 1782, 1414, 1888, 1414, 2000], $pal['primary']);
+        $poly([1130, 2000, 1238, 1858, 1400, 2000], $pal['ink']);
+    }
+
     private function tocRow(string $key, string $number, string $title, callable $h): string
     {
         return '<table class="toc"><tr><td class="toc-n">' . $h($number) . '</td><td class="toc-t"><a href="#' . $key . '" data-mark="tt:' . $key . '">' . $h($title) . '</a></td>'
@@ -695,6 +821,21 @@ final class PdfRenderer
     // teal-navy for titles and answers and amber only for warnings.
     private const CSS = <<<'CSS'
 @page { margin: 22mm 23mm 24mm 23mm; }
+@page :first { margin: 0; }
+.cover { position: relative; height: 296mm; page-break-after: always; text-align: center; }
+.cover-brand { position: absolute; top: 38mm; left: 30mm; right: 30mm; }
+.cover-name { font-family: "Poppins", "DejaVu Sans", sans-serif; font-weight: bold; font-size: 15pt; letter-spacing: 0.6pt; text-transform: uppercase;
+    margin-top: 3.5mm; line-height: 1.1; }
+.cover-title-box { position: absolute; top: 88mm; left: 30mm; right: 22mm; height: 78mm; }
+.cover-title-table { width: 100%; border-collapse: collapse; }
+.cover-title-cell { vertical-align: middle; height: 78mm; padding: 0; text-align: center; }
+.cover-title { font-family: "Poppins", "DejaVu Sans", sans-serif; font-weight: bold; text-transform: uppercase; line-height: 1.04; margin: 0; }
+.cover-facts { position: absolute; top: 176mm; left: 30mm; right: 22mm; }
+.cover-label { font-size: 13pt; margin-top: 8mm; }
+.cover-value { font-family: "Poppins", "DejaVu Sans", sans-serif; font-weight: bold; font-size: 17pt; line-height: 1.15; }
+.cover-note { font-size: 9.5pt; margin-top: 2mm; }
+.cover-site { position: absolute; top: 250.5mm; left: 52.5mm; width: 104.5mm; padding: 3.4mm 0 3.6mm 0; border-radius: 6.5mm;
+    font-size: 13pt; line-height: 1.2; }
 body { font-family: "Poppins", "DejaVu Sans", sans-serif; font-size: 9.5pt; line-height: 1.2; color: #1A2028; }
 .fb { font-family: "DejaVu Sans", sans-serif; }
 a { color: inherit; text-decoration: none; }

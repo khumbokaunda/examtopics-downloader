@@ -148,6 +148,7 @@ return static function (Router $r): void {
     $r->post('/platform/certificates/{uuid}/revoke', [CertificateController::class, 'revoke'], can: 'certificates.manage');
     $r->post('/api/mock/{uuid}/answer', [MockController::class, 'save'], can: $read);
     $r->post('/library/{provider}/{exam}/editions', [LibraryController::class, 'editions'], can: 'library.manage');
+    $r->post('/library/{provider}/{exam}/name', [LibraryController::class, 'rename'], can: 'library.manage');
     $r->get('/progress', [ProgressController::class, 'mine'], can: $read);
     $r->get('/progress/everyone', [ProgressController::class, 'everyone'], can: 'progress.view_all');
     $r->get('/progress/people/{ref}', [ProgressController::class, 'person'], can: 'progress.view_all');

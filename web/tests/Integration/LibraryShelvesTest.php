@@ -146,4 +146,29 @@ final class LibraryShelvesTest extends HttpTestCase
             self::assertStringNotContainsString("\u{2014}", $page);
         }
     }
+
+    public function testAnAdministratorCanRenameAnExam(): void
+    {
+        $base = '/library/microsoft/az-500';
+        $eid = (int) $this->app->db()->value("SELECT id FROM exams WHERE code = 'az-500'");
+        self::assertStringContainsString('id="rename-exam"', $this->get($base)->body);
+        $this->post($base . '/name', ['name' => '  Azure   Security Engineer  ']);
+        self::assertSame(['Azure Security Engineer', 1], array_values(array_map(static fn($v) => is_numeric($v) ? (int) $v : $v,
+            $this->app->db()->one('SELECT name, name_locked FROM exams WHERE id = ?', [$eid]))));
+        self::assertStringContainsString('Azure Security Engineer', $this->get($base)->body);
+        self::assertSame(1, (int) $this->app->db()->value("SELECT COUNT(*) FROM audit_log WHERE action = 'exam.renamed'"));
+
+        // The exam list from the source does not undo it, and an empty name goes back to the source's.
+        $pid = (int) $this->app->db()->value("SELECT id FROM providers WHERE slug = 'microsoft'");
+        $this->s->exams()->applyInventory($pid, [['code' => 'az-500', 'name' => 'Microsoft Azure Security Technologies', 'question_count' => 400]], false);
+        self::assertSame('Azure Security Engineer', $this->app->db()->value('SELECT name FROM exams WHERE id = ?', [$eid]));
+        $this->post($base . '/name', ['name' => '']);
+        $this->s->exams()->applyInventory($pid, [['code' => 'az-500', 'name' => 'Microsoft Azure Security Technologies', 'question_count' => 400]], false);
+        self::assertSame('Microsoft Azure Security Technologies', $this->app->db()->value('SELECT name FROM exams WHERE id = ?', [$eid]));
+
+        $this->newSession();
+        $this->login('member', 'member password long', 'member');
+        self::assertStringNotContainsString('id="rename-exam"', $this->get($base)->body);
+        self::assertSame(403, $this->post($base . '/name', ['name' => 'Mine'])->status);
+    }
 }

@@ -959,3 +959,7 @@ a.job-chip:hover { text-decoration: none; filter: brightness(.96); }
 .req-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
 .req-edit { flex-basis: 100%; }
 .req-row.is-muted .row-title, .req-row.is-muted .row-meta { opacity: .55; }
+/* A small edit button beside a page title. */
+.title-edit { padding: 2px 6px; margin-left: 2px; vertical-align: middle; color: var(--color-text-muted); font-size: 1rem; }
+.title-edit:hover, .title-edit.active { color: var(--color-primary); }
+.title-row { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
