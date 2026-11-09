@@ -37,7 +37,10 @@ final class QuestionView
             $q['text_parts'] = array_map('trim', explode(self::IMG_MARK, $text));
             $text = trim(implode("\n\n", array_filter($q['text_parts'], static fn(string $p) => $p !== '')));
         }
-        $q['text'] = $text;
+        $q['text'] = self::joinWrapped($text);
+        if (isset($q['text_parts'])) {
+            $q['text_parts'] = array_map([self::class, 'joinWrapped'], $q['text_parts']);
+        }
         foreach ((array) ($q['choices'] ?? []) as $i => $c) {
             if (is_array($c)) {
                 $q['choices'][$i]['text'] = self::cleanText((string) ($c['text'] ?? ''));
@@ -229,6 +232,49 @@ final class QuestionView
             return [$text, []];
         }
         return [trim(implode("\n", array_slice($lines, 0, $start))), $choices];
+    }
+
+    /**
+     * Rejoin sentences the source broke across lines. Some questions arrive with a line break,
+     * or a blank line, in the middle of a sentence (text copied from a PDF), so a page showed it
+     * as separate paragraphs. A line is joined to the one before when that one is long prose
+     * that does not end a sentence and the next starts with a lower-case letter. Short lines,
+     * exhibits and configuration output keep their breaks.
+     */
+    public static function joinWrapped(string $text): string
+    {
+        $out = [];
+        foreach (explode("
+", $text) as $line) {
+            $t = rtrim($line);
+            if (trim($t) === '') {
+                $out[] = '';
+                continue;
+            }
+            $k = count($out) - 1;
+            $blanks = 0;
+            while ($k >= 0 && $out[$k] === '') {
+                $blanks++;
+                $k--;
+            }
+            if ($k >= 0 && $blanks <= 1 && self::continues($out[$k], $t)) {
+                $out = array_slice($out, 0, $k + 1);
+                $out[$k] .= ' ' . ltrim($t);
+                continue;
+            }
+            $out[] = $t;
+        }
+        return implode("
+", $out);
+    }
+
+    private static function continues(string $prev, string $next): bool
+    {
+        $prev = trim($prev);
+        $next = trim($next);
+        return mb_strlen($prev) >= 50 && substr_count($prev, ' ') >= 6
+            && preg_match('/[\p{Ll}\p{N},\-]$/u', $prev) === 1
+            && preg_match('/^\p{Ll}/u', $next) === 1 && str_contains($next, ' ');
     }
 
     /**

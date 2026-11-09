@@ -188,4 +188,19 @@ final class QuestionViewTest extends TestCase
         self::assertSame([['text' => 'Look closely.'], ['image' => 0], ['text' => 'Which one is it?']], QuestionView::questionSegments($edited));
         self::assertSame($q, QuestionView::applyQuestionEdit($q, null));
     }
+
+    public function testSentencesBrokenAcrossLinesAreRejoined(): void
+    {
+        $text = "Clothing retailer employees are provisioned with user accounts that provide access to resources at partner businesses. All partner businesses use common\n\n"
+            . "identity and access management (IAM) protocols and differing technologies. Under the Extended Identity principle, what is the process flow between partner\n\n"
+            . "businesses to allow this IAM action?";
+        $q = QuestionView::normalize(['text' => $text, 'choices' => [['letter' => 'A', 'text' => 'x'], ['letter' => 'B', 'text' => 'y']]]);
+        self::assertCount(1, QuestionView::paragraphs($q['text']), 'one sentence, one paragraph');
+        self::assertStringContainsString('use common identity and access', $q['text']);
+
+        $exhibit = "Refer to the exhibit.\n\ninterface GigabitEthernet0/1\n ip address 10.0.0.1 255.255.255.0\n no shutdown\n\nWhich command is missing?";
+        self::assertSame($exhibit, QuestionView::joinWrapped($exhibit), 'short lines and configuration keep their breaks');
+        $two = "The administrator configured the firewall rules for the new branch office.\n\nwhich of these is true?";
+        self::assertSame($two, QuestionView::joinWrapped($two), 'a finished sentence is not joined');
+    }
 }
