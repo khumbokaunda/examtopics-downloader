@@ -42,7 +42,7 @@ $base = '/institutions/' . $institution['uuid'] . '/assessments/' . $a['uuid'];
                         <div class="score-bar" title="<?= $band * 10 ?> to <?= $band === 9 ? 100 : $band * 10 + 9 ?>%: <?= (int) $n ?>"><span class="score-bar-n"><?= $n > 0 ? (int) $n : '' ?></span><span class="score-bar-fill topic-h-<?= (int) round($n / $peak * 20) * 5 ?>"></span><span class="score-bar-label"><?= $band * 10 ?></span></div>
                     <?php endforeach; ?>
                 </div>
-                <table class="visually-hidden"><caption>Sittings per band</caption><?php foreach ($stats['distribution'] as $band => $n): ?><tr><th><?= $band * 10 ?>%</th><td><?= (int) $n ?></td></tr><?php endforeach; ?></table>
+                <div class="visually-hidden"><table><caption>Sittings per band</caption><?php foreach ($stats['distribution'] as $band => $n): ?><tr><th><?= $band * 10 ?>%</th><td><?= (int) $n ?></td></tr><?php endforeach; ?></table></div>
             </div>
         </div>
     </div>

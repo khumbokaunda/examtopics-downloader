@@ -91,9 +91,13 @@ final class InstitutionRepository
         $sql = "SELECT i.*, (SELECT COUNT(*) FROM institution_memberships m WHERE m.institution_id = i.id AND m.status = 'active') AS member_count
                 FROM institutions i";
         $args = [];
-        if ($status !== '') {
-            $sql .= ' WHERE i.status = ?';
+        if ($status === 'deleted') {
+            $sql .= ' WHERE i.deleted_at IS NOT NULL';
+        } elseif ($status !== '') {
+            $sql .= ' WHERE i.status = ? AND i.deleted_at IS NULL';
             $args[] = $status;
+        } else {
+            $sql .= ' WHERE i.deleted_at IS NULL';
         }
         return $this->db->all($sql . " ORDER BY i.status IN ('pending', 'under_review') DESC, i.status = 'info_requested' DESC, i.created_at DESC", $args);
     }
@@ -102,10 +106,30 @@ final class InstitutionRepository
     public function statusCounts(): array
     {
         $out = [];
-        foreach ($this->db->all('SELECT status, COUNT(*) AS n FROM institutions GROUP BY status') as $r) {
+        foreach ($this->db->all('SELECT status, COUNT(*) AS n FROM institutions WHERE deleted_at IS NULL GROUP BY status') as $r) {
             $out[(string) $r['status']] = (int) $r['n'];
         }
+        $out['deleted'] = (int) $this->db->value('SELECT COUNT(*) FROM institutions WHERE deleted_at IS NOT NULL');
         return $out;
+    }
+
+    /** Mark deleted (with who and why), or restore with nulls. */
+    public function markDeleted(int $id, ?int $by, ?string $reason): void
+    {
+        $this->db->run('UPDATE institutions SET deleted_at = ?, deleted_by = ?, delete_reason = ?, updated_at = ? WHERE id = ?',
+            [$by !== null ? Database::now() : null, $by, $reason, Database::now(), $id]);
+    }
+
+    /** How many credentials and transcripts the institution issued. */
+    public function issuedRecords(int $id): int
+    {
+        return (int) $this->db->value("SELECT (SELECT COUNT(*) FROM credentials WHERE institution_id = ? AND status <> 'pending')
+                                              + (SELECT COUNT(*) FROM transcripts WHERE institution_id = ?)", [$id, $id]);
+    }
+
+    public function purge(int $id): void
+    {
+        $this->db->run('DELETE FROM institutions WHERE id = ? AND deleted_at IS NOT NULL', [$id]);
     }
 
     public function pendingCreatedBy(int $userId): int
@@ -155,7 +179,7 @@ final class InstitutionRepository
     {
         return $this->db->all("SELECT i.*, m.role AS member_role, m.uuid AS membership_uuid FROM institution_memberships m
                                JOIN institutions i ON i.id = m.institution_id
-                               WHERE m.user_id = ? AND m.status = 'active' ORDER BY i.name", [$userId]);
+                               WHERE m.user_id = ? AND m.status = 'active' AND i.deleted_at IS NULL ORDER BY i.name", [$userId]);
     }
 
     /**

@@ -8,11 +8,13 @@ $tone = \App\Services\Institutions::TONES;
         <p class="page-subtitle">Applications and their status.</p>
     </div>
     <div class="page-actions">
+        <a class="btn btn-sm btn-outline-primary" href="<?= e(url('/platform/institution-requirements')) ?>"><?= icon('sliders') ?>What they provide</a>
         <nav class="segmented" aria-label="Status">
-            <a class="<?= $status === '' ? 'is-active' : '' ?>" href="<?= e(url('/platform/institutions')) ?>">All <?= array_sum($counts) ?></a>
+            <a class="<?= $status === '' ? 'is-active' : '' ?>" href="<?= e(url('/platform/institutions')) ?>">All <?= array_sum($counts) - (int) ($counts['deleted'] ?? 0) ?></a>
             <?php foreach (Institutions::STATUSES as $k => $label): ?>
                 <a class="<?= $status === $k ? 'is-active' : '' ?>" href="<?= e(url('/platform/institutions', ['status' => $k])) ?>"><?= e($label) ?> <?= (int) ($counts[$k] ?? 0) ?></a>
             <?php endforeach; ?>
+            <?php if ((int) ($counts['deleted'] ?? 0) > 0): ?><a class="<?= $status === 'deleted' ? 'is-active' : '' ?>" href="<?= e(url('/platform/institutions', ['status' => 'deleted'])) ?>">Deleted <?= (int) $counts['deleted'] ?></a><?php endif; ?>
         </nav>
     </div>
 </header>

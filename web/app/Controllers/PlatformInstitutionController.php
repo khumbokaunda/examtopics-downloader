@@ -21,7 +21,7 @@ final class PlatformInstitutionController extends Controller
     public function index(): Response
     {
         $status = (string) $this->request->query('status', '');
-        $status = isset(Institutions::STATUSES[$status]) ? $status : '';
+        $status = isset(Institutions::STATUSES[$status]) || $status === 'deleted' ? $status : '';
         $repo = $this->s->institutions()->repo();
         return $this->render('platform/institutions', ['title' => 'Institutions', 'nav' => 'platform-institutions',
             'rows' => $repo->all($status), 'status' => $status, 'counts' => $repo->statusCounts()]);
@@ -34,8 +34,65 @@ final class PlatformInstitutionController extends Controller
         return $this->render('platform/institution', ['title' => $i['name'], 'nav' => 'platform-institutions', 'institution' => $i,
             'reviews' => $repo->reviews((int) $i['id']), 'owners' => $repo->owners((int) $i['id']),
             'documents' => $this->s->onboarding()->documents((int) $i['id']), 'acceptances' => $this->s->policies()->acceptances('institution', (int) $i['id']),
-            'missing' => $this->s->onboarding()->missing($i),
+            'missing' => $this->s->onboarding()->missing($i), 'slots' => $this->s->onboarding()->slots($i),
+            'fields' => $this->fieldRows($i), 'purgeWhy' => $this->s->institutions()->purgeRefusal($i),
             'memberCount' => array_sum($repo->roleCounts((int) $i['id']))]);
+    }
+
+    /** @param array<string,mixed> $i @return list<array{0:string,1:string}> the institution's answers to the platform's extra fields */
+    private function fieldRows(array $i): array
+    {
+        $values = $this->s->onboarding()->requirements()->values((int) $i['id']);
+        $out = [];
+        foreach ($this->s->onboarding()->requirements()->all('field') as $f) {
+            if (isset($values[(int) $f['id']])) {
+                $out[] = [(string) $f['label'], $values[(int) $f['id']]];
+            }
+        }
+        return $out;
+    }
+
+    public function delete(string $ref): Response
+    {
+        $i = $this->s->institutions()->repo()->findByUuid($ref) ?? throw HttpException::notFound('Institution');
+        if ($r = $this->needsConfirmation('/platform/institutions/' . $i['uuid'])) {
+            return $r;
+        }
+        try {
+            $this->s->institutions()->delete($i, (string) $this->request->input('name', ''), (string) $this->request->input('reason', ''), $this->auth->user());
+            $this->flash('success', $i['name'] . ' is deleted. You can restore it.');
+        } catch (RuntimeException $e) {
+            $this->flash('warning', $e->getMessage());
+        }
+        return $this->redirect('/platform/institutions/' . $i['uuid']);
+    }
+
+    public function restore(string $ref): Response
+    {
+        $i = $this->s->institutions()->repo()->findByUuid($ref) ?? throw HttpException::notFound('Institution');
+        try {
+            $this->s->institutions()->restore($i);
+            $this->flash('success', $i['name'] . ' is restored, still suspended.');
+        } catch (RuntimeException $e) {
+            $this->flash('warning', $e->getMessage());
+        }
+        return $this->redirect('/platform/institutions/' . $i['uuid']);
+    }
+
+    public function purge(string $ref): Response
+    {
+        $i = $this->s->institutions()->repo()->findByUuid($ref) ?? throw HttpException::notFound('Institution');
+        if ($r = $this->needsConfirmation('/platform/institutions/' . $i['uuid'])) {
+            return $r;
+        }
+        try {
+            $this->s->institutions()->purge($i, (string) $this->request->input('name', ''));
+            $this->flash('success', $i['name'] . ' is removed for good.');
+            return $this->redirect('/platform/institutions');
+        } catch (RuntimeException | \PDOException $e) {
+            $this->flash('warning', $e instanceof \PDOException ? 'It could not be removed: ' . $e->getMessage() : $e->getMessage());
+        }
+        return $this->redirect('/platform/institutions/' . $i['uuid']);
     }
 
     public function document(string $ref, string $document): Response

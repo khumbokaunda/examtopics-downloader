@@ -423,10 +423,21 @@ banks, assessments and results come in later phases.
 - **Live invigilation** (`/institutions/<id>/assessments/<id>/live`): every candidate's state,
   refreshed every 15 seconds; messages to one candidate or everyone writing; observations; pausing, extra time and ending a sitting; assigning
   invigilators.
-- **Institution applications** (`/institutions/<id>/application`): a draft with supporting
-  documents by kind of institution, sent for review with the platform agreement (`/policies`);
-  reviewers verify identity, registration, accreditation and the representative's authority
-  separately, then approve, ask for more information, decline or suspend.
+- **Institution applications** (`/institutions/<id>/application`): registering is a
+  step-by-step form (organisation, contact, representative, registration, any extra fields, then a
+  review of every answer); the application page shows its progress as milestones and has one
+  upload per document the platform asks for. It is sent for review with the platform agreement
+  (`/policies`); reviewers verify identity, registration, accreditation and the representative's
+  authority separately, then approve (from any open stage), ask for more information, decline or
+  suspend.
+- **What institutions provide** (`/platform/institution-requirements`, `institutions.manage`):
+  the documents asked for (each required or optional, for some or all kinds of institution), extra
+  profile fields (short or long text, number, date, web address, email or a choice), and which
+  optional built-in profile fields are shown. A hidden field keeps what institutions already gave.
+- **Deleting an institution** (platform): only one that is suspended or never approved, with its
+  exact name typed, a reason and the password confirmed. It is hidden and closed to its members,
+  and can be restored. It is removed for good only 30 days later, again with its name typed and
+  the password confirmed, and never once it has issued credentials or transcripts.
 - **Credentials** (`/institutions/<id>/credentials`): templates with eligibility rules,
   authorised signatories, issuing with approval, a register, revoking and correcting; holders
   find them under My certificates, and anyone can check one at `/verify/<token>`.
@@ -539,7 +550,8 @@ overview only.
 | | `POST /institutions/{ref}/students/{member}/transcripts`, `.../transcripts/{transcript}/withdraw`; `GET .../transcripts/{transcript}.pdf` | transcripts.issue (the PDF: anyone who can read the student list) |
 | | `GET /institutions/{ref}/students/codes`, `.../students/import/problems.csv`; `POST .../students/codes`, `.../students/codes/{code}/revoke`, `.../students/requests/{request}`, `.../students/invitations/{id}/resend`, `.../students/invitations/{id}/cancel` | signed-in, then students.manage |
 | Invitations | `GET /invitations/{token}` public; `POST /invitations/{token}/accept`, `/invitations/{token}/decline` signed-in | |
-| Institution review | `GET /platform/institutions`, `/platform/institutions/{ref}`; `POST /platform/institutions/{ref}/decision` | institutions.manage |
+| Institution review | `GET /platform/institutions`, `/platform/institutions/{ref}`; `POST /platform/institutions/{ref}/decision`, `.../delete`, `.../restore`, `.../purge` | institutions.manage (delete and purge also confirm the password) |
+| What institutions provide | `GET /platform/institution-requirements`; `POST /platform/institution-requirements[/{requirement}]`, `.../{requirement}/toggle`, `.../{requirement}/move` | institutions.manage |
 
 ### What is stored
 
@@ -551,12 +563,12 @@ overview only.
 | Members | `question_comments` (with answer votes), `question_reports`, `question_notes` (notes and bookmarks) |
 | Studying | `study_answers` (latest answer per question, with spaced review box and due day), `study_days`, `study_places`, `saved_exams`, `mock_exams` |
 | Output | `documents`, `media` (saved images) |
-| Institutions | `institutions`, `institution_reviews` (decisions and verification changes), `institution_documents`, `policy_acceptances`, `enrolment_codes`, `enrolment_requests`, `programme_modules`, `programme_enrolments`, `module_completions`, `transcripts`, `credential_signatories`, `credential_templates`, `credentials`, `credential_events`, `institution_memberships`, `institution_invitations`, `institution_departments`, `institution_programmes`, `institution_classes`, `class_instructors`, `class_enrolments`, `institution_students`, `question_banks`, `question_bank_editors`, `bank_topics`, `bank_questions`, `question_versions`, `assessments`, `assessment_items`, `assessment_blueprints`, `assessment_assignments`, `assessment_sessions`, `assessment_session_questions`, `assessment_responses`, `assessment_response_history`, `assessment_events`, `integrity_reviews`, `invigilator_assignments`, `invigilator_observations`, `invigilator_messages` |
+| Institutions | `institutions`, `institution_reviews` (decisions and verification changes), `institution_documents`, `institution_requirements`, `institution_field_values`, `policy_acceptances`, `enrolment_codes`, `enrolment_requests`, `programme_modules`, `programme_enrolments`, `module_completions`, `transcripts`, `credential_signatories`, `credential_templates`, `credentials`, `credential_events`, `institution_memberships`, `institution_invitations`, `institution_departments`, `institution_programmes`, `institution_classes`, `class_instructors`, `class_enrolments`, `institution_students`, `question_banks`, `question_bank_editors`, `bank_topics`, `bank_questions`, `question_versions`, `assessments`, `assessment_items`, `assessment_blueprints`, `assessment_assignments`, `assessment_sessions`, `assessment_session_questions`, `assessment_responses`, `assessment_response_history`, `assessment_events`, `integrity_reviews`, `invigilator_assignments`, `invigilator_observations`, `invigilator_messages` |
 | Readiness | `certificates` |
 | Worked out, rebuilt on demand (not backed up) | `exam_checks` (Integrity figures), `question_index` (search) |
 | System | `settings`, `notifications`, `mail_queue`, `exam_requests`, `audit_log`, `throttle_events`, `schema_migrations` |
 
-Migrations `001` to `040` in `web/database/migrations` create all of it; `php bin/migrate.php`
+Migrations `001` to `041` in `web/database/migrations` create all of it; `php bin/migrate.php`
 applies them.
 
 ### Background processes

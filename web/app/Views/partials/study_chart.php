@@ -42,7 +42,7 @@ $label = static fn(string $day): string => (new DateTimeImmutable($day))->format
         <?php $i++; endforeach; ?>
     </svg>
     <div class="study-chart-axis-labels" aria-hidden="true"><span><?= e($label((string) array_key_first($days))) ?></span><span>Today</span></div>
-    <table class="visually-hidden">
+    <div class="visually-hidden"><?php /* a table ignores the 1px height, so the hiding is on a wrapper */ ?><table>
         <caption>Answers per day, last 14 days</caption>
         <thead><tr><th scope="col">Day</th><th scope="col">Answers</th><th scope="col">Right</th><th scope="col">Pages read</th></tr></thead>
         <tbody>
@@ -50,5 +50,5 @@ $label = static fn(string $day): string => (new DateTimeImmutable($day))->format
             <tr><th scope="row"><?= e($day === $last ? 'Today' : $label($day)) ?></th><td><?= $d['answered'] ?></td><td><?= $d['correct'] ?></td><td><?= $d['pages'] ?></td></tr>
         <?php endforeach; ?>
         </tbody>
-    </table>
+    </table></div>
 </figure>

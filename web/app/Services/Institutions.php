@@ -60,7 +60,7 @@ final class Institutions
     public const DECISIONS = [
         'review' => ['to' => 'under_review', 'from' => ['pending'], 'label' => 'Start the review', 'note' => false],
         'request_info' => ['to' => 'info_requested', 'from' => ['pending', 'under_review'], 'label' => 'Ask for more information', 'note' => true],
-        'verify' => ['to' => 'verified', 'from' => ['pending', 'under_review', 'suspended'], 'label' => 'Approve', 'note' => false],
+        'verify' => ['to' => 'verified', 'from' => ['draft', 'pending', 'under_review', 'info_requested', 'rejected', 'suspended'], 'label' => 'Approve', 'note' => false],
         'reject' => ['to' => 'rejected', 'from' => ['pending', 'under_review', 'info_requested'], 'label' => 'Do not approve', 'note' => true],
         'suspend' => ['to' => 'suspended', 'from' => ['verified'], 'label' => 'Suspend', 'note' => true],
     ];
@@ -237,6 +237,74 @@ final class Institutions
             $this->notifier->notify($owner, 'institution', $title, $body, '/institutions/' . $institution['uuid'] . ($d['to'] === 'verified' ? '' : '/application'), null,
                 'institution-decision:' . $institution['uuid'] . ':' . $d['to'] . ':' . time());
         }
+    }
+
+    // Deleting ----------------------------------------------------------------------------------
+
+    /** Days a deleted institution stays restorable before it may be removed for good. */
+    public const PURGE_AFTER_DAYS = 30;
+
+    /**
+     * Delete an institution: hidden and closed to everyone, every record kept, restorable. Only a
+     * suspended institution, or one never approved, and only when its exact name is typed.
+     *
+     * @param array<string,mixed> $i @param array<string,mixed> $admin
+     */
+    public function delete(array $i, string $typedName, string $reason, array $admin): void
+    {
+        if ($i['deleted_at'] !== null) {
+            throw new RuntimeException('It is already deleted.');
+        }
+        if ($i['status'] === 'verified') {
+            throw new RuntimeException('Suspend it first. An approved institution cannot be deleted.');
+        }
+        if (trim($typedName) !== $i['name']) {
+            throw new RuntimeException('Type the institution\'s name exactly to delete it.');
+        }
+        $reason = mb_substr(trim($reason), 0, 500);
+        if ($reason === '') {
+            throw new RuntimeException('Give the reason.');
+        }
+        $this->repo->markDeleted((int) $i['id'], (int) $admin['id'], $reason);
+        $this->record('institution.deleted', $i, ['reason' => $reason]);
+    }
+
+    /** @param array<string,mixed> $i */
+    public function restore(array $i): void
+    {
+        if ($i['deleted_at'] === null) {
+            throw new RuntimeException('It is not deleted.');
+        }
+        $this->repo->markDeleted((int) $i['id'], null, null);
+        $this->record('institution.restored', $i);
+    }
+
+    /** Why the institution cannot be removed for good now, or null when it can. @param array<string,mixed> $i */
+    public function purgeRefusal(array $i): ?string
+    {
+        if ($i['deleted_at'] === null) {
+            return 'Delete it first.';
+        }
+        if ((string) $i['deleted_at'] > gmdate('Y-m-d H:i:s', time() - self::PURGE_AFTER_DAYS * 86400)) {
+            return 'It can be removed for good ' . self::PURGE_AFTER_DAYS . ' days after it was deleted.';
+        }
+        if ($this->repo->issuedRecords((int) $i['id']) > 0) {
+            return 'It issued credentials or transcripts, which must stay verifiable. It stays deleted instead.';
+        }
+        return null;
+    }
+
+    /** Remove a deleted institution and everything in it, for good. @param array<string,mixed> $i */
+    public function purge(array $i, string $typedName): void
+    {
+        if (($why = $this->purgeRefusal($i)) !== null) {
+            throw new RuntimeException($why);
+        }
+        if (trim($typedName) !== $i['name']) {
+            throw new RuntimeException('Type the institution\'s name exactly to remove it for good.');
+        }
+        $this->record('institution.purged', $i);
+        $this->repo->purge((int) $i['id']);
     }
 
     /**

@@ -834,3 +834,37 @@ creating an account now records the account notice, and starting an assessment r
 participation notice, plus the monitoring notice when the assessment monitors more than the
 basics. Public verification links the verification notice. Every notice is versioned at
 `/policies` and each acceptance is kept in `policy_acceptances` with its context.
+
+## Institution onboarding, made flexible (delivered)
+
+- **Registration is a wizard.** The form is split into steps (organisation, contact,
+  representative, registration, extra fields, review) that slide into place, with a step
+  indicator and a progress bar. Each step checks its own fields before moving on, Enter moves to
+  the next step, and the last step lists every answer with a link back to its step. The join page
+  adds an account step first. Without JavaScript every step shows at once and the form still
+  sends. The profile page keeps the ordinary layout.
+- **Administrators decide what is asked** (`/platform/institution-requirements`): document slots
+  (name, hint, required or optional, which kinds of institution), extra profile fields with a type
+  and, for a choice, its options, and which optional built-in fields show. Order is set with up
+  and down; anything can be switched off. A field for some kinds of institution only follows the
+  kind chosen in the form. Migration `041` adds `institution_requirements` (the starting list is
+  the documents there were before and every built-in field shown) and `institution_field_values`.
+- **One upload per document.** The application page lists each document asked of this kind of
+  institution with its own Upload or Replace button; there is no list of kinds to choose from.
+  A new file replaces the earlier one while the application is still open.
+- **Milestones.** The application and the reviewer's page show where an application stands:
+  started, sent, checks (how many of the four), then approved, not approved or suspended.
+- **Approving from any open stage.** A reviewer could verify every check while the application
+  was still a draft, but Approve only worked once it had been sent, so it stayed "Draft, not
+  sent". Approve now works from any open stage; identity and the representative must still be
+  verified.
+- **Deleting is hard to do by accident.** Only an institution that is suspended or was never
+  approved can be deleted, with its exact name typed, a reason, and the password confirmed. It is
+  hidden from lists, closed to its members (404), listed under Deleted, and can be restored. It is
+  removed for good only after 30 days, with the name typed and the password confirmed again, and
+  never once it has issued credentials or transcripts. Every step is in the activity history, and
+  backups still hold it.
+
+`InstitutionSetupTest` (5 tests): the administrator's settings, the form following them, required
+and checked extra fields, a hidden field kept on save, a field for other kinds of institution not
+asked, approving a draft, and every deletion protection.

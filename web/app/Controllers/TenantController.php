@@ -27,7 +27,7 @@ abstract class TenantController extends Controller
         $repo = $this->s->institutions()->repo();
         $i = $repo->findByUuid($ref);
         $m = $i !== null ? $repo->membership((int) $i['id'], (int) $this->auth->user()['id']) : null;
-        if ($i === null || $m === null || $m['status'] !== 'active') {
+        if ($i === null || $m === null || $m['status'] !== 'active' || ($i['deleted_at'] ?? null) !== null) {
             throw HttpException::notFound('Institution');
         }
         $owner = $m['role'] === InstitutionAccess::OWNER;

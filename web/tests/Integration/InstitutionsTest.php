@@ -44,7 +44,7 @@ final class InstitutionsTest extends HttpTestCase
         self::assertSame(1, $told());
 
         $page = $this->get('/institutions/' . $uuid)->body;
-        self::assertStringContainsString('is with the platform', $page);
+        self::assertStringContainsString('With the reviewers', $page);
         self::assertSame(403, $this->get('/institutions/' . $uuid . '/members')->status, 'nobody is invited before verification');
         self::assertSame(403, $this->post('/institutions/' . $uuid . '/invitations', ['email' => 'bob@example.com', 'role' => 'student'])->status);
         self::assertSame(0, (int) $this->app->db()->value('SELECT COUNT(*) FROM institution_invitations'));

@@ -13,15 +13,18 @@ $staff = $people - ($roleCounts['student'] ?? 0);
 
 <?php $manage = InstitutionAccess::can($membership, 'institution.manage'); ?>
 <?php if (in_array($status, ['draft', 'pending', 'under_review', 'info_requested', 'rejected'], true)): ?>
-    <div class="alert <?= in_array($status, ['info_requested', 'rejected'], true) ? 'alert-warning' : 'alert-info' ?> d-flex flex-wrap align-items-center gap-2" role="status"><?= icon('file-earmark-check') ?>
-        <div class="alert-body flex-grow-1"><?= e(match ($status) {
-            'draft' => 'The application has not been sent yet. Add its documents and send it for review.',
-            'pending', 'under_review' => 'The application is with the platform\'s reviewers. Until it is approved, people cannot be invited.',
-            'info_requested' => 'The reviewer asked for more information: ' . (string) $institution['status_note'],
-            default => 'Not approved: ' . (string) $institution['status_note'] . ' Correct the application and send it again.',
-        }) ?></div>
-        <?php if ($manage): ?><a class="btn btn-sm btn-outline-secondary" href="<?= e(url($base . '/application')) ?>"><?= icon('arrow-right') ?>Open the application</a><?php endif; ?>
-    </div>
+    <div class="card mb-4"><div class="card-body">
+        <?= \App\Core\View::current()->partial('institutions/_milestones', ['institution' => $institution]) ?>
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3">
+            <p class="mb-0 small<?= in_array($status, ['info_requested', 'rejected'], true) ? ' text-warning-emphasis' : ' text-muted' ?>"><?= e(match ($status) {
+                'draft' => 'Not sent yet. Add the documents and send it.',
+                'pending', 'under_review' => 'With the reviewers. You can invite people once it is approved.',
+                'info_requested' => 'The reviewer asks: ' . (string) $institution['status_note'],
+                default => 'Not approved: ' . (string) $institution['status_note'],
+            }) ?></p>
+            <?php if ($manage): ?><a class="btn btn-sm btn-outline-primary" href="<?= e(url($base . '/application')) ?>"><?= icon('arrow-right') ?>Open the application</a><?php endif; ?>
+        </div>
+    </div></div>
 <?php elseif ($status === 'suspended'): ?>
     <div class="alert alert-danger" role="status"><?= icon('slash-circle') ?><div class="alert-body">Suspended by the platform<?= $institution['status_note'] ? ': ' . e($institution['status_note']) : '' ?>. Its members cannot open it until it is reinstated. Its records and certificates are kept.</div></div>
 <?php endif; ?>
