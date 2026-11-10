@@ -951,3 +951,37 @@ Left out on purpose (ideas for later, not built):
 - A "Review today" entry point on home for due questions.
 - Runtime renames from `examtopics` to `examlib` (Decision E).
 
+## Phase 1: thin course layer and question import (delivered)
+
+- **Course offering** (migration `046`, `courses`). Title, class (required, fixed once made),
+  optional module, start and end dates, optional lead instructor, status. Learners come from the
+  class roster and teachers from the class's instructors; nothing is enrolled twice. Who may do
+  what is in `Courses`: anyone who sees every class sees every course; the class's instructors
+  and people who manage classes run it; its learners read it. An instructor can start a course
+  only for a class he teaches. Tabs: Overview, Assessments, Participants. Learners do not see
+  each other's names.
+- **Assessments link to a course** with `assessments.course_id`. Adding one also sets it for the
+  course's class when the person may assign it; taking it out leaves who it is set for. Learners
+  see only published assessments set for them.
+- **Announcements** (`course_announcements`) go to each learner's inbox, and by email where they
+  take it, through `Notifier`. A notice is removed, never edited, and the removed row is kept.
+- **Timeline.** Home gains "Your courses" (with each course's latest notice) and "Coming up",
+  built from dates that already exist: when assessments set for the person open and close, when
+  assessments of courses they teach open and close, and when their courses start and end. No
+  calendar view or external sync: the list was enough.
+- **Bank import** (`QuestionImport`): CSV and Aiken, checked against the same rules as the
+  question form (`QuestionBanks::validate`), previewed, then saved as drafts so they go through
+  review. Problem rows download as a CSV. A question already in the bank, word for word, is not
+  imported again, and the import is recorded once in the activity log rather than once per
+  question.
+- **Copy an assessment** as a new draft: settings, chosen questions and blueprint. Not copied:
+  dates, assignments, course, and the question versions fixed at publishing.
+- Courses sit under Teaching for staff and under their own Courses section for students.
+
+`CoursesTest` (3 tests): the instructor's limits, notices reaching only the class, the learner's
+view and home, people outside the class and the institution, archiving, every import rule, and
+the copy.
+
+Left out on purpose: learning materials and file uploads (Phase 3), forums, groups, a calendar
+view.
+

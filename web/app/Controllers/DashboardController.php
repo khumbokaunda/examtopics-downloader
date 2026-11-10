@@ -107,7 +107,7 @@ final class DashboardController extends Controller
      * pages already use.
      *
      * @param array<string,mixed> $user
-     * @return array{institutions:list<array<string,mixed>>,assigned:list<array<string,mixed>>,more:int,results:list<array<string,mixed>>}|null
+     * @return array{institutions:list<array<string,mixed>>,assigned:list<array<string,mixed>>,more:int,results:list<array<string,mixed>>,courses:list<array<string,mixed>>,upcoming:list<array<string,mixed>>}|null
      */
     private function institutional(array $user): ?array
     {
@@ -143,11 +143,13 @@ final class DashboardController extends Controller
             $institutions[] = ['institution' => $i, 'role' => (string) $m['role'], 'todo' => $todo];
         }
         $this->s->sittings()->expireOverdue();
-        $assigned = array_values(array_filter($this->s->sittings()->repo()->assignedTo($userId),
+        $all = $this->s->sittings()->repo()->assignedTo($userId);
+        $assigned = array_values(array_filter($all,
             static fn(array $a): bool => $a['open_session'] !== null || \App\Services\Sittings::window($a) !== 'closed'));
         usort($assigned, static fn(array $a, array $b): int => [$b['open_session'] !== null, \App\Services\Sittings::window($b) === 'open'] <=> [$a['open_session'] !== null, \App\Services\Sittings::window($a) === 'open']);
         $results = array_values(array_filter($this->s->sittings()->repo()->history($userId), static fn(array $h): bool => $h['status'] !== 'in_progress' && $h['results_published_at'] !== null));
-        return ['institutions' => $institutions, 'assigned' => array_slice($assigned, 0, 5), 'more' => max(0, count($assigned) - 5), 'results' => array_slice($results, 0, 3)];
+        return ['institutions' => $institutions, 'assigned' => array_slice($assigned, 0, 5), 'more' => max(0, count($assigned) - 5), 'results' => array_slice($results, 0, 3),
+            'courses' => array_slice($this->s->courses()->forUser($userId), 0, 6), 'upcoming' => $this->s->courses()->upcoming($userId, $all)];
     }
 
     /**

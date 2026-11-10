@@ -449,6 +449,19 @@ banks, assessments and results come in later phases.
   (`/policies`); reviewers verify identity, registration, accreditation and the representative's
   authority separately, then approve (from any open stage), ask for more information, decline or
   suspend.
+- **Courses** (`/institutions/<id>/courses`): a course is one class being taught something
+  between two dates, with an optional lead instructor and module. Its learners are the class's
+  students and its teachers the class's instructors, so there is no second enrolment. A course
+  page has its notices (posted to every learner's inbox), its assessments (linking one also sets
+  it for the class) and its participants. Learners see published assessments set for them and
+  the notices; home shows their courses and what is coming up (assessments opening and closing,
+  courses starting and ending).
+- **Question import** (`.../banks/<id>/import`): a CSV file (question, a to j, answer, and
+  optional type, marks, difficulty, topic, explanation, reference) or Aiken text. Every
+  question is checked and previewed first; the good ones are saved as drafts for the usual
+  review. A question already in the bank is not imported again.
+- **Copy an assessment**: a new draft with the same settings, questions and blueprint, with no
+  dates, set for nobody.
 - **What institutions provide** (`/platform/institution-requirements`, `institutions.manage`):
   the documents asked for (each required or optional, for some or all kinds of institution), extra
   profile fields (short or long text, number, date, web address, email or a choice), and which
@@ -570,6 +583,9 @@ overview only.
 | | `GET /institutions/{ref}/students/codes`, `.../students/import/problems.csv`; `POST .../students/codes`, `.../students/codes/{code}/revoke`, `.../students/requests/{request}`, `.../students/invitations/{id}/resend`, `.../students/invitations/{id}/cancel` | signed-in, then students.manage |
 | Invitations | `GET /invitations/{token}` public; `POST /invitations/{token}/accept`, `/invitations/{token}/decline` signed-in | |
 | Institution review | `GET /platform/institutions`, `/platform/institutions/{ref}`; `POST /platform/institutions/{ref}/decision`, `.../delete`, `.../restore`, `.../purge` | institutions.manage (delete and purge also confirm the password) |
+| Courses | `GET /institutions/{ref}/courses`, `.../courses/{course}` (tabs: overview, assessments, participants); `POST .../courses`, `.../courses/{course}`, `.../archive`, `.../notices`, `.../notices/{notice}/remove`, `.../assessments`, `.../assessments/{assessment}/remove` | signed-in, then classes.view, classes.manage, the class's instructors, or its learners |
+| Question import | `GET /institutions/{ref}/banks/{bank}/import`, `.../import/template.csv`, `.../import/problems.csv`; `POST .../import`, `.../import/confirm` | signed-in, then whoever may write in the bank |
+| Copy an assessment | `POST /institutions/{ref}/assessments/{assessment}/duplicate` | signed-in, then assessments.create |
 | What institutions provide | `GET /platform/institution-requirements`; `POST /platform/institution-requirements[/{requirement}]`, `.../{requirement}/toggle`, `.../{requirement}/move` | institutions.manage |
 
 ### What is stored
@@ -582,12 +598,12 @@ overview only.
 | Members | `question_comments` (with answer votes), `question_reports`, `question_notes` (notes and bookmarks) |
 | Studying | `study_answers` (latest answer per question, with spaced review box and due day), `study_days`, `study_places`, `saved_exams`, `mock_exams` |
 | Output | `documents`, `media` (saved images) |
-| Institutions | `institutions`, `institution_reviews` (decisions and verification changes), `institution_documents`, `institution_requirements`, `institution_field_values`, `policy_acceptances`, `enrolment_codes`, `enrolment_requests`, `programme_modules`, `programme_enrolments`, `module_completions`, `transcripts`, `credential_signatories`, `credential_templates`, `credentials`, `credential_events`, `institution_memberships`, `institution_invitations`, `institution_departments`, `institution_programmes`, `institution_classes`, `class_instructors`, `class_enrolments`, `institution_students`, `question_banks`, `question_bank_editors`, `bank_topics`, `bank_questions`, `question_versions`, `assessments`, `assessment_items`, `assessment_blueprints`, `assessment_assignments`, `assessment_sessions`, `assessment_session_questions`, `assessment_responses`, `assessment_response_history`, `assessment_events`, `integrity_reviews`, `invigilator_assignments`, `invigilator_observations`, `invigilator_messages` |
+| Institutions | `institutions`, `institution_reviews` (decisions and verification changes), `institution_documents`, `institution_requirements`, `institution_field_values`, `policy_acceptances`, `enrolment_codes`, `enrolment_requests`, `programme_modules`, `programme_enrolments`, `module_completions`, `transcripts`, `courses`, `course_announcements`, `credential_signatories`, `credential_templates`, `credentials`, `credential_events`, `institution_memberships`, `institution_invitations`, `institution_departments`, `institution_programmes`, `institution_classes`, `class_instructors`, `class_enrolments`, `institution_students`, `question_banks`, `question_bank_editors`, `bank_topics`, `bank_questions`, `question_versions`, `assessments`, `assessment_items`, `assessment_blueprints`, `assessment_assignments`, `assessment_sessions`, `assessment_session_questions`, `assessment_responses`, `assessment_response_history`, `assessment_events`, `integrity_reviews`, `invigilator_assignments`, `invigilator_observations`, `invigilator_messages` |
 | Readiness | `certificates` |
 | Worked out, rebuilt on demand (not backed up) | `exam_checks` (Integrity figures), `question_index` (search) |
 | System | `settings`, `notifications`, `mail_queue`, `exam_requests`, `audit_log`, `throttle_events`, `schema_migrations` |
 
-Migrations `001` to `045` in `web/database/migrations` create all of it; `php bin/migrate.php`
+Migrations `001` to `046` in `web/database/migrations` create all of it; `php bin/migrate.php`
 applies them.
 
 ### Background processes

@@ -10,6 +10,8 @@ $may = static fn(string ...$any): bool => array_filter($any, static fn(string $p
 // exists and the member may open it; a group with no page is not shown.
 $pages = [
     'overview' => ['overview', $base, 'Overview', 'grid-1x2', true],
+    'courses' => [$membership['role'] === InstitutionAccess::STUDENT ? 'learning' : 'teaching', $base . '/courses', 'Courses', 'journal-text',
+        $verified && ($may('classes.view') || in_array($membership['role'], \App\Services\InstitutionStructure::TEACHING_ROLES, true) || $membership['role'] === InstitutionAccess::STUDENT)],
     'classes' => ['teaching', $base . '/classes', 'Classes', 'collection', $verified && ($may('classes.view') || in_array($membership['role'], \App\Services\InstitutionStructure::TEACHING_ROLES, true))],
     'banks' => ['teaching', $base . '/banks', 'Question banks', 'database', $verified && $may('question_banks.view', 'question_banks.create', 'question_banks.edit', 'question_banks.publish')],
     'assessments' => ['teaching', $base . '/assessments', 'Assessments', 'clipboard-check', $verified && $may('assessments.view', 'assessments.create', 'assessments.assign', 'assessments.schedule')],
@@ -22,7 +24,7 @@ $pages = [
     'activity' => ['admin', $base . '/activity', 'Activity', 'activity', $verified && $may('activity.view')],
 ];
 $pages = array_filter($pages, static fn(array $p): bool => $p[4]);
-$groupNames = ['overview' => ['Overview', 'grid-1x2'], 'teaching' => ['Teaching', 'easel'], 'people' => ['People', 'people'], 'academic' => ['Academic', 'diagram-3'],
+$groupNames = ['overview' => ['Overview', 'grid-1x2'], 'learning' => ['Courses', 'journal-text'], 'teaching' => ['Teaching', 'easel'], 'people' => ['People', 'people'], 'academic' => ['Academic', 'diagram-3'],
     'credentials' => ['Credentials', 'award'], 'admin' => ['Administration', 'gear']];
 $groups = [];
 foreach ($pages as $key => $p) {

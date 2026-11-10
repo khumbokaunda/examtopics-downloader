@@ -219,6 +219,16 @@ final class Services
             new CredentialSigner($this->app->paths()->storage() . '/keys')));
     }
 
+    public function questionImport(): QuestionImport
+    {
+        return $this->app->service(QuestionImport::class, fn() => new QuestionImport($this->questionBanks()));
+    }
+
+    public function courses(): Courses
+    {
+        return $this->app->service(Courses::class, fn() => new Courses($this->app->db(), $this->structure()->repo(), $this->audit(), $this->notifier()));
+    }
+
     public function records(): AcademicRecords
     {
         return $this->app->service(AcademicRecords::class, fn() => new AcademicRecords($this->app->db(), $this->audit()));

@@ -65,6 +65,33 @@ final class AssessmentRepository
         return $uuid;
     }
 
+    /**
+     * A new draft with the settings, chosen questions and blueprint of another assessment. Not
+     * copied: when it opens and closes, who it is set for, its course, and the question versions
+     * fixed at publishing (a copy is fixed again when it is published).
+     *
+     * @param array<string,mixed> $a the assessment to copy
+     * @return string the copy's uuid
+     */
+    public function duplicate(int $iid, array $a, string $title, ?int $creator): string
+    {
+        return $this->db->transaction(function (Database $db) use ($iid, $a, $title, $creator): string {
+            $uuid = Ids::uuid();
+            $now = Database::now();
+            $copied = array_values(array_diff(self::SETTINGS, ['title', 'opens_at', 'closes_at']));
+            $db->run('INSERT INTO assessments (uuid, institution_id, module_id, title, ' . implode(', ', $copied) . ', created_by, created_at, updated_at)
+                      VALUES (?, ?, ?, ?, ' . implode(', ', array_fill(0, count($copied), '?')) . ', ?, ?, ?)',
+                [$uuid, $iid, $a['module_id'] ?? null, $title, ...array_map(static fn(string $c) => $a[$c], $copied), $creator, $now, $now]);
+            $id = $db->lastId();
+            $db->run('INSERT INTO assessment_items (institution_id, assessment_id, question_id, position)
+                      SELECT institution_id, ?, question_id, position FROM assessment_items WHERE institution_id = ? AND assessment_id = ?', [$id, $iid, (int) $a['id']]);
+            $db->run('INSERT INTO assessment_blueprints (institution_id, assessment_id, bank_id, topic_id, difficulty, question_count, position)
+                      SELECT institution_id, ?, bank_id, topic_id, difficulty, question_count, position FROM assessment_blueprints WHERE institution_id = ? AND assessment_id = ?',
+                [$id, $iid, (int) $a['id']]);
+            return $uuid;
+        });
+    }
+
     /** @param array<string,mixed> $settings */
     public function saveSettings(int $iid, int $id, array $settings): void
     {
