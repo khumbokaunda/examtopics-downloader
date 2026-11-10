@@ -22,6 +22,8 @@ $pages = [
     'profile' => ['admin', $base . '/profile', 'Profile', 'building-gear', $may('institution.manage')],
     'application' => ['admin', $base . '/application', 'Application', 'file-earmark-check', $may('institution.manage')],
     'activity' => ['admin', $base . '/activity', 'Activity', 'activity', $verified && $may('activity.view')],
+    'billing' => ['admin', $base . '/billing', 'Plan and billing', 'receipt', $verified && $may('institution.manage')],
+    'export' => ['admin', $base . '/export', 'Export data', 'box-arrow-down', $may('institution.manage')],
 ];
 $pages = array_filter($pages, static fn(array $p): bool => $p[4]);
 $groupNames = ['overview' => ['Overview', 'grid-1x2'], 'learning' => ['Courses', 'journal-text'], 'teaching' => ['Teaching', 'easel'], 'people' => ['People', 'people'], 'academic' => ['Academic', 'diagram-3'],

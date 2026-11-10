@@ -8,6 +8,8 @@ final class Response
 {
     /** File streamed instead of $body (downloads). Never derived from request input. */
     public ?string $file = null;
+    /** Delete $file once it is sent (a temporary file made for this download). */
+    public bool $deleteAfterSend = false;
 
     /** @param array<string,string> $headers */
     public function __construct(
@@ -68,6 +70,9 @@ final class Response
         }
         if ($this->file !== null) {
             readfile($this->file);
+            if ($this->deleteAfterSend) {
+                @unlink($this->file);
+            }
             return;
         }
         echo $this->body;

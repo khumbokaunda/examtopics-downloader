@@ -45,6 +45,7 @@ $groups = [
         'users' => ['/users', 'Users', 'people', 'users.manage'],
         'platform-institutions' => ['/platform/institutions', 'Institutions', 'buildings', 'institutions.manage'],
         'platform-plans' => ['/platform/plans', 'Plans', 'tags', 'institutions.manage'],
+        'platform-billing' => ['/platform/billing', 'Billing', 'receipt', 'institutions.manage'],
         'platform-messages' => ['/platform/messages', 'Messages', 'chat-left-text', 'institutions.manage'],
         'platform-certificates' => ['/platform/certificates', 'Certificates', 'award', 'certificates.manage'],
         'activity' => ['/activity', 'Activity', 'activity', 'activity.view'],

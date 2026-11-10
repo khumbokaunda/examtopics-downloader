@@ -14,6 +14,7 @@ use App\Controllers\EnrolController;
 use App\Controllers\InstitutionApplicationController;
 use App\Controllers\PolicyController;
 use App\Controllers\BackupController;
+use App\Controllers\BillingController;
 use App\Controllers\BrandingController;
 use App\Controllers\CertificateController;
 use App\Controllers\CollectController;
@@ -28,6 +29,7 @@ use App\Controllers\InstitutionClassController;
 use App\Controllers\InstitutionCourseController;
 use App\Controllers\InstitutionCourseworkController;
 use App\Controllers\InstitutionController;
+use App\Controllers\InstitutionExportController;
 use App\Controllers\InstitutionStructureController;
 use App\Controllers\InstitutionStudentController;
 use App\Controllers\IntegrityController;
@@ -207,6 +209,11 @@ return static function (Router $r): void {
     // Institutions: open to any signed-in account here; InstitutionController::tenant() admits
     // only the institution's own members, and checks their institution permissions.
     $r->get('/institutions', [InstitutionController::class, 'index'], can: $me);
+    $r->get('/institutions/{ref}/billing', [BillingController::class, 'mine'], can: $me);
+    $r->get('/institutions/{ref}/billing/{invoice}.pdf', [BillingController::class, 'institutionPdf'], can: $me);
+    $r->post('/institutions/{ref}/billing/{invoice}/payments', [BillingController::class, 'report'], can: $me);
+    $r->get('/institutions/{ref}/export', [InstitutionExportController::class, 'show'], can: $me);
+    $r->post('/institutions/{ref}/export', [InstitutionExportController::class, 'download'], can: $me);
     $r->get('/institutions/register', [InstitutionController::class, 'registerForm'], can: $me);
     $r->post('/institutions/register', [InstitutionController::class, 'register'], can: $me);
     $r->get('/institutions/{ref}', [InstitutionController::class, 'show'], can: $me);
@@ -392,6 +399,14 @@ return static function (Router $r): void {
     $r->post('/platform/plans/{plan}', [PlanController::class, 'save'], can: 'institutions.manage');
     $r->post('/platform/plans/{plan}/archive', [PlanController::class, 'archive'], can: 'institutions.manage');
     $r->post('/platform/institutions/{ref}/plan', [PlanController::class, 'assign'], can: 'institutions.manage');
+    $r->get('/platform/billing', [BillingController::class, 'index'], can: 'institutions.manage');
+    $r->post('/platform/billing/settings', [BillingController::class, 'saveSettings'], can: 'institutions.manage');
+    $r->post('/platform/institutions/{ref}/invoices', [BillingController::class, 'issue'], can: 'institutions.manage');
+    $r->get('/platform/invoices/{invoice}.pdf', [BillingController::class, 'platformPdf'], can: 'institutions.manage');
+    $r->get('/platform/invoices/{invoice}', [BillingController::class, 'invoice'], can: 'institutions.manage');
+    $r->post('/platform/invoices/{invoice}/void', [BillingController::class, 'void'], can: 'institutions.manage');
+    $r->post('/platform/invoices/{invoice}/payments', [BillingController::class, 'record'], can: 'institutions.manage');
+    $r->post('/platform/payments/{payment}', [BillingController::class, 'decide'], can: 'institutions.manage');
     $r->get('/platform/messages', [PlanController::class, 'messages'], can: 'institutions.manage');
     $r->post('/platform/messages/{message}/answered', [PlanController::class, 'answered'], can: 'institutions.manage');
     $r->get('/platform/institutions', [PlatformInstitutionController::class, 'index'], can: 'institutions.manage');

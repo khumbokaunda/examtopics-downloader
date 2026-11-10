@@ -181,6 +181,16 @@ final class Services
         return $this->app->service(PublicSite::class, fn() => new PublicSite($this->app->db(), $this->audit(), $this->notifier(), $this->throttle()));
     }
 
+    public function institutionExport(): InstitutionExport
+    {
+        return $this->app->service(InstitutionExport::class, fn() => new InstitutionExport($this->app->db(), $this->audit(), $this->app->paths()->storage()));
+    }
+
+    public function billing(): Billing
+    {
+        return $this->app->service(Billing::class, fn() => new Billing($this->app->db(), $this->audit(), $this->notifier(), $this->users(), $this->institutions()->repo()));
+    }
+
     public function plans(): Plans
     {
         return $this->app->service(Plans::class, fn() => new Plans($this->app->db(), $this->audit()));

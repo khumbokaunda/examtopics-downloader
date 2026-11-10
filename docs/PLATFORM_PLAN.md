@@ -1099,3 +1099,47 @@ credentials. What changed, and why each consumer is safe:
 - Institution members who see people see their plan and how much of it is used.
 
 `PlansAndSiteTest` (2 tests).
+
+## Phase 5 of the brief, part 2: export, paying, and a load test (delivered)
+
+- **Per-institution export** (`/institutions/<ref>/export`, `institution.manage`, password asked
+  first as for a backup): one ZIP with a CSV for every table that has an `institution_id` column
+  (so a table added later is included without changing the export), `people.csv` for the accounts
+  those rows name, `activity.csv` in words, and the institution's uploaded files. Invitation and
+  verification tokens are left out; numbers are never altered, text that looks like a formula gets
+  an apostrophe. Each export is in the activity history.
+- **Paying, without a card gateway** (Decision C: small training providers, paying by mobile
+  money, bank transfer or cash). Migration `052`. The operator sets the currency (MWK by default),
+  the "From" block and how to pay; issues an invoice from an institution's page (numbered
+  `INV-<year>-0001`); the institution's managers are told, see it under Plan and billing with how
+  to pay, download it as a PDF and report a payment with its transaction reference; the operator
+  confirms or refuses it with a reason, or records money received directly. Confirmed payments
+  that cover the invoice mark it paid, and the PDF becomes a receipt. An issued invoice is never
+  edited: it is paid or made void with a reason, and a void is refused once money is confirmed.
+  Payments are kept whatever is decided. A gateway (Airtel Money or TNM Mpamba APIs) can confirm
+  payments later through the same `Billing::pay(..., confirmed: true)`.
+- **Load test of a full sitting** (`tests/Load/SittingLoadTest.php`, not in the normal suite):
+  over real HTTP, every candidate signs in, starts, answers each question three times, polls and
+  hands in at the same moment. Run with
+  `LOAD_CANDIDATES=150 LOAD_WORKERS=8 vendor/bin/phpunit --configuration phpunit.xml tests/Load`.
+  It fails on any error response or any answer not stored as last saved.
+  - **It found a real fault.** With 10 candidates, saving answers deadlocked in the database:
+    the first save of a question locked a row that did not exist yet, which takes a gap lock,
+    and neighbouring candidates then blocked each other. The page was answered 422, which tells
+    it to drop the answer from its queue, so the answer was lost unless the candidate handed in
+    by hand (a time-up hand-in would have lost it). Fixed: the first save is a plain insert,
+    only an existing row is locked, a remaining deadlock is tried again, and a database error is
+    answered 503 so the page keeps the answer and sends it again. The database message is no
+    longer shown to the candidate.
+  - Results after the fix, on 4 cores with PHP's built-in server (8 workers) and MariaDB 10.11:
+
+    | Candidates | Failed requests | Save an answer (median / p95 / slowest) | Sign in (median / p95) | Whole sitting |
+    | --- | --- | --- | --- | --- |
+    | 120 | 0 | 59 / 121 / 192 ms | 1.2 / 2.1 s | 5.1 s |
+    | 250 | 0 | 119 / 288 / 567 ms | 2.3 / 6.1 s | 13.1 s |
+
+    Sign-in is the slowest step: password hashing is meant to be slow. Ask candidates to sign in
+    a few minutes before the start, rather than all at the start time. A production server
+    (PHP-FPM with more workers) will do better than the built-in server.
+
+`InstitutionExportTest` (1 test), `BillingTest` (2 tests).

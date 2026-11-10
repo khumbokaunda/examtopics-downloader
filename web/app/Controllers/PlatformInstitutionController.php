@@ -38,7 +38,8 @@ final class PlatformInstitutionController extends Controller
             'fields' => $this->fieldRows($i), 'purgeWhy' => $this->s->institutions()->purgeRefusal($i),
             'memberCount' => array_sum($repo->roleCounts((int) $i['id'])),
             'plan' => $this->s->plans()->byId($i['plan_id'] !== null ? (int) $i['plan_id'] : null), 'plans' => $this->s->plans()->all(false),
-            'usage' => $this->s->plans()->usage($i), 'planHistory' => $this->s->plans()->history((int) $i['id'])]);
+            'usage' => $this->s->plans()->usage($i), 'planHistory' => $this->s->plans()->history((int) $i['id']),
+            'invoices' => $this->s->billing()->forInstitution((int) $i['id']), 'currency' => $this->s->billing()->settings()['currency']]);
     }
 
     /** @param array<string,mixed> $i @return list<array{0:string,1:string}> the institution's answers to the platform's extra fields */
