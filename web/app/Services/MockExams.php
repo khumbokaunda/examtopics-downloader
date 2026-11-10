@@ -49,17 +49,18 @@ final class MockExams
      * @param list<string> $keys question keys to choose from
      * @return array<string,mixed> the mock_exams row
      */
-    public function start(int $userId, int $examId, int $versionId, array $keys, int $count, int $minutes): array
+    public function start(int $userId, int $examId, int $versionId, array $keys, int $count, int $minutes, string $source = 'all'): array
     {
+        $pool = count($keys); // what the source offered: readiness asks how big it was
         shuffle($keys); // not for secrets, but plenty for choosing questions
         $keys = array_slice(array_values($keys), 0, max(1, $count));
         $minutes = max(0, min(self::MAX_MINUTES, $minutes));
         $now = time();
         $uuid = Ids::uuid();
         $this->db->run(
-            'INSERT INTO mock_exams (uuid, user_id, exam_id, version_id, question_keys, minutes, started_at, ends_at, total)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [$uuid, $userId, $examId, $versionId, json_encode($keys), $minutes, gmdate('Y-m-d H:i:s', $now),
+            'INSERT INTO mock_exams (uuid, user_id, exam_id, version_id, source, pool_size, question_keys, minutes, started_at, ends_at, total)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [$uuid, $userId, $examId, $versionId, $source, $pool, json_encode($keys), $minutes, gmdate('Y-m-d H:i:s', $now),
                 $minutes > 0 ? gmdate('Y-m-d H:i:s', $now + $minutes * 60) : null, count($keys)]
         );
         return (array) $this->find($uuid);

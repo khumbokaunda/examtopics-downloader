@@ -28,5 +28,7 @@ use App\Services\Readiness;
 <div class="card mt-4"><div class="card-body small">
     <h2 class="section-heading">The criteria it was measured against</h2>
     <p class="mb-0">At least <?= (int) Readiness::READY ?>% right on a timed mock exam of at least <?= Readiness::MIN_QUESTIONS ?> questions, with at most <?= (int) Readiness::MAX_UNANSWERED ?>% unanswered,
-        and another attempt at the same exam in the <?= Readiness::WINDOW_DAYS ?> days before at <?= (int) Readiness::CONSISTENT ?>% or more. The questions are practice questions collected for this platform.</p>
+        and another attempt at the same exam in the <?= Readiness::WINDOW_DAYS ?> days before at <?= (int) Readiness::CONSISTENT ?>% or more.<?php if (!empty($drawn)): ?>
+        Both attempts were drawn at random from at least twice as many questions, and shared at most half of them.<?php endif; ?>
+        The questions are practice questions collected for this platform.</p>
 </div></div>

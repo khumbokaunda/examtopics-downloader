@@ -21,7 +21,11 @@ final class AuthController extends Controller
         if ($this->auth->check()) {
             return $this->redirect('/');
         }
-        return $this->loginPage($this->safeNext($this->request->query('next')), null, '');
+        $next = $this->safeNext($this->request->query('next'));
+        if (preg_match('#^/(enrol|invitations/)#', $next) === 1) {
+            $this->session->set(self::THROUGH_INSTITUTION, true); // sent here by an enrolment code or an invitation
+        }
+        return $this->loginPage($next, null, '');
     }
 
     public function login(): Response
@@ -128,7 +132,7 @@ final class AuthController extends Controller
         if ($errors !== []) {
             return $this->joinPage($account, $profile, $errors, null, 422, $posted);
         }
-        [$account, $error, $status] = $this->createAccount();
+        [$account, $error, $status] = $this->createAccount(true); // registering an institution: an institution account
         if ($error !== null) {
             return $this->joinPage($account, $profile, [], $error, $status, $posted);
         }
@@ -137,13 +141,30 @@ final class AuthController extends Controller
         return $this->redirect('/verify');
     }
 
+    /** Session key: this browser came to sign-up from an invitation or an enrolment code. */
+    public const THROUGH_INSTITUTION = 'signup_through_institution';
+
+    /**
+     * Whether the person signing up is here because of an institution: they followed an
+     * invitation or an enrolment code, or an invitation (a student import sends those) is
+     * waiting for their address.
+     */
+    private function throughInstitution(string $email): bool
+    {
+        if ($this->session->get(self::THROUGH_INSTITUTION) === true) {
+            return true;
+        }
+        return $email !== '' && $this->app->db()->value('SELECT 1 FROM institution_invitations WHERE email = ? AND accepted_at IS NULL AND declined_at IS NULL
+            AND revoked_at IS NULL AND expires_at > ? LIMIT 1', [$email, \App\Core\Database::now()]) !== null;
+    }
+
     /**
      * Check the posted account fields and create the account, unverified, with a code emailed to
      * it. The new account waits in the session for its code.
      *
      * @return array{0:array{display_name:string,username:string,email:string},1:?string,2:int} the form, an error, and the status for it
      */
-    private function createAccount(): array
+    private function createAccount(bool $throughInstitution = false): array
     {
         $form = [
             'display_name' => trim((string) $this->request->input('display_name', '')),
@@ -168,7 +189,9 @@ final class AuthController extends Controller
         }
         $id = $users->create($form['username'], $password, Access::MEMBER, [
             'display_name' => $form['display_name'], 'email' => $form['email'], 'status' => 'unverified',
+            'library_access' => \App\Services\Entitlements::libraryForNewAccount($throughInstitution || $this->throughInstitution($form['email'])),
         ]);
+        $this->session->remove(self::THROUGH_INSTITUTION);
         $user = (array) $users->find($id);
         $sendError = $this->s->codes()->send($user, 'verify', $form['email']);
         if ($sendError !== null) {

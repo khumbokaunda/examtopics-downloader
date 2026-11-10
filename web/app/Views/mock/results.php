@@ -61,6 +61,7 @@ $order = array_flip($mock['keys']);
                 </ul>
                 <?php if ($certificate !== null): ?>
                     <a class="btn btn-success" href="<?= e(url('/certificates/' . $certificate['uuid'])) ?>"><?= icon('award') ?>Your certificate <?= e($certificate['number']) ?></a>
+                    <?php if (!$readiness['eligible']): ?><p class="small text-muted mt-2 mb-0">Issued under the conditions in force at the time.</p><?php endif; ?>
                 <?php elseif ($readiness['eligible']): ?>
                     <form method="post" action="<?= e(url('/mock/' . $mock['uuid'] . '/certificate')) ?>" data-once><?= csrf_field() ?>
                         <button class="btn btn-success" type="submit"><?= icon('award') ?>Get your certificate of demonstrated readiness</button></form>

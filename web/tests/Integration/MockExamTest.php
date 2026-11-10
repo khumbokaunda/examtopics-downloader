@@ -63,6 +63,7 @@ final class MockExamTest extends HttpTestCase
         $mock = $this->start();
         self::assertCount(3, $mock['keys']);
         self::assertSame(10, (int) $mock['minutes']);
+        self::assertSame(['all', 5], [$mock['source'], (int) $mock['pool_size']], 'where the questions came from, and out of how many, is kept for readiness');
         $page = $this->get('/mock/' . $mock['uuid'])->body;
         self::assertStringContainsString('Question 1 of 3', $page);
         self::assertStringContainsString('data-ends-in="', $page);

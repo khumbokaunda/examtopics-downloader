@@ -20,6 +20,9 @@ final class InvitationController extends Controller
         $inv = $this->find($token);
         $this->s->institutions()->repo()->markInvitationViewed((int) $inv['id']);
         $user = $this->auth->check() ? $this->auth->user() : null;
+        if ($user === null) {
+            $this->session->set(AuthController::THROUGH_INSTITUTION, true); // an account made from here is the institution's doing
+        }
         return $this->render('invitations/show', ['title' => 'Invitation', 'nav' => '', 'invitation' => $inv, 'token' => $token,
             'refusal' => $this->s->institutions()->refusal($inv, $user), 'signedIn' => $user !== null,
             'canRegister' => $this->s->registration()->mode() !== 'closed']);

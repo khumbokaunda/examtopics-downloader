@@ -75,7 +75,7 @@ final class UserController extends Controller
             'title' => 'New user',
             'nav' => 'users',
             'account' => null,
-            'form' => ['username' => '', 'display_name' => '', 'email' => '', 'role' => Access::MEMBER, 'status' => 'active', 'permissions' => []],
+            'form' => ['username' => '', 'display_name' => '', 'email' => '', 'role' => Access::MEMBER, 'status' => 'active', 'permissions' => [], 'library' => true],
             'error' => null,
             'self' => false,
         ]);
@@ -100,7 +100,7 @@ final class UserController extends Controller
         // An address typed by an administrator counts as verified.
         $users->create($form['username'], $password, $form['role'], [
             'display_name' => $form['display_name'], 'email' => $form['email'], 'status' => $form['status'],
-            'permissions' => $form['permissions'], 'email_verified' => true,
+            'permissions' => $form['permissions'], 'email_verified' => true, 'library_access' => $form['library'] ?? true,
         ]);
         $this->audit('User created', $form['username'], ['role' => $form['role'], 'status' => $form['status'], 'extra' => $form['permissions']]);
         $this->s->audit()->record('user.created', ['username' => $form['username'], 'role' => $form['role'], 'status' => $form['status'],
@@ -122,7 +122,7 @@ final class UserController extends Controller
             'form' => [
                 'username' => $account['username'], 'display_name' => (string) ($account['display_name'] ?? ''),
                 'email' => (string) ($account['email'] ?? ''), 'role' => $account['role'], 'status' => $account['status'],
-                'permissions' => Access::extras($account),
+                'permissions' => Access::extras($account), 'library' => \App\Services\Entitlements::has($account, 'library'),
             ],
             'error' => null,
             'self' => (int) $account['id'] === (int) $this->auth->user()['id'],
@@ -156,7 +156,7 @@ final class UserController extends Controller
         $users->update((int) $account['id'], [
             'display_name' => $form['display_name'], 'email' => $form['email'], 'role' => $form['role'],
             'status' => $form['status'], 'permissions' => $form['permissions'],
-        ]);
+        ] + ($form['library'] !== null ? ['library_access' => $form['library']] : []));
         if ($password !== '') {
             $users->setPassword((int) $account['id'], $password);
         }
@@ -234,6 +234,8 @@ final class UserController extends Controller
             'role' => $role,
             'status' => isset(Access::STATUSES[$status]) ? $status : 'active',
             'permissions' => Access::cleanExtras($role, is_array($posted) ? $posted : []),
+            // Null when the form did not carry the box (an older page, a script): nothing changes.
+            'library' => $this->request->input('library_set') === '1' ? $this->request->input('library') === '1' : null,
         ];
     }
 
@@ -279,6 +281,10 @@ final class UserController extends Controller
                 $changes[$k] = [$k === 'role' ? (Access::ROLES[$before]['name'] ?? $before) : ($k === 'status' ? (Access::STATUSES[$before] ?? $before) : $before),
                     $k === 'role' ? (Access::ROLES[$form[$k]]['name'] ?? $form[$k]) : ($k === 'status' ? (Access::STATUSES[$form[$k]] ?? $form[$k]) : $form[$k])];
             }
+        }
+        $had = (int) ($account['library_access'] ?? 1) === 1;
+        if (($form['library'] ?? null) !== null && $form['library'] !== $had) {
+            $changes['library'] = [$had, $form['library']];
         }
         $old = Access::extras($account);
         $new = (array) $form['permissions'];

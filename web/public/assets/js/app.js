@@ -177,6 +177,7 @@
   function loadPalette() {
     if (paletteLoaded || !palette) return;
     paletteLoaded = true;
+    if (!palette.getAttribute('data-source')) return; // no library: the pages already listed are all there is
     getJSON(palette.getAttribute('data-source')).then(function (d) {
       (d.items || []).forEach(function (it) {
         var li = el('li', 'palette-item');

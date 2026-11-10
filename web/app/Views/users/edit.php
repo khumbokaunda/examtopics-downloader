@@ -70,7 +70,17 @@ $action = $new ? url('/users') : url('/users/' . $account['uuid']);
                     </select>
                     <div class="form-text">Only active accounts can sign in.</div>
                 </div>
-                <?php if ($form['role'] !== Access::ADMIN): $given = Access::ROLE_PERMISSIONS[$form['role']] ?? []; ?>
+                <?php if ($form['role'] !== Access::ADMIN): $library = ($form['library'] ?? true) !== false;
+                    $given = $library ? (Access::ROLE_PERMISSIONS[$form['role']] ?? []) : array_values(array_diff(Access::ROLE_PERMISSIONS[$form['role']] ?? [], \App\Services\Entitlements::LIBRARY_PERMISSIONS)); ?>
+                <fieldset class="settings-section" <?= $self ? 'disabled' : '' ?>>
+                    <legend class="section-heading">Library</legend>
+                    <input type="hidden" name="library_set" value="1">
+                    <div class="form-check mb-1">
+                        <input class="form-check-input" type="checkbox" id="library" name="library" value="1"<?= $library ? ' checked' : '' ?>>
+                        <label class="form-check-label" for="library">Has the library</label>
+                    </div>
+                    <p class="small text-muted">Reading, practising and requesting collected exams. Off for accounts that came through an institution.</p>
+                </fieldset>
                 <fieldset class="settings-section" <?= $self ? 'disabled' : '' ?>>
                     <legend class="section-heading">Permissions</legend>
                     <p class="small text-muted">Greyed ones come from the role.</p>

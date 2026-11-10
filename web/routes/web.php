@@ -89,7 +89,7 @@ return static function (Router $r): void {
     $r->get('/branding/theme.css', [BrandingController::class, 'css'], public: true);
     $r->get('/branding/{file}', [BrandingController::class, 'file'], public: true);
 
-    $r->get('/', [DashboardController::class, 'index'], can: $read);
+    $r->get('/', [DashboardController::class, 'index'], can: $me);
 
     $r->get('/providers', [ProviderController::class, 'index'], can: $read);
     $r->post('/providers/discover', [ProviderController::class, 'discover'], can: $collect);
@@ -136,9 +136,10 @@ return static function (Router $r): void {
     $r->post('/mock/{uuid}/finish', [MockController::class, 'finish'], can: $read);
     $r->post('/mock/{uuid}/discard', [MockController::class, 'discard'], can: $read);
     $r->post('/mock/{uuid}/certificate', [CertificateController::class, 'issue'], can: $read);
-    $r->get('/certificates', [CertificateController::class, 'index'], can: $read);
-    $r->get('/certificates/{uuid}', [CertificateController::class, 'show'], can: $read);
-    $r->get('/certificates/{uuid}/pdf', [CertificateController::class, 'pdf'], can: $read);
+    // Certificates and credentials a person holds stay theirs, with or without the library.
+    $r->get('/certificates', [CertificateController::class, 'index'], can: $me);
+    $r->get('/certificates/{uuid}', [CertificateController::class, 'show'], can: $me);
+    $r->get('/certificates/{uuid}/pdf', [CertificateController::class, 'pdf'], can: $me);
     $r->get('/verify/keys', [CertificateController::class, 'keys'], public: true);
     $r->get('/verify/{token}', [CertificateController::class, 'verify'], public: true);
     $r->get('/credentials/{uuid}/pdf', [CertificateController::class, 'credentialPdf'], can: $me);

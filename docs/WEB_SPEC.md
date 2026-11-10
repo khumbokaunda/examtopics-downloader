@@ -53,13 +53,21 @@ There are two roles. On top of a role, an administrator can give one person extr
 | **Member** | Reads and practises exams, takes mock exams, keeps notes and bookmarks, discusses questions, reports problems, requests exams that are not in the library yet, and loads the exam list of a provider nobody has loaded before. |
 | **Administrator** | Everything: collecting exams, correcting content, managing accounts, settings, backups and security. |
 
+**The library is something an account has or does not have** (`users.library_access`,
+`App\Services\Entitlements`). A member's role gives the three library permissions only to an
+account that has it. Someone who signs up for themselves starts with it. An account that
+arrives through an institution starts without: one made after following an invitation or an
+enrolment code, one whose address has an invitation waiting (student imports send those), and
+one made while registering an institution. An administrator switches it per account on the
+Users page. Accounts that existed before keep it.
+
 The permissions an administrator can hand out one by one:
 
 | Permission | Lets a person |
 |---|---|
-| `library.view` | Browse providers and the library, read and practise, download documents. *(members have it)* |
-| `exams.request` | Request exams not collected yet. *(members have it)* |
-| `inventory.first` | Load the exam list of a provider never fetched before. *(members have it)* |
+| `library.view` | Browse providers and the library, read and practise, download documents. *(members with the library have it)* |
+| `exams.request` | Request exams not collected yet. *(members with the library have it)* |
+| `inventory.first` | Load the exam list of a provider never fetched before. *(members with the library have it)* |
 | `documents.build` | Build and delete PDF and Markdown documents. |
 | `answers.edit` | Correct answers and questions, add pictures, see the Integrity page, deal with reports, see correction history and carry corrections to other editions. |
 | `exams.collect` | Collect exams, refresh any provider, add providers, download images, see jobs. |
@@ -182,8 +190,14 @@ Per exam: questions answered, percentage right, mistakes to go over, last studie
 reset button per exam; recent mock exam results. Administrators with `progress.view_all` see
 **Everyone's progress** and each member's page (read only).
 
-### Dashboard (`/`)
-The person's own studying first:
+### Home (`/`)
+Open to every signed-in person, and showing what their account has. Someone in an institution
+sees it first: the assessments set for them that are open or coming, their latest published
+results, and each institution with what waits on them there (setup steps left, questions to
+review, credentials to approve, an application to send). Someone with neither the library nor
+an institution is shown how to join one with a code or register one.
+
+With the library, the person's own studying follows:
 - a greeting, their **streak** (days in a row studied, in their own timezone) and best streak;
 - this week's answers and percentage right, and a 14-day chart;
 - **Continue studying** (where they left off), **Due for review today**, **Mistakes to go
@@ -418,7 +432,10 @@ banks, assessments and results come in later phases.
 - **Readiness and certificates**: a finished mock exam is rated Ready, Nearly ready, Developing
   or Not yet ready by fixed rules, with the reasons; a Ready attempt can be turned into a
   certificate of readiness (PDF, `/certificates`) that anyone can check at `/verify/<token>`.
-  Platform administrators can revoke one (`/platform/certificates`).
+  Only attempts drawn at random count (from all questions or from ones not answered before,
+  never from the candidate's mistakes, due or bookmarked questions), from a pool at least twice
+  the number asked, and the qualifying attempt may share at most half its questions with the
+  earlier one. Platform administrators can revoke one (`/platform/certificates`).
 - **Integrity monitoring**: each assessment chooses Basic, Standard or Enhanced monitoring, told
   to candidates before they start. Staff see neutral indicators and a timeline per sitting and
   record conclusions. Keystrokes and clipboard contents are never collected.
@@ -501,7 +518,7 @@ overview only.
 | | `POST /account/two-step/begin`, `/confirm`, `/cancel`, `/off`, `/codes/done`, `/codes/new`; `GET /account/two-step/codes`, `/codes.txt` | signed-in |
 | Appearance | `POST /settings/appearance`, `/api/appearance` | signed-in |
 | Inbox | `GET /inbox`, `/inbox/{id}`; `POST /inbox/read` | signed-in |
-| Dashboard | `GET /` | library.view |
+| Home | `GET /` | signed-in |
 | Library | `GET /library`, `/search`, `/api/palette`, `/library/{p}/{e}`, `/library/{p}/{e}/{version}/json` | library.view |
 | | `POST /library/{p}/{e}/save`, `/progress/reset` | library.view |
 | | `POST /library/{p}/{e}/editions`, `/library/{p}/{e}/name`, `/library/{p}/{e}/{version}/delete` | library.manage |
@@ -535,7 +552,7 @@ overview only.
 | Institution classes and students | `GET/POST /institutions/{ref}/structure[...]`, `/institutions/{ref}/classes[/{class}[...]]`, `/institutions/{ref}/students[/{member}]`, `/institutions/{ref}/students/import[...]`, `/institutions/{ref}/banks[/review]`, `/institutions/{ref}/banks/{bank}[...]` (topics, editors, questions, versions, status), `/institutions/{ref}/assessments[/{assessment}[...]]` (settings, schedule, add, questions, blueprint, assignments, status, preview) | signed-in, then membership and institution permission |
 | Institution results, integrity and invigilation | `GET /institutions/{ref}/assessments/{assessment}/results`, `.../results.csv`, `.../results/{sitting}`, `.../results/{sitting}/report.pdf`, `.../live`, `/api/institutions/{ref}/assessments/{assessment}/live`; `POST .../results/publication`, `.../results/{sitting}/integrity`, `.../invigilators`, `.../live/{sitting}/observe`, `.../live/{sitting}/intervene`, `.../live/{sitting}/message`, `.../live/message` | signed-in, then membership and institution permission |
 | Sittings | `GET /my/assessments`, `/my/assessments/{institution}/{assessment}`, `/sit/{uuid}`, `/sit/{uuid}/done`, `/sit/{uuid}/result`, `/sit/{uuid}/result.pdf`, `/api/sit/{uuid}`; `POST /my/assessments/{institution}/{assessment}/start`, `/sit/{uuid}/submit`, `/api/sit/{uuid}/answer`, `/api/sit/{uuid}/events` | signed-in, then the candidate's own sitting |
-| Certificates | `POST /mock/{uuid}/certificate`; `GET /certificates`, `/certificates/{uuid}`, `/certificates/{uuid}/pdf` | library.view (own certificates only) |
+| Certificates | `POST /mock/{uuid}/certificate`; `GET /certificates`, `/certificates/{uuid}`, `/certificates/{uuid}/pdf` | signed-in (own certificates only; earning one needs library.view) |
 | | `GET /verify/{token}` | public |
 | | `GET /platform/certificates`; `POST /platform/certificates/{uuid}/revoke` | certificates.manage |
 | Institution applications | `GET /institutions/{ref}/application`, `.../application/documents/{document}`; `POST .../application/documents`, `.../application/documents/{document}/remove`, `.../application/submit` | signed-in, then institution.manage |
@@ -570,7 +587,7 @@ overview only.
 | Worked out, rebuilt on demand (not backed up) | `exam_checks` (Integrity figures), `question_index` (search) |
 | System | `settings`, `notifications`, `mail_queue`, `exam_requests`, `audit_log`, `throttle_events`, `schema_migrations` |
 
-Migrations `001` to `043` in `web/database/migrations` create all of it; `php bin/migrate.php`
+Migrations `001` to `045` in `web/database/migrations` create all of it; `php bin/migrate.php`
 applies them.
 
 ### Background processes
