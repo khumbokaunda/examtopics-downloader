@@ -142,7 +142,7 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                 <span class="q-tools">
                     <span class="q-meta"><?= e(QuestionView::meta($item)) ?></span>
                     <?php $qKey = QuestionView::key($item); $trust = Objectives::trust($item, isset($openReports[$qKey]));
-                    if (isset($objectiveOf[$qKey], $objectiveNames[$objectiveOf[$qKey]])): ?><span class="q-objective small text-muted" title="Objective"><?= icon('bullseye') ?><?= e((string) $objectiveNames[$objectiveOf[$qKey]]) ?></span><?php endif; ?>
+                    if (isset($objectiveOf[$qKey], $objectiveNames[$objectiveOf[$qKey]])): ?><span class="q-objective" title="Objective"><?= icon('bullseye') ?><?= e((string) $objectiveNames[$objectiveOf[$qKey]]) ?></span><?php endif; ?>
                     <?php if ($trust !== 'unreviewed'): [$tLabel, $tTone, $tIcon] = Objectives::TRUST[$trust]; ?><?= chip($tLabel, $tTone, $tIcon) ?><?php endif; ?>
                     <?php $mine = $notes[QuestionView::key($item)] ?? ['note' => null, 'bookmarked' => false]; ?>
                     <form method="post" action="<?= e(url($base . '/notes/bookmark')) ?>" data-save-toggle class="q-bookmark"><?= $keep($item) ?>
