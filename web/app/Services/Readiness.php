@@ -13,15 +13,24 @@ use RuntimeException;
  * certificates that record it.
  *
  * The rules are fixed and shown with every judgement, so a candidate (and anyone reading their
- * certificate) can see exactly what was measured. The library's questions carry no topics, so
- * instead of a single score readiness asks for a strong, complete and repeated performance:
+ * certificate) can see exactly what was measured. The library's questions carry no named topics,
+ * so instead of a single score readiness asks for a strong, complete and repeated performance on
+ * questions the candidate did not choose:
  *
  *  - Demonstrated readiness: at least 80% on a timed mock of at least 30 questions, with at most
  *    10% left unanswered, and another attempt at the same exam in the 60 days before it at 70% or
- *    more. Only this level earns a certificate.
+ *    more. Both attempts must be drawn at random from all the exam's questions or from the ones
+ *    not answered before (never from the candidate's mistakes, due or bookmarked questions),
+ *    from at least twice as many questions as were asked, and at most half of the qualifying
+ *    attempt's questions may have been in the earlier one. Only this level earns a certificate.
  *  - Nearly ready: 70% or more, or 80% without meeting the other conditions.
  *  - Developing: 55% to 69%.
  *  - Not yet ready: under 55%.
+ *
+ * Why the last three conditions: a candidate could otherwise bookmark thirty questions they know,
+ * sit them twice and hold a numbered certificate. A random draw from a pool twice the size of the
+ * attempt cannot be predicted, and limiting what two attempts share means the second is not a
+ * repeat of the first. Certificates issued before these conditions stay valid.
  *
  * It measures performance on this platform's questions. It is not a prediction of the real exam,
  * a professional certification, or anything issued or endorsed by the certification's provider.
@@ -41,6 +50,12 @@ final class Readiness
     public const MAX_UNANSWERED = 10.0;
     public const CONSISTENT = 70.0;
     public const WINDOW_DAYS = 60;
+    /** Where a mock's questions may be chosen from for it to count (MockController::SOURCES). */
+    public const COUNTED_SOURCES = ['all', 'new'];
+    /** The questions must be drawn from at least this many times the number asked. */
+    public const POOL_FACTOR = 2;
+    /** At most this share of the attempt's questions may have been in the earlier attempt. */
+    public const MAX_OVERLAP = 50.0;
 
     public const DISCLAIMER = 'This certificate confirms performance against the stated ExamLib readiness assessment criteria. It is not a professional '
         . 'certification, a qualification issued by the certification provider, or a guarantee of success in an external examination.';
@@ -64,29 +79,57 @@ final class Readiness
         $unansweredPct = $total > 0 ? $unanswered / $total * 100 : 100.0;
         $finished = (int) strtotime($mock['finished_at'] . ' UTC');
         $seconds = max(0, $finished - (int) strtotime($mock['started_at'] . ' UTC'));
+        // The earlier attempt: in the window, long enough, drawn the same way, and not mostly the
+        // same questions. The best of those is the one shown.
+        $keys = array_flip(array_map('strval', (array) ($mock['keys'] ?? [])));
         $previous = null;
         foreach ($earlier as $m) {
             $at = (int) strtotime($m['finished_at'] . ' UTC');
-            if ((int) $m['id'] !== (int) $mock['id'] && $at <= $finished && $at >= $finished - self::WINDOW_DAYS * 86400 && (int) $m['total'] > 0) {
-                $p = round((int) $m['right_count'] / (int) $m['total'] * 100, 2);
-                if ($previous === null || $p > $previous['percent']) {
-                    $previous = ['percent' => $p, 'finished_at' => $m['finished_at'], 'total' => (int) $m['total']];
-                }
+            if ((int) $m['id'] === (int) $mock['id'] || $at > $finished || $at < $finished - self::WINDOW_DAYS * 86400
+                || (int) $m['total'] < self::MIN_QUESTIONS || !self::randomDraw($m) || !self::bigPool($m)) {
+                continue;
+            }
+            $shared = count(array_intersect_key($keys, array_flip(array_map('strval', (array) ($m['keys'] ?? [])))));
+            if ($total === 0 || $shared / $total * 100 > self::MAX_OVERLAP) {
+                continue;
+            }
+            $p = round((int) $m['right_count'] / (int) $m['total'] * 100, 2);
+            if ($previous === null || $p > $previous['percent']) {
+                $previous = ['percent' => $p, 'finished_at' => $m['finished_at'], 'total' => (int) $m['total'], 'shared' => $shared];
             }
         }
+        $source = (string) ($mock['source'] ?? '');
+        $pool = (int) ($mock['pool_size'] ?? 0);
         $conditions = [
             ['ok' => $percent >= self::READY, 'text' => 'At least ' . (int) self::READY . '% right (' . self::fmt($percent) . '%).'],
             ['ok' => (int) $mock['minutes'] > 0, 'text' => 'Timed, under exam conditions.'],
             ['ok' => $total >= self::MIN_QUESTIONS, 'text' => 'At least ' . self::MIN_QUESTIONS . ' questions (' . $total . ').'],
             ['ok' => $unansweredPct <= self::MAX_UNANSWERED, 'text' => 'At most ' . (int) self::MAX_UNANSWERED . '% unanswered (' . $unanswered . ' of ' . $total . ').'],
-            ['ok' => $previous !== null && $previous['percent'] >= self::CONSISTENT, 'text' => 'Another attempt at this exam in the ' . self::WINDOW_DAYS . ' days before, at '
-                . (int) self::CONSISTENT . '% or more' . ($previous !== null ? ' (best: ' . self::fmt($previous['percent']) . '%).' : ' (none yet).')],
+            ['ok' => self::randomDraw($mock), 'text' => 'Questions drawn at random from all questions, or from ones you had not answered ('
+                . match (true) { $source === '' => 'not recorded for this attempt', in_array($source, self::COUNTED_SOURCES, true) => 'yes', default => 'you chose the list' } . ').'],
+            ['ok' => self::bigPool($mock), 'text' => 'Drawn from at least ' . self::POOL_FACTOR * $total . ' questions, twice the number asked ('
+                . ($pool > 0 ? $pool : 'not recorded') . ').'],
+            ['ok' => $previous !== null && $previous['percent'] >= self::CONSISTENT, 'text' => 'Another attempt like this in the ' . self::WINDOW_DAYS . ' days before, at '
+                . (int) self::CONSISTENT . '% or more, sharing at most half of these questions'
+                . ($previous !== null ? ' (best: ' . self::fmt($previous['percent']) . '%, ' . $previous['shared'] . ' shared).' : ' (none yet).')],
         ];
         $all = array_filter($conditions, static fn(array $c): bool => !$c['ok']) === [];
         $level = $all ? 'ready' : ($percent >= self::NEARLY ? 'nearly' : ($percent >= self::DEVELOPING ? 'developing' : 'not_yet'));
         return ['level' => $level, 'label' => self::LEVELS[$level], 'percent' => $percent, 'conditions' => $conditions, 'eligible' => $all, 'previous' => $previous,
             'stats' => ['answered' => $total - $unanswered, 'unanswered' => $unanswered, 'flagged' => count((array) $mock['flags']), 'seconds' => $seconds,
                 'per_question' => $total > 0 ? (int) round($seconds / $total) : 0]];
+    }
+
+    /** Whether the attempt's questions were drawn at random, not from a list the candidate made. @param array<string,mixed> $m */
+    public static function randomDraw(array $m): bool
+    {
+        return in_array((string) ($m['source'] ?? ''), self::COUNTED_SOURCES, true);
+    }
+
+    /** Whether the attempt was drawn from enough questions that it could not be predicted. @param array<string,mixed> $m */
+    public static function bigPool(array $m): bool
+    {
+        return (int) ($m['total'] ?? 0) > 0 && (int) ($m['pool_size'] ?? 0) >= self::POOL_FACTOR * (int) $m['total'];
     }
 
     /**

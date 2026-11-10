@@ -7,7 +7,8 @@
 </header>
 <div class="card">
     <?php if ($rows === []): ?>
-        <div class="card-body"><?= empty_state('award', 'No certificates yet', 'Finish a timed mock exam of at least ' . \App\Services\Readiness::MIN_QUESTIONS . ' questions that meets every readiness condition: its result page shows the conditions.', null, true) ?></div>
+        <div class="card-body"><?= empty_state('award', 'No certificates yet', can('library.view') ? 'Finish a timed mock exam of at least ' . \App\Services\Readiness::MIN_QUESTIONS . ' questions that meets every readiness condition: its result page shows the conditions.'
+            : 'Certificates your institution issues to you show here.', null, true) ?></div>
     <?php else: ?>
     <ul class="list-rows">
         <?php foreach ($rows as $c): ?>

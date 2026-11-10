@@ -1,6 +1,6 @@
 {
     "name": "examtopics/web",
-    "description": "Private Examtopics web application for the examtopics-downloader Go tool",
+    "description": "ExamLib: a multi-tenant assessment platform for institutions, and a study library of collected exams",
     "type": "project",
     "license": "MIT",
     "require": {

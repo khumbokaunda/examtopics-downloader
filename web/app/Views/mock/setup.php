@@ -65,6 +65,7 @@ $default = min(20, $available['all']);
                         <label class="form-check-label" for="source-<?= e($key) ?>"><?= e($label) ?> <span class="text-muted">(<?= number_format($n) ?>)</span></label>
                     </div>
                 <?php endforeach; ?>
+                <div class="form-text">Only the first two count towards readiness.</div>
             </fieldset>
             <div class="row g-3 mb-3">
                 <div class="col-sm-6">

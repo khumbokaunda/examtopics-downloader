@@ -1,7 +1,9 @@
 <?php
 /**
- * The dashboard: the person's own studying first, then (for those who run it) the system.
+ * Home: the person's institutions (when they belong to any), their own studying (when their
+ * account has the library), then (for those who run it) the system.
  *
+ * @var bool $library @var array|null $institutional from DashboardController::institutional()
  * @var string $greeting @var string $firstName @var string $today
  * @var list<array> $studying the exams studied most recently, with place and progress
  * @var list<array> $suggestions exams to start with, when nothing was studied yet
@@ -26,6 +28,8 @@ $answeredLine = static function (array $t, int $questions): string {
 };
 $weekPercent = StudyProgress::percent($week['correct'], $week['answered']);
 $summary = match (true) {
+    !$library && $institutional !== null => 'Your institutions, what is set for you and your results.',
+    !$library => 'Join an institution, or register yours.',
     $week['answered'] > 0 => 'This week: ' . number_format($week['answered']) . ' answer' . ($week['answered'] === 1 ? '' : 's') . ' checked, ' . $weekPercent . '% right.',
     $studying !== [] => 'Nothing answered yet this week. Pick up where you left off below.',
     default => 'Find an exam and practise it: every answer you check counts here.',
@@ -44,6 +48,17 @@ $note = static fn(string $iconName, string $title, string $body, ?array $action 
     <?php if ($collector): ?><div class="page-actions"><a class="btn btn-primary" href="<?= e(url('/collect')) ?>"><?= icon('cloud-arrow-down') ?>Collect an exam</a></div><?php endif; ?>
 </header>
 
+<?php if ($institutional !== null): ?>
+    <?= \App\Core\View::current()->partial('home/_institutions', ['institutional' => $institutional]) ?>
+<?php elseif (!$library): ?>
+<div class="card mb-4">
+    <?= $note('building', 'You are not in an institution yet', 'Use the code or invitation your institution gave you.', ['Join with a code', url('/enrol')]) ?>
+    <?= $note('building-add', 'Running an institution?', 'Register it and send it for review.', ['Register an institution', url('/institutions/register')]) ?>
+</div>
+<?php endif; ?>
+
+<?php if ($library): ?>
+<?php if ($institutional !== null): ?><h2 class="dashboard-section">Your study</h2><?php endif; ?>
 <div class="row g-4">
     <div class="col-xl-8 dash-col">
         <?php if ($studying !== []): $lead = $studying[0]; $t = $lead['progress']; $path = $examPath($lead); $practice = $lead['place']['mode'] === 'practice';
@@ -270,6 +285,7 @@ $note = static fn(string $iconName, string $title, string $body, ?array $action 
         <?php endif; ?>
     </div>
 </div>
+<?php endif; ?>
 
 <?php if ($system):
     $failed = (int) ($jobCounts['failed'] ?? 0);

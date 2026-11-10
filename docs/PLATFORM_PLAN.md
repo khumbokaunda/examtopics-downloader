@@ -886,3 +886,68 @@ asked, approving a draft, and every deletion protection.
   ending "-v1-0"; the rename form takes one by hand when that is wrong (migration `043`,
   `exams.edition_label`). With no edition, the kind of PDF stands alone.
 
+## Phase 0: coherence and correctness (delivered)
+
+From the review of the product audit (the corrected brief, November 2026). Decisions A to E of
+that brief were not answered, so its defaults were used: the library is a separate module that
+is off for accounts that come through an institution; no runtime names changed.
+
+- **Readiness cannot be earned on questions the candidate chose.** A mock exam now records
+  where its questions came from and how many that offered (migration `044`,
+  `mock_exams.source` and `pool_size`). Readiness counts an attempt only when it was drawn from
+  all questions or from ones not answered before, and from a pool at least twice the number
+  asked. The earlier attempt it needs must meet the same two conditions, have at least 30
+  questions, and share at most half of the qualifying attempt's questions. Every condition is in
+  the list on the result page. Attempts from before sources were recorded do not count;
+  certificates already issued stay valid and keep the criteria they were measured against.
+- **The library is an entitlement.** `Entitlements` is the one place that answers whether an
+  account has the library; `Access` asks it when working out what a member's role gives
+  (migration `045`, `users.library_access`). Plans and billing can drive it later.
+- **One home.** `/` opens for every signed-in person and shows what the account has: the
+  institution section (from the data the institution pages already use), the study section, or
+  how to join an institution. My certificates is open to everyone, because institutions issue
+  credentials too. The palette offers exams only to accounts with the library.
+- **Institution pages are grouped.** Overview, Teaching (classes, question banks, assessments),
+  People (staff and members, students), Academic (programmes), Credentials, and Administration
+  (profile, application, activity), with the open section's pages on a second row. Only pages
+  that exist and that the member may open are shown. Until an institution is approved its three
+  pages stay flat. Someone in more than one institution can switch from beside the name.
+- **Identity.** `web/README.md` and the composer description describe ExamLib as it is.
+
+Proposed readiness values, for approval before this is deployed (Decision D), all constants in
+`Readiness`:
+
+| Value | Proposed | Why |
+| --- | --- | --- |
+| Sources that count | all questions, unanswered questions | The other three are lists the candidate makes. |
+| Pool size | at least twice the questions asked | A candidate cannot predict a draw of 30 from 60 or more. It also closes the way round through "unanswered": answering everything except thirty known questions leaves a pool of thirty. |
+| Overlap with the earlier attempt | at most half | Two attempts on mostly the same questions are one performance. |
+| Earlier attempt's length | at least 30 questions | Without it a one-question attempt satisfied "another attempt at 70%". |
+
+The cost: an exam needs about 60 gradable questions for a 30-question mock to count, and
+comfortably more for two attempts to share under half. Exams with small pools cannot earn a
+certificate. That seems right for a claim of readiness, and the numbers are easy to change.
+
+What the brief had wrong, found while doing this:
+
+- No account is created by an invitation, an import or an enrolment code. Every account is made
+  by its owner signing up (`/register`, `/join`) or by an administrator; invitations and imports
+  are addressed to an email address. So "came through an institution" is worked out at sign-up:
+  the browser followed an invitation or an enrolment code, an invitation is waiting for the
+  address, or the sign-up is the institution registration.
+- `/certificates` needed opening as well as `/`: it lists institution credentials, and it was
+  behind `library.view`.
+
+`LibraryAccessTest` (5 tests), and `ReadinessTest` extended (5 tests): who starts with the
+library, home for each kind of account, the administrator's switch, the grouped pages and the
+switcher, every new readiness condition, a chosen list earning nothing, and an older certificate
+staying valid.
+
+Left out on purpose (ideas for later, not built):
+
+- Asking for the library from an account without it (a request the administrator approves).
+- Switching existing institution-only students' library off in bulk: accounts that existed
+  before keep it, and an administrator can switch each one.
+- A "Review today" entry point on home for due questions.
+- Runtime renames from `examtopics` to `examlib` (Decision E).
+

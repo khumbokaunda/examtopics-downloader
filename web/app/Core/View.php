@@ -110,6 +110,20 @@ final class View
         }
     }
 
+    /** The institutions the signed-in person belongs to, by name, for switching between them. @return list<array{uuid:string,name:string,short_name:?string}> */
+    public function myInstitutions(): array
+    {
+        if ($this->user === null) {
+            return [];
+        }
+        try {
+            return $this->app->db()->all("SELECT i.uuid, i.name, i.short_name FROM institution_memberships m JOIN institutions i ON i.id = m.institution_id
+                WHERE m.user_id = ? AND m.status = 'active' AND i.deleted_at IS NULL ORDER BY i.name", [(int) $this->user['id']]);
+        } catch (\Throwable) {
+            return []; // not migrated yet
+        }
+    }
+
     /** Whether the signed-in person belongs to any institution, for the sidebar. */
     public function inInstitution(): bool
     {

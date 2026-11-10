@@ -15,15 +15,17 @@ $logoUrl = $branding->logoUrl();
 $prefs = Appearance::forUser($user, $brand);
 $accent = Appearance::pageAccent($prefs, $brand);
 $collector = $user && can('exams.collect');
+$hasLibrary = $user && can('library.view'); // the palette lists exams only for those who have the library
+$goTo = $hasLibrary ? 'Go to a page or exam' : 'Go to a page';
 $groups = [
     'Overview' => [
-        'dashboard' => ['/', 'Dashboard', 'grid-1x2', 'library.view'],
+        'dashboard' => ['/', 'Home', 'grid-1x2', \App\Services\Access::SIGNED_IN],
+        'certificates' => ['/certificates', 'My certificates', 'award', \App\Services\Access::SIGNED_IN],
     ],
     'Study' => [
         'library' => ['/library', 'Library', 'journal-bookmark', 'library.view'],
         'search' => ['/search', 'Search questions', 'search', 'library.view'],
         'progress' => ['/progress', 'My progress', 'graph-up', 'library.view'],
-        'certificates' => ['/certificates', 'My certificates', 'award', 'library.view'],
         'providers' => ['/providers', $collector ? 'Providers & inventory' : 'Providers', 'buildings', 'library.view'],
         'requests' => ['/requests', $user && can('requests.manage') ? 'Exam requests' : 'My requests', 'inbox', 'exams.request'],
     ],
@@ -116,8 +118,8 @@ $flashIcons = ['success' => 'check-circle', 'info' => 'info-circle', 'warning' =
                 <button class="icon-btn" type="button" data-action="sidebar-toggle" aria-controls="app-sidebar" aria-label="Toggle the sidebar"><?= icon('list') ?></button>
                 <p class="topbar-title"><?= e($title !== '' ? $title : $appName) ?></p>
             </div>
-            <button class="search-chip" type="button" data-action="palette-open" aria-label="Go to a page or exam">
-                <?= icon('search') ?><span class="search-placeholder">Go to a page or exam</span><kbd>Ctrl K</kbd>
+            <button class="search-chip" type="button" data-action="palette-open" aria-label="<?= e($goTo) ?>">
+                <?= icon('search') ?><span class="search-placeholder"><?= e($goTo) ?></span><kbd>Ctrl K</kbd>
             </button>
             <div class="topbar-right">
                 <?php if ($collector): ?>
@@ -174,10 +176,10 @@ $flashIcons = ['success' => 'check-circle', 'info' => 'info-circle', 'warning' =
     </div>
 </div>
 
-<div class="palette" id="palette" hidden data-source="<?= e(url('/api/palette')) ?>">
+<div class="palette" id="palette" hidden data-source="<?= $hasLibrary ? e(url('/api/palette')) : '' ?>">
     <div class="palette-backdrop" data-action="palette-close"></div>
     <div class="palette-panel" role="dialog" aria-modal="true" aria-label="Go to">
-        <div class="palette-search"><?= icon('search') ?><input id="palette-input" type="text" placeholder="Go to a page or exam" autocomplete="off" spellcheck="false" aria-label="Search pages and exams"><kbd>Esc</kbd></div>
+        <div class="palette-search"><?= icon('search') ?><input id="palette-input" type="text" placeholder="<?= e($goTo) ?>" autocomplete="off" spellcheck="false" aria-label="Search pages and exams"><kbd>Esc</kbd></div>
         <ul class="palette-list" id="palette-list" role="listbox">
             <?php foreach ($groups as $heading => $links): foreach ($links as [$href, $label, $iconName]): ?>
                 <li class="palette-item" role="option" data-path="<?= e(url($href)) ?>" data-label="<?= e(strtolower($label)) ?>"><?= icon($iconName) ?><span class="palette-label"><?= e($label) ?></span><span class="palette-section">Page</span></li>

@@ -48,8 +48,12 @@ final class CertificateController extends Controller
     public function show(string $uuid): Response
     {
         $cert = $this->find($uuid);
+        // Certificates earned since attempts record where their questions came from were also
+        // measured against the random-draw conditions; earlier ones were not.
+        $drawn = $cert['mock_id'] !== null
+            && $this->app->db()->value('SELECT source FROM mock_exams WHERE id = ?', [(int) $cert['mock_id']]) !== null;
         return $this->render('certificates/show', ['title' => 'Certificate ' . $cert['number'], 'nav' => 'certificates', 'cert' => $cert,
-            'verifyUrl' => $this->verifyUrl((string) $cert['token'])]);
+            'verifyUrl' => $this->verifyUrl((string) $cert['token']), 'drawn' => $drawn]);
     }
 
     public function pdf(string $uuid): Response

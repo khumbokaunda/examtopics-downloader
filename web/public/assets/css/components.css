@@ -963,3 +963,18 @@ a.job-chip:hover { text-decoration: none; filter: brightness(.96); }
 .title-edit { padding: 2px 6px; margin-left: 2px; vertical-align: middle; color: var(--color-text-muted); font-size: 1rem; }
 .title-edit:hover, .title-edit.active { color: var(--color-primary); }
 .title-row { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
+/* Institution pages: the sections on one row, the pages of the open section under it. */
+.institution-tabs.has-pages { margin-bottom: var(--space-2); }
+.institution-pages { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); margin: 0 0 var(--space-4); padding: 0 var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--color-border); }
+.institution-pages a { display: inline-flex; align-items: center; gap: 6px; padding: 4px 2px; color: var(--color-text-muted); font-size: var(--text-md);
+  border-bottom: 2px solid transparent; margin-bottom: -9px; padding-bottom: 8px; }
+.institution-pages a:hover { color: var(--color-text); text-decoration: none; }
+.institution-pages a.is-active { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
+/* Switching between institutions, beside the name. */
+.institution-switch { position: relative; }
+.institution-switch > summary { list-style: none; cursor: pointer; }
+.institution-switch > summary::-webkit-details-marker { display: none; }
+.institution-switch-menu { position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; min-width: 240px; max-width: min(360px, 90vw); padding: var(--space-1);
+  background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: var(--shadow-md); }
+.title-row > .institution-switch { margin-left: var(--space-2); }

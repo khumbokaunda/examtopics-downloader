@@ -54,6 +54,7 @@ final class MockController extends Controller
             return $this->redirect('/mock/' . $open['uuid']);
         }
         $source = (string) $this->request->input('source', 'all');
+        $source = isset(self::SOURCES[$source]) ? $source : 'all';
         $keys = $this->choose($source, array_map([QuestionView::class, 'key'], $this->gradable($e, $v)), $userId, (int) $e['id']);
         if ($keys === []) {
             $this->flash('warning', 'There are no questions to ask from "' . (self::SOURCES[$source] ?? self::SOURCES['all']) . '". Choose other questions.');
@@ -61,7 +62,7 @@ final class MockController extends Controller
         }
         $count = min(count($keys), max(1, (int) $this->request->input('count', '20')));
         $minutes = $this->request->input('timed') === '1' ? max(1, (int) $this->request->input('minutes', '30')) : 0;
-        $mock = $this->s->mocks()->start($userId, (int) $e['id'], (int) $v['id'], $keys, $count, $minutes);
+        $mock = $this->s->mocks()->start($userId, (int) $e['id'], (int) $v['id'], $keys, $count, $minutes, $source);
         return $this->redirect('/mock/' . $mock['uuid']);
     }
 

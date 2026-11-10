@@ -27,7 +27,7 @@ final class Access
 
     public const ROLES = [
         self::ADMIN => ['name' => 'Administrator', 'description' => 'Everything: collecting, users, settings and backups.'],
-        self::MEMBER => ['name' => 'Member', 'description' => 'Reads and practises the collected exams and requests new ones.'],
+        self::MEMBER => ['name' => 'Member', 'description' => 'An ordinary account. With the library: reads and practises the collected exams.'],
     ];
 
     /** The catalogue: every permission the code checks, with the sentence shown beside its box. */
@@ -77,7 +77,9 @@ final class Access
         if (self::isAdmin($user)) {
             return array_keys(self::PERMISSIONS);
         }
-        $held = array_merge(self::ROLE_PERMISSIONS[(string) ($user['role'] ?? '')] ?? [], self::extras($user));
+        // What the role gives depends on what the account has (Entitlements): the library's
+        // permissions come with the role only for accounts that have the library.
+        $held = array_merge(Entitlements::filter($user, self::ROLE_PERMISSIONS[(string) ($user['role'] ?? '')] ?? []), self::extras($user));
         return array_values(array_unique(array_intersect($held, array_keys(self::PERMISSIONS))));
     }
 

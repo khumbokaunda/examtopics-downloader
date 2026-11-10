@@ -60,12 +60,12 @@ final class UserRepository
     {
         $email = isset($fields['email']) && $fields['email'] !== '' ? self::normalizeEmail((string) $fields['email']) : null;
         $this->db->run(
-            'INSERT INTO users (uuid, username, display_name, email, email_verified_at, role, permissions, status, password_hash, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            'INSERT INTO users (uuid, username, display_name, email, email_verified_at, role, permissions, library_access, status, password_hash, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [
                 Ids::uuid(), $username, self::blankToNull($fields['display_name'] ?? null), $email,
                 ($fields['email_verified'] ?? false) && $email !== null ? Database::now() : null,
-                $role, json_encode($fields['permissions'] ?? []), $fields['status'] ?? 'active',
+                $role, json_encode($fields['permissions'] ?? []), ($fields['library_access'] ?? true) ? 1 : 0, $fields['status'] ?? 'active',
                 password_hash($password, PASSWORD_DEFAULT), Database::now(),
             ]
         );
@@ -108,6 +108,10 @@ final class UserRepository
                 $sets[] = $key . ' = ?';
                 $args[] = $fields[$key];
             }
+        }
+        if (isset($fields['library_access'])) {
+            $sets[] = 'library_access = ?';
+            $args[] = $fields['library_access'] ? 1 : 0;
         }
         if (isset($fields['permissions'])) {
             $sets[] = 'permissions = ?';
