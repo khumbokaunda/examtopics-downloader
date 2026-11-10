@@ -38,6 +38,7 @@ use App\Controllers\LibraryController;
 use App\Controllers\MediaController;
 use App\Controllers\MockController;
 use App\Controllers\NoteController;
+use App\Controllers\ObjectiveController;
 use App\Controllers\PlatformInstitutionController;
 use App\Controllers\ProgressController;
 use App\Controllers\ProviderController;
@@ -125,6 +126,8 @@ return static function (Router $r): void {
     $r->get('/library/{provider}/{exam}/corrections/editions', [AnswerController::class, 'editions'], can: 'answers.edit');
     $r->post('/library/{provider}/{exam}/corrections/editions', [AnswerController::class, 'carry'], can: 'answers.edit');
     $r->post('/library/{provider}/{exam}/answers', [AnswerController::class, 'save'], can: 'answers.edit');
+    $r->get('/library/{provider}/{exam}/objectives', [ObjectiveController::class, 'index'], can: 'answers.edit');
+    $r->post('/library/{provider}/{exam}/objectives', [ObjectiveController::class, 'save'], can: 'answers.edit');
     $r->post('/library/{provider}/{exam}/questions', [QuestionController::class, 'save'], can: 'answers.edit');
     $r->post('/library/{provider}/{exam}/discussion', [DiscussionController::class, 'post'], can: $read);
     $r->post('/library/{provider}/{exam}/discussion/{id}/delete', [DiscussionController::class, 'delete'], can: $read);
@@ -352,6 +355,8 @@ return static function (Router $r): void {
     $r->post('/institutions/{ref}/assessments/{assessment}/results/publication', [InstitutionAssessmentController::class, 'publishResults'], can: $me);
     $r->get('/institutions/{ref}/assessments/{assessment}/results/{sitting}', [InstitutionAssessmentController::class, 'sitting'], can: $me);
     $r->get('/institutions/{ref}/assessments/{assessment}/results/{sitting}/report.pdf', [InstitutionAssessmentController::class, 'sittingPdf'], can: $me);
+    $r->get('/institutions/{ref}/assessments/{assessment}/results/{sitting}/marking', [InstitutionAssessmentController::class, 'marking'], can: $me);
+    $r->post('/institutions/{ref}/assessments/{assessment}/results/{sitting}/marking', [InstitutionAssessmentController::class, 'mark'], can: $me);
     $r->get('/institutions/{ref}/assessments/{assessment}/live', [InvigilationController::class, 'live'], can: $me);
     $r->get('/api/institutions/{ref}/assessments/{assessment}/live', [InvigilationController::class, 'liveJson'], can: $me);
     $r->post('/institutions/{ref}/assessments/{assessment}/invigilators', [InvigilationController::class, 'invigilators'], can: $me);

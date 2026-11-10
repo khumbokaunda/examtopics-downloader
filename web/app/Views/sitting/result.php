@@ -35,16 +35,21 @@ $policy = (string) $s['review_policy'];
         foreach ((array) json_decode((string) $q['choices'], true) as $c) { $choices[(string) $c['key']] = $c; }
         $ordered = array_values(array_filter(array_map(static fn(string $k) => $choices[$k] ?? null, str_split((string) $q['choice_order'])))); ?>
         <div class="card mb-3">
-            <div class="card-header"><span class="card-title">Question <?= $pos ?></span><span class="small"><?= (int) $q['correct'] ? chip('Right', 'success') : chip(($responses[$pos]['answer'] ?? '') === '' ? 'Not answered' : 'Wrong', ($responses[$pos]['answer'] ?? '') === '' ? 'neutral' : 'danger') ?> <?= e(C::marks($q['awarded'])) ?> of <?= e(C::marks($q['marks'])) ?></span></div>
+            <div class="card-header"><span class="card-title">Question <?= $pos ?></span><span class="small"><?= $q['type'] === 'essay' ? chip(($responses[$pos]['answer'] ?? '') === '' ? 'Not answered' : 'Marked', 'neutral') : ((int) $q['correct'] ? chip('Right', 'success') : chip(($responses[$pos]['answer'] ?? '') === '' ? 'Not answered' : 'Wrong', ($responses[$pos]['answer'] ?? '') === '' ? 'neutral' : 'danger')) ?> <?= e(C::marks($q['awarded'])) ?> of <?= e(C::marks($q['marks'])) ?></span></div>
             <div class="card-body">
                 <div class="bank-question-text"><?= nl2br(e((string) $q['text'])) ?></div>
+                <?php if ($q['type'] === 'essay'): ?>
+                <div class="written-answer text-pre"><?= ($responses[$pos]['answer'] ?? '') !== '' ? e((string) $responses[$pos]['answer']) : '<span class="text-muted">Not answered.</span>' ?></div>
+                <?php if (($q['marker_feedback'] ?? null) !== null): ?><div class="bank-explanation small"><strong>Feedback.</strong> <?= nl2br(e((string) $q['marker_feedback'])) ?></div><?php endif; ?>
+                <?php else: ?>
                 <ul class="bank-choices">
                     <?php foreach ($ordered as $n => $c): $right = !empty($c['correct']); $picked = in_array((string) $c['key'], $mine, true); ?>
                         <li class="<?= $right ? 'is-right' : ($picked ? 'is-picked-wrong' : '') ?>"><span class="bank-choice-key"><?= $q['type'] === 'true_false' ? '' : chr(65 + $n) ?></span><span><?= nl2br(e((string) $c['text'])) ?></span>
                             <span class="ms-auto small"><?= $picked ? 'Your answer' : '' ?><?= $right ? ' ' . icon('check-circle-fill') : '' ?></span></li>
                     <?php endforeach; ?>
                 </ul>
-                <?php if ($q['explanation'] !== null): ?><div class="bank-explanation small"><strong>Explanation.</strong> <?= nl2br(e((string) $q['explanation'])) ?></div><?php endif; ?>
+                <?php endif; ?>
+                <?php if ($q['explanation'] !== null && $q['type'] !== 'essay'): ?><div class="bank-explanation small"><strong>Explanation.</strong> <?= nl2br(e((string) $q['explanation'])) ?></div><?php endif; ?>
             </div>
         </div>
     <?php endforeach; ?>

@@ -6,9 +6,12 @@
  *  @var bool $bookmarked @var int $bookmarks @var array<string,array{note:?string,bookmarked:bool}> $notes this person's, by question key
  *  @var array<string,list<array>> $reports open reports by question key (people who correct questions, study mode)
  *  @var array<string,list<array>> $discussion members' comments by question key (study mode)
- *  @var array{answered:int,correct:int,mistakes:int,last_at:?string} $progress this person's progress in the exam */
+ *  @var array{answered:int,correct:int,mistakes:int,last_at:?string} $progress this person's progress in the exam
+ *  @var list<array> $objectives the exam's objectives @var array|null $objective the one shown, if any
+ *  @var array<string,int> $objectiveOf objective id by question key @var array<string,true> $openReports questions with an open report */
 use App\Services\Documents\QuestionView;
 use App\Services\Editions;
+use App\Services\Objectives;
 use App\Services\StudyProgress;
 
 $base = '/library/' . rawurlencode($provider['slug']) . '/' . rawurlencode($exam['code']);
@@ -16,8 +19,10 @@ $editor = can('answers.edit');
 // The filter in use: it carries over to the next page, the search, and every form on this one.
 $filters = array_filter(['review' => $review, 'mistakes' => $mistakes, 'reported' => $reported, 'due' => $due, 'bookmarked' => $bookmarked]);
 $filters = array_map(static fn() => '1', $filters);
-$params = ['version' => $version['version'], 'mode' => $mode === 'practice' ? 'practice' : '', 'q' => $q] + $filters;
-$filterFields = implode('', array_map(static fn(string $f) => '<input type="hidden" name="' . $f . '" value="1">', array_keys(array_intersect_key($filters, ['due' => 1, 'bookmarked' => 1]))));
+$objectiveField = $objective !== null ? '<input type="hidden" name="objective" value="' . e((string) $objective['uuid']) . '">' : '';
+$params = ['version' => $version['version'], 'mode' => $mode === 'practice' ? 'practice' : '', 'q' => $q] + $filters + ($objective !== null ? ['objective' => (string) $objective['uuid']] : []);
+$filterFields = implode('', array_map(static fn(string $f) => '<input type="hidden" name="' . $f . '" value="1">', array_keys(array_intersect_key($filters, ['due' => 1, 'bookmarked' => 1])))) . $objectiveField;
+$objectiveNames = array_column($objectives, 'name', 'id');
 // Everything a form needs to come back to this page at its question.
 $keep = static fn(array $item): string => csrf_field()
     . '<input type="hidden" name="key" value="' . e(QuestionView::key($item)) . '">'
@@ -26,7 +31,7 @@ $keep = static fn(array $item): string => csrf_field()
     . '<input type="hidden" name="page" value="' . (int) $page . '">'
     . '<input type="hidden" name="q" value="' . e($q) . '">'
     . ($mode === 'practice' ? '<input type="hidden" name="mode" value="practice">' : '')
-    . implode('', array_map(static fn(string $f) => '<input type="hidden" name="' . $f . '" value="1">', array_keys($filters)));
+    . implode('', array_map(static fn(string $f) => '<input type="hidden" name="' . $f . '" value="1">', array_keys($filters))) . $objectiveField;
 $reportKinds = \App\Repositories\QuestionReportRepository::KINDS;
 $practice = $mode === 'practice';
 $img = static function (string $url, string $alt) use ($localImages): string {
@@ -47,14 +52,15 @@ $img = static function (string $url, string $alt) use ($localImages): string {
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-title"><?= e(Editions::title($exam)) ?></h1>
-        <p class="page-subtitle"><?= $total . match (true) {
+        <p class="page-subtitle"><?= e($total . match (true) {
             $review => ' answers to check, of ',
             $reported => ' reported by members, of ',
             $mistakes => ' of your mistakes, of ',
             $due => ' due for review today, of ',
             $bookmarked => ' bookmarked, of ',
+            $objective !== null => ' in ' . $objective['name'] . ', of ',
             default => ' of ',
-        } . $all . ' questions' ?> · version <?= e(fmt_time($version['collected_at'])) ?></p>
+        } . $all . ' questions') ?> · version <?= e(fmt_time($version['collected_at'])) ?></p>
         <?php if ($version['status'] === 'partial'): ?><div class="mt-2"><?= chip('Partial version: some questions could not be collected', 'warning', 'exclamation-triangle') ?></div><?php endif; ?>
     </div>
     <div class="page-actions">
@@ -72,13 +78,19 @@ $img = static function (string $url, string $alt) use ($localImages): string {
     <?php if ($review): ?><input type="hidden" name="review" value="1"><?php endif; ?>
     <?php if ($mistakes): ?><input type="hidden" name="mistakes" value="1"><?php endif; ?>
     <?php if ($reported): ?><input type="hidden" name="reported" value="1"><?php endif; ?>
-    <?= $filterFields ?>
+    <?= $objectiveField !== '' ? str_replace($objectiveField, '', $filterFields) : $filterFields ?>
+    <?php if ($objectives !== []): ?>
+        <select class="form-select" name="objective" aria-label="Objective" data-autosubmit>
+            <option value="">All objectives</option>
+            <?php foreach ($objectives as $o): ?><option value="<?= e($o['uuid']) ?>"<?= $objective !== null && $objective['uuid'] === $o['uuid'] ? ' selected' : '' ?>><?= e(($o['code'] !== null ? $o['code'] . ' ' : '') . $o['name']) ?> (<?= (int) $o['question_count'] ?>)</option><?php endforeach; ?>
+        </select>
+    <?php endif; ?>
     <div class="search-field"><?= icon('search') ?><input class="form-control" type="search" name="q" value="<?= e($q) ?>" placeholder="Search question and answer-choice text" aria-label="Search questions"></div>
     <button class="btn btn-outline-secondary" type="submit">Search</button>
-    <?php if ($q === '' && $filters === []): ?>
+    <?php if ($q === '' && $filters === [] && $objective === null): ?>
         <input class="form-control jump-input" type="number" min="1" max="<?= (int) $all ?>" name="jump" placeholder="Go to #" aria-label="Go to question number">
     <?php elseif ($q !== ''): ?>
-        <a class="btn btn-link" href="<?= e(url($base . '/view', ['version' => $version['version'], 'mode' => $practice ? 'practice' : ''] + $filters)) ?>">Clear search</a>
+        <a class="btn btn-link" href="<?= e(url($base . '/view', ['version' => $version['version'], 'mode' => $practice ? 'practice' : ''] + $filters + ($objective !== null ? ['objective' => $objective['uuid']] : []))) ?>">Clear search</a>
     <?php endif; ?>
     <?php if ($filters !== []): ?>
         <a class="btn btn-outline-secondary" href="<?= e(url($base . '/view', ['version' => $version['version'], 'mode' => $practice ? 'practice' : ''])) ?>"><?= icon('list-ol') ?>All questions</a>
@@ -129,6 +141,9 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                 <h2 class="q-number"><span class="num">Question <?= $n ?></span><?php $kind = QuestionView::kind($item); if ($kind !== null): ?><?= chip($kind === 'drag-drop' ? 'Drag and drop' : 'Hot area', 'info', $kind === 'drag-drop' ? 'arrows-move' : 'cursor') ?><?php endif; ?><?php if (!$practice && isset($item['question_edit'])): ?><?= chip('edited', 'primary', 'pencil') ?><?php endif; ?></h2>
                 <span class="q-tools">
                     <span class="q-meta"><?= e(QuestionView::meta($item)) ?></span>
+                    <?php $qKey = QuestionView::key($item); $trust = Objectives::trust($item, isset($openReports[$qKey]));
+                    if (isset($objectiveOf[$qKey], $objectiveNames[$objectiveOf[$qKey]])): ?><span class="q-objective" title="Objective"><?= icon('bullseye') ?><?= e((string) $objectiveNames[$objectiveOf[$qKey]]) ?></span><?php endif; ?>
+                    <?php if ($trust !== 'unreviewed'): [$tLabel, $tTone, $tIcon] = Objectives::TRUST[$trust]; ?><?= chip($tLabel, $tTone, $tIcon) ?><?php endif; ?>
                     <?php $mine = $notes[QuestionView::key($item)] ?? ['note' => null, 'bookmarked' => false]; ?>
                     <form method="post" action="<?= e(url($base . '/notes/bookmark')) ?>" data-save-toggle class="q-bookmark"><?= $keep($item) ?>
                         <button class="icon-btn<?= $mine['bookmarked'] ? ' is-saved' : '' ?>" type="submit" aria-pressed="<?= $mine['bookmarked'] ? 'true' : 'false' ?>"

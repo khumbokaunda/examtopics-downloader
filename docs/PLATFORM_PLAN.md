@@ -1032,9 +1032,50 @@ Left out on purpose: grading scales beyond percentage and pass mark, moderation.
 
 `CourseworkTest` (2 tests).
 
-Not built in this phase: the essay question type in the assessment engine (brief 3.5), which
-touches grading, result publication, module completion and credentials. It is planned below and
-done separately.
+The essay question type (brief 3.5) is the next section: it touches grading and result
+publication, so it went in separately.
 
 Left out on purpose: group submissions, peer assessment, plagiarism checking, code execution.
 
+## Written answers in assessments (delivered)
+
+Brief 3.5: manual marking is not one more question type, because a sitting was graded the
+moment it was handed in and that score fed result publication, module completion and
+credentials. What changed, and why each consumer is safe:
+
+- **Question banks** take a fourth type, `essay` ("Written answer"): no choices; the explanation
+  is the marking guide, shown to markers and never to candidates.
+- **Answers** can be text (migration `049` widens `assessment_responses.answer` and its history
+  from 16 characters to TEXT). The sitting page shows a text box, saved a moment after typing
+  stops and on leaving the box, through the same save queue (with its offline retry) as picks.
+- **Handing in**: a written answer earns nothing yet (`awarded` NULL) and the sitting is
+  `marking = 'awaiting'`, with its score so far but no percent and no pass. An empty written
+  answer earns nothing and needs no marking.
+- **Marking** (`/results/<sitting>/marking`): marks within the question's marks and feedback,
+  per answer, with "save and mark the next". When every written answer is marked, the score,
+  percent and pass are worked out and the sitting is `marked`. Allowed until results are
+  published.
+- **Result publication refuses** while any sitting awaits marking, so candidates never see a
+  half-marked result.
+- **Module completion** follows `passed = 1`, which an awaiting sitting does not have; **the
+  gradebook** reads `percent IS NOT NULL`; **credentials** take published results only; **result
+  statistics** skip sittings without a percent and leave written answers out of the wrong-choice
+  analysis. None of these needed more than that.
+
+`WrittenAnswersTest` (2 tests).
+
+## Phase 4 of the brief: library study quality (delivered)
+
+- **Objectives** (migration `050`): `exam_objectives` per exam and `question_objectives`, an overlay
+  keyed by (exam, question key) like corrections, so collected data is never changed. Edited on
+  `/library/<provider>/<exam>/objectives` by `answers.edit`; "Start from the topics" makes one per
+  ExamTopics topic for an exam with none. Audited as `exam.objective_saved`,
+  `exam.objective_removed` and `exam.objectives_assigned`.
+- **Trust badge** on every question in the reader, worked out from what is already stored: a
+  correction or a check, an open report, or the doubt rules. No new data.
+- **Mock breakdown** by objective once 80% of the mock's questions have one
+  (`Objectives::BREAKDOWN_COVERAGE`). It groups by the objectives as they are now, so a rename
+  shows in old results too; the score itself is unchanged.
+- **Next step** on the exam page (`Objectives::nextStep`), one suggestion with its reason.
+
+`ObjectivesTest` (4 tests).

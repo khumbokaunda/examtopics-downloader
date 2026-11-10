@@ -236,8 +236,9 @@ final class InstitutionAssessmentController extends TenantController
         $this->s->sittings()->expireOverdue();
         $rows = $this->s->sittings()->repo()->forAssessment((int) $i['id'], (int) $a['id']);
         $done = array_values(array_filter($rows, static fn(array $r): bool => $r['status'] !== 'in_progress'));
-        $percents = array_map(static fn(array $r): float => (float) $r['percent'], $done);
+        $percents = array_map(static fn(array $r): float => (float) $r['percent'], array_filter($done, static fn(array $r): bool => $r['percent'] !== null));
         return $this->render('institutions/assessment_results', $this->pageVars($i, $m, 'assessments') + [
+            'marking' => $this->s->sittings()->repo()->forMarking((int) $i['id'], (int) $a['id']), 'canMark' => $this->canMark($m, $a),
             'assessment' => $a, 'rows' => $rows, 'stats' => $this->s->results()->assessment((int) $i['id'], (int) $a['id']),
             'canPublish' => InstitutionAccess::can($m, 'results.publish'), 'canExport' => InstitutionAccess::can($m, 'results.export'),
             'levels' => InstitutionAccess::can($m, 'integrity.view') ? $this->s->examIntegrity()->levels(array_map(static fn(array $r): int => (int) $r['id'], $rows)) : null,
@@ -245,6 +246,61 @@ final class InstitutionAssessmentController extends TenantController
                 'average' => $percents !== [] ? round(array_sum($percents) / count($percents), 1) : null,
                 'passed' => $a['pass_percent'] !== null ? count(array_filter($done, static fn(array $r): bool => (int) $r['passed'] === 1)) : null],
         ]);
+    }
+
+    /** Who marks written answers: those who build the assessment, or publish its results. @param array<string,mixed> $m @param array<string,mixed> $a */
+    private function canMark(array $m, array $a): bool
+    {
+        return InstitutionAccess::can($m, 'results.publish') || InstitutionAccess::can($m, 'assessments.view')
+            || ((int) ($a['created_by'] ?? 0) === (int) $m['id'] && InstitutionAccess::can($m, 'assessments.create'));
+    }
+
+    /** A sitting's written answers, to mark. */
+    public function marking(string $ref, string $assessment, string $sitting): Response
+    {
+        [$i, $m, $a] = $this->assessmentFor($ref, $assessment, 'see');
+        if (!$this->canMark($m, $a)) {
+            throw new HttpException(403, 'Your role does not include marking.');
+        }
+        $s = $this->s->sittings()->repo()->sessionOf((int) $i['id'], (int) $a['id'], $sitting) ?? throw HttpException::notFound('Sitting');
+        $session = $this->s->sittings()->repo()->session((string) $s['uuid']) ?? throw HttpException::notFound('Sitting');
+        $questions = array_values(array_filter($this->s->sittings()->repo()->questions((int) $session['id']), static fn(array $q): bool => $q['type'] === 'essay'));
+        if ($questions === []) {
+            throw HttpException::notFound('Written answers');
+        }
+        $queue = array_values(array_filter($this->s->sittings()->repo()->forMarking((int) $i['id'], (int) $a['id']),
+            static fn(array $r): bool => (int) $r['to_mark'] > 0 && $r['uuid'] !== $session['uuid']));
+        return $this->render('institutions/assessment_marking', $this->pageVars($i, $m, 'assessments') + ['assessment' => $a, 'session' => $session, 'questions' => $questions,
+            'responses' => $this->s->sittings()->repo()->responses((int) $session['id']), 'next' => $queue[0]['uuid'] ?? null,
+            'crumb' => ['Assessments' => '/institutions/' . $i['uuid'] . '/assessments', $a['title'] => '/institutions/' . $i['uuid'] . '/assessments/' . $a['uuid'],
+                'Results' => '/institutions/' . $i['uuid'] . '/assessments/' . $a['uuid'] . '/results', 'Marking' => null]]);
+    }
+
+    public function mark(string $ref, string $assessment, string $sitting): Response
+    {
+        [$i, $m, $a] = $this->assessmentFor($ref, $assessment, 'see');
+        if (!$this->canMark($m, $a)) {
+            throw new HttpException(403, 'Your role does not include marking.');
+        }
+        $s = $this->s->sittings()->repo()->sessionOf((int) $i['id'], (int) $a['id'], $sitting) ?? throw HttpException::notFound('Sitting');
+        $session = $this->s->sittings()->repo()->session((string) $s['uuid']) ?? throw HttpException::notFound('Sitting');
+        $marks = [];
+        $feedback = (array) ($this->request->post['feedback'] ?? []);
+        foreach ((array) ($this->request->post['marks'] ?? []) as $pos => $v) {
+            $marks[(int) $pos] = ['marks' => is_string($v) ? $v : '', 'feedback' => is_string($feedback[$pos] ?? null) ? $feedback[$pos] : ''];
+        }
+        $base = '/institutions/' . $i['uuid'] . '/assessments/' . $a['uuid'] . '/results';
+        try {
+            $this->s->sittings()->markWritten($session, $m, $marks);
+            $this->flash('success', 'Marks saved.');
+            $next = (string) $this->request->input('next', '');
+            if ($this->request->input('go') === 'next' && $next !== '') {
+                return $this->redirect($base . '/' . $next . '/marking');
+            }
+        } catch (RuntimeException $e) {
+            $this->flash('warning', $e->getMessage());
+        }
+        return $this->redirect($base . '/' . $session['uuid'] . '/marking');
     }
 
     public function sitting(string $ref, string $assessment, string $sitting): Response

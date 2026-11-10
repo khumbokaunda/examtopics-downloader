@@ -2,6 +2,7 @@
 /** @var array $provider @var array $exam @var list<array> $versions @var array $selected @var list<array> $documents
  *  @var array<string,array> $variants @var array{total:int,saved:int,failed:int,skipped:int,pending:int}|null $images
  *  @var list<array> $jobs @var array|null $activeJob
+ *  @var array{text:string,why:string,query:array<string,string>,mock:bool}|null $next @var int $objectiveCount
  *  @var array{check:int,corrected:int,checked:int,edited:int,fingerprint:?string}|null $answers
  *  @var array{others:list<array>,first:bool,override:?string,candidates:list<array>} $editions
  *  @var array{answered:int,correct:int,mistakes:int,last_at:?string} $progress @var array|null $place @var bool $isSaved */
@@ -108,6 +109,9 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
                         <?php if ($answers['fingerprint'] !== null): ?>
                             <a class="ms-2" href="<?= e(url($base . '/corrections', ['version' => $selected['version']])) ?>"><?= icon('list-check') ?> Review corrections</a>
                         <?php endif; ?>
+                        <?php if (can('answers.edit')): ?>
+                            <a class="ms-2" href="<?= e(url($base . '/objectives', ['version' => $selected['version']])) ?>"><?= icon('bullseye') ?> Objectives<?= $objectiveCount > 0 ? ' (' . $objectiveCount . ')' : '' ?></a>
+                        <?php endif; ?>
                     </dd>
                     <?php endif; ?>
                 </dl>
@@ -198,6 +202,13 @@ $variantIcons = ['study' => 'journal-text', 'discussions' => 'chat-left-text', '
         <div class="card mb-4">
             <div class="card-header"><span class="card-title"><?= icon('graph-up') ?>Your progress</span></div>
             <div class="card-body">
+                <?php if ($next !== null): ?>
+                    <div class="next-step mb-3">
+                        <span class="small text-muted d-block">Next step</span>
+                        <a class="fw-semibold" href="<?= e($next['mock'] ? url($base . '/mock') : url($base . '/view', ['version' => $selected['version']] + $next['query'])) ?>"><?= e($next['text']) ?><?= icon('arrow-right') ?></a>
+                        <span class="small text-muted d-block"><?= e($next['why']) ?></span>
+                    </div>
+                <?php endif; ?>
                 <?php $count = (int) $selected['collected_count']; ?>
                 <?php if ($progress['answered'] > 0): ?>
                     <progress class="study-meter study-meter--lg" max="<?= max(1, $count) ?>" value="<?= min($progress['answered'], max(1, $count)) ?>" aria-label="Questions answered"></progress>

@@ -82,6 +82,10 @@ final class AuditText
                 default => 'changed how ' . $exam() . ' is grouped',
             }, 'collection', 'neutral'],
             'exam.progress_reset' => [$who . ' cleared their own progress in ' . $exam() . (isset($d['answers']) ? ' (' . (int) $d['answers'] . ' answer' . ((int) $d['answers'] === 1 ? '' : 's') . ')' : ''), 'arrow-counterclockwise', 'neutral'],
+            'exam.objective_saved' => [$who . ' saved the objective "' . $named('objective') . '" for ' . $exam(), 'bullseye', 'neutral'],
+            'exam.objective_removed' => [$who . ' removed the objective "' . $named('objective') . '" from ' . $exam(), 'bullseye', 'danger'],
+            'exam.objectives_assigned' => [$who . ' put ' . (int) ($d['questions'] ?? 0) . ' question' . ((int) ($d['questions'] ?? 0) === 1 ? '' : 's') . ' of ' . $exam()
+                . (($d['objective'] ?? null) === null ? ' under no objective' : ' under "' . $named('objective') . '"'), 'bullseye', 'neutral'],
             'exam.images_queued' => [$who . ' started downloading the images of ' . $exam(), 'images', 'neutral'],
             'answers.saved' => [$who . ' ' . match ((string) ($d['kind'] ?? '')) {
                 'corrected' => 'corrected the answer to question ' . (int) ($d['question'] ?? 0) . ' of ' . $exam() . ' to ' . $named('answer'),
@@ -234,6 +238,8 @@ final class AuditText
             'institution.assignment_submitted' => [$who . ' handed in ' . $named('assignment') . ' in ' . $named('course') . (!empty($d['late']) ? ', late' : ''), 'file-earmark-arrow-up', 'neutral'],
             'institution.assignment_marked' => [$who . ' marked the work of ' . $named('student') . ' for ' . $named('assignment') . ' in ' . $named('course'), 'check2-square', 'neutral'],
             'institution.assignment_released' => [$who . ' released the marks for ' . $named('assignment') . ' in ' . $named('course'), 'megaphone', 'primary'],
+            'sitting.marked' => [$who . ' marked ' . (int) ($d['answers'] ?? 0) . ' written answer' . ((int) ($d['answers'] ?? 0) === 1 ? '' : 's') . ' of ' . $named('student') . ' in ' . $named('assessment')
+                . (!empty($d['complete']) ? ', completing the sitting' : ''), 'check2-square', 'neutral'],
             'institution.assessment_duplicated' => [$who . ' copied the assessment ' . $named('assessment') . ' as ' . $named('copy') . ' in ' . $named('institution'), 'copy', 'neutral'],
             'institution.questions_imported' => [$who . ' imported ' . (int) ($d['count'] ?? 0) . ' questions into ' . $named('bank') . ' in ' . $named('institution'), 'upload', 'primary'],
             'institution.assessment_created' => [$who . ' created the assessment ' . $named('assessment') . ' in ' . $named('institution'), 'clipboard-plus', 'primary'],

@@ -109,6 +109,7 @@ final class MockController extends Controller
             'readiness' => \App\Services\Readiness::assess($mock, $this->s->mocks()->history($this->userId(), (int) $mock['exam_id'], 50)),
             'certificate' => $this->s->readiness()->forMock((int) $mock['id']),
             'attempts' => $this->s->mocks()->history($this->userId(), (int) $mock['exam_id'], 6),
+            'byObjective' => $this->s->objectives()->breakdown($mock),
         ]);
     }
 

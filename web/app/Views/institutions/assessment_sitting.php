@@ -47,9 +47,15 @@ $letters = static function (string $order, string $keys): string {
                 <tr>
                     <td class="small text-muted" data-label="#"><?= $pos ?></td>
                     <td class="stack-title"><?= e(QuestionBanks::excerpt((string) $q['text'], 120)) ?><?= (int) ($r['flagged'] ?? 0) ? ' ' . chip('Marked', 'warning') : '' ?></td>
+                    <?php if ($q['type'] === 'essay'): ?>
+                    <td class="small" data-label="Answered"><?= ($r['answer'] ?? '') !== '' ? e(QuestionBanks::excerpt((string) $r['answer'], 160)) : '<span class="text-muted">none</span>' ?></td>
+                    <td class="small" data-label="Right answer"><span class="text-muted">Written answer</span></td>
+                    <td class="small" data-label="Marks"><?= $live ? '' : ($q['awarded'] === null ? chip('To mark', 'warning') : e(C::marks($q['awarded'])) . ' / ' . e(C::marks($q['marks']))) ?></td>
+                    <?php else: ?>
                     <td class="small" data-label="Answered"><?= ($r['answer'] ?? '') !== '' ? e($q['type'] === 'true_false' ? ($r['answer'] === 'T' ? 'True' : 'False') : $letters((string) $q['choice_order'], (string) $r['answer'])) : '<span class="text-muted">none</span>' ?></td>
                     <td class="small" data-label="Right answer"><?= e($q['type'] === 'true_false' ? ($right === 'T' ? 'True' : 'False') : $letters((string) $q['choice_order'], $right)) ?></td>
                     <td class="small" data-label="Marks"><?= $live ? '' : ((int) $q['correct'] ? icon('check-lg', 'text-success') : '') . ' ' . e(C::marks($q['awarded'])) . ' / ' . e(C::marks($q['marks'])) ?></td>
+                    <?php endif; ?>
                 </tr>
             <?php endforeach; ?>
             </tbody>

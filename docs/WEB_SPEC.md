@@ -173,6 +173,19 @@ are marked right or wrong, and the result counts towards your progress. Filters:
 - Only questions whose answer is a set of letters are asked (drag-and-drop and hot-area questions,
   whose answer is a picture, cannot be graded).
 - Results are private to the person; answers count towards progress.
+- Once 80% of a mock's questions have an objective, the result also shows right and asked per
+  objective, each with a link to practise it.
+
+### Objectives, trust and the next step
+- People who correct questions (`answers.edit`) set an exam's objectives on
+  `/library/<provider>/<exam>/objectives`: code and name, added by hand or started from the topics
+  the questions came in. Questions are put under one by their numbers, such as `1-20, 25`.
+- The reader has an objective filter (`?objective=<uuid>`), and each question names its objective.
+- Each question shows what is known about its answer: corrected or checked by an editor, reported
+  and being looked at, or in doubt. Nothing is shown for a question nobody has reviewed.
+- The exam page suggests one next step: questions due for review, then mistakes, then the weakest
+  objective (at least 5 answers, under 70% right), then a timed mock once 60% of the questions are
+  answered, else carrying on.
 
 ### Spaced review
 Every question you answer comes back for review: answered right when due, it returns after 2
@@ -456,6 +469,11 @@ banks, assessments and results come in later phases.
   it for the class) and its participants. Learners see published assessments set for them and
   the notices; home shows their courses and what is coming up (assessments opening and closing,
   courses starting and ending).
+- **Written answers**: a question bank can hold written-answer (essay) questions, whose
+  explanation is a marking guide for markers. A sitting with a written answer is handed in
+  awaiting marking, with no percent or pass; its results page lists the sittings to mark, and
+  results cannot be published until every one is marked. A marker gives each answer marks and
+  feedback, which completes the score; the candidate sees both once results are published.
 - **Materials** (a course's Materials tab): files and links under headings. Video is a link,
   never an upload or an embed.
 - **Assignments**: instructions, a deadline (late work accepted and marked late, or refused),
@@ -556,6 +574,7 @@ overview only.
 | Mock exams | `GET/POST /library/{p}/{e}/mock`; `GET /mock/{uuid}`; `POST /mock/{uuid}/finish`, `/discard`, `/api/mock/{uuid}/answer` | library.view |
 | Corrections | `POST /library/{p}/{e}/answers`, `/questions` | answers.edit |
 | | `GET /library/{p}/{e}/corrections`; `GET/POST .../corrections/history`, `.../corrections/editions` | answers.edit |
+| | `GET /library/{p}/{e}/objectives`; `POST` the same | answers.edit |
 | Integrity | `GET /integrity`, `/api/integrity` | answers.edit |
 | Progress | `GET /progress` | library.view |
 | | `GET /progress/everyone`, `/progress/people/{ref}` | progress.view_all |
@@ -600,6 +619,7 @@ overview only.
 | Courses | `GET /institutions/{ref}/courses`, `.../courses/{course}` (tabs: overview, assessments, participants); `POST .../courses`, `.../courses/{course}`, `.../archive`, `.../notices`, `.../notices/{notice}/remove`, `.../assessments`, `.../assessments/{assessment}/remove` | signed-in, then classes.view, classes.manage, the class's instructors, or its learners |
 | Gradebook | `GET /institutions/{ref}/courses/{course}?tab=grades`, `.../grades.csv`, `.../grades.pdf`, `.../grades/{gradeitem}`; `POST .../grades`, `.../grades/overrides`, `.../grades/final`, `.../grades/{gradeitem}`, `.../remove`, `.../marks`, `.../import`, `.../release` | signed-in, then the course's instructors and people who manage classes; learners see their own grades and PDF |
 | Materials and assignments | `GET /institutions/{ref}/courses/{course}?tab=materials` and `?tab=assignments`, `.../materials/{material}`, `.../assignments/{assignment}`, `.../files/{file}`, `.../submissions/{member}`; `POST .../materials`, `.../materials/{material}/remove`, `.../assignments/new`, `.../assignments/{assignment}`, `.../status`, `.../rubric`, `.../release`, `.../submit`, `.../submissions/{member}` | signed-in, then the course's instructors and people who manage classes; learners read, download and hand in; a handed-in file only to its learner and the course's staff |
+| Marking written answers | `GET /institutions/{ref}/assessments/{assessment}/results/{sitting}/marking`; `POST` the same | signed-in, then results.publish, assessments.view, or the assessment's author |
 | Question import | `GET /institutions/{ref}/banks/{bank}/import`, `.../import/template.csv`, `.../import/problems.csv`; `POST .../import`, `.../import/confirm` | signed-in, then whoever may write in the bank |
 | Copy an assessment | `POST /institutions/{ref}/assessments/{assessment}/duplicate` | signed-in, then assessments.create |
 | What institutions provide | `GET /platform/institution-requirements`; `POST /platform/institution-requirements[/{requirement}]`, `.../{requirement}/toggle`, `.../{requirement}/move` | institutions.manage |
@@ -619,7 +639,7 @@ overview only.
 | Worked out, rebuilt on demand (not backed up) | `exam_checks` (Integrity figures), `question_index` (search) |
 | System | `settings`, `notifications`, `mail_queue`, `exam_requests`, `audit_log`, `throttle_events`, `schema_migrations` |
 
-Migrations `001` to `048` in `web/database/migrations` create all of it; `php bin/migrate.php`
+Migrations `001` to `049` in `web/database/migrations` create all of it; `php bin/migrate.php`
 applies them.
 
 ### Background processes

@@ -287,6 +287,8 @@ final class LibraryController extends Controller
             'place' => $this->s->progress()->placeOf($userId, (int) $e['id']),
             'isSaved' => isset($this->s->progress()->saved($userId)[(int) $e['id']]),
             'activeJob' => $this->activeCollectFor($p, $e),
+            'next' => $userId > 0 ? $this->s->objectives()->nextStep($userId, (int) $e['id'], (int) $selected['collected_count'], $this->today()) : null,
+            'objectiveCount' => count($this->s->objectives()->all((int) $e['id'])),
         ]);
     }
 

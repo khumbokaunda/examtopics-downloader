@@ -58,6 +58,10 @@ $answered = count(array_filter($responses, static fn(array $r): bool => $r['answ
                 </div>
                 <div class="bank-question-text"><?= nl2br(e((string) $q['text'])) ?></div>
                 <?php foreach ($images as $img): ?><img class="bank-question-image" src="<?= e(InstitutionBankController::imageSrc((string) $img)) ?>" alt="Picture for question <?= $i + 1 ?>" loading="lazy"><?php endforeach; ?>
+                <?php if ($q['type'] === 'essay'): ?>
+                <label class="small text-muted mb-2 d-block" for="w<?= $pos ?>">Write your answer. A marker gives the marks.</label>
+                <textarea class="form-control mock-text" id="w<?= $pos ?>" name="a<?= $pos ?>" rows="10" maxlength="<?= \App\Services\Sittings::MAX_WRITTEN ?>"><?= e((string) ($r['answer'] ?? '')) ?></textarea>
+                <?php else: ?>
                 <fieldset>
                     <legend class="small text-muted mb-2"><?= $multiple ? 'Choose every right answer.' : 'Choose one answer.' ?></legend>
                     <ul class="list-unstyled choices mock-choices">
@@ -71,6 +75,7 @@ $answered = count(array_filter($responses, static fn(array $r): bool => $r['answ
                     </ul>
                 </fieldset>
                 <?php if (!$multiple): ?><button class="btn btn-sm btn-link px-0" type="button" data-clear>Clear my answer</button><?php endif; ?>
+                <?php endif; ?>
                 <div class="mock-steps" hidden>
                     <button class="btn btn-outline-secondary" type="button" data-mock-step="-1"<?= $i === 0 ? ' disabled' : '' ?>><?= icon('chevron-left') ?>Previous</button>
                     <?php if ($i < $total - 1): ?>
