@@ -77,6 +77,7 @@ final class Institutions
         private MailQueue $mail,
         private Mailer $mailer,
         private InstitutionStructure $structure,
+        private ?Plans $plans = null,
     ) {
     }
 
@@ -330,6 +331,7 @@ final class Institutions
                 throw new RuntimeException($email . ' already belongs to the institution.');
             }
         }
+        $this->plans?->assertRoom($institution, $role, 1, true, $email);
         $token = bin2hex(random_bytes(24));
         $expires = gmdate('Y-m-d H:i:s', time() + self::INVITE_DAYS * 86400);
         $id = $this->repo->invite((int) $institution['id'], $email, $role, hash('sha256', $token), (int) $user['id'], $expires, $details);
@@ -427,6 +429,7 @@ final class Institutions
             $this->repo->closeInvitation((int) $inv['id'], 'accepted', (int) $user['id']);
             throw new RuntimeException('You already belong to ' . $institution['name'] . '.');
         }
+        $this->plans?->assertRoom($institution, (string) $inv['role']);
         $this->repo->join((int) $institution['id'], (int) $user['id'], (string) $inv['role'], [], $inv['invited_by'] !== null ? (int) $inv['invited_by'] : null);
         $this->repo->closeInvitation((int) $inv['id'], 'accepted', (int) $user['id']);
         $details = json_decode((string) ($inv['details'] ?? ''), true);

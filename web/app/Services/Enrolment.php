@@ -41,7 +41,7 @@ final class Enrolment
 
     public function __construct(private Database $db, private InstitutionRepository $institutions, private StructureRepository $structure,
         private InstitutionStructure $structureService, private UserRepository $users, private Policies $policies, private AuditLog $audit,
-        private Notifier $notifier, private Throttle $throttle)
+        private Notifier $notifier, private Throttle $throttle, private ?Plans $plans = null)
     {
     }
 
@@ -270,6 +270,7 @@ final class Enrolment
     private function join(array $i, array $code, int $userId, ?int $by, ?string $ip, bool $acceptNotice = true): void
     {
         $iid = (int) $i['id'];
+        $this->plans?->assertRoom($i, InstitutionAccess::STUDENT);
         $this->db->transaction(function (Database $db) use ($i, $code, $userId, $by, $iid): void {
             $this->institutions->join($iid, $userId, InstitutionAccess::STUDENT, [], $by);
             $db->run('UPDATE enrolment_codes SET uses = uses + 1 WHERE id = ?', [(int) $code['id']]);

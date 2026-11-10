@@ -176,9 +176,9 @@ final class AuditLog
         'signin' => ['label' => 'Sign-in and security', 'prefixes' => ['auth.', 'security.', 'activity.']],
         'accounts' => ['label' => 'Accounts and users', 'prefixes' => ['account.', 'user.', 'users.']],
         'library' => ['label' => 'Library and collecting', 'prefixes' => ['provider.', 'collect.', 'job.', 'exam.', 'answers.', 'questions.', 'discussion.', 'document.', 'request.', 'certificate.']],
-        'institutions' => ['label' => 'Institutions', 'prefixes' => ['institution.', 'sitting.', 'platform.']],
+        'institutions' => ['label' => 'Institutions', 'prefixes' => ['institution.', 'sitting.', 'platform.', 'plan.']],
         'backups' => ['label' => 'Backups', 'prefixes' => ['backup.']],
-        'settings' => ['label' => 'Settings', 'prefixes' => ['settings.']],
+        'settings' => ['label' => 'Settings', 'prefixes' => ['settings.', 'site.']],
     ];
 
     /**

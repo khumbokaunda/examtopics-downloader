@@ -144,6 +144,13 @@ final class AuditText
             'institution.logo_changed' => [$who . ' changed the logo of ' . $named('institution'), 'image', 'neutral'],
             'institution.awarding_body_set' => [$who . (($d['body'] ?? '') !== '' ? ' recorded ' . $named('institution') . ' as an awarding body for ' . $named('body')
                 : ' recorded that ' . $named('institution') . ' may not award qualifications'), 'mortarboard', 'warning'],
+            'plan.saved' => [$who . ' saved the plan "' . $named('plan') . '"' . (($d['price'] ?? null) !== null ? ' (' . $named('price') . ')' : ''), 'tags', 'neutral'],
+            'plan.archived' => [$who . ' stopped offering the plan "' . $named('plan') . '"', 'tags', 'neutral'],
+            'plan.restored' => [$who . ' offered the plan "' . $named('plan') . '" again', 'tags', 'neutral'],
+            'institution.plan_changed' => [$who . ' moved ' . $named('institution') . ' from ' . (($d['from'] ?? null) !== null ? $named('from') : 'no plan')
+                . ' to ' . (($d['to'] ?? null) !== null ? $named('to') : 'no plan'), 'tags', 'primary'],
+            'site.public_saved' => [$who . ' saved the public site settings (' . (!empty($d['on']) ? 'shown' : 'hidden') . ')', 'globe', 'neutral'],
+            'site.message_answered' => [$who . ' marked the message from ' . $named('from') . ' as answered', 'chat-left-text', 'neutral'],
             'institution.deleted' => [$who . ' deleted ' . $named('institution') . ': ' . $named('reason'), 'trash', 'danger'],
             'institution.restored' => [$who . ' restored ' . $named('institution'), 'arrow-counterclockwise', 'warning'],
             'institution.purged' => [$who . ' removed ' . $named('institution') . ' for good', 'trash', 'danger'],

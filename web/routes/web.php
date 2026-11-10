@@ -39,6 +39,7 @@ use App\Controllers\MediaController;
 use App\Controllers\MockController;
 use App\Controllers\NoteController;
 use App\Controllers\ObjectiveController;
+use App\Controllers\PlanController;
 use App\Controllers\PlatformInstitutionController;
 use App\Controllers\ProgressController;
 use App\Controllers\ProviderController;
@@ -46,6 +47,7 @@ use App\Controllers\QuestionController;
 use App\Controllers\RequestController;
 use App\Controllers\SearchController;
 use App\Controllers\SettingsController;
+use App\Controllers\SiteController;
 use App\Controllers\SignInsController;
 use App\Controllers\SittingController;
 use App\Controllers\TwoStepController;
@@ -92,7 +94,10 @@ return static function (Router $r): void {
     $r->get('/branding/theme.css', [BrandingController::class, 'css'], public: true);
     $r->get('/branding/{file}', [BrandingController::class, 'file'], public: true);
 
-    $r->get('/', [DashboardController::class, 'index'], can: $me);
+    $r->get('/', [DashboardController::class, 'index'], public: true); // signed out: the public home page or the sign-in page
+    $r->get('/pricing', [SiteController::class, 'pricing'], public: true);
+    $r->get('/contact', [SiteController::class, 'contact'], public: true);
+    $r->post('/contact', [SiteController::class, 'send'], public: true);
 
     $r->get('/providers', [ProviderController::class, 'index'], can: $read);
     $r->post('/providers/discover', [ProviderController::class, 'discover'], can: $collect);
@@ -178,6 +183,8 @@ return static function (Router $r): void {
     $r->post('/settings/appearance', [SettingsController::class, 'appearance'], can: $me);
     $r->post('/settings/time', [SettingsController::class, 'time'], can: 'settings.manage');
     $r->post('/api/appearance', [SettingsController::class, 'appearanceJson'], can: $me);
+    $r->get('/settings/site', [PlanController::class, 'site'], can: 'settings.manage');
+    $r->post('/settings/site', [PlanController::class, 'saveSite'], can: 'settings.manage');
     $r->get('/settings/branding', [BrandingController::class, 'index'], can: 'settings.manage');
     $r->post('/settings/branding', [BrandingController::class, 'save'], can: 'settings.manage');
     $r->post('/settings/branding/logo/remove', [BrandingController::class, 'removeLogo'], can: 'settings.manage');
@@ -380,6 +387,13 @@ return static function (Router $r): void {
     $r->get('/invitations/{token}', [InvitationController::class, 'show'], public: true);
     $r->post('/invitations/{token}/accept', [InvitationController::class, 'accept'], can: $me);
     $r->post('/invitations/{token}/decline', [InvitationController::class, 'decline'], can: $me);
+    $r->get('/platform/plans', [PlanController::class, 'index'], can: 'institutions.manage');
+    $r->post('/platform/plans', [PlanController::class, 'save'], can: 'institutions.manage');
+    $r->post('/platform/plans/{plan}', [PlanController::class, 'save'], can: 'institutions.manage');
+    $r->post('/platform/plans/{plan}/archive', [PlanController::class, 'archive'], can: 'institutions.manage');
+    $r->post('/platform/institutions/{ref}/plan', [PlanController::class, 'assign'], can: 'institutions.manage');
+    $r->get('/platform/messages', [PlanController::class, 'messages'], can: 'institutions.manage');
+    $r->post('/platform/messages/{message}/answered', [PlanController::class, 'answered'], can: 'institutions.manage');
     $r->get('/platform/institutions', [PlatformInstitutionController::class, 'index'], can: 'institutions.manage');
     $r->get('/platform/institution-requirements', [PlatformRequirementsController::class, 'index'], can: 'institutions.manage');
     $r->post('/platform/institution-requirements', [PlatformRequirementsController::class, 'save'], can: 'institutions.manage');

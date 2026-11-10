@@ -1079,3 +1079,23 @@ credentials. What changed, and why each consumer is safe:
 - **Next step** on the exam page (`Objectives::nextStep`), one suggestion with its reason.
 
 `ObjectivesTest` (4 tests).
+
+## Phase 5 of the brief, part 1: plans and the public site (delivered)
+
+- **Plans** (migration `051`): a name, a price as the operator writes it (such as "MWK 40,000 a
+  month"; no price is set by the code), a summary, and limits on students and staff at once
+  (empty: no limit). An institution with no plan has no limits, so existing institutions are
+  unaffected. `/platform/plans` adds, edits and stops offering plans; an institution's page sets
+  its plan with a note (for example how it paid), and every change is kept in
+  `institution_plan_changes`. A plan smaller than what the institution already uses is refused.
+- **Limits are checked where people join**: an invitation sent (counting open invitations, so a
+  long import is refused at the start), an invitation accepted, and an enrolment code used or a
+  join request approved. One service, `Plans::assertRoom`, answers for all of them.
+- **Public site**, off by default (Settings, Public site): a home page at `/` for someone signed
+  out, `/pricing` (plans marked to show), and `/contact`. Only these three pages tell search
+  engines they may list them; every other page keeps `noindex`. Security headers are unchanged.
+  Contact messages are kept, limited to 5 an hour per address, filtered by a hidden field, and
+  sent to the inbox of everyone with `institutions.manage`; `/platform/messages` lists them.
+- Institution members who see people see their plan and how much of it is used.
+
+`PlansAndSiteTest` (2 tests).

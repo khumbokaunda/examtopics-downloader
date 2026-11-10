@@ -36,7 +36,9 @@ final class PlatformInstitutionController extends Controller
             'documents' => $this->s->onboarding()->documents((int) $i['id']), 'acceptances' => $this->s->policies()->acceptances('institution', (int) $i['id']),
             'missing' => $this->s->onboarding()->missing($i), 'slots' => $this->s->onboarding()->slots($i),
             'fields' => $this->fieldRows($i), 'purgeWhy' => $this->s->institutions()->purgeRefusal($i),
-            'memberCount' => array_sum($repo->roleCounts((int) $i['id']))]);
+            'memberCount' => array_sum($repo->roleCounts((int) $i['id'])),
+            'plan' => $this->s->plans()->byId($i['plan_id'] !== null ? (int) $i['plan_id'] : null), 'plans' => $this->s->plans()->all(false),
+            'usage' => $this->s->plans()->usage($i), 'planHistory' => $this->s->plans()->history((int) $i['id'])]);
     }
 
     /** @param array<string,mixed> $i @return list<array{0:string,1:string}> the institution's answers to the platform's extra fields */

@@ -575,6 +575,9 @@ overview only.
 | Corrections | `POST /library/{p}/{e}/answers`, `/questions` | answers.edit |
 | | `GET /library/{p}/{e}/corrections`; `GET/POST .../corrections/history`, `.../corrections/editions` | answers.edit |
 | | `GET /library/{p}/{e}/objectives`; `POST` the same | answers.edit |
+| Public site | `GET /` (signed out), `/pricing`, `/contact`; `POST /contact` | public, and only while Settings, Public site is on (else `/` goes to sign-in and the others are not found) |
+| Public site settings | `GET/POST /settings/site` | settings.manage |
+| Plans and messages | `GET /platform/plans`, `/platform/messages`; `POST /platform/plans[/{plan}]`, `/platform/plans/{plan}/archive`, `/platform/institutions/{ref}/plan`, `/platform/messages/{message}/answered` | institutions.manage |
 | Integrity | `GET /integrity`, `/api/integrity` | answers.edit |
 | Progress | `GET /progress` | library.view |
 | | `GET /progress/everyone`, `/progress/people/{ref}` | progress.view_all |
