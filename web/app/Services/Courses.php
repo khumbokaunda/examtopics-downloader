@@ -146,6 +146,11 @@ final class Courses
             }
             $leadId = (int) $lead['id'];
         }
+        $pass = trim((string) ($in['pass_percent'] ?? ''));
+        if ($pass !== '' && (!is_numeric($pass) || (float) $pass < 0 || (float) $pass > 100)) {
+            throw new RuntimeException('The pass mark is a percentage from 0 to 100, or empty for none.');
+        }
+        $pass = $pass !== '' ? number_format((float) $pass, 2, '.', '') : null;
         $starts = self::date((string) ($in['starts_on'] ?? ''), 'start');
         $ends = self::date((string) ($in['ends_on'] ?? ''), 'end');
         if ($starts !== null && $ends !== null && $ends < $starts) {
@@ -154,14 +159,14 @@ final class Courses
         $now = Database::now();
         if ($c === null) {
             $uuid = Ids::uuid();
-            $this->db->run('INSERT INTO courses (uuid, institution_id, class_id, module_id, title, summary, starts_on, ends_on, lead_membership_id, created_by, created_at, updated_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [$uuid, $iid, $classId, $moduleId, $title, $summary !== '' ? $summary : null, $starts, $ends, $leadId, (int) $m['id'], $now, $now]);
+            $this->db->run('INSERT INTO courses (uuid, institution_id, class_id, module_id, title, summary, starts_on, ends_on, pass_percent, lead_membership_id, created_by, created_at, updated_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [$uuid, $iid, $classId, $moduleId, $title, $summary !== '' ? $summary : null, $starts, $ends, $pass, $leadId, (int) $m['id'], $now, $now]);
             $this->record('institution.course_created', $i, ['course' => $title]);
             return $uuid;
         }
-        $this->db->run('UPDATE courses SET module_id = ?, title = ?, summary = ?, starts_on = ?, ends_on = ?, lead_membership_id = ?, updated_at = ? WHERE id = ? AND institution_id = ?',
-            [$moduleId, $title, $summary !== '' ? $summary : null, $starts, $ends, $leadId, $now, (int) $c['id'], $iid]);
+        $this->db->run('UPDATE courses SET module_id = ?, title = ?, summary = ?, starts_on = ?, ends_on = ?, pass_percent = ?, lead_membership_id = ?, updated_at = ? WHERE id = ? AND institution_id = ?',
+            [$moduleId, $title, $summary !== '' ? $summary : null, $starts, $ends, $pass, $leadId, $now, (int) $c['id'], $iid]);
         $this->record('institution.course_changed', $i, ['course' => $title]);
         return (string) $c['uuid'];
     }
@@ -327,6 +332,18 @@ final class Courses
             if ($a['closes_at'] !== null && $a['closes_at'] > $now) {
                 $items[] = ['at' => (string) $a['closes_at'], 'date_only' => false, 'label' => 'Closes', 'title' => (string) $a['title'], 'where' => $where, 'href' => $href, 'icon' => 'hourglass-split'];
             }
+        }
+        // Assignments due, for learners: shown until handed in.
+        foreach ($this->db->all("SELECT a.uuid, a.title, a.due_at, c.uuid AS course_uuid, i.uuid AS institution_uuid, i.name AS institution_name, i.short_name AS institution_short
+                FROM institution_memberships m JOIN institutions i ON i.id = m.institution_id AND i.status = 'verified' AND i.deleted_at IS NULL
+                JOIN courses c ON c.institution_id = m.institution_id AND c.status = 'active'
+                JOIN class_enrolments e ON e.class_id = c.class_id AND e.membership_id = m.id AND e.status = 'active'
+                JOIN assignments a ON a.course_id = c.id AND a.status = 'published'
+                WHERE m.user_id = ? AND m.status = 'active' AND m.role = 'student' AND a.due_at IS NOT NULL AND a.due_at > ?
+                  AND NOT EXISTS (SELECT 1 FROM assignment_submissions s WHERE s.assignment_id = a.id AND s.membership_id = m.id)
+                LIMIT 50", [$userId, $now]) as $a) {
+            $items[] = ['at' => (string) $a['due_at'], 'date_only' => false, 'label' => 'Due', 'title' => (string) $a['title'], 'where' => (string) ($a['institution_short'] ?: $a['institution_name']),
+                'href' => '/institutions/' . $a['institution_uuid'] . '/courses/' . $a['course_uuid'] . '/assignments/' . $a['uuid'], 'icon' => 'file-earmark-arrow-up'];
         }
         usort($items, static fn(array $x, array $y): int => strcmp($x['at'], $y['at']));
         return array_slice($items, 0, $limit);

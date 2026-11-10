@@ -985,3 +985,56 @@ the copy.
 Left out on purpose: learning materials and file uploads (Phase 3), forums, groups, a calendar
 view.
 
+## Phase 2: gradebook (delivered)
+
+- **Grade items** (migration `047`, `grade_items`): an online item is one of the course's
+  assessments; an offline item is anything marked by hand, with a maximum mark. Each has a
+  weight. An online item's mark is the learner's best handed-in attempt (out of 100).
+- **Marks** (`grade_marks`) are typed on the item's page or uploaded as CSV (student number,
+  email or username; marks; feedback). Every value is checked before any is saved. A changed
+  mark is a new row, and the old one is kept, superseded.
+- **What learners see**: an offline item once it is released, an online item once its results
+  are published. Release tells them.
+- **Course grade**: the weighted average of the items a learner has a mark for, while
+  provisional. Made final, an unmarked item counts as zero, marks and hand-set grades stop
+  changing, and learners are told. It can be made provisional again (recorded).
+- **Grades set by hand** (`grade_overrides`) need a reason, are shown beside the worked-out
+  grade, and keep their history. The course has an optional pass mark (`courses.pass_percent`).
+- **Exports**: CSV for staff (with formula-safe cells, as the results export), PDF for staff and
+  each learner's own.
+- **Academic records are unchanged**: module completion still follows a passed assessment.
+  Whether it should follow the course grade is a decision for Khumbo.
+
+`GradebookTest` (2 tests).
+
+Left out on purpose: grading scales beyond percentage and pass mark, moderation.
+
+## Phase 3: assignments, marking and materials (delivered)
+
+- **Materials** (migration `048`, `course_materials`): files (up to 20 MB, any accepted kind)
+  and links, grouped under headings. Video is a link: the security headers block embedded
+  media, and the brief keeps it that way.
+- **Assignments** (`assignments`): instructions, deadline, late rule (accept and mark late, or
+  refuse), the kinds of file accepted (PDF, Word, spreadsheets, presentations, pictures, text,
+  ZIP), up to 10 files of up to 50 MB. A draft until opened, which tells the learners. Files are
+  stored outside the web root under `storage/institution_documents/<institution>/coursework/`
+  (already in backups), named by a random id, accepted by content. The server's clock decides
+  lateness.
+- **Submissions** (`assignment_submissions`, `submission_files`): handing in again supersedes the
+  submission before, which is kept. A file is served only to its learner and the course's staff.
+- **Marking** (`assignment_marks`): one page per learner with their files, a mark (or a rubric's
+  criteria, `assignment_criteria`, which add up to it), feedback, and "save and mark the next".
+  A draft until the marks are released, which tells the learners and closes the assignment. A
+  changed mark supersedes the one before. The rubric is fixed once marking starts.
+- **Gradebook**: an assignment is a third kind of grade item, shown to learners once its marks
+  are released.
+- "Coming up" on home lists assignments due until they are handed in.
+
+`CourseworkTest` (2 tests).
+
+Not built in this phase: the essay question type in the assessment engine (brief 3.5), which
+touches grading, result publication, module completion and credentials. It is planned below and
+done separately.
+
+Left out on purpose: group submissions, peer assessment, plagiarism checking, code execution.
+

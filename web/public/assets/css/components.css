@@ -980,3 +980,7 @@ a.job-chip:hover { text-decoration: none; filter: brightness(.96); }
 .title-row > .institution-switch { margin-left: var(--space-2); }
 /* Text typed with its own line breaks (a notice, a summary). */
 .text-pre { white-space: pre-line; overflow-wrap: anywhere; }
+/* The gradebook: a mark per learner and item, aligned on the right. */
+.gradebook th, .gradebook td { white-space: nowrap; }
+.gradebook th:first-child, .gradebook td:first-child { white-space: normal; min-width: 160px; }
+.grade-mark { width: 110px; }

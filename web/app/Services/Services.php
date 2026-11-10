@@ -224,6 +224,16 @@ final class Services
         return $this->app->service(QuestionImport::class, fn() => new QuestionImport($this->questionBanks()));
     }
 
+    public function coursework(): Coursework
+    {
+        return $this->app->service(Coursework::class, fn() => new Coursework($this->app->db(), $this->audit(), $this->notifier(), $this->app->paths()->storage()));
+    }
+
+    public function gradebook(): Gradebook
+    {
+        return $this->app->service(Gradebook::class, fn() => new Gradebook($this->app->db(), $this->audit(), $this->notifier()));
+    }
+
     public function courses(): Courses
     {
         return $this->app->service(Courses::class, fn() => new Courses($this->app->db(), $this->structure()->repo(), $this->audit(), $this->notifier()));
