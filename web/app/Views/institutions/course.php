@@ -84,6 +84,90 @@ $dates = $course['starts_on'] === null && $course['ends_on'] === null ? '' : tri
     <?php endif; ?>
 </div>
 
+<?php elseif ($view === 'materials'): /** @var array<string,list<array>> $groups */ ?>
+<div class="row g-4">
+    <div class="<?= $manage ? 'col-xl-8' : 'col-12' ?>">
+        <?php if ($groups === []): ?>
+            <div class="card"><div class="card-body"><?= empty_state('folder2-open', 'No materials yet', $manage ? 'Add files and links here.' : '', null, true) ?></div></div>
+        <?php endif; ?>
+        <?php foreach ($groups as $heading => $mats): ?>
+        <div class="card mb-4">
+            <div class="card-header"><span class="card-title"><?= icon('folder2-open') ?><?= e($heading !== '' ? $heading : 'Materials') ?></span></div>
+            <ul class="list-rows">
+                <?php foreach ($mats as $mat): ?>
+                    <li class="req-row"><div class="row-main"><span class="icon-bubble" data-tone="primary"><?= icon($mat['kind'] === 'link' ? 'link-45deg' : 'file-earmark') ?></span><div class="row-text">
+                        <div class="row-title"><?php if ($mat['kind'] === 'link'): ?><a href="<?= e((string) $mat['url']) ?>" target="_blank" rel="noopener noreferrer"><?= e($mat['title']) ?></a>
+                            <?php else: ?><a href="<?= e(url($base . '/materials/' . $mat['uuid'])) ?>"><?= e($mat['title']) ?></a><?php endif; ?></div>
+                        <div class="row-meta"><?= $mat['kind'] === 'link' ? e((string) parse_url((string) $mat['url'], PHP_URL_HOST)) : e((string) $mat['filename']) . ' · ' . e(number_format((int) $mat['size'] / 1024, 0)) . ' KB' ?></div>
+                    </div></div>
+                    <?php if ($manage): ?><form method="post" action="<?= e(url($base . '/materials/' . $mat['uuid'] . '/remove')) ?>" class="req-actions" data-confirm="Learners will no longer see it." data-confirm-title="Remove it?" data-confirm-button="Remove" data-confirm-tone="danger"><?= csrf_field() ?>
+                        <button class="btn btn-sm btn-link btn-link-danger" type="submit">Remove</button></form><?php endif; ?></li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+        <?php endforeach; ?>
+    </div>
+    <?php if ($manage): ?>
+    <div class="col-xl-4">
+        <div class="card">
+            <div class="card-header"><span class="card-title"><?= icon('plus-circle') ?>Add a file or link</span></div>
+            <div class="card-body">
+                <form method="post" action="<?= e(url($base . '/materials')) ?>" enctype="multipart/form-data" data-once><?= csrf_field() ?>
+                    <div class="mb-3"><label class="form-label" for="mat-heading">Heading</label><input class="form-control" id="mat-heading" name="heading" maxlength="120" list="mat-headings" placeholder="Week 1">
+                        <datalist id="mat-headings"><?php foreach (array_keys($groups) as $h): if ($h !== '') { ?><option value="<?= e((string) $h) ?>"><?php } endforeach; ?></datalist></div>
+                    <div class="mb-3"><label class="form-label" for="mat-title">Title</label><input class="form-control" id="mat-title" name="title" maxlength="160" required></div>
+                    <div class="mb-3"><label class="form-label" for="mat-file">File</label><input class="form-control" type="file" id="mat-file" name="file">
+                        <div class="form-text">Up to <?= \App\Services\Coursework::MATERIAL_MB ?> MB: PDF, Office files, pictures, text or ZIP.</div></div>
+                    <div class="mb-3"><label class="form-label" for="mat-url">Or a link</label><input class="form-control" type="url" id="mat-url" name="url" maxlength="1000" placeholder="https://">
+                        <div class="form-text">Videos go here as links.</div></div>
+                    <button class="btn btn-primary" type="submit"><?= icon('plus') ?>Add</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+</div>
+
+<?php elseif ($view === 'assignments'): /** @var list<array> $assignments @var array<int,array> $mine @var string $timezone */
+    $wTone = ['draft' => 'neutral', 'published' => 'success', 'closed' => 'neutral']; ?>
+<div class="row g-4">
+    <div class="<?= $manage ? 'col-xl-7' : 'col-12' ?>">
+        <div class="card">
+            <div class="card-header"><span class="card-title"><?= icon('file-earmark-arrow-up') ?>Assignments</span></div>
+            <?php if ($assignments === []): ?>
+                <div class="card-body"><?= empty_state('file-earmark-arrow-up', 'No assignments yet', $manage ? 'Set one here.' : '', null, true) ?></div>
+            <?php else: ?>
+            <ul class="list-rows">
+                <?php foreach ($assignments as $w): [$sub, $mk] = $mine[(int) $w['id']] ?? [null, null]; ?>
+                    <li><div class="row-main"><span class="icon-bubble" data-tone="primary"><?= icon('file-earmark-arrow-up') ?></span><div class="row-text">
+                        <div class="row-title"><a href="<?= e(url($base . '/assignments/' . $w['uuid'])) ?>"><?= e($w['title']) ?></a>
+                            <?php if ($manage): ?><?= chip(\App\Services\Coursework::STATUSES[$w['status']] ?? $w['status'], $wTone[$w['status']] ?? 'neutral') ?>
+                            <?php elseif ($mk !== null && $mk['marks'] !== null): ?><?= chip('Marked: ' . \App\Services\Gradebook::fmt((float) $mk['marks']) . ' of ' . \App\Services\Gradebook::fmt((float) $w['max_marks']), 'primary') ?>
+                            <?php elseif ($sub !== null): ?><?= chip((int) $sub['late'] === 1 ? 'Handed in late' : 'Handed in', (int) $sub['late'] === 1 ? 'warning' : 'success') ?>
+                            <?php else: ?><?= chip('To do', 'info') ?><?php endif; ?></div>
+                        <div class="row-meta"><?= $w['due_at'] !== null ? 'Due ' . e(fmt_time((string) $w['due_at'])) : 'No deadline' ?>
+                            <?= $manage ? ' · ' . (int) $w['submitted'] . ' handed in · ' . (int) $w['marked'] . ' marked' : '' ?></div>
+                    </div></div></li>
+                <?php endforeach; ?>
+            </ul>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php if ($manage): ?>
+    <div class="col-xl-5">
+        <div class="card">
+            <div class="card-header"><span class="card-title"><?= icon('plus-circle') ?>New assignment</span></div>
+            <div class="card-body">
+                <form method="post" action="<?= e(url($base . '/assignments/new')) ?>" data-once><?= csrf_field() ?>
+                    <?= \App\Core\View::current()->partial('institutions/_assignment_fields', ['a' => null, 'timezone' => $timezone, 'rubric' => false]) ?>
+                    <button class="btn btn-primary" type="submit"><?= icon('plus') ?>Save as a draft</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+</div>
+
 <?php elseif ($view === 'assessments'): /** @var list<array> $assessments @var list<array> $mine @var list<array> $attachable @var bool $canBuild */
     $tone = ['open' => 'success', 'upcoming' => 'info', 'closed' => 'neutral'];
     $label = ['open' => 'Open', 'upcoming' => 'Not open yet', 'closed' => 'Closed'];
@@ -147,7 +231,7 @@ $dates = $course['starts_on'] === null && $course['ends_on'] === null ? '' : tri
     <?php endif; ?>
 </div>
 
-<?php elseif ($view === 'grades'): /** @var array{items:list<array>,rows:list<array>,final:bool,weight:float} $book @var list<array> $online */
+<?php elseif ($view === 'grades'): /** @var array{items:list<array>,rows:list<array>,final:bool,weight:float} $book @var list<array> $online @var list<array> $freeAssignments */
     $f = static fn(?float $n): string => $n === null ? '' : \App\Services\Gradebook::fmt($n);
     $gbase = $base . '/grades';
     $status = $book['final'] ? chip('Final', 'success', 'lock') : chip('Provisional', 'neutral'); ?>
@@ -185,9 +269,10 @@ $dates = $course['starts_on'] === null && $course['ends_on'] === null ? '' : tri
     <div class="table-responsive">
         <table class="table align-middle mb-0 gradebook">
             <thead><tr><th>Learner</th>
-                <?php foreach ($book['items'] as $g): ?><th class="text-end"><?= $manage && $g['assessment_id'] === null ? '<a href="' . e(url($gbase . '/' . $g['uuid'])) . '">' . e($g['title']) . '</a>' : e($g['title']) ?>
+                <?php foreach ($book['items'] as $g): ?><th class="text-end"><?= $manage && $g['assessment_id'] === null && $g['assignment_id'] === null ? '<a href="' . e(url($gbase . '/' . $g['uuid'])) . '">' . e($g['title']) . '</a>'
+                    : ($manage && $g['assignment_id'] !== null ? '<a href="' . e(url($base . '/assignments/' . $g['assignment_uuid'])) . '">' . e($g['title']) . '</a>' : e($g['title'])) ?>
                     <div class="small text-muted fw-normal"><?= $g['assessment_id'] !== null ? '%' : 'of ' . e($f((float) $g['max_marks'])) ?> · weight <?= e($f((float) $g['weight'])) ?>
-                    <?= $g['assessment_id'] !== null ? ($g['results_published_at'] === null ? ' · unpublished' : '') : ($g['released_at'] === null ? ' · not released' : '') ?></div></th><?php endforeach; ?>
+                    <?= $g['assessment_id'] !== null ? ($g['results_published_at'] === null ? ' · unpublished' : '') : (($g['assignment_id'] !== null ? $g['assignment_released_at'] : $g['released_at']) === null ? ' · not released' : '') ?></div></th><?php endforeach; ?>
                 <th class="text-end">Course</th></tr></thead>
             <tbody>
             <?php foreach ($book['rows'] as $r): ?>
@@ -213,16 +298,16 @@ $dates = $course['starts_on'] === null && $course['ends_on'] === null ? '' : tri
             <ul class="list-rows">
                 <?php foreach ($book['items'] as $g): ?>
                     <li class="req-row"><div class="row-main"><div class="row-text"><div class="row-title"><?= e($g['title']) ?></div>
-                        <div class="row-meta"><?= $g['assessment_id'] !== null ? 'Online assessment' : 'Offline, out of ' . e($f((float) $g['max_marks'])) ?> · weight <?= e($f((float) $g['weight'])) ?></div></div></div>
+                        <div class="row-meta"><?= $g['assessment_id'] !== null ? 'Online assessment' : ($g['assignment_id'] !== null ? 'Assignment' : 'Offline') . ', out of ' . e($f((float) $g['max_marks'])) ?> · weight <?= e($f((float) $g['weight'])) ?></div></div></div>
                         <div class="req-actions">
-                            <?php if ($g['assessment_id'] === null): ?><a class="btn btn-sm btn-outline-primary" href="<?= e(url($gbase . '/' . $g['uuid'])) ?>"><?= icon('pencil-square') ?>Marks</a><?php endif; ?>
+                            <?php if ($g['assessment_id'] === null && $g['assignment_id'] === null): ?><a class="btn btn-sm btn-outline-primary" href="<?= e(url($gbase . '/' . $g['uuid'])) ?>"><?= icon('pencil-square') ?>Marks</a><?php endif; ?>
                             <button class="btn btn-sm btn-outline-secondary" type="button" data-toggle-panel="gi-<?= e($g['uuid']) ?>" aria-label="Change"><?= icon('pencil') ?></button>
                             <form method="post" action="<?= e(url($gbase . '/' . $g['uuid'] . '/remove')) ?>" data-confirm="Its marks are kept." data-confirm-title="Take it out of the gradebook?" data-confirm-button="Take out"><?= csrf_field() ?>
                                 <button class="btn btn-sm btn-link" type="submit">Take out</button></form>
                         </div>
                         <div class="req-edit" id="gi-<?= e($g['uuid']) ?>" hidden>
                             <form method="post" action="<?= e(url($gbase . '/' . $g['uuid'])) ?>" class="row g-2 align-items-end mt-1" data-once><?= csrf_field() ?>
-                                <?php if ($g['assessment_id'] === null): ?>
+                                <?php if ($g['assessment_id'] === null && $g['assignment_id'] === null): ?>
                                 <div class="col-sm-5"><label class="form-label small" for="gt-<?= e($g['uuid']) ?>">Title</label><input class="form-control form-control-sm" id="gt-<?= e($g['uuid']) ?>" name="title" maxlength="160" required value="<?= e($g['title']) ?>"></div>
                                 <div class="col-sm-3"><label class="form-label small" for="gm-<?= e($g['uuid']) ?>">Out of</label><input class="form-control form-control-sm" type="number" id="gm-<?= e($g['uuid']) ?>" name="max_marks" min="0.01" step="0.01" required value="<?= e($f((float) $g['max_marks'])) ?>"></div>
                                 <?php endif; ?>
@@ -244,6 +329,15 @@ $dates = $course['starts_on'] === null && $course['ends_on'] === null ? '' : tri
                         <select class="form-select" id="gi-assessment" name="assessment" required><option value="">Choose…</option>
                             <?php foreach ($online as $a): ?><option value="<?= e($a['uuid']) ?>"><?= e($a['title']) ?></option><?php endforeach; ?></select></div>
                     <div class="col-sm-2"><label class="form-label" for="gi-aw">Weight</label><input class="form-control" type="number" id="gi-aw" name="weight" min="0.01" step="0.01" value="1" required></div>
+                    <div class="col-sm-2"><button class="btn btn-outline-primary w-100" type="submit">Add</button></div>
+                </form>
+                <?php endif; ?>
+                <?php if ($freeAssignments !== []): ?>
+                <form method="post" action="<?= e(url($gbase)) ?>" class="row g-2 align-items-end mb-4" data-once><?= csrf_field() ?><input type="hidden" name="kind" value="assignment">
+                    <div class="col-sm-8"><label class="form-label" for="gi-assignment">An assignment of the course</label>
+                        <select class="form-select" id="gi-assignment" name="assignment" required><option value="">Choose…</option>
+                            <?php foreach ($freeAssignments as $w): ?><option value="<?= e($w['uuid']) ?>"><?= e($w['title']) ?></option><?php endforeach; ?></select></div>
+                    <div class="col-sm-2"><label class="form-label" for="gi-ww">Weight</label><input class="form-control" type="number" id="gi-ww" name="weight" min="0.01" step="0.01" value="1" required></div>
                     <div class="col-sm-2"><button class="btn btn-outline-primary w-100" type="submit">Add</button></div>
                 </form>
                 <?php endif; ?>

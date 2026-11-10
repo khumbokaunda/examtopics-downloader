@@ -9,7 +9,8 @@ use App\Core\Ids;
 use RuntimeException;
 
 /**
- * A course's gradebook. Each grade item has a weight. An online item is an assessment: a
+ * A course's gradebook. Each grade item has a weight. An assignment item takes the marks given
+ * on the assignment, shown to learners once they are released. An online item is an assessment: a
  * learner's mark is their best handed-in attempt, counted once the assessment's results are
  * published (out of 100, its percent). An offline item has a maximum mark and marks typed or
  * uploaded by staff, shown to learners once the item is released.
@@ -35,16 +36,18 @@ final class Gradebook
     /** @return list<array<string,mixed>> the course's items, in order, with their assessment's state */
     public function items(int $iid, int $courseId): array
     {
-        return $this->db->all('SELECT g.*, a.uuid AS assessment_uuid, a.title AS assessment_title, a.status AS assessment_status, a.results_published_at
-                               FROM grade_items g LEFT JOIN assessments a ON a.id = g.assessment_id
-                               WHERE g.institution_id = ? AND g.course_id = ? AND g.removed_at IS NULL ORDER BY g.position, g.id', [$iid, $courseId]);
+        // An assignment item is out of the assignment's marks, which a rubric can change.
+        return array_map(static fn(array $g): array => $g['assignment_id'] !== null ? ['max_marks' => $g['assignment_max']] + $g : $g, $this->db->all('SELECT g.*, a.uuid AS assessment_uuid, a.title AS assessment_title, a.status AS assessment_status, a.results_published_at,
+                                      w.uuid AS assignment_uuid, w.released_at AS assignment_released_at, w.max_marks AS assignment_max
+                               FROM grade_items g LEFT JOIN assessments a ON a.id = g.assessment_id LEFT JOIN assignments w ON w.id = g.assignment_id
+                               WHERE g.institution_id = ? AND g.course_id = ? AND g.removed_at IS NULL ORDER BY g.position, g.id', [$iid, $courseId]));
     }
 
     /** @return array<string,mixed>|null */
     public function item(int $iid, int $courseId, string $uuid): ?array
     {
-        return Ids::isUuid($uuid) ? $this->db->one('SELECT g.*, a.uuid AS assessment_uuid, a.results_published_at FROM grade_items g LEFT JOIN assessments a ON a.id = g.assessment_id
-            WHERE g.institution_id = ? AND g.course_id = ? AND g.uuid = ? AND g.removed_at IS NULL', [$iid, $courseId, $uuid]) : null;
+        return Ids::isUuid($uuid) ? $this->db->one('SELECT g.*, a.uuid AS assessment_uuid, a.results_published_at, w.uuid AS assignment_uuid FROM grade_items g
+            LEFT JOIN assessments a ON a.id = g.assessment_id LEFT JOIN assignments w ON w.id = g.assignment_id WHERE g.institution_id = ? AND g.course_id = ? AND g.uuid = ? AND g.removed_at IS NULL', [$iid, $courseId, $uuid]) : null;
     }
 
     /**
@@ -60,7 +63,20 @@ final class Gradebook
         }
         $weight = self::weight((string) ($in['weight'] ?? ''));
         $assessmentId = null;
-        if (($in['kind'] ?? '') === 'online') {
+        $assignmentId = null;
+        if (($in['kind'] ?? '') === 'assignment') {
+            $w = Ids::isUuid((string) ($in['assignment'] ?? '')) ? $this->db->one('SELECT * FROM assignments WHERE institution_id = ? AND uuid = ? AND course_id = ?',
+                [$iid, (string) $in['assignment'], (int) $c['id']]) : null;
+            if ($w === null) {
+                throw new RuntimeException('Choose one of the course\'s assignments.');
+            }
+            if ($this->db->value('SELECT 1 FROM grade_items WHERE course_id = ? AND assignment_id = ? AND removed_at IS NULL', [(int) $c['id'], (int) $w['id']]) !== null) {
+                throw new RuntimeException($w['title'] . ' is already in the gradebook.');
+            }
+            $assignmentId = (int) $w['id'];
+            $title = (string) $w['title'];
+            $max = (float) $w['max_marks'];
+        } elseif (($in['kind'] ?? '') === 'online') {
             $a = Ids::isUuid((string) ($in['assessment'] ?? '')) ? $this->db->one("SELECT * FROM assessments WHERE institution_id = ? AND uuid = ? AND course_id = ? AND status <> 'archived'",
                 [$iid, (string) $in['assessment'], (int) $c['id']]) : null;
             if ($a === null) {
@@ -78,8 +94,8 @@ final class Gradebook
         }
         $now = Database::now();
         $pos = (int) $this->db->value('SELECT COALESCE(MAX(position), 0) + 1 FROM grade_items WHERE course_id = ?', [(int) $c['id']]);
-        $this->db->run('INSERT INTO grade_items (uuid, institution_id, course_id, assessment_id, title, max_marks, weight, position, created_by, created_at, updated_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [Ids::uuid(), $iid, (int) $c['id'], $assessmentId, $title, $max, $weight, $pos, (int) $m['id'], $now, $now]);
+        $this->db->run('INSERT INTO grade_items (uuid, institution_id, course_id, assessment_id, assignment_id, title, max_marks, weight, position, created_by, created_at, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [Ids::uuid(), $iid, (int) $c['id'], $assessmentId, $assignmentId, $title, $max, $weight, $pos, (int) $m['id'], $now, $now]);
         $this->record('institution.grade_item_added', $i, ['course' => $c['title'], 'item' => $title, 'weight' => $weight]);
     }
 
@@ -87,9 +103,10 @@ final class Gradebook
     public function saveItem(array $i, array $c, array $g, array $in): void
     {
         $weight = self::weight((string) ($in['weight'] ?? ''));
-        $title = $g['assessment_id'] === null ? InstitutionStructure::cleanName((string) ($in['title'] ?? ''), 160) : (string) $g['title'];
-        $max = $g['assessment_id'] === null ? self::number((string) ($in['max_marks'] ?? ''), 'The maximum mark', 0.01, 100000) : 100.0;
-        if ($g['assessment_id'] === null && $max < (float) $g['max_marks']) {
+        $offline = $g['assessment_id'] === null && $g['assignment_id'] === null;
+        $title = $offline ? InstitutionStructure::cleanName((string) ($in['title'] ?? ''), 160) : (string) $g['title'];
+        $max = $offline ? self::number((string) ($in['max_marks'] ?? ''), 'The maximum mark', 0.01, 100000) : (float) $g['max_marks'];
+        if ($offline && $max < (float) $g['max_marks']) {
             $over = (int) $this->db->value('SELECT COUNT(*) FROM grade_marks WHERE item_id = ? AND superseded_at IS NULL AND marks > ?', [(int) $g['id'], $max]);
             if ($over > 0) {
                 throw new RuntimeException($over . ' marks are above ' . self::fmt($max) . '. Change them first.');
@@ -129,8 +146,8 @@ final class Gradebook
      */
     public function enter(array $i, array $m, array $c, array $g, array $entries, string $how = 'typed'): int
     {
-        if ($g['assessment_id'] !== null) {
-            throw new RuntimeException('An online item\'s marks come from its assessment.');
+        if ($g['assessment_id'] !== null || $g['assignment_id'] !== null) {
+            throw new RuntimeException('This item\'s marks come from its ' . ($g['assessment_id'] !== null ? 'assessment.' : 'assignment.'));
         }
         $this->editable($c);
         $iid = (int) $i['id'];
@@ -255,7 +272,7 @@ final class Gradebook
     /** Show an offline item's marks to the learners, and tell them. @param array<string,mixed> $i @param array<string,mixed> $c @param array<string,mixed> $g */
     public function release(array $i, array $c, array $g): int
     {
-        if ($g['assessment_id'] !== null || $g['released_at'] !== null) {
+        if ($g['assessment_id'] !== null || $g['assignment_id'] !== null || $g['released_at'] !== null) {
             throw new RuntimeException('Those marks are already shown.');
         }
         $this->db->run('UPDATE grade_items SET released_at = ? WHERE id = ? AND institution_id = ?', [Database::now(), (int) $g['id'], (int) $i['id']]);
@@ -337,7 +354,14 @@ final class Gradebook
         }
         $marks = [];
         foreach ($items as $g) {
-            if ($g['assessment_id'] !== null) {
+            if ($g['assignment_id'] !== null) {
+                $max = (float) $g['assignment_max'] > 0 ? (float) $g['assignment_max'] : 1.0;
+                foreach ($this->db->all('SELECT membership_id, marks, feedback FROM assignment_marks WHERE institution_id = ? AND assignment_id = ? AND superseded_at IS NULL',
+                    [$iid, (int) $g['assignment_id']]) as $r) {
+                    $marks[(int) $g['id']][(int) $r['membership_id']] = ['percent' => $r['marks'] !== null ? (float) $r['marks'] / $max * 100 : null,
+                        'marks' => $r['marks'] !== null ? (float) $r['marks'] : null, 'feedback' => $r['feedback'], 'visible' => $g['assignment_released_at'] !== null];
+                }
+            } elseif ($g['assessment_id'] !== null) {
                 // Best handed-in attempt; staff see it before results are published, learners after.
                 foreach ($this->db->all("SELECT membership_id, MAX(percent) AS best FROM assessment_sessions WHERE institution_id = ? AND assessment_id = ?
                                          AND status <> 'in_progress' AND percent IS NOT NULL GROUP BY membership_id", [$iid, (int) $g['assessment_id']]) as $r) {
@@ -430,7 +454,11 @@ final class Gradebook
     /** @param array<string,mixed> $g */
     private function releasedFor(array $g): bool
     {
-        return $g['assessment_id'] !== null ? $g['results_published_at'] !== null : $g['released_at'] !== null;
+        return match (true) {
+            $g['assignment_id'] !== null => $g['assignment_released_at'] !== null,
+            $g['assessment_id'] !== null => $g['results_published_at'] !== null,
+            default => $g['released_at'] !== null,
+        };
     }
 
     /** @param array<string,mixed> $c */

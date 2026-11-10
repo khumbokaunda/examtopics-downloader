@@ -1009,3 +1009,32 @@ view.
 
 Left out on purpose: grading scales beyond percentage and pass mark, moderation.
 
+## Phase 3: assignments, marking and materials (delivered)
+
+- **Materials** (migration `048`, `course_materials`): files (up to 20 MB, any accepted kind)
+  and links, grouped under headings. Video is a link: the security headers block embedded
+  media, and the brief keeps it that way.
+- **Assignments** (`assignments`): instructions, deadline, late rule (accept and mark late, or
+  refuse), the kinds of file accepted (PDF, Word, spreadsheets, presentations, pictures, text,
+  ZIP), up to 10 files of up to 50 MB. A draft until opened, which tells the learners. Files are
+  stored outside the web root under `storage/institution_documents/<institution>/coursework/`
+  (already in backups), named by a random id, accepted by content. The server's clock decides
+  lateness.
+- **Submissions** (`assignment_submissions`, `submission_files`): handing in again supersedes the
+  submission before, which is kept. A file is served only to its learner and the course's staff.
+- **Marking** (`assignment_marks`): one page per learner with their files, a mark (or a rubric's
+  criteria, `assignment_criteria`, which add up to it), feedback, and "save and mark the next".
+  A draft until the marks are released, which tells the learners and closes the assignment. A
+  changed mark supersedes the one before. The rubric is fixed once marking starts.
+- **Gradebook**: an assignment is a third kind of grade item, shown to learners once its marks
+  are released.
+- "Coming up" on home lists assignments due until they are handed in.
+
+`CourseworkTest` (2 tests).
+
+Not built in this phase: the essay question type in the assessment engine (brief 3.5), which
+touches grading, result publication, module completion and credentials. It is planned below and
+done separately.
+
+Left out on purpose: group submissions, peer assessment, plagiarism checking, code execution.
+

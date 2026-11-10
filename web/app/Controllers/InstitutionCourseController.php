@@ -16,7 +16,8 @@ use RuntimeException;
  */
 final class InstitutionCourseController extends TenantController
 {
-    private const TABS = ['overview' => 'Overview', 'assessments' => 'Assessments', 'grades' => 'Grades', 'participants' => 'Participants'];
+    private const TABS = ['overview' => 'Overview', 'materials' => 'Materials', 'assignments' => 'Assignments', 'assessments' => 'Assessments', 'grades' => 'Grades',
+        'participants' => 'Participants'];
 
     public function index(string $ref): Response
     {
@@ -60,6 +61,22 @@ final class InstitutionCourseController extends TenantController
         $view = isset(self::TABS[$view]) ? $view : 'overview';
         $vars = $this->pageVars($i, $m, 'courses') + ['course' => $c, 'view' => $view, 'views' => self::TABS, 'manage' => $manage, 'learner' => $learner,
             'crumb' => ['Courses' => '/institutions/' . $i['uuid'] . '/courses', $c['title'] => null]];
+        if ($view === 'materials') {
+            $groups = [];
+            foreach ($this->s->coursework()->materials($iid, (int) $c['id']) as $mat) {
+                $groups[(string) $mat['heading']][] = $mat;
+            }
+            return $this->render('institutions/course', $vars + ['groups' => $groups]);
+        }
+        if ($view === 'assignments') {
+            $cw = $this->s->coursework();
+            $list = $cw->assignments($iid, (int) $c['id'], !$manage);
+            $mine = [];
+            foreach ($learner ? $list : [] as $w) {
+                $mine[(int) $w['id']] = [$cw->submissionOf($iid, (int) $w['id'], (int) $m['id']), $w['released_at'] !== null ? $cw->markOf($iid, (int) $w['id'], (int) $m['id']) : null];
+            }
+            return $this->render('institutions/course', $vars + ['assignments' => $list, 'mine' => $mine, 'timezone' => $this->timezone()]);
+        }
         if ($view === 'assessments') {
             $mine = [];
             foreach ($learner ? $this->s->sittings()->repo()->assignedTo((int) $this->auth->user()['id'], (string) $i['uuid']) : [] as $a) {
@@ -84,8 +101,10 @@ final class InstitutionCourseController extends TenantController
                 $online[] = $a;
             }
             $inBook = array_flip(array_filter(array_map(static fn(array $g) => $g['assessment_id'] !== null ? (int) $g['assessment_id'] : null, $book['items'])));
+            $taken = array_flip(array_filter(array_map(static fn(array $g) => $g['assignment_id'] !== null ? (int) $g['assignment_id'] : null, $book['items'])));
             return $this->render('institutions/course', $vars + ['book' => $book,
-                'online' => array_values(array_filter($online, static fn(array $a): bool => !isset($inBook[(int) $a['id']])))]);
+                'online' => array_values(array_filter($online, static fn(array $a): bool => !isset($inBook[(int) $a['id']]))),
+                'freeAssignments' => $manage ? array_values(array_filter($this->s->coursework()->assignments($iid, (int) $c['id']), static fn(array $w): bool => !isset($taken[(int) $w['id']]))) : []]);
         }
         if ($view === 'participants') {
             $repo = $this->s->structure()->repo();
@@ -171,7 +190,7 @@ final class InstitutionCourseController extends TenantController
     {
         [$i, $m, $c] = $this->courseFor($ref, $course, true);
         return $this->attempt($i, $c, fn() => $this->s->gradebook()->addItem($i, $m, $c, ['kind' => (string) $this->request->input('kind', ''),
-            'assessment' => (string) $this->request->input('assessment', ''), 'title' => (string) $this->request->input('title', ''),
+            'assessment' => (string) $this->request->input('assessment', ''), 'assignment' => (string) $this->request->input('assignment', ''), 'title' => (string) $this->request->input('title', ''),
             'max_marks' => (string) $this->request->input('max_marks', ''), 'weight' => (string) $this->request->input('weight', '')]), 'Grade item added.', 'grades');
     }
 
