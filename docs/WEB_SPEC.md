@@ -575,6 +575,12 @@ overview only.
 | Corrections | `POST /library/{p}/{e}/answers`, `/questions` | answers.edit |
 | | `GET /library/{p}/{e}/corrections`; `GET/POST .../corrections/history`, `.../corrections/editions` | answers.edit |
 | | `GET /library/{p}/{e}/objectives`; `POST` the same | answers.edit |
+| Public site | `GET /` (signed out), `/pricing`, `/contact`; `POST /contact` | public, and only while Settings, Public site is on (else `/` goes to sign-in and the others are not found) |
+| Public site settings | `GET/POST /settings/site` | settings.manage |
+| Institution export | `GET /institutions/{ref}/export`; `POST` the same (asks for the password first) | signed-in, then institution.manage |
+| Institution billing | `GET /institutions/{ref}/billing`, `.../billing/{invoice}.pdf`; `POST .../billing/{invoice}/payments` | signed-in, then institution.manage |
+| Billing (operator) | `GET /platform/billing`, `/platform/invoices/{invoice}`, `/platform/invoices/{invoice}.pdf`; `POST /platform/billing/settings`, `/platform/institutions/{ref}/invoices`, `/platform/invoices/{invoice}/void`, `/platform/invoices/{invoice}/payments`, `/platform/payments/{payment}` | institutions.manage |
+| Plans and messages | `GET /platform/plans`, `/platform/messages`; `POST /platform/plans[/{plan}]`, `/platform/plans/{plan}/archive`, `/platform/institutions/{ref}/plan`, `/platform/messages/{message}/answered` | institutions.manage |
 | Integrity | `GET /integrity`, `/api/integrity` | answers.edit |
 | Progress | `GET /progress` | library.view |
 | | `GET /progress/everyone`, `/progress/people/{ref}` | progress.view_all |

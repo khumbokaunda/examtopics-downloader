@@ -173,7 +173,27 @@ final class Services
     public function institutions(): Institutions
     {
         return $this->app->service(Institutions::class, fn() => new Institutions(new \App\Repositories\InstitutionRepository($this->app->db()),
-            $this->users(), $this->audit(), $this->notifier(), $this->mailQueue(), $this->mailer(), $this->structure()));
+            $this->users(), $this->audit(), $this->notifier(), $this->mailQueue(), $this->mailer(), $this->structure(), $this->plans()));
+    }
+
+    public function publicSite(): PublicSite
+    {
+        return $this->app->service(PublicSite::class, fn() => new PublicSite($this->app->db(), $this->audit(), $this->notifier(), $this->throttle()));
+    }
+
+    public function institutionExport(): InstitutionExport
+    {
+        return $this->app->service(InstitutionExport::class, fn() => new InstitutionExport($this->app->db(), $this->audit(), $this->app->paths()->storage()));
+    }
+
+    public function billing(): Billing
+    {
+        return $this->app->service(Billing::class, fn() => new Billing($this->app->db(), $this->audit(), $this->notifier(), $this->users(), $this->institutions()->repo()));
+    }
+
+    public function plans(): Plans
+    {
+        return $this->app->service(Plans::class, fn() => new Plans($this->app->db(), $this->audit()));
     }
 
     public function structure(): InstitutionStructure
@@ -268,7 +288,7 @@ final class Services
     public function enrolment(): Enrolment
     {
         return $this->app->service(Enrolment::class, fn() => new Enrolment($this->app->db(), $this->institutions()->repo(), $this->structure()->repo(),
-            $this->structure(), $this->users(), $this->policies(), $this->audit(), $this->notifier(), $this->throttle()));
+            $this->structure(), $this->users(), $this->policies(), $this->audit(), $this->notifier(), $this->throttle(), $this->plans()));
     }
 
     public function studentImport(): StudentImport

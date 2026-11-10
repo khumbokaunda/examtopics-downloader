@@ -1,5 +1,7 @@
 <?php /** @var array $institution @var list<array> $reviews @var list<array> $owners @var int $memberCount @var list<array> $documents
- *  @var list<array> $acceptances @var list<string> $missing @var list<array> $slots @var list<array{0:string,1:string}> $fields @var string|null $purgeWhy */
+ *  @var list<array> $acceptances @var list<string> $missing @var list<array> $slots @var list<array{0:string,1:string}> $fields @var string|null $purgeWhy
+ *  @var list<array> $invoices @var string $currency for new invoices
+ *  @var array|null $plan @var list<array> $plans offered @var array{students:int,staff:int,invited_students:int,invited_staff:int} $usage @var list<array> $planHistory */
 use App\Services\Access;
 use App\Services\Institutions;
 use App\Services\Onboarding;
@@ -127,6 +129,56 @@ $rows = [
             </div>
         </div>
         <?php endif; ?>
+        <div class="card mb-4">
+            <div class="card-header"><span class="card-title"><?= icon('tags') ?>Plan</span><?= $plan !== null ? chip($plan['name'], 'primary') : chip('No plan, no limits', 'neutral') ?></div>
+            <div class="card-body">
+                <dl class="row small mb-3">
+                    <?php foreach (['students' => 'Students', 'staff' => 'Staff'] as $k => $label): $max = $plan['max_' . $k] ?? null; ?>
+                        <dt class="col-5"><?= $label ?></dt>
+                        <dd class="col-7"><?= $usage[$k] ?><?= $max !== null ? ' of ' . (int) $max : '' ?><?= $usage['invited_' . $k] > 0 ? ', ' . $usage['invited_' . $k] . ' invited' : '' ?></dd>
+                    <?php endforeach; ?>
+                </dl>
+                <form method="post" action="<?= e(url('/platform/institutions/' . $i['uuid'] . '/plan')) ?>"><?= csrf_field() ?>
+                    <div class="mb-2"><label class="form-label small" for="plan-pick">Change to</label>
+                        <select class="form-select form-select-sm" id="plan-pick" name="plan">
+                            <option value="">No plan (no limits)</option>
+                            <?php foreach ($plans as $p): ?><option value="<?= e($p['uuid']) ?>"<?= $plan !== null && (int) $plan['id'] === (int) $p['id'] ? ' selected' : '' ?>><?= e($p['name']) ?><?= $p['price'] !== null ? ', ' . e($p['price']) : '' ?></option><?php endforeach; ?>
+                        </select></div>
+                    <div class="mb-2"><label class="form-label small" for="plan-note">Note</label><input class="form-control form-control-sm" id="plan-note" name="note" maxlength="255" placeholder="For example: paid for the year by bank transfer"></div>
+                    <button class="btn btn-sm btn-outline-primary" type="submit"><?= icon('check2') ?>Change plan</button>
+                    <?php if ($plans === []): ?><a class="small ms-2" href="<?= e(url('/platform/plans')) ?>">Add plans</a><?php endif; ?>
+                </form>
+                <?php if ($planHistory !== []): ?>
+                    <ul class="list-unstyled small text-muted mt-3 mb-0">
+                        <?php foreach ($planHistory as $h): ?><li><?= e(fmt_time((string) $h['changed_at'])) ?>: <?= e($h['plan_name'] ?? 'No plan') ?><?= $h['username'] !== null ? ', by ' . e(Access::displayName($h)) : '' ?><?= $h['note'] !== null ? '. ' . e($h['note']) : '' ?></li><?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+            </div>
+        </div>
+        <div class="card mb-4">
+            <div class="card-header"><span class="card-title"><?= icon('receipt') ?>Invoices</span></div>
+            <div class="card-body">
+                <?php if ($invoices !== []): ?>
+                    <ul class="list-unstyled small mb-3">
+                        <?php foreach ($invoices as $inv): ?><li class="mb-1"><a href="<?= e(url('/platform/invoices/' . $inv['uuid'])) ?>"><?= e($inv['number']) ?></a>
+                            <?= e(\App\Services\Billing::money($inv)) ?> <?= \App\Core\View::current()->partial('billing/_status', ['invoice' => $inv]) ?><?= (int) $inv['waiting'] > 0 ? ' ' . chip('payment to check', 'warning') : '' ?></li><?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+                <details<?= $invoices === [] ? ' open' : '' ?>><summary class="small fw-semibold">Issue an invoice</summary>
+                <form class="mt-2" method="post" action="<?= e(url('/platform/institutions/' . $i['uuid'] . '/invoices')) ?>"><?= csrf_field() ?>
+                    <div class="mb-2"><label class="form-label small" for="inv-desc">For</label><input class="form-control form-control-sm" id="inv-desc" name="description" required maxlength="255"
+                        value="<?= e($plan !== null ? $plan['name'] . ' plan' : '') ?>"></div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6"><label class="form-label small" for="inv-amount">Amount (<?= e($currency) ?>)</label><input class="form-control form-control-sm" id="inv-amount" name="amount" inputmode="decimal" required></div>
+                        <div class="col-6"><label class="form-label small" for="inv-due">Due</label><input class="form-control form-control-sm" id="inv-due" name="due_on" type="date" required value="<?= e(gmdate('Y-m-d', time() + 14 * 86400)) ?>"></div>
+                        <div class="col-6"><label class="form-label small" for="inv-from">Period from</label><input class="form-control form-control-sm" id="inv-from" name="period_from" type="date"></div>
+                        <div class="col-6"><label class="form-label small" for="inv-to">to</label><input class="form-control form-control-sm" id="inv-to" name="period_to" type="date"></div>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary" type="submit"><?= icon('send') ?>Issue</button>
+                    <p class="form-text mb-0">The institution's managers are told. An issued invoice cannot be changed, only made void.</p>
+                </form></details>
+            </div>
+        </div>
         <div class="card">
             <div class="card-header"><span class="card-title"><?= icon('clock-history') ?>Decisions so far</span></div>
             <?php if ($reviews === []): ?>

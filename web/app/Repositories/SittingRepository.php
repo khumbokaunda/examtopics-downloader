@@ -130,21 +130,50 @@ final class SittingRepository
      */
     public function saveResponse(int $iid, int $sessionId, int $position, string $answer, bool $flagged, int $seq): bool
     {
-        return $this->db->transaction(function (Database $db) use ($iid, $sessionId, $position, $answer, $flagged, $seq): bool {
-            $current = $db->one('SELECT seq, answer, flagged FROM assessment_responses WHERE session_id = ? AND position = ? FOR UPDATE', [$sessionId, $position]);
-            if ($current !== null && (int) $current['seq'] >= $seq) {
-                return false;
+        // A room of candidates saves at the same moment. Locking a row that does not exist yet
+        // (SELECT ... FOR UPDATE) takes a gap lock, and two candidates whose rows sit side by side
+        // in the index then block each other's INSERT: a deadlock. So the first save of a question
+        // is a plain INSERT (no gap lock), and only an existing row is locked. A deadlock that can
+        // still happen (the same question saved twice at once) is tried again.
+        for ($attempt = 1; ; $attempt++) {
+            try {
+                return $this->db->transaction(function (Database $db) use ($iid, $sessionId, $position, $answer, $flagged, $seq): bool {
+                    $now = Database::now();
+                    $history = static fn() => $db->run('INSERT INTO assessment_response_history (session_id, institution_id, position, answer, flagged, seq, received_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                        [$sessionId, $iid, $position, $answer, $flagged ? 1 : 0, $seq, $now]);
+                    // Inserted (1 row), or already there and left as it is (0 rows, and now locked).
+                    $inserted = $db->run('INSERT INTO assessment_responses (session_id, institution_id, position, answer, flagged, seq, saved_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+                                          ON DUPLICATE KEY UPDATE session_id = session_id',
+                        [$sessionId, $iid, $position, $answer, $flagged ? 1 : 0, $seq, $now])->rowCount() === 1;
+                    if ($inserted) {
+                        $history();
+                        return true;
+                    }
+                    $current = $db->one('SELECT seq, answer, flagged FROM assessment_responses WHERE session_id = ? AND position = ? FOR UPDATE', [$sessionId, $position])
+                        ?? throw new \RuntimeException('The answer could not be stored.');
+                    if ((int) $current['seq'] >= $seq) {
+                        return false;
+                    }
+                    $db->run('UPDATE assessment_responses SET answer = ?, flagged = ?, seq = ?, saved_at = ? WHERE session_id = ? AND position = ?',
+                        [$answer, $flagged ? 1 : 0, $seq, $now, $sessionId, $position]);
+                    if ($current['answer'] !== $answer || (int) $current['flagged'] !== ($flagged ? 1 : 0)) {
+                        $history();
+                    }
+                    return true;
+                });
+            } catch (\PDOException $e) {
+                if ($attempt >= 3 || !self::retriable($e)) {
+                    throw $e;
+                }
+                usleep(random_int(5_000, 40_000) * $attempt);
             }
-            $now = Database::now();
-            $db->run('INSERT INTO assessment_responses (session_id, institution_id, position, answer, flagged, seq, saved_at) VALUES (?, ?, ?, ?, ?, ?, ?)
-                      ON DUPLICATE KEY UPDATE answer = VALUES(answer), flagged = VALUES(flagged), seq = VALUES(seq), saved_at = VALUES(saved_at)',
-                [$sessionId, $iid, $position, $answer, $flagged ? 1 : 0, $seq, $now]);
-            if ($current === null || $current['answer'] !== $answer || (int) $current['flagged'] !== ($flagged ? 1 : 0)) {
-                $db->run('INSERT INTO assessment_response_history (session_id, institution_id, position, answer, flagged, seq, received_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                    [$sessionId, $iid, $position, $answer, $flagged ? 1 : 0, $seq, $now]);
-            }
-            return true;
-        });
+        }
+    }
+
+    /** A deadlock or a lock wait that ran out: the work can simply be done again. */
+    public static function retriable(\PDOException $e): bool
+    {
+        return in_array((int) ($e->errorInfo[1] ?? 0), [1213, 1205], true) || (string) $e->getCode() === '40001';
     }
 
     public function maxSeq(int $sessionId): int

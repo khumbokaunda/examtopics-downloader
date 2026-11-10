@@ -23,6 +23,13 @@ final class DashboardController extends Controller
 {
     public function index(): Response
     {
+        // Signed out: the public home page when the public site is on, else the sign-in page.
+        if (!$this->auth->check()) {
+            return $this->s->publicSite()->on()
+                ? $this->render('site/home', ['title' => '', 'site' => $this->s->publicSite()->settings(), 'sitePage' => 'home', 'indexable' => true, 'wide' => true,
+                    'plans' => $this->s->plans()->listed()])
+                : $this->redirect('/login', ['next' => '/']);
+        }
         $collector = $this->auth->can('exams.collect');
         if ($collector) {
             $this->s->supervisor()->ensure();

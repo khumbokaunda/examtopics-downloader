@@ -72,6 +72,8 @@ final class InstitutionController extends TenantController
             'myClasses' => array_values(array_filter($this->s->structure()->repo()->enrolmentsOf((int) $i['id'], (int) $m['id']), static fn(array $e): bool => $e['status'] === 'active')),
             'teaching' => $this->s->structure()->repo()->classes((int) $i['id'], 'active', (int) $m['id']),
             'overview' => InstitutionAccess::can($m, 'assessments.view') ? $this->s->results()->overview((int) $i['id']) : null,
+            'plan' => InstitutionAccess::can($m, 'members.view') && $i['plan_id'] !== null
+                ? ['plan' => $this->s->plans()->byId((int) $i['plan_id']), 'usage' => $this->s->plans()->usage($i)] : null,
         ]);
     }
 

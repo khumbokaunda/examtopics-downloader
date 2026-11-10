@@ -84,6 +84,11 @@ final class SittingController extends Controller
             $kept = $this->s->sittings()->save($session, $this->s->sittings()->byPosition((int) $session['id']), $position,
                 (string) $this->request->input('answer', ''), $this->request->input('flagged') === '1', (int) $seq);
             return Response::json(['ok' => true, 'kept' => $kept, 'seconds_left' => Sittings::secondsLeft($session)]);
+        } catch (\PDOException $e) {
+            // Not the candidate's doing, and not final: the page keeps the answer and sends it
+            // again (a 422 would tell it to drop the answer). Database details stay in the log.
+            $this->app->logger()->error('app', 'Answer not saved', ['sitting' => $uuid, 'position' => $position, 'error' => $e->getMessage()]);
+            return Response::json(['error' => 'Not saved yet. It is kept on this device and sent again.'], 503);
         } catch (RuntimeException $e) {
             $fresh = $this->mine($uuid);
             return Response::json(['error' => $e->getMessage(), 'ended' => $fresh['status'] !== 'in_progress',

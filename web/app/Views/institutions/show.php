@@ -1,6 +1,7 @@
 <?php
 /** @var array $institution @var array $membership @var string $tab @var array<string,int> $roleCounts @var int|null $invitations
- *  @var list<array>|null $setup @var list<array>|null $activity @var list<array> $reviews @var array<string,int> $counts @var list<array> $myClasses @var list<array> $teaching @var array|null $overview */
+ *  @var list<array>|null $setup @var list<array>|null $activity @var list<array> $reviews @var array<string,int> $counts @var list<array> $myClasses @var list<array> $teaching @var array|null $overview
+ *  @var array{plan:array,usage:array}|null $plan the institution's plan and how much of it is used, for people who see members */
 use App\Services\InstitutionAccess;
 use App\Services\Institutions;
 $base = '/institutions/' . $institution['uuid'];
@@ -72,6 +73,10 @@ $staff = $people - ($roleCounts['student'] ?? 0);
                     </div></div></li>
                 <?php endforeach; ?>
             </ul>
+            <?php if ($plan !== null && $plan['plan'] !== null): $pl = $plan['plan']; $u = $plan['usage']; ?>
+                <div class="card-note"><span class="card-note-text small"><?= icon('tags') ?> <?= e($pl['name']) ?> plan: <?= e(implode(', ', array_map(static fn(string $k): string => $u[$k] . ($pl['max_' . $k] !== null ? ' of ' . (int) $pl['max_' . $k] : '') . ' ' . $k
+                        . ($u['invited_' . $k] > 0 ? ' (' . $u['invited_' . $k] . ' invited)' : ''), ['students', 'staff']))) ?>.</span></div>
+            <?php endif; ?>
         </div>
     </div>
     <div class="col-xl-5">

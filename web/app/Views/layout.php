@@ -5,6 +5,8 @@
  * "system" theme before first paint (it is an external file: the CSP allows no inline script).
  *
  * @var string $title @var string $content @var array|null $user @var list<array{type:string,message:string}> $flashes @var string $nav
+ * Public pages (home, pricing, contact) set $indexable, so search engines may list them, and
+ * $site with $sitePage, for their own top bar when signed out.
  */
 use App\Services\Appearance;
 
@@ -42,6 +44,9 @@ $groups = [
     'System' => [
         'users' => ['/users', 'Users', 'people', 'users.manage'],
         'platform-institutions' => ['/platform/institutions', 'Institutions', 'buildings', 'institutions.manage'],
+        'platform-plans' => ['/platform/plans', 'Plans', 'tags', 'institutions.manage'],
+        'platform-billing' => ['/platform/billing', 'Billing', 'receipt', 'institutions.manage'],
+        'platform-messages' => ['/platform/messages', 'Messages', 'chat-left-text', 'institutions.manage'],
         'platform-certificates' => ['/platform/certificates', 'Certificates', 'award', 'certificates.manage'],
         'activity' => ['/activity', 'Activity', 'activity', 'activity.view'],
         'sign-ins' => ['/security/sign-ins', 'Sign-in attempts', 'shield-lock', 'security.manage'],
@@ -70,7 +75,7 @@ $flashIcons = ['success' => 'check-circle', 'info' => 'info-circle', 'warning' =
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="robots" content="noindex, nofollow">
+    <meta name="robots" content="<?= !empty($indexable) ? 'index, follow' : 'noindex, nofollow' ?>">
     <meta name="csrf-token" content="<?= e(csrf_token()) ?>">
     <meta name="app-base" content="<?= e(url('')) ?>">
     <title><?= e($title !== '' ? $title . ' · ' : '') ?><?= e($appName) ?></title>
@@ -194,16 +199,34 @@ $flashIcons = ['success' => 'check-circle', 'info' => 'info-circle', 'warning' =
 </div>
 <?php else: ?>
 <body class="is-signed-out">
-<main class="auth-page">
+<?php if (isset($site, $sitePage)): ?>
+<header class="site-bar">
+    <a class="site-brand" href="<?= e(url('/')) ?>"><?php if ($logoUrl !== null): ?><img class="brand-logo" src="<?= e($logoUrl) ?>" alt=""><?php else: ?><span class="brand-mark"><?= icon('mortarboard-fill') ?></span><?php endif; ?><span><?= e($appName) ?></span></a>
+    <nav class="site-nav" aria-label="Site">
+        <?php foreach (['home' => ['/', 'Home'], 'pricing' => ['/pricing', 'Pricing'], 'contact' => ['/contact', 'Contact']] as $key => [$href, $label]): ?>
+            <a href="<?= e(url($href)) ?>"<?= $sitePage === $key ? ' aria-current="page"' : '' ?>><?= e($label) ?></a>
+        <?php endforeach; ?>
+        <button class="icon-btn" type="button" data-action="theme-toggle" aria-label="Switch between light and dark">
+            <span class="when-light"><?= icon('moon-stars') ?></span><span class="when-dark"><?= icon('sun') ?></span>
+        </button>
+        <a class="btn btn-sm btn-primary" href="<?= e(url('/login')) ?>">Sign in</a>
+    </nav>
+</header>
+<?php endif; ?>
+<main class="auth-page<?= isset($site, $sitePage) ? ' is-site' : '' ?>">
+    <?php if (!isset($site, $sitePage)): ?>
     <button class="icon-btn auth-theme" type="button" data-action="theme-toggle" aria-label="Switch between light and dark">
         <span class="when-light"><?= icon('moon-stars') ?></span><span class="when-dark"><?= icon('sun') ?></span>
     </button>
+    <?php endif; ?>
     <div class="auth-wrap<?= !empty($wide) ? ' is-wide' : '' ?>">
+        <?php if (!isset($site, $sitePage)): ?>
         <div class="auth-brand">
             <?php if ($logoUrl !== null): ?><img class="brand-logo-lg" src="<?= e($logoUrl) ?>" alt=""><?php else: ?><span class="brand-mark brand-mark-lg"><?= icon('mortarboard-fill') ?></span><?php endif; ?>
             <span class="name"><?= e($appName) ?></span>
             <?php if ($brand['tagline'] !== ''): ?><span class="tagline"><?= e($brand['tagline']) ?></span><?php endif; ?>
         </div>
+        <?php endif; ?>
         <?php foreach ($flashes as $f): $type = in_array($f['type'], ['success', 'info', 'warning', 'danger'], true) ? $f['type'] : 'info'; ?>
             <div class="alert alert-<?= e($type) ?>" role="status"><?= icon($flashIcons[$type]) ?><div class="alert-body"><?= e($f['message']) ?></div></div>
         <?php endforeach; ?>
