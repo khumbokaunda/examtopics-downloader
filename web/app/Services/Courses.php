@@ -146,6 +146,11 @@ final class Courses
             }
             $leadId = (int) $lead['id'];
         }
+        $pass = trim((string) ($in['pass_percent'] ?? ''));
+        if ($pass !== '' && (!is_numeric($pass) || (float) $pass < 0 || (float) $pass > 100)) {
+            throw new RuntimeException('The pass mark is a percentage from 0 to 100, or empty for none.');
+        }
+        $pass = $pass !== '' ? number_format((float) $pass, 2, '.', '') : null;
         $starts = self::date((string) ($in['starts_on'] ?? ''), 'start');
         $ends = self::date((string) ($in['ends_on'] ?? ''), 'end');
         if ($starts !== null && $ends !== null && $ends < $starts) {
@@ -154,14 +159,14 @@ final class Courses
         $now = Database::now();
         if ($c === null) {
             $uuid = Ids::uuid();
-            $this->db->run('INSERT INTO courses (uuid, institution_id, class_id, module_id, title, summary, starts_on, ends_on, lead_membership_id, created_by, created_at, updated_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [$uuid, $iid, $classId, $moduleId, $title, $summary !== '' ? $summary : null, $starts, $ends, $leadId, (int) $m['id'], $now, $now]);
+            $this->db->run('INSERT INTO courses (uuid, institution_id, class_id, module_id, title, summary, starts_on, ends_on, pass_percent, lead_membership_id, created_by, created_at, updated_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [$uuid, $iid, $classId, $moduleId, $title, $summary !== '' ? $summary : null, $starts, $ends, $pass, $leadId, (int) $m['id'], $now, $now]);
             $this->record('institution.course_created', $i, ['course' => $title]);
             return $uuid;
         }
-        $this->db->run('UPDATE courses SET module_id = ?, title = ?, summary = ?, starts_on = ?, ends_on = ?, lead_membership_id = ?, updated_at = ? WHERE id = ? AND institution_id = ?',
-            [$moduleId, $title, $summary !== '' ? $summary : null, $starts, $ends, $leadId, $now, (int) $c['id'], $iid]);
+        $this->db->run('UPDATE courses SET module_id = ?, title = ?, summary = ?, starts_on = ?, ends_on = ?, pass_percent = ?, lead_membership_id = ?, updated_at = ? WHERE id = ? AND institution_id = ?',
+            [$moduleId, $title, $summary !== '' ? $summary : null, $starts, $ends, $pass, $leadId, $now, (int) $c['id'], $iid]);
         $this->record('institution.course_changed', $i, ['course' => $title]);
         return (string) $c['uuid'];
     }

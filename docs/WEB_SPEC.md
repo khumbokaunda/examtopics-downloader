@@ -456,6 +456,13 @@ banks, assessments and results come in later phases.
   it for the class) and its participants. Learners see published assessments set for them and
   the notices; home shows their courses and what is coming up (assessments opening and closing,
   courses starting and ending).
+- **Gradebook** (a course's Grades tab): grade items with weights, either a course assessment
+  (each learner's best attempt, shown to them once its results are published) or offline work
+  (marks typed or uploaded as CSV, shown once released). The course grade is the weighted
+  average of the items marked so far while provisional; when made final an unmarked item counts
+  as zero, marks stop changing and learners are told. Staff can set a learner's grade by hand
+  with a reason. Marks and hand-set grades are never changed in place. CSV and PDF exports;
+  learners get their own PDF.
 - **Question import** (`.../banks/<id>/import`): a CSV file (question, a to j, answer, and
   optional type, marks, difficulty, topic, explanation, reference) or Aiken text. Every
   question is checked and previewed first; the good ones are saved as drafts for the usual
@@ -584,6 +591,7 @@ overview only.
 | Invitations | `GET /invitations/{token}` public; `POST /invitations/{token}/accept`, `/invitations/{token}/decline` signed-in | |
 | Institution review | `GET /platform/institutions`, `/platform/institutions/{ref}`; `POST /platform/institutions/{ref}/decision`, `.../delete`, `.../restore`, `.../purge` | institutions.manage (delete and purge also confirm the password) |
 | Courses | `GET /institutions/{ref}/courses`, `.../courses/{course}` (tabs: overview, assessments, participants); `POST .../courses`, `.../courses/{course}`, `.../archive`, `.../notices`, `.../notices/{notice}/remove`, `.../assessments`, `.../assessments/{assessment}/remove` | signed-in, then classes.view, classes.manage, the class's instructors, or its learners |
+| Gradebook | `GET /institutions/{ref}/courses/{course}?tab=grades`, `.../grades.csv`, `.../grades.pdf`, `.../grades/{gradeitem}`; `POST .../grades`, `.../grades/overrides`, `.../grades/final`, `.../grades/{gradeitem}`, `.../remove`, `.../marks`, `.../import`, `.../release` | signed-in, then the course's instructors and people who manage classes; learners see their own grades and PDF |
 | Question import | `GET /institutions/{ref}/banks/{bank}/import`, `.../import/template.csv`, `.../import/problems.csv`; `POST .../import`, `.../import/confirm` | signed-in, then whoever may write in the bank |
 | Copy an assessment | `POST /institutions/{ref}/assessments/{assessment}/duplicate` | signed-in, then assessments.create |
 | What institutions provide | `GET /platform/institution-requirements`; `POST /platform/institution-requirements[/{requirement}]`, `.../{requirement}/toggle`, `.../{requirement}/move` | institutions.manage |
@@ -598,12 +606,12 @@ overview only.
 | Members | `question_comments` (with answer votes), `question_reports`, `question_notes` (notes and bookmarks) |
 | Studying | `study_answers` (latest answer per question, with spaced review box and due day), `study_days`, `study_places`, `saved_exams`, `mock_exams` |
 | Output | `documents`, `media` (saved images) |
-| Institutions | `institutions`, `institution_reviews` (decisions and verification changes), `institution_documents`, `institution_requirements`, `institution_field_values`, `policy_acceptances`, `enrolment_codes`, `enrolment_requests`, `programme_modules`, `programme_enrolments`, `module_completions`, `transcripts`, `courses`, `course_announcements`, `credential_signatories`, `credential_templates`, `credentials`, `credential_events`, `institution_memberships`, `institution_invitations`, `institution_departments`, `institution_programmes`, `institution_classes`, `class_instructors`, `class_enrolments`, `institution_students`, `question_banks`, `question_bank_editors`, `bank_topics`, `bank_questions`, `question_versions`, `assessments`, `assessment_items`, `assessment_blueprints`, `assessment_assignments`, `assessment_sessions`, `assessment_session_questions`, `assessment_responses`, `assessment_response_history`, `assessment_events`, `integrity_reviews`, `invigilator_assignments`, `invigilator_observations`, `invigilator_messages` |
+| Institutions | `institutions`, `institution_reviews` (decisions and verification changes), `institution_documents`, `institution_requirements`, `institution_field_values`, `policy_acceptances`, `enrolment_codes`, `enrolment_requests`, `programme_modules`, `programme_enrolments`, `module_completions`, `transcripts`, `courses`, `course_announcements`, `grade_items`, `grade_marks`, `grade_overrides`, `credential_signatories`, `credential_templates`, `credentials`, `credential_events`, `institution_memberships`, `institution_invitations`, `institution_departments`, `institution_programmes`, `institution_classes`, `class_instructors`, `class_enrolments`, `institution_students`, `question_banks`, `question_bank_editors`, `bank_topics`, `bank_questions`, `question_versions`, `assessments`, `assessment_items`, `assessment_blueprints`, `assessment_assignments`, `assessment_sessions`, `assessment_session_questions`, `assessment_responses`, `assessment_response_history`, `assessment_events`, `integrity_reviews`, `invigilator_assignments`, `invigilator_observations`, `invigilator_messages` |
 | Readiness | `certificates` |
 | Worked out, rebuilt on demand (not backed up) | `exam_checks` (Integrity figures), `question_index` (search) |
 | System | `settings`, `notifications`, `mail_queue`, `exam_requests`, `audit_log`, `throttle_events`, `schema_migrations` |
 
-Migrations `001` to `046` in `web/database/migrations` create all of it; `php bin/migrate.php`
+Migrations `001` to `047` in `web/database/migrations` create all of it; `php bin/migrate.php`
 applies them.
 
 ### Background processes

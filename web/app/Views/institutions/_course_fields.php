@@ -18,6 +18,8 @@ $id = $c !== null ? 'c-' . $c['uuid'] : 'new-course';
     <div class="col-sm-6"><label class="form-label" for="<?= e($id) ?>-starts">Starts</label><input class="form-control" type="date" id="<?= e($id) ?>-starts" name="starts_on" value="<?= e((string) ($c['starts_on'] ?? '')) ?>"></div>
     <div class="col-sm-6"><label class="form-label" for="<?= e($id) ?>-ends">Ends</label><input class="form-control" type="date" id="<?= e($id) ?>-ends" name="ends_on" value="<?= e((string) ($c['ends_on'] ?? '')) ?>"></div>
 </div>
+<div class="mb-3"><label class="form-label" for="<?= e($id) ?>-pass">Pass mark, % (optional)</label>
+    <input class="form-control" type="number" id="<?= e($id) ?>-pass" name="pass_percent" min="0" max="100" step="0.01" value="<?= e($c !== null && $c['pass_percent'] !== null ? \App\Services\Gradebook::fmt((float) $c['pass_percent']) : '') ?>"></div>
 <div class="mb-3"><label class="form-label" for="<?= e($id) ?>-lead">Lead instructor (optional)</label>
     <select class="form-select" id="<?= e($id) ?>-lead" name="lead">
         <option value="">None</option>

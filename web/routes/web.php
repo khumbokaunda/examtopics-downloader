@@ -230,6 +230,17 @@ return static function (Router $r): void {
     $r->post('/institutions/{ref}/courses/{course}/notices/{notice}/remove', [InstitutionCourseController::class, 'removeNotice'], can: $me);
     $r->post('/institutions/{ref}/courses/{course}/assessments', [InstitutionCourseController::class, 'addAssessment'], can: $me);
     $r->post('/institutions/{ref}/courses/{course}/assessments/{assessment}/remove', [InstitutionCourseController::class, 'removeAssessment'], can: $me);
+    $r->post('/institutions/{ref}/courses/{course}/grades', [InstitutionCourseController::class, 'addGradeItem'], can: $me);
+    $r->post('/institutions/{ref}/courses/{course}/grades/overrides', [InstitutionCourseController::class, 'overrideGrade'], can: $me);
+    $r->post('/institutions/{ref}/courses/{course}/grades/final', [InstitutionCourseController::class, 'finalGrades'], can: $me);
+    $r->get('/institutions/{ref}/courses/{course}/grades.csv', [InstitutionCourseController::class, 'gradesCsv'], can: $me);
+    $r->get('/institutions/{ref}/courses/{course}/grades.pdf', [InstitutionCourseController::class, 'gradesPdf'], can: $me);
+    $r->get('/institutions/{ref}/courses/{course}/grades/{gradeitem}', [InstitutionCourseController::class, 'gradeItem'], can: $me);
+    $r->post('/institutions/{ref}/courses/{course}/grades/{gradeitem}', [InstitutionCourseController::class, 'saveGradeItem'], can: $me);
+    $r->post('/institutions/{ref}/courses/{course}/grades/{gradeitem}/remove', [InstitutionCourseController::class, 'removeGradeItem'], can: $me);
+    $r->post('/institutions/{ref}/courses/{course}/grades/{gradeitem}/marks', [InstitutionCourseController::class, 'enterMarks'], can: $me);
+    $r->post('/institutions/{ref}/courses/{course}/grades/{gradeitem}/import', [InstitutionCourseController::class, 'importMarks'], can: $me);
+    $r->post('/institutions/{ref}/courses/{course}/grades/{gradeitem}/release', [InstitutionCourseController::class, 'releaseMarks'], can: $me);
     $r->get('/institutions/{ref}/classes', [InstitutionClassController::class, 'index'], can: $me);
     $r->post('/institutions/{ref}/classes', [InstitutionClassController::class, 'create'], can: $me);
     $r->get('/institutions/{ref}/classes/{class}', [InstitutionClassController::class, 'show'], can: $me);
