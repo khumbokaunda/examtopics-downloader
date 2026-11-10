@@ -82,6 +82,10 @@ final class AuditText
                 default => 'changed how ' . $exam() . ' is grouped',
             }, 'collection', 'neutral'],
             'exam.progress_reset' => [$who . ' cleared their own progress in ' . $exam() . (isset($d['answers']) ? ' (' . (int) $d['answers'] . ' answer' . ((int) $d['answers'] === 1 ? '' : 's') . ')' : ''), 'arrow-counterclockwise', 'neutral'],
+            'exam.objective_saved' => [$who . ' saved the objective "' . $named('objective') . '" for ' . $exam(), 'bullseye', 'neutral'],
+            'exam.objective_removed' => [$who . ' removed the objective "' . $named('objective') . '" from ' . $exam(), 'bullseye', 'danger'],
+            'exam.objectives_assigned' => [$who . ' put ' . (int) ($d['questions'] ?? 0) . ' question' . ((int) ($d['questions'] ?? 0) === 1 ? '' : 's') . ' of ' . $exam()
+                . (($d['objective'] ?? null) === null ? ' under no objective' : ' under "' . $named('objective') . '"'), 'bullseye', 'neutral'],
             'exam.images_queued' => [$who . ' started downloading the images of ' . $exam(), 'images', 'neutral'],
             'answers.saved' => [$who . ' ' . match ((string) ($d['kind'] ?? '')) {
                 'corrected' => 'corrected the answer to question ' . (int) ($d['question'] ?? 0) . ' of ' . $exam() . ' to ' . $named('answer'),

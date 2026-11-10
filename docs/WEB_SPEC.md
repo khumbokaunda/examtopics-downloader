@@ -173,6 +173,19 @@ are marked right or wrong, and the result counts towards your progress. Filters:
 - Only questions whose answer is a set of letters are asked (drag-and-drop and hot-area questions,
   whose answer is a picture, cannot be graded).
 - Results are private to the person; answers count towards progress.
+- Once 80% of a mock's questions have an objective, the result also shows right and asked per
+  objective, each with a link to practise it.
+
+### Objectives, trust and the next step
+- People who correct questions (`answers.edit`) set an exam's objectives on
+  `/library/<provider>/<exam>/objectives`: code and name, added by hand or started from the topics
+  the questions came in. Questions are put under one by their numbers, such as `1-20, 25`.
+- The reader has an objective filter (`?objective=<uuid>`), and each question names its objective.
+- Each question shows what is known about its answer: corrected or checked by an editor, reported
+  and being looked at, or in doubt. Nothing is shown for a question nobody has reviewed.
+- The exam page suggests one next step: questions due for review, then mistakes, then the weakest
+  objective (at least 5 answers, under 70% right), then a timed mock once 60% of the questions are
+  answered, else carrying on.
 
 ### Spaced review
 Every question you answer comes back for review: answered right when due, it returns after 2
@@ -561,6 +574,7 @@ overview only.
 | Mock exams | `GET/POST /library/{p}/{e}/mock`; `GET /mock/{uuid}`; `POST /mock/{uuid}/finish`, `/discard`, `/api/mock/{uuid}/answer` | library.view |
 | Corrections | `POST /library/{p}/{e}/answers`, `/questions` | answers.edit |
 | | `GET /library/{p}/{e}/corrections`; `GET/POST .../corrections/history`, `.../corrections/editions` | answers.edit |
+| | `GET /library/{p}/{e}/objectives`; `POST` the same | answers.edit |
 | Integrity | `GET /integrity`, `/api/integrity` | answers.edit |
 | Progress | `GET /progress` | library.view |
 | | `GET /progress/everyone`, `/progress/people/{ref}` | progress.view_all |

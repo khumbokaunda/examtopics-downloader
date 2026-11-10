@@ -226,6 +226,10 @@ abstract class Controller
                 $query[$filter] = '1';
             }
         }
+        $objective = (string) $this->request->input('objective', '');
+        if (\App\Core\Ids::isUuid($objective)) {
+            $query['objective'] = $objective;
+        }
         if ($this->request->input('mode') === 'practice') {
             $query['mode'] = 'practice';
         }

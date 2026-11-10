@@ -234,6 +234,11 @@ final class Services
         return $this->app->service(Gradebook::class, fn() => new Gradebook($this->app->db(), $this->audit(), $this->notifier()));
     }
 
+    public function objectives(): Objectives
+    {
+        return $this->app->service(Objectives::class, fn() => new Objectives($this->app->db(), $this->audit()));
+    }
+
     public function courses(): Courses
     {
         return $this->app->service(Courses::class, fn() => new Courses($this->app->db(), $this->structure()->repo(), $this->audit(), $this->notifier()));

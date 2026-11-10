@@ -73,7 +73,20 @@ final class ViewerController extends Controller
         if ($bookmarked) {
             $questions = array_values(array_filter($questions, static fn(array $item) => ($notes[QuestionView::key($item)]['bookmarked'] ?? false)));
         }
-        $filtered = $review || $mistakes || $reported || $due || $bookmarked;
+        // One objective's questions, and what readers are told about each question's answer.
+        $objectives = $this->s->objectives()->all((int) $e['id']);
+        $objective = null;
+        foreach ($objectives as $o) {
+            if ($o['uuid'] === $this->request->query('objective')) {
+                $objective = $o;
+            }
+        }
+        $objectiveOf = $this->s->objectives()->map((int) $e['id']);
+        if ($objective !== null) {
+            $questions = array_values(array_filter($questions, static fn(array $item) => ($objectiveOf[QuestionView::key($item)] ?? 0) === (int) $objective['id']));
+        }
+        $openReports = $this->s->objectives()->reported((int) $e['id']);
+        $filtered = $review || $mistakes || $reported || $due || $bookmarked || $objective !== null;
         if ($q !== '') {
             $needle = mb_strtolower($q);
             $questions = array_values(array_filter($questions, static function (array $item) use ($needle): bool {
@@ -112,6 +125,10 @@ final class ViewerController extends Controller
             'review' => $review,
             'reported' => $reported,
             'reports' => $reports,
+            'objectives' => $objectives,
+            'objective' => $objective,
+            'objectiveOf' => $objectiveOf,
+            'openReports' => $openReports,
             'history' => $editor ? $this->s->correctionHistory()->counts((int) $e['id']) : [],
             'discussion' => $discussion,
             'mistakes' => $mistakes,

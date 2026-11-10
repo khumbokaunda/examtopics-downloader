@@ -1064,3 +1064,18 @@ credentials. What changed, and why each consumer is safe:
 
 `WrittenAnswersTest` (2 tests).
 
+## Phase 4 of the brief: library study quality (delivered)
+
+- **Objectives** (migration `050`): `exam_objectives` per exam and `question_objectives`, an overlay
+  keyed by (exam, question key) like corrections, so collected data is never changed. Edited on
+  `/library/<provider>/<exam>/objectives` by `answers.edit`; "Start from the topics" makes one per
+  ExamTopics topic for an exam with none. Audited as `exam.objective_saved`,
+  `exam.objective_removed` and `exam.objectives_assigned`.
+- **Trust badge** on every question in the reader, worked out from what is already stored: a
+  correction or a check, an open report, or the doubt rules. No new data.
+- **Mock breakdown** by objective once 80% of the mock's questions have one
+  (`Objectives::BREAKDOWN_COVERAGE`). It groups by the objectives as they are now, so a rename
+  shows in old results too; the score itself is unchanged.
+- **Next step** on the exam page (`Objectives::nextStep`), one suggestion with its reason.
+
+`ObjectivesTest` (4 tests).

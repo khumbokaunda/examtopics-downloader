@@ -7,6 +7,7 @@
  * @var list<array> $questions the questions shown (all, wrong or unanswered) @var string $show
  * @var int $missing questions no longer in the version @var array<string,string> $localImages
  * @var array $readiness from Readiness::assess() @var array|null $certificate @var list<array> $attempts
+ * @var array|null $byObjective from Objectives::breakdown(), when enough questions have an objective
  */
 use App\Services\Documents\QuestionView;
 use App\Services\Editions;
@@ -88,6 +89,27 @@ $order = array_flip($mock['keys']);
         </div>
     </div>
 </div>
+
+<?php if ($byObjective !== null): ?>
+<div class="card mb-4">
+    <div class="card-header"><span class="card-title"><?= icon('bullseye') ?>By objective</span><?php if ($byObjective['coverage'] < 100): ?><span class="small text-muted"><?= e(rtrim(rtrim(number_format($byObjective['coverage'], 1), '0'), '.')) ?>% of questions have one</span><?php endif; ?></div>
+    <div class="table-responsive">
+        <table class="table align-middle mb-0 table-stack">
+            <thead><tr><th>Objective</th><th class="text-end">Right</th><th class="w-50"><span class="visually-hidden">Share right</span></th><th><span class="visually-hidden">Practise</span></th></tr></thead>
+            <tbody>
+            <?php foreach ($byObjective['rows'] as $o): ?>
+                <tr>
+                    <td class="stack-title"><?php if ($o['code'] !== null): ?><span class="mono text-muted me-1"><?= e($o['code']) ?></span><?php endif; ?><?= e($o['name']) ?></td>
+                    <td class="text-end" data-label="Right"><?= $o['right'] ?> of <?= $o['total'] ?> (<?= (int) round($o['percent']) ?>%)</td>
+                    <td data-label="Share right"><progress class="study-meter" max="100" value="<?= (int) round($o['percent']) ?>" aria-label="<?= e($o['name']) ?>: <?= (int) round($o['percent']) ?>% right"></progress></td>
+                    <td class="text-end"><a class="btn btn-sm btn-link" href="<?= e(url($base . '/view', ['mode' => 'practice', 'objective' => $o['uuid']])) ?>">Practise</a></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+<?php endif; ?>
 
 <nav class="filter-chips" aria-label="Show">
     <?php foreach (['' => ['All', $total], 'wrong' => ['Wrong or not answered', $wrong + $unanswered], 'unanswered' => ['Not answered', $unanswered]] as $key => [$label, $n]): $on = $show === $key; ?>
