@@ -208,11 +208,19 @@ $creator = (int) $a['created_by'] === (int) $membership['id'];
             'restore' => [($canSchedule || $creator) && $a['status'] === 'archived', 'Restore as a draft', 'arrow-counterclockwise'],
         ], static fn(array $x): bool => $x[0]);
         ?>
-        <?php if ($actions !== []): ?>
-        <div class="card"><div class="card-body">
+        <?php $canCopy = \App\Services\InstitutionAccess::can($membership, 'assessments.create'); ?>
+        <?php if ($actions !== [] || $canCopy): ?>
+        <div class="card"><div class="card-body d-flex flex-wrap gap-2">
+            <?php if ($actions !== []): ?>
             <form method="post" action="<?= e(url($base . '/status')) ?>" class="d-flex flex-wrap gap-2" data-once><?= csrf_field() ?>
                 <?php foreach ($actions as $k => [, $label, $iconName]): ?><button class="btn btn-sm btn-outline-secondary" type="submit" name="action" value="<?= e($k) ?>"><?= icon($iconName) ?><?= e($label) ?></button><?php endforeach; ?>
             </form>
+            <?php endif; ?>
+            <?php if ($canCopy): ?>
+            <form method="post" action="<?= e(url($base . '/duplicate')) ?>" data-once><?= csrf_field() ?>
+                <button class="btn btn-sm btn-outline-secondary" type="submit"><?= icon('copy') ?>Copy as a new draft</button>
+            </form>
+            <?php endif; ?>
         </div></div>
         <?php endif; ?>
     </div>

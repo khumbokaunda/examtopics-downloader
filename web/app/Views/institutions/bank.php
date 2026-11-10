@@ -31,7 +31,8 @@ $filtered = $filters['status'] !== '' || $filters['difficulty'] !== '' || $filte
         </form>
         <div class="card">
             <div class="card-header"><span class="card-title"><?= icon('list-check') ?><?= count($questions) ?> <?= count($questions) === 1 ? 'question' : 'questions' ?></span>
-                <?php if ($canWrite && $bank['status'] === 'active'): ?><a class="btn btn-sm btn-primary" href="<?= e(url($base . '/questions/new')) ?>"><?= icon('plus') ?>New question</a><?php endif; ?></div>
+                <?php if ($canWrite && $bank['status'] === 'active'): ?><span class="d-flex gap-2"><a class="btn btn-sm btn-outline-secondary" href="<?= e(url($base . '/import')) ?>"><?= icon('upload') ?>Import</a>
+                    <a class="btn btn-sm btn-primary" href="<?= e(url($base . '/questions/new')) ?>"><?= icon('plus') ?>New question</a></span><?php endif; ?></div>
             <?php if ($questions === []): ?>
                 <div class="card-body"><?= empty_state('list-check', $filtered ? 'No questions match' : 'No questions yet', $filtered ? 'Change or clear the filters.' : ($canWrite ? 'Write the first one.' : ''), null, true) ?></div>
             <?php else: ?>

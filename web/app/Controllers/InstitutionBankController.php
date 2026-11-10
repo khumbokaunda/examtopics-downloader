@@ -126,6 +126,81 @@ final class InstitutionBankController extends TenantController
         return $this->attempt($i, $b, fn() => $this->s->questionBanks()->deleteTopic($i, $b, $t), 'Topic removed.');
     }
 
+    // Import ---------------------------------------------------------------------------------
+
+    private const IMPORT = '_question_import';
+
+    public function importPage(string $ref, string $bank): Response
+    {
+        [$i, $m, $b] = $this->bankFor($ref, $bank, 'write');
+        return $this->render('institutions/bank_import', $this->importVars($i, $m, $b) + ['rows' => null, 'error' => null]);
+    }
+
+    /** Read the file and show what would be imported. Nothing is saved yet. */
+    public function importPreview(string $ref, string $bank): Response
+    {
+        [$i, $m, $b] = $this->bankFor($ref, $bank, 'write');
+        $file = $this->request->file('file');
+        try {
+            if ($b['status'] !== 'active') {
+                throw new RuntimeException('An archived bank takes no new questions. Restore it first.');
+            }
+            if ($file === null || $file['error'] !== UPLOAD_ERR_OK) {
+                throw new RuntimeException('Choose a file to upload.');
+            }
+            $format = (string) $this->request->input('format', '');
+            $format = isset(\App\Services\QuestionImport::FORMATS[$format]) ? $format : (str_ends_with(strtolower((string) $file['name']), '.csv') ? 'csv' : 'aiken');
+            $rows = $this->s->questionImport()->check((int) $i['id'], $b, \App\Services\QuestionImport::parse((string) file_get_contents($file['tmp_name']), $format));
+        } catch (RuntimeException $e) {
+            return $this->render('institutions/bank_import', $this->importVars($i, $m, $b) + ['rows' => null, 'error' => $e->getMessage()], 422);
+        }
+        $this->session->set(self::IMPORT, ['bank' => $b['uuid'], 'rows' => $rows, 'at' => time()]);
+        return $this->render('institutions/bank_import', $this->importVars($i, $m, $b) + ['rows' => $rows, 'error' => null]);
+    }
+
+    public function importConfirm(string $ref, string $bank): Response
+    {
+        [$i, $m, $b] = $this->bankFor($ref, $bank, 'write');
+        $pending = $this->session->get(self::IMPORT);
+        $this->session->remove(self::IMPORT);
+        $back = '/institutions/' . $i['uuid'] . '/banks/' . $b['uuid'];
+        if (!is_array($pending) || ($pending['bank'] ?? '') !== $b['uuid'] || (int) ($pending['at'] ?? 0) < time() - 3600) {
+            $this->flash('warning', 'That preview has expired. Upload the file again.');
+            return $this->redirect($back . '/import');
+        }
+        try {
+            $n = $this->s->questionImport()->apply($i, $m, $b, (array) $pending['rows']);
+            $this->flash($n > 0 ? 'success' : 'warning', $n === 1 ? 'One question imported as a draft.' : $n . ' questions imported as drafts. Send them for review when they are ready.');
+        } catch (RuntimeException $e) {
+            $this->flash('warning', $e->getMessage());
+        }
+        return $this->redirect($back);
+    }
+
+    public function importTemplate(string $ref, string $bank): Response
+    {
+        $this->bankFor($ref, $bank, 'write');
+        return new Response(\App\Services\QuestionImport::template(), 200, ['Content-Type' => 'text/csv; charset=utf-8',
+            'Content-Disposition' => 'attachment; filename="question-import-template.csv"']);
+    }
+
+    public function importProblems(string $ref, string $bank): Response
+    {
+        [, , $b] = $this->bankFor($ref, $bank, 'write');
+        $pending = $this->session->get(self::IMPORT);
+        if (!is_array($pending) || ($pending['bank'] ?? '') !== $b['uuid']) {
+            throw HttpException::notFound('Import preview');
+        }
+        return new Response(\App\Services\QuestionImport::problemsCsv((array) $pending['rows']), 200, ['Content-Type' => 'text/csv; charset=utf-8',
+            'Content-Disposition' => 'attachment; filename="question-import-problems.csv"']);
+    }
+
+    /** @param array<string,mixed> $i @param array<string,mixed> $m @param array<string,mixed> $b @return array<string,mixed> */
+    private function importVars(array $i, array $m, array $b): array
+    {
+        return $this->pageVars($i, $m, 'banks') + ['bank' => $b, 'topics' => $this->s->questionBanks()->repo()->topics((int) $i['id'], (int) $b['id'])];
+    }
+
     public function newQuestion(string $ref, string $bank): Response
     {
         [$i, $m, $b] = $this->bankFor($ref, $bank, 'write');

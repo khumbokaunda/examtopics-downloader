@@ -88,6 +88,24 @@ final class Assessments
     }
 
     /**
+     * Copy an assessment as a new draft: its settings, chosen questions and blueprint. The copy
+     * has no dates, is set for nobody and belongs to no course.
+     *
+     * @param array<string,mixed> $i @param array<string,mixed> $m @param array<string,mixed> $a
+     * @return string the copy's uuid
+     */
+    public function duplicate(array $i, array $m, array $a): string
+    {
+        if (!InstitutionAccess::can($m, 'assessments.create') || !$this->canSee($m, $a)) {
+            throw new RuntimeException('Copying an assessment needs the "assessments.create" permission.');
+        }
+        $title = mb_substr('Copy of ' . $a['title'], 0, 200);
+        $uuid = $this->repo->duplicate((int) $i['id'], $a, $title, (int) $m['id']);
+        $this->record('institution.assessment_duplicated', $i, ['assessment' => $a['title'], 'copy' => $title]);
+        return $uuid;
+    }
+
+    /**
      * Check and save the settings of a draft. Times come in the person's timezone and are kept in
      * UTC.
      *

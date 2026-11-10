@@ -183,6 +183,20 @@ final class InstitutionAssessmentController extends TenantController
         return $this->redirect('/institutions/' . $i['uuid'] . '/assessments/' . $a['uuid'] . '#assigned');
     }
 
+    /** Copy the assessment as a new draft and open the copy. */
+    public function duplicate(string $ref, string $assessment): Response
+    {
+        [$i, $m, $a] = $this->assessmentFor($ref, $assessment, 'see');
+        try {
+            $uuid = $this->s->assessments()->duplicate($i, $m, $a);
+            $this->flash('success', 'Copied as a draft. Set its dates and who it is for.');
+            return $this->redirect('/institutions/' . $i['uuid'] . '/assessments/' . $uuid);
+        } catch (RuntimeException $e) {
+            $this->flash('warning', $e->getMessage());
+            return $this->redirect('/institutions/' . $i['uuid'] . '/assessments/' . $a['uuid']);
+        }
+    }
+
     public function status(string $ref, string $assessment): Response
     {
         [$i, $m, $a] = $this->assessmentFor($ref, $assessment, 'see');

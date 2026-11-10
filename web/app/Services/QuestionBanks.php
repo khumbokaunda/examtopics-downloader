@@ -241,7 +241,7 @@ final class QuestionBanks
      * @param array<string,mixed> $v from validate(), with images filled in
      * @return array{uuid:string,version:int,changed:bool}
      */
-    public function saveQuestion(array $i, array $m, array $bank, ?array $question, array $v): array
+    public function saveQuestion(array $i, array $m, array $bank, ?array $question, array $v, bool $record = true): array
     {
         if ($bank['status'] !== 'active') {
             throw new RuntimeException('An archived bank takes no new questions or edits. Restore it first.');
@@ -253,8 +253,10 @@ final class QuestionBanks
             return ['uuid' => (string) $question['uuid'], 'version' => (int) $question['latest_version'], 'changed' => false];
         }
         $done = $this->repo->writeVersion((int) $i['id'], (int) $bank['id'], $question, $v, (int) $m['id']);
-        $this->record($question === null ? 'institution.question_created' : 'institution.question_edited', $i,
-            ['bank' => $bank['name'], 'version' => $done['version'], 'question' => self::excerpt($v['text'])]);
+        if ($record) { // an import records itself once, not once per question
+            $this->record($question === null ? 'institution.question_created' : 'institution.question_edited', $i,
+                ['bank' => $bank['name'], 'version' => $done['version'], 'question' => self::excerpt($v['text'])]);
+        }
         return $done + ['changed' => true];
     }
 
@@ -313,7 +315,7 @@ final class QuestionBanks
     }
 
     /** @param array<string,mixed> $i @param array<string,mixed> $details */
-    private function record(string $action, array $i, array $details): void
+    public function record(string $action, array $i, array $details): void
     {
         $this->audit->record($action, ['institution' => (string) $i['name']] + $details, 'institution', (string) $i['uuid']);
     }

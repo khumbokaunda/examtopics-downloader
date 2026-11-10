@@ -11,10 +11,27 @@ use App\Services\Sittings;
 $tone = ['open' => 'success', 'upcoming' => 'info', 'closed' => 'neutral'];
 $label = ['open' => 'Open', 'upcoming' => 'Not open yet', 'closed' => 'Closed'];
 $student = array_filter($institutional['institutions'], static fn(array $r): bool => $r['role'] === InstitutionAccess::STUDENT) !== [];
+// Two columns when there is something of the person's own to show beside their institutions.
+$wide = $student || $institutional['assigned'] !== [] || $institutional['results'] !== [] || $institutional['courses'] !== [];
+$day = static fn(string $at): string => (new DateTimeImmutable($at))->format('j M');
 ?>
 <div class="row g-4 mb-4">
-    <?php if ($student || $institutional['assigned'] !== [] || $institutional['results'] !== []): ?>
+    <?php if ($wide): ?>
     <div class="col-xl-7">
+        <?php if ($institutional['courses'] !== []): ?>
+        <div class="card mb-4">
+            <div class="card-header"><span class="card-title"><?= icon('journal-text') ?>Your courses</span></div>
+            <ul class="list-rows">
+                <?php foreach ($institutional['courses'] as $c): ?>
+                    <li><div class="row-main"><span class="icon-bubble" data-tone="primary"><?= icon('journal-text') ?></span><div class="row-text">
+                        <div class="row-title"><a href="<?= e(url('/institutions/' . $c['institution_uuid'] . '/courses/' . $c['uuid'])) ?>"><?= e($c['title']) ?></a></div>
+                        <div class="row-meta"><?= e($c['institution_short'] ?: $c['institution_name']) ?> · <?= e($c['class_name']) ?><?= $c['notice_title'] !== null ? ' · notice: ' . e($c['notice_title']) . ' (' . e(fmt_time((string) $c['notice_at'])) . ')' : '' ?></div>
+                    </div></div></li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+        <?php endif; ?>
+        <?php if ($student || $institutional['assigned'] !== []): ?>
         <div class="card mb-4">
             <div class="card-header"><span class="card-title"><?= icon('pencil-square') ?>Set for you</span><a class="small" href="<?= e(url('/my/assessments')) ?>">All assessments</a></div>
             <?php if ($institutional['assigned'] === []): ?>
@@ -35,6 +52,7 @@ $student = array_filter($institutional['institutions'], static fn(array $r): boo
             <?php if ($institutional['more'] > 0): ?><div class="card-note"><span class="card-note-text text-muted"><?= (int) $institutional['more'] ?> more.</span></div><?php endif; ?>
             <?php endif; ?>
         </div>
+        <?php endif; ?>
         <?php if ($institutional['results'] !== []): ?>
         <div class="card">
             <div class="card-header"><span class="card-title"><?= icon('bar-chart') ?>Your results</span><a class="small" href="<?= e(url('/my/record')) ?>">Academic record</a></div>
@@ -50,7 +68,20 @@ $student = array_filter($institutional['institutions'], static fn(array $r): boo
         <?php endif; ?>
     </div>
     <?php endif; ?>
-    <div class="<?= $student || $institutional['assigned'] !== [] || $institutional['results'] !== [] ? 'col-xl-5' : 'col-12' ?>">
+    <div class="<?= $wide ? 'col-xl-5' : 'col-12' ?>">
+        <?php if ($institutional['upcoming'] !== []): ?>
+        <div class="card mb-4">
+            <div class="card-header"><span class="card-title"><?= icon('calendar-event') ?>Coming up</span></div>
+            <ul class="list-rows">
+                <?php foreach ($institutional['upcoming'] as $u): ?>
+                    <li><div class="row-main"><span class="icon-bubble" data-tone="info"><?= icon($u['icon']) ?></span><div class="row-text">
+                        <div class="row-title fw-normal"><a href="<?= e(url($u['href'])) ?>"><?= e($u['title']) ?></a></div>
+                        <div class="row-meta"><?= e($u['label']) ?> <?= $u['date_only'] ? e($day($u['at'])) : e(fmt_time($u['at'])) ?> · <?= e($u['where']) ?></div>
+                    </div></div></li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+        <?php endif; ?>
         <div class="card">
             <div class="card-header"><span class="card-title"><?= icon('building') ?>Your institutions</span><a class="small" href="<?= e(url('/enrol')) ?>">Join with a code</a></div>
             <ul class="list-rows">
