@@ -234,6 +234,8 @@ final class AuditText
             'institution.assignment_submitted' => [$who . ' handed in ' . $named('assignment') . ' in ' . $named('course') . (!empty($d['late']) ? ', late' : ''), 'file-earmark-arrow-up', 'neutral'],
             'institution.assignment_marked' => [$who . ' marked the work of ' . $named('student') . ' for ' . $named('assignment') . ' in ' . $named('course'), 'check2-square', 'neutral'],
             'institution.assignment_released' => [$who . ' released the marks for ' . $named('assignment') . ' in ' . $named('course'), 'megaphone', 'primary'],
+            'sitting.marked' => [$who . ' marked ' . (int) ($d['answers'] ?? 0) . ' written answer' . ((int) ($d['answers'] ?? 0) === 1 ? '' : 's') . ' of ' . $named('student') . ' in ' . $named('assessment')
+                . (!empty($d['complete']) ? ', completing the sitting' : ''), 'check2-square', 'neutral'],
             'institution.assessment_duplicated' => [$who . ' copied the assessment ' . $named('assessment') . ' as ' . $named('copy') . ' in ' . $named('institution'), 'copy', 'neutral'],
             'institution.questions_imported' => [$who . ' imported ' . (int) ($d['count'] ?? 0) . ' questions into ' . $named('bank') . ' in ' . $named('institution'), 'upload', 'primary'],
             'institution.assessment_created' => [$who . ' created the assessment ' . $named('assessment') . ' in ' . $named('institution'), 'clipboard-plus', 'primary'],

@@ -1032,9 +1032,35 @@ Left out on purpose: grading scales beyond percentage and pass mark, moderation.
 
 `CourseworkTest` (2 tests).
 
-Not built in this phase: the essay question type in the assessment engine (brief 3.5), which
-touches grading, result publication, module completion and credentials. It is planned below and
-done separately.
+The essay question type (brief 3.5) is the next section: it touches grading and result
+publication, so it went in separately.
 
 Left out on purpose: group submissions, peer assessment, plagiarism checking, code execution.
+
+## Written answers in assessments (delivered)
+
+Brief 3.5: manual marking is not one more question type, because a sitting was graded the
+moment it was handed in and that score fed result publication, module completion and
+credentials. What changed, and why each consumer is safe:
+
+- **Question banks** take a fourth type, `essay` ("Written answer"): no choices; the explanation
+  is the marking guide, shown to markers and never to candidates.
+- **Answers** can be text (migration `049` widens `assessment_responses.answer` and its history
+  from 16 characters to TEXT). The sitting page shows a text box, saved a moment after typing
+  stops and on leaving the box, through the same save queue (with its offline retry) as picks.
+- **Handing in**: a written answer earns nothing yet (`awarded` NULL) and the sitting is
+  `marking = 'awaiting'`, with its score so far but no percent and no pass. An empty written
+  answer earns nothing and needs no marking.
+- **Marking** (`/results/<sitting>/marking`): marks within the question's marks and feedback,
+  per answer, with "save and mark the next". When every written answer is marked, the score,
+  percent and pass are worked out and the sitting is `marked`. Allowed until results are
+  published.
+- **Result publication refuses** while any sitting awaits marking, so candidates never see a
+  half-marked result.
+- **Module completion** follows `passed = 1`, which an awaiting sitting does not have; **the
+  gradebook** reads `percent IS NOT NULL`; **credentials** take published results only; **result
+  statistics** skip sittings without a percent and leave written answers out of the wrong-choice
+  analysis. None of these needed more than that.
+
+`WrittenAnswersTest` (2 tests).
 

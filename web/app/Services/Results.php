@@ -62,7 +62,8 @@ final class Results
     public function assessment(int $iid, int $assessmentId): array
     {
         $done = "s.institution_id = ? AND s.assessment_id = ? AND s.status <> 'in_progress'";
-        $percents = array_map('floatval', array_column($this->db->all("SELECT s.percent FROM assessment_sessions s WHERE $done", [$iid, $assessmentId]), 'percent'));
+        // A sitting with written answers still to mark has no percent yet.
+        $percents = array_map('floatval', array_column($this->db->all("SELECT s.percent FROM assessment_sessions s WHERE $done AND s.percent IS NOT NULL", [$iid, $assessmentId]), 'percent'));
         $distribution = array_fill(0, 10, 0);
         foreach ($percents as $p) {
             $distribution[min(9, (int) floor($p / 10))]++;
@@ -85,7 +86,7 @@ final class Results
             $answer = (string) ($r['answer'] ?? '');
             if ($answer === '') {
                 $q['unanswered']++;
-            } elseif (!(int) $r['correct']) {
+            } elseif (!(int) $r['correct'] && $r['type'] !== 'essay') {
                 foreach (str_split($answer) as $k) {
                     $q['wrong'][$k] = ($q['wrong'][$k] ?? 0) + 1;
                 }
@@ -164,6 +165,10 @@ final class Results
         }
         if ($a['results_published_at'] !== null) {
             throw new RuntimeException('Its results are already published.');
+        }
+        $waiting = (int) $this->db->value("SELECT COUNT(*) FROM assessment_sessions WHERE institution_id = ? AND assessment_id = ? AND marking = 'awaiting'", [(int) $i['id'], (int) $a['id']]);
+        if ($waiting > 0) {
+            throw new RuntimeException(($waiting === 1 ? 'One sitting has' : $waiting . ' sittings have') . ' written answers still to mark. Mark them first.');
         }
         $this->db->run('UPDATE assessments SET results_published_at = ?, results_published_by = ? WHERE institution_id = ? AND id = ?',
             [Database::now(), (int) $m['id'], (int) $i['id'], (int) $a['id']]);

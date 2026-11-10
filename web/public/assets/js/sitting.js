@@ -37,6 +37,8 @@
 
   function section(pos) { return form.querySelector('.mock-question[data-position="' + pos + '"]'); }
   function answerOf(q) {
+    var text = q.querySelector('.mock-text');
+    if (text) return text.value;
     return Array.prototype.slice.call(q.querySelectorAll('.mock-pick:checked')).map(function (i) { return i.value; }).sort().join('');
   }
   function flaggedOf(q) { var f = q.querySelector('[data-flag]'); return !!(f && f.checked); }
@@ -46,7 +48,9 @@
     var q = section(pos);
     if (!q) return;
     var p = pending[pos];
-    q.querySelectorAll('.mock-pick').forEach(function (i) { i.checked = p.answer.indexOf(i.value) !== -1; });
+    var text = q.querySelector('.mock-text');
+    if (text) text.value = p.answer;
+    else q.querySelectorAll('.mock-pick').forEach(function (i) { i.checked = p.answer.indexOf(i.value) !== -1; });
     var f = q.querySelector('[data-flag]');
     if (f) f.checked = !!p.flagged;
   });
@@ -135,6 +139,15 @@
   form.addEventListener('change', function (ev) {
     var q = ev.target.closest ? ev.target.closest('.mock-question') : null;
     if (q) queue(q);
+  });
+  // A written answer is saved a moment after typing stops, and on leaving the box (change).
+  var typing = {};
+  form.addEventListener('input', function (ev) {
+    if (!ev.target.classList || !ev.target.classList.contains('mock-text')) return;
+    var q = ev.target.closest('.mock-question');
+    var pos = q.getAttribute('data-position');
+    clearTimeout(typing[pos]);
+    typing[pos] = setTimeout(function () { queue(q); }, 1500);
   });
   form.addEventListener('click', function (ev) {
     var t = ev.target.closest ? ev.target.closest('[data-mock-go],[data-mock-step],[data-clear]') : null;

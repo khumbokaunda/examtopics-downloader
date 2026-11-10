@@ -33,7 +33,11 @@ th, td { text-align: left; padding: 4pt 6pt; border-bottom: 1px solid #e5e7eb; v
     $right = implode('', array_map(static fn(array $c): string => (string) $c['key'], array_filter((array) json_decode((string) $q['choices'], true), static fn(array $c): bool => !empty($c['correct']))));
     $mine = (string) ($responses[$pos]['answer'] ?? ''); $tf = $q['type'] === 'true_false'; ?>
 <tr><td><?= $pos ?></td><td><?= e(\App\Services\QuestionBanks::excerpt((string) $q['text'], 160)) ?></td>
+    <?php if ($q['type'] === 'essay'): ?>
+    <td colspan="2"><?= $mine === '' ? 'none' : nl2br(e(mb_substr($mine, 0, 4000))) ?><?= ($q['marker_feedback'] ?? null) !== null ? '<br><span class="muted">Feedback: ' . e((string) $q['marker_feedback']) . '</span>' : '' ?></td>
+    <?php else: ?>
     <td><?= $mine === '' ? 'none' : e($tf ? ($mine === 'T' ? 'True' : 'False') : $letter($mine)) ?></td><td><?= e($tf ? ($right === 'T' ? 'True' : 'False') : $letter($right)) ?></td>
+    <?php endif; ?>
     <td><?= e(C::marks($q['awarded'])) ?> / <?= e(C::marks($q['marks'])) ?></td></tr>
 <?php endforeach; ?>
 </table>

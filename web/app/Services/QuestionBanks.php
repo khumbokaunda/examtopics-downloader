@@ -22,7 +22,7 @@ use RuntimeException;
  */
 final class QuestionBanks
 {
-    public const TYPES = ['single' => 'Single choice', 'multiple' => 'Multiple select', 'true_false' => 'True or false'];
+    public const TYPES = ['single' => 'Single choice', 'multiple' => 'Multiple select', 'true_false' => 'True or false', 'essay' => 'Written answer'];
     public const DIFFICULTIES = ['easy' => 'Easy', 'medium' => 'Medium', 'hard' => 'Hard'];
     public const STATUSES = ['draft' => 'Draft', 'review' => 'In review', 'approved' => 'Approved', 'published' => 'Published', 'archived' => 'Archived'];
     public const MAX_CHOICES = 10;
@@ -172,7 +172,9 @@ final class QuestionBanks
             $errors[] = 'Write the question (up to ' . number_format(self::MAX_TEXT) . ' characters).';
         }
         $choices = [];
-        if ($type === 'true_false') {
+        if ($type === 'essay') {
+            // Marked by a person: no choices. The explanation is the marking guide markers see.
+        } elseif ($type === 'true_false') {
             $answer = (string) ($in['tf_answer'] ?? '');
             if (!in_array($answer, ['T', 'F'], true)) {
                 $errors[] = 'Say whether the statement is true or false.';

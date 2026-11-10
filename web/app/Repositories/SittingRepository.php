@@ -157,22 +157,52 @@ final class SittingRepository
      *
      * @param array<int,array{awarded:float,correct:bool}> $grades by position
      */
-    public function finish(int $sessionId, string $status, float $score, ?float $percent, ?bool $passed, array $grades): bool
+    public function finish(int $sessionId, string $status, float $score, ?float $percent, ?bool $passed, array $grades, ?string $marking = null): bool
     {
-        return $this->db->transaction(function (Database $db) use ($sessionId, $status, $score, $percent, $passed, $grades): bool {
+        return $this->db->transaction(function (Database $db) use ($sessionId, $status, $score, $percent, $passed, $grades, $marking): bool {
             $state = $db->value('SELECT status FROM assessment_sessions WHERE id = ? FOR UPDATE', [$sessionId]);
             if ($state !== 'in_progress') {
                 return false;
             }
             foreach ($grades as $pos => $g) {
                 $db->run('UPDATE assessment_session_questions SET awarded = ?, correct = ? WHERE session_id = ? AND position = ?',
-                    [number_format($g['awarded'], 2, '.', ''), $g['correct'] ? 1 : 0, $sessionId, $pos]);
+                    [$g['awarded'] === null ? null : number_format((float) $g['awarded'], 2, '.', ''), $g['correct'] === null ? null : ($g['correct'] ? 1 : 0), $sessionId, $pos]);
             }
-            $db->run('UPDATE assessment_sessions SET status = ?, submitted_at = ?, score = ?, percent = ?, passed = ? WHERE id = ?',
+            $db->run('UPDATE assessment_sessions SET status = ?, submitted_at = ?, score = ?, percent = ?, passed = ?, marking = ? WHERE id = ?',
                 [$status, Database::now(), number_format($score, 2, '.', ''), $percent === null ? null : number_format($percent, 2, '.', ''),
-                    $passed === null ? null : ($passed ? 1 : 0), $sessionId]);
+                    $passed === null ? null : ($passed ? 1 : 0), $marking, $sessionId]);
             return true;
         });
+    }
+
+    /** @param array<int,array{0:float,1:?string,2:float}> $changes position => [marks, feedback, out of] */
+    public function markWritten(int $sessionId, int $markerId, array $changes): void
+    {
+        $this->db->transaction(function (Database $db) use ($sessionId, $markerId, $changes): void {
+            foreach ($changes as $pos => [$marks, $feedback, $of]) {
+                $db->run('UPDATE assessment_session_questions SET awarded = ?, correct = ?, marker_feedback = ?, marked_at = ?, marked_by = ? WHERE session_id = ? AND position = ?',
+                    [number_format($marks, 2, '.', ''), $marks >= $of ? 1 : 0, $feedback, Database::now(), $markerId, $sessionId, $pos]);
+            }
+        });
+    }
+
+    public function setScore(int $sessionId, float $score, ?float $percent, ?bool $passed, string $marking): void
+    {
+        $this->db->run('UPDATE assessment_sessions SET score = ?, percent = ?, passed = ?, marking = ? WHERE id = ?',
+            [number_format($score, 2, '.', ''), $percent === null ? null : number_format($percent, 2, '.', ''), $passed === null ? null : ($passed ? 1 : 0), $marking, $sessionId]);
+    }
+
+    /** @return list<array<string,mixed>> an assessment's handed-in sittings with written answers, awaiting first */
+    public function forMarking(int $iid, int $assessmentId): array
+    {
+        return $this->db->all("SELECT s.uuid, s.attempt, s.submitted_at, s.marking, s.score, s.percent, u.username, u.display_name, st.student_number,
+                    (SELECT COUNT(*) FROM assessment_session_questions q JOIN question_versions v ON v.id = q.question_version_id
+                       JOIN assessment_responses r ON r.session_id = q.session_id AND r.position = q.position
+                      WHERE q.session_id = s.id AND v.type = 'essay' AND r.answer <> '' AND q.awarded IS NULL) AS to_mark
+                FROM assessment_sessions s JOIN institution_memberships m ON m.id = s.membership_id JOIN users u ON u.id = m.user_id
+                LEFT JOIN institution_students st ON st.membership_id = m.id
+                WHERE s.institution_id = ? AND s.assessment_id = ? AND s.marking IS NOT NULL ORDER BY s.marking = 'awaiting' DESC, u.display_name, u.username, s.attempt",
+            [$iid, $assessmentId]);
     }
 
     /** @return list<string> uuids of sittings still open after their end */

@@ -352,6 +352,8 @@ return static function (Router $r): void {
     $r->post('/institutions/{ref}/assessments/{assessment}/results/publication', [InstitutionAssessmentController::class, 'publishResults'], can: $me);
     $r->get('/institutions/{ref}/assessments/{assessment}/results/{sitting}', [InstitutionAssessmentController::class, 'sitting'], can: $me);
     $r->get('/institutions/{ref}/assessments/{assessment}/results/{sitting}/report.pdf', [InstitutionAssessmentController::class, 'sittingPdf'], can: $me);
+    $r->get('/institutions/{ref}/assessments/{assessment}/results/{sitting}/marking', [InstitutionAssessmentController::class, 'marking'], can: $me);
+    $r->post('/institutions/{ref}/assessments/{assessment}/results/{sitting}/marking', [InstitutionAssessmentController::class, 'mark'], can: $me);
     $r->get('/institutions/{ref}/assessments/{assessment}/live', [InvigilationController::class, 'live'], can: $me);
     $r->get('/api/institutions/{ref}/assessments/{assessment}/live', [InvigilationController::class, 'liveJson'], can: $me);
     $r->post('/institutions/{ref}/assessments/{assessment}/invigilators', [InvigilationController::class, 'invigilators'], can: $me);

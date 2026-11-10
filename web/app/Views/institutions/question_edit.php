@@ -51,6 +51,7 @@ foreach ($form['choices'] as $c) {
                     </div>
                 </fieldset>
 
+                <p class="form-text mb-3" data-for-types="essay">Candidates write their answer, and a marker gives the marks after the sitting. Put a marking guide in the explanation: markers see it.</p>
                 <fieldset class="mb-3" data-for-types="true_false">
                     <legend class="form-label">The statement is</legend>
                     <div class="form-check form-check-inline"><input class="form-check-input" type="radio" id="tf-t" name="tf_answer" value="T" <?= $tf === 'T' ? 'checked' : '' ?>><label class="form-check-label" for="tf-t">True</label></div>

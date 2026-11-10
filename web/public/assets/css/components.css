@@ -984,3 +984,5 @@ a.job-chip:hover { text-decoration: none; filter: brightness(.96); }
 .gradebook th, .gradebook td { white-space: nowrap; }
 .gradebook th:first-child, .gradebook td:first-child { white-space: normal; min-width: 160px; }
 .grade-mark { width: 110px; }
+/* A candidate's written answer, as they wrote it. */
+.written-answer { padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-alt); max-height: 480px; overflow: auto; }

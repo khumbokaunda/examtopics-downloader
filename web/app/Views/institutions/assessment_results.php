@@ -1,4 +1,4 @@
-<?php /** @var array $institution @var array $membership @var string $tab @var array $assessment @var list<array> $rows @var array $summary @var array $stats @var bool $canPublish @var bool $canExport @var array<int,string>|null $levels */
+<?php /** @var array $institution @var array $membership @var string $tab @var array $assessment @var list<array> $rows @var array $summary @var array $stats @var bool $canPublish @var list<array> $marking @var bool $canMark @var bool $canExport @var array<int,string>|null $levels */
 use App\Controllers\InstitutionAssessmentController as C;
 use App\Services\Access;
 use App\Services\InstitutionStructure;
@@ -30,6 +30,22 @@ $base = '/institutions/' . $institution['uuid'] . '/assessments/' . $a['uuid'];
     <?php endif; ?>
     <?php if ($canExport && $rows !== []): ?><a class="btn btn-sm btn-outline-secondary" href="<?= e(url($base . '/results.csv')) ?>"><?= icon('download') ?>Download CSV</a><?php endif; ?>
 </div></div>
+
+<?php if ($marking !== []): $toMark = array_filter($marking, static fn(array $r): bool => (int) $r['to_mark'] > 0); ?>
+<div class="card mb-4">
+    <div class="card-header"><span class="card-title"><?= icon('pencil-square') ?>Written answers</span>
+        <span class="small text-muted"><?= count($toMark) === 0 ? 'All marked.' : count($toMark) . ' sitting' . (count($toMark) === 1 ? '' : 's') . ' to mark. Results can be published once all are marked.' ?></span></div>
+    <ul class="list-rows">
+        <?php foreach ($marking as $r): ?>
+            <li class="req-row"><div class="row-main"><div class="row-text">
+                <div class="row-title"><?= $canMark ? '<a href="' . e(url($base . '/results/' . $r['uuid'] . '/marking')) . '">' . e(\App\Services\Access::displayName($r)) . '</a>' : e(\App\Services\Access::displayName($r)) ?>
+                    <?= (int) $r['to_mark'] > 0 ? chip((int) $r['to_mark'] . ' to mark', 'warning') : chip('Marked', 'success') ?></div>
+                <div class="row-meta">Attempt <?= (int) $r['attempt'] ?> · handed in <?= e(fmt_time((string) $r['submitted_at'])) ?><?= $r['percent'] !== null ? ' · ' . e(\App\Controllers\InstitutionAssessmentController::marks($r['percent'])) . '%' : '' ?></div>
+            </div></div></li>
+        <?php endforeach; ?>
+    </ul>
+</div>
+<?php endif; ?>
 
 <?php if ($stats['count'] > 0): $peak = max(1, max($stats['distribution'])); ?>
 <div class="row g-4 mb-4">

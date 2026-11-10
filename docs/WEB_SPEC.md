@@ -456,6 +456,11 @@ banks, assessments and results come in later phases.
   it for the class) and its participants. Learners see published assessments set for them and
   the notices; home shows their courses and what is coming up (assessments opening and closing,
   courses starting and ending).
+- **Written answers**: a question bank can hold written-answer (essay) questions, whose
+  explanation is a marking guide for markers. A sitting with a written answer is handed in
+  awaiting marking, with no percent or pass; its results page lists the sittings to mark, and
+  results cannot be published until every one is marked. A marker gives each answer marks and
+  feedback, which completes the score; the candidate sees both once results are published.
 - **Materials** (a course's Materials tab): files and links under headings. Video is a link,
   never an upload or an embed.
 - **Assignments**: instructions, a deadline (late work accepted and marked late, or refused),
@@ -600,6 +605,7 @@ overview only.
 | Courses | `GET /institutions/{ref}/courses`, `.../courses/{course}` (tabs: overview, assessments, participants); `POST .../courses`, `.../courses/{course}`, `.../archive`, `.../notices`, `.../notices/{notice}/remove`, `.../assessments`, `.../assessments/{assessment}/remove` | signed-in, then classes.view, classes.manage, the class's instructors, or its learners |
 | Gradebook | `GET /institutions/{ref}/courses/{course}?tab=grades`, `.../grades.csv`, `.../grades.pdf`, `.../grades/{gradeitem}`; `POST .../grades`, `.../grades/overrides`, `.../grades/final`, `.../grades/{gradeitem}`, `.../remove`, `.../marks`, `.../import`, `.../release` | signed-in, then the course's instructors and people who manage classes; learners see their own grades and PDF |
 | Materials and assignments | `GET /institutions/{ref}/courses/{course}?tab=materials` and `?tab=assignments`, `.../materials/{material}`, `.../assignments/{assignment}`, `.../files/{file}`, `.../submissions/{member}`; `POST .../materials`, `.../materials/{material}/remove`, `.../assignments/new`, `.../assignments/{assignment}`, `.../status`, `.../rubric`, `.../release`, `.../submit`, `.../submissions/{member}` | signed-in, then the course's instructors and people who manage classes; learners read, download and hand in; a handed-in file only to its learner and the course's staff |
+| Marking written answers | `GET /institutions/{ref}/assessments/{assessment}/results/{sitting}/marking`; `POST` the same | signed-in, then results.publish, assessments.view, or the assessment's author |
 | Question import | `GET /institutions/{ref}/banks/{bank}/import`, `.../import/template.csv`, `.../import/problems.csv`; `POST .../import`, `.../import/confirm` | signed-in, then whoever may write in the bank |
 | Copy an assessment | `POST /institutions/{ref}/assessments/{assessment}/duplicate` | signed-in, then assessments.create |
 | What institutions provide | `GET /platform/institution-requirements`; `POST /platform/institution-requirements[/{requirement}]`, `.../{requirement}/toggle`, `.../{requirement}/move` | institutions.manage |
@@ -619,7 +625,7 @@ overview only.
 | Worked out, rebuilt on demand (not backed up) | `exam_checks` (Integrity figures), `question_index` (search) |
 | System | `settings`, `notifications`, `mail_queue`, `exam_requests`, `audit_log`, `throttle_events`, `schema_migrations` |
 
-Migrations `001` to `048` in `web/database/migrations` create all of it; `php bin/migrate.php`
+Migrations `001` to `049` in `web/database/migrations` create all of it; `php bin/migrate.php`
 applies them.
 
 ### Background processes

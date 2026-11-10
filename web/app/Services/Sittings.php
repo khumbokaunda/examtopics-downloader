@@ -26,6 +26,9 @@ use RuntimeException;
  */
 final class Sittings
 {
+    /** The longest written answer kept, in characters. */
+    public const MAX_WRITTEN = 20000;
+
     public const STATUSES = ['in_progress' => 'In progress', 'submitted' => 'Handed in', 'auto_submitted' => 'Handed in when time ran out', 'terminated' => 'Ended by the institution'];
 
     public function __construct(private SittingRepository $repo, private Assessments $assessments, private AuditLog $audit, private Integrity $integrity)
@@ -180,17 +183,20 @@ final class Sittings
         $grades = [];
         $score = 0.0;
         $max = 0.0;
+        $pending = false;
         foreach ($questions as $q) {
             $pos = (int) $q['position'];
             $g = self::grade($q, (string) ($responses[$pos]['answer'] ?? ''), (float) $session['negative_marking']);
             $grades[$pos] = $g;
-            $score += $g['awarded'];
+            $pending = $pending || !empty($g['pending']);
+            $score += (float) $g['awarded'];
             $max += (float) $q['marks'];
         }
         $score = max(0.0, round($score, 2));
-        $percent = $max > 0 ? round($score / $max * 100, 2) : null;
+        // With written answers to mark, the percent and the pass wait for the marker.
+        $percent = !$pending && $max > 0 ? round($score / $max * 100, 2) : null;
         $passed = $session['pass_percent'] !== null && $percent !== null ? $percent >= (float) $session['pass_percent'] : null;
-        $done = $this->repo->finish((int) $session['id'], $status, $score, $percent, $passed, $grades);
+        $done = $this->repo->finish((int) $session['id'], $status, $score, $percent, $passed, $grades, $pending ? 'awaiting' : null);
         if ($done) {
             $this->integrity->record($session, $status);
             $this->audit->record($status === 'submitted' ? 'sitting.submitted' : ($status === 'terminated' ? 'sitting.terminated' : 'sitting.auto_submitted'),
@@ -209,6 +215,10 @@ final class Sittings
     public static function grade(array $q, string $answer, float $negative): array
     {
         $marks = (float) $q['marks'];
+        if (($q['type'] ?? '') === 'essay') {
+            // A person marks it. Nothing written earns nothing, and needs no marking.
+            return trim($answer) === '' ? ['awarded' => 0.0, 'correct' => false] : ['awarded' => null, 'correct' => null, 'pending' => true];
+        }
         $right = [];
         foreach ((array) json_decode((string) $q['choices'], true) as $c) {
             if (!empty($c['correct'])) {
@@ -243,6 +253,9 @@ final class Sittings
      */
     public static function cleanAnswer(array $q, string $answer): string
     {
+        if (($q['type'] ?? '') === 'essay') {
+            return mb_substr(rtrim(str_replace(["\r\n", "\r"], "\n", $answer)), 0, self::MAX_WRITTEN);
+        }
         $keys = array_map(static fn(array $c): string => (string) $c['key'], (array) json_decode((string) $q['choices'], true));
         $picked = array_values(array_unique(array_intersect(str_split(strtoupper(preg_replace('/[^A-Za-z]/', '', $answer) ?? '')), $keys)));
         sort($picked);
@@ -250,6 +263,60 @@ final class Sittings
             $picked = [$picked[0]];
         }
         return implode('', $picked);
+    }
+
+    /**
+     * Mark a sitting's written answers. Once every one is marked the sitting's score, percent and
+     * pass are worked out. Marks can be changed until the results are published.
+     *
+     * @param array<string,mixed> $session from SittingRepository::session() @param array<string,mixed> $marker a membership
+     * @param array<int,array{marks:string,feedback:string}> $marks by position
+     */
+    public function markWritten(array $session, array $marker, array $marks): void
+    {
+        if ($session['status'] === 'in_progress') {
+            throw new RuntimeException('This sitting has not been handed in yet.');
+        }
+        if (($session['results_published_at'] ?? null) !== null) {
+            throw new RuntimeException('The results are published, so the marks stay as they are. Unpublish them first.');
+        }
+        $questions = $this->repo->questions((int) $session['id']);
+        $responses = $this->repo->responses((int) $session['id']);
+        $changes = [];
+        foreach ($questions as $q) {
+            $pos = (int) $q['position'];
+            if ($q['type'] !== 'essay' || trim((string) ($responses[$pos]['answer'] ?? '')) === '' || !isset($marks[$pos])) {
+                continue;
+            }
+            $raw = trim((string) $marks[$pos]['marks']);
+            if ($raw === '') {
+                continue;
+            }
+            if (!is_numeric($raw) || (float) $raw < 0 || (float) $raw > (float) $q['marks']) {
+                throw new RuntimeException('Question ' . $pos . ': give a mark from 0 to ' . rtrim(rtrim(number_format((float) $q['marks'], 2, '.', ''), '0'), '.') . '.');
+            }
+            $feedback = trim(str_replace(["\r\n", "\r"], "\n", (string) $marks[$pos]['feedback']));
+            if (mb_strlen($feedback) > 5000) {
+                throw new RuntimeException('Question ' . $pos . ': feedback has at most 5,000 characters.');
+            }
+            $changes[$pos] = [round((float) $raw, 2), $feedback !== '' ? $feedback : null, (float) $q['marks']];
+        }
+        if ($changes === []) {
+            throw new RuntimeException('Give a mark for at least one answer.');
+        }
+        $this->repo->markWritten((int) $session['id'], (int) $marker['id'], $changes);
+        // Every written answer marked: the sitting is complete.
+        $questions = $this->repo->questions((int) $session['id']);
+        $open = array_filter($questions, static fn(array $q): bool => $q['type'] === 'essay' && $q['awarded'] === null);
+        if ($open === []) {
+            $score = max(0.0, round(array_sum(array_map(static fn(array $q): float => (float) $q['awarded'], $questions)), 2));
+            $max = array_sum(array_map(static fn(array $q): float => (float) $q['marks'], $questions));
+            $percent = $max > 0 ? round($score / $max * 100, 2) : null;
+            $passed = $session['pass_percent'] !== null && $percent !== null ? $percent >= (float) $session['pass_percent'] : null;
+            $this->repo->setScore((int) $session['id'], $score, $percent, $passed, 'marked');
+        }
+        $this->audit->record('sitting.marked', ['institution' => $session['institution_name'], 'assessment' => $session['title'], 'student' => $session['username'],
+            'answers' => count($changes), 'complete' => $open === []], 'institution', (string) $session['institution_uuid']);
     }
 
     /** @return array<int,array<string,mixed>> */
