@@ -73,6 +73,13 @@ $custom = static function (array $f) use ($extras, $errors, $prefix): string {
     }
     return $html . '</div>';
 };
+// Choices for the two open questions: tapping one adds it, and anything else is typed below.
+// Without the page's script these stay plain text boxes, and the choices are stored as text.
+$chips = static function (string $html, array $choices, string $other, string $hint): string {
+    $buttons = implode('', array_map(static fn(array $c): string => '<button type="button" class="chip-option" data-chip="' . e($c[1]) . '" aria-pressed="false">'
+        . icon($c[0]) . '<span>' . e($c[1]) . '</span></button>', $choices));
+    return preg_replace('#(</label>)#', '$1<div class="chip-picker" data-chip-options hidden>' . $buttons . '</div>', '<div data-chip-field data-chip-other="' . e($other) . '" data-chip-hint="' . e($hint) . '">' . $html . '</div>', 1) ?? $html;
+};
 $sections = [];
 $sections['organisation'] = ['icon' => 'building', 'title' => 'Organisation', 'html' =>
     $field('name', 'Official registered name', 'text', ['required' => true, 'maxlength' => '160'])
@@ -80,8 +87,16 @@ $sections['organisation'] = ['icon' => 'building', 'title' => 'Organisation', 'h
     . '<div class="row g-3"><div class="' . ($on('year_established') ? 'col-sm-8' : 'col-12') . '">' . $select('type', 'Kind of institution', Institutions::TYPES) . '</div>'
     . ($on('year_established') ? '<div class="col-sm-4">' . $field('year_established', 'Year established', 'text', ['inputmode' => 'numeric', 'maxlength' => '4', 'placeholder' => 'e.g. 2014']) . '</div>' : '')
     . '</div>'
-    . ($on('services') ? $field('services', 'Training offered (optional)', 'textarea', ['rows' => '2', 'maxlength' => '1000'], 'For example: Cisco and CompTIA courses.') : '')
-    . $field('intended_use', 'How you will use the platform', 'textarea', ['rows' => '2', 'required' => true, 'minlength' => '10', 'maxlength' => '1000'], 'For example: assessing our CCNA students.')];
+    . ($on('services') ? $chips($field('services', 'Training offered (optional)', 'textarea', ['rows' => '2', 'maxlength' => '1000'], 'For example: Cisco and CompTIA courses.'), [
+        ['pc-display', 'IT and computing'], ['router', 'Cisco networking'], ['cpu', 'CompTIA'], ['cloud', 'Microsoft and cloud'], ['shield-lock', 'Cyber security'],
+        ['briefcase', 'Business and accounting'], ['heart-pulse', 'Health and nursing'], ['translate', 'Languages'], ['tools', 'Technical and vocational trades'],
+        ['book', 'Secondary school subjects'], ['mortarboard', 'Diplomas and degrees'], ['award', 'Professional certifications'],
+    ], 'Something else you teach?', 'Tap everything you teach.') : '')
+    . $chips($field('intended_use', 'How you will use the platform', 'textarea', ['rows' => '2', 'required' => true, 'minlength' => '10', 'maxlength' => '1000'], 'For example: assessing our CCNA students.'), [
+        ['pencil-square', 'Tests during courses'], ['clipboard-check', 'End-of-course exams'], ['door-open', 'Entrance and placement tests'],
+        ['patch-question', 'Practice for certification exams'], ['journal-text', 'Assignments and coursework'], ['bar-chart', 'Results and reports for students'],
+        ['file-earmark-text', 'Transcripts and certificates'], ['people', 'Managing classes and students'],
+    ], 'Anything else? Tell us in a few words.', 'Tap all that apply.')];
 $sections['contact'] = ['icon' => 'geo-alt', 'title' => 'Contact', 'html' =>
     $field('address', 'Physical address', 'text', ['required' => true, 'maxlength' => '255'])
     . '<div class="row g-3"><div class="col-sm-6">' . $select('region', 'Region', Institutions::REGIONS) . '</div><div class="col-sm-6">'

@@ -22,8 +22,8 @@ $previous = null;
         </div>
     <?php endif; ?>
     <div class="plan-grid plan-grid--<?= min(4, max(1, count($shown))) ?>">
-        <?php foreach ($shown as $p): $price = $p['_price']; $featured = (int) ($p['featured'] ?? 0) === 1; ?>
-            <article class="plan-card<?= $featured ? ' is-featured' : '' ?>">
+        <?php foreach ($shown as $k => $p): $price = $p['_price']; $featured = (int) ($p['featured'] ?? 0) === 1; ?>
+            <article class="plan-card<?= $featured ? ' is-featured' : '' ?>" data-reveal="<?= $k % 4 + 1 ?>">
                 <div class="plan-head">
                     <h3 class="plan-name"><?= e($p['name']) ?></h3>
                     <?php if ($featured): ?><span class="plan-badge"><?= icon('stars') ?>Most popular</span><?php endif; ?>

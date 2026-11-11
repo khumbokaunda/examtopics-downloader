@@ -1184,3 +1184,26 @@ colour.
   and "adds to the plan before". The text price stays for a plan with no amount ("Custom"). A new
   invoice starts with the plan's monthly amount.
 - **Settings, Public site** gains the label above the headline and the words to highlight.
+
+## Movement, loading states and choices instead of text boxes (11 November 2026)
+
+- **Institution form**: "Training offered" and "How you will use the platform" are now choices to
+  tap (with icons), plus a box for anything else. The text box that is sent stays in the form: the
+  choices write "A, B. Anything else" into it, and an answer saved earlier is read back into
+  chips. Without the page's script it is the plain text box it was, and the required check moves
+  to the extra box so a step cannot be left with nothing chosen. Used on joining, registering and
+  editing the profile.
+- **`js/motion.js` and `css/motion.css`** on every app and public page:
+  - a progress bar along the top while the next page loads, and after 280 ms a skeleton of a page
+    in place of the content (not for downloads, new tabs or links that a script takes over; a form
+    that answers with a file gives the page back after 15 s);
+  - each page's content eases in, a little after one another; flash messages, the command palette
+    and the sign-in card arrive the same way; buttons respond to a press; figures in the summary
+    tiles count up; pictures fade in when they arrive;
+  - a skeleton of the answer while practice mode fetches one;
+  - on the public pages: the opening rises in, the drawing of a sitting plays (the clock runs, an
+    answer is picked, the paper moves on), sections rise into view as they scroll in, the steps'
+    line draws itself, the questions open smoothly and the top bar lifts once the page scrolls.
+- **Less motion**: a person whose device asks for less motion, or who chose it under Appearance,
+  gets none of it, and nothing waits to be revealed. Without scripts every section is shown at
+  once (the hiding applies only once the head script marks the page as scripted).

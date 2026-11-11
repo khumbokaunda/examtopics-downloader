@@ -28,6 +28,14 @@
     return s.toUpperCase();
   }
 
+  // Grey bars in the shape of text, shown while something loads.
+  function skeletonLines(n) {
+    var box = el('div', 'skeleton-block');
+    box.setAttribute('aria-hidden', 'true');
+    for (var i = 0; i < n; i++) box.appendChild(el('span', 'skeleton skeleton-line' + (i === n - 1 ? ' is-short' : '')));
+    return box;
+  }
+
   function getJSON(url) {
     return fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
       .then(function (r) {
@@ -1397,8 +1405,15 @@
       btn.addEventListener('click', function () {
         if (card.classList.contains('is-revealed')) { close(card); return; }
         btn.disabled = true;
-        answerFor(card).then(function (d) { open(card, d, true); })
+        // A slow answer shows a skeleton of itself rather than nothing.
+        var waiting = setTimeout(function () {
+          var inner = card.querySelector('.reveal-inner');
+          inner.replaceChildren(skeletonLines(3));
+          card.querySelector('.reveal-target').classList.add('is-open');
+        }, 150);
+        answerFor(card).then(function (d) { clearTimeout(waiting); open(card, d, true); })
           .catch(function () {
+            clearTimeout(waiting);
             var inner = card.querySelector('.reveal-inner');
             inner.replaceChildren(el('div', 'text-danger small', 'Could not load the answer. Reload the page and try again.'));
             card.querySelector('.reveal-target').classList.add('is-open');

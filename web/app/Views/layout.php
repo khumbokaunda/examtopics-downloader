@@ -89,6 +89,7 @@ $flashIcons = ['success' => 'check-circle', 'info' => 'info-circle', 'warning' =
     <link rel="stylesheet" href="<?= e(asset('/assets/css/components.css')) ?>">
     <link rel="stylesheet" href="<?= e(asset('/assets/css/dark.css')) ?>">
     <?php if (isset($site, $sitePage)): ?><link rel="stylesheet" href="<?= e(asset('/assets/css/site.css')) ?>"><?php endif; ?>
+    <link rel="stylesheet" href="<?= e(asset('/assets/css/motion.css')) ?>">
     <?php if ($brand['accent'] === 'custom'): ?><link rel="stylesheet" href="<?= e(url('/branding/theme.css', ['v' => substr(md5($brand['color']), 0, 8)])) ?>"><?php endif; ?>
     <script src="<?= e(asset('/assets/js/theme-init.js')) ?>"></script>
 </head>
@@ -250,5 +251,6 @@ $flashIcons = ['success' => 'check-circle', 'info' => 'info-circle', 'warning' =
 <script src="<?= e(asset('/assets/js/data-table.js')) ?>"></script>
 <script src="<?= e(asset('/assets/js/live.js')) ?>"></script>
 <script src="<?= e(asset('/assets/js/wizard.js')) ?>"></script>
+<script src="<?= e(asset('/assets/js/motion.js')) ?>"></script>
 </body>
 </html>

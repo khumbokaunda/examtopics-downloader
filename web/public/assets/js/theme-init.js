@@ -5,6 +5,8 @@
 (function () {
   'use strict';
   var root = document.documentElement;
+  // Styles that hide things until a script shows them apply only when scripts run.
+  root.classList.add('js');
   var KEY = 'examtopics.appearance';
   var OPTIONS = {
     theme: ['system', 'light', 'dark'],

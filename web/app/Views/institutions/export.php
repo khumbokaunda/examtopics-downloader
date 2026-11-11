@@ -12,7 +12,7 @@
                     <li>Uploaded files: documents, course materials and handed-in work.</li>
                 </ul>
                 <p class="small text-muted">Invitation and verification tokens are left out. The file holds personal data about every student: keep it safe.</p>
-                <form method="post" action="<?= e(url('/institutions/' . $institution['uuid'] . '/export')) ?>"><?= csrf_field() ?>
+                <form method="post" action="<?= e(url('/institutions/' . $institution['uuid'] . '/export')) ?>" data-no-progress><?= csrf_field() ?>
                     <button class="btn btn-primary" type="submit"><?= icon('download') ?>Download the export</button>
                 </form>
             </div>
