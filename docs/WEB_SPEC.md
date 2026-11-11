@@ -506,7 +506,8 @@ banks, assessments and results come in later phases.
   authorised signatories, issuing with approval, a register, revoking and correcting; holders
   find them under My certificates, and anyone can check one at `/verify/<token>`.
 - **Academic records** (`/my/record`, and each student's page for staff): programme history,
-  modules completed (from published results, or recorded by staff), final and provisional
+  modules completed (from published results, from the final grade of a course that teaches the
+  module, or recorded by staff), final and provisional
   results, and transcripts issued as numbered PDF snapshots.
 - **Joining with a code** (`/enrol`): a student with an account enters an institution's
   enrolment code, reads what joining means, and joins or asks to; the institution manages codes

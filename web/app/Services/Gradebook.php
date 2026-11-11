@@ -331,7 +331,38 @@ final class Gradebook
         $this->db->run('UPDATE courses SET grades_final_at = ?, grades_final_by = ? WHERE id = ? AND institution_id = ?',
             [$final ? Database::now() : null, $final ? (int) $m['id'] : null, (int) $c['id'], (int) $i['id']]);
         $this->record($final ? 'institution.grades_finalised' : 'institution.grades_reopened', $i, ['course' => $c['title']]);
+        if ($final) {
+            $this->completeModule($i, $c + ['grades_final_at' => Database::now()]);
+        }
         return $final ? $this->tell($i, $c, 'Final grades: ' . $c['title'], 'Your final grade for ' . $c['title'] . ' is out.', 'grades-final:' . $c['uuid'] . ':' . time()) : 0;
+    }
+
+    /**
+     * A course that teaches a module and has a pass mark decides who completed the module: every
+     * learner whose final course grade reaches the pass mark. A completion already recorded is
+     * kept (it is part of the student's record), so making grades provisional again does not
+     * take one away, and a second finalisation adds only learners who pass now.
+     *
+     * @param array<string,mixed> $i @param array<string,mixed> $c with grades_final_at set
+     * @return int completions recorded
+     */
+    public function completeModule(array $i, array $c): int
+    {
+        if (($c['module_id'] ?? null) === null || $c['pass_percent'] === null) {
+            return 0;
+        }
+        $n = 0;
+        foreach ($this->book((int) $i['id'], $c)['rows'] as $r) {
+            if ($r['passed'] === true) {
+                $n += $this->db->run("INSERT IGNORE INTO module_completions (institution_id, membership_id, module_id, course_id, percent, method, completed_at)
+                                      VALUES (?, ?, ?, ?, ?, 'course', ?)",
+                    [(int) $i['id'], (int) $r['membership_id'], (int) $c['module_id'], (int) $c['id'], number_format((float) $r['grade'], 2, '.', ''), Database::now()])->rowCount();
+            }
+        }
+        if ($n > 0) {
+            $this->record('institution.modules_completed', $i, ['course' => $c['title'], 'students' => $n]);
+        }
+        return $n;
     }
 
     // The book -------------------------------------------------------------------------------
