@@ -169,7 +169,7 @@ $rows = [
                     <div class="mb-2"><label class="form-label small" for="inv-desc">For</label><input class="form-control form-control-sm" id="inv-desc" name="description" required maxlength="255"
                         value="<?= e($plan !== null ? $plan['name'] . ' plan' : '') ?>"></div>
                     <div class="row g-2 mb-2">
-                        <div class="col-6"><label class="form-label small" for="inv-amount">Amount (<?= e($currency) ?>)</label><input class="form-control form-control-sm" id="inv-amount" name="amount" inputmode="decimal" required></div>
+                        <div class="col-6"><label class="form-label small" for="inv-amount">Amount (<?= e($currency) ?>)</label><input class="form-control form-control-sm" id="inv-amount" name="amount" inputmode="decimal" required value="<?= e(($plan['amount_monthly'] ?? null) !== null ? number_format((float) $plan['amount_monthly'], 2, '.', '') : '') ?>"></div>
                         <div class="col-6"><label class="form-label small" for="inv-due">Due</label><input class="form-control form-control-sm" id="inv-due" name="due_on" type="date" required value="<?= e(gmdate('Y-m-d', time() + 14 * 86400)) ?>"></div>
                         <div class="col-6"><label class="form-label small" for="inv-from">Period from</label><input class="form-control form-control-sm" id="inv-from" name="period_from" type="date"></div>
                         <div class="col-6"><label class="form-label small" for="inv-to">to</label><input class="form-control form-control-sm" id="inv-to" name="period_to" type="date"></div>

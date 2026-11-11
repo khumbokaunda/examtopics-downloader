@@ -1158,3 +1158,29 @@ credentials. What changed, and why each consumer is safe:
   completion, once recorded, stays: making grades provisional again does not remove it.
 - **Prices and payment details** are the operator's to enter (Plans, Billing). Until then the
   pricing page says prices are on request and invoices carry no payment instructions.
+
+## The public pages, redesigned (11 November 2026)
+
+The first public pages were a heading and a few cards. They are now a proper landing page and
+pricing page, built only from the theme's tokens, so they follow light and dark and the brand
+colour.
+
+- **Their own shell**: a sticky top bar, full-width sections and a footer (product links, getting
+  started, contact details), in place of the narrow sign-in card. `public/assets/css/site.css`,
+  loaded only on these pages.
+- **Home**: a label, a headline with chosen words highlighted, an introduction and two calls to
+  action over a ruled backdrop with a glow, and a drawing of a sitting (not a screenshot, and no
+  figures claimed). Then six features, how it works in three steps, four points (paying locally,
+  weak connections, your data, safety), the plans, questions and answers, and a closing call.
+- **Pricing**: a monthly and yearly switch (a checkbox styled as a toggle; CSS swaps the prices,
+  so no script is needed) with the largest saving, cards with the plan to recommend marked, a
+  button each, a feature checklist ("Everything in Basic, plus:" when a plan adds to the one
+  before) and the student and staff limits along the bottom. Then what every plan includes and
+  questions about paying.
+- **Contact**: the plan a visitor came from is chosen in the form, kept with the message and shown
+  under Messages; what happens next, and the other ways to reach you.
+- **Plans** (migration `054`) gain a monthly and a yearly amount (the existing "MWK 20,000/month"
+  texts become amounts), features (one per line, up to 20), "most popular" (one plan at a time)
+  and "adds to the plan before". The text price stays for a plan with no amount ("Custom"). A new
+  invoice starts with the plan's monthly amount.
+- **Settings, Public site** gains the label above the headline and the words to highlight.

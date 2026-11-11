@@ -68,24 +68,48 @@ final class Plans
             }
             return (int) $v;
         };
+        $amount = static function (string $k) use ($in): ?string {
+            $v = trim((string) ($in[$k] ?? ''));
+            if ($v === '') {
+                return null;
+            }
+            $n = Billing::amount($v);
+            if ($n === null) {
+                throw new RuntimeException('A price is an amount such as 40,000, or empty.');
+            }
+            return number_format($n, 2, '.', '');
+        };
         $name = $text('name', 80);
         if ($name === null) {
             throw new RuntimeException('Give the plan a name.');
         }
-        $values = [$name, $text('price', 80), $text('summary', 255), $limit('max_students'), $limit('max_staff'), !empty($in['public']) ? 1 : 0];
-        $now = Database::now();
-        if ($plan === null) {
-            $uuid = Ids::uuid();
-            $pos = (int) $this->db->value('SELECT COALESCE(MAX(position), 0) + 1 FROM plans');
-            $this->db->run('INSERT INTO plans (uuid, name, price, summary, max_students, max_staff, public, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [$uuid, ...$values, ...[$pos, $now, $now]]);
-            $plan = (array) $this->find($uuid);
-        } else {
-            $this->db->run('UPDATE plans SET name = ?, price = ?, summary = ?, max_students = ?, max_staff = ?, public = ?, updated_at = ? WHERE id = ?',
-                [...$values, $now, (int) $plan['id']]);
-            $plan = (array) $this->byId((int) $plan['id']);
+        $features = array_values(array_filter(array_map(static fn(string $l): string => mb_substr(trim($l), 0, 120),
+            preg_split('/\R/u', (string) ($in['features'] ?? '')) ?: []), static fn(string $l): bool => $l !== ''));
+        if (count($features) > 20) {
+            throw new RuntimeException('A plan lists at most 20 features.');
         }
-        $this->audit->record('plan.saved', ['plan' => $name, 'price' => $values[1], 'students' => $values[3], 'staff' => $values[4]], 'plan', (string) $plan['uuid']);
+        $values = [$name, $text('price', 80), $amount('amount_monthly'), $amount('amount_yearly'), $text('summary', 255), $features === [] ? null : implode("\n", $features),
+            $limit('max_students'), $limit('max_staff'), !empty($in['public']) ? 1 : 0, !empty($in['featured']) ? 1 : 0, !empty($in['includes_previous']) ? 1 : 0];
+        $now = Database::now();
+        $this->db->transaction(function (Database $db) use (&$plan, $values, $now): void {
+            if (!empty($values[9])) {
+                // One plan is recommended at a time.
+                $db->run('UPDATE plans SET featured = 0 WHERE featured = 1' . ($plan !== null ? ' AND id <> ' . (int) $plan['id'] : ''));
+            }
+            if ($plan === null) {
+                $uuid = Ids::uuid();
+                $pos = (int) $db->value('SELECT COALESCE(MAX(position), 0) + 1 FROM plans');
+                $db->run('INSERT INTO plans (uuid, name, price, amount_monthly, amount_yearly, summary, features, max_students, max_staff, public, featured, includes_previous, position, created_at, updated_at)
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [$uuid, ...$values, ...[$pos, $now, $now]]);
+                $plan = (array) $db->one('SELECT * FROM plans WHERE uuid = ?', [$uuid]);
+            } else {
+                $db->run('UPDATE plans SET name = ?, price = ?, amount_monthly = ?, amount_yearly = ?, summary = ?, features = ?, max_students = ?, max_staff = ?,
+                          public = ?, featured = ?, includes_previous = ?, updated_at = ? WHERE id = ?', [...$values, $now, (int) $plan['id']]);
+                $plan = (array) $db->one('SELECT * FROM plans WHERE id = ?', [(int) $plan['id']]);
+            }
+        });
+        $this->audit->record('plan.saved', ['plan' => $name, 'price' => $plan['amount_monthly'] !== null ? $plan['amount_monthly'] . ' a month' : $plan['price'],
+            'students' => $plan['max_students'], 'staff' => $plan['max_staff']], 'plan', (string) $plan['uuid']);
         return $plan;
     }
 
@@ -194,5 +218,28 @@ final class Plans
                 ? ', and it has ' . $usage[$kind] . ' with ' . $usage['invited_' . $kind] . ' more invited.'
                 : ', and it has ' . $usage[$kind] . '.') . ' Its administrator can ask for a larger plan.');
         }
+    }
+
+    /**
+     * What a plan's card shows: the monthly amount, the yearly amount as a monthly figure and in
+     * full, the saving of paying yearly, or the plan's own text when it has no amount.
+     *
+     * @param array<string,mixed> $plan
+     * @return array{monthly:?string,yearly_monthly:?string,yearly:?string,saving:?int,text:string}
+     */
+    public static function display(array $plan, string $currency): array
+    {
+        $fmt = static fn(float $n): string => $currency . ' ' . number_format($n, fmod($n, 1.0) === 0.0 ? 0 : 2);
+        $m = isset($plan['amount_monthly']) && $plan['amount_monthly'] !== null ? (float) $plan['amount_monthly'] : null;
+        $y = isset($plan['amount_yearly']) && $plan['amount_yearly'] !== null ? (float) $plan['amount_yearly'] : null;
+        $saving = $m !== null && $y !== null && $m > 0 ? (int) round((1 - $y / ($m * 12)) * 100) : null;
+        return ['monthly' => $m !== null ? $fmt($m) : null, 'yearly_monthly' => $y !== null ? $fmt(round($y / 12)) : null, 'yearly' => $y !== null ? $fmt($y) : null,
+            'saving' => $saving !== null && $saving > 0 ? $saving : null, 'text' => (string) ($plan['price'] ?? '') !== '' ? (string) $plan['price'] : 'Custom'];
+    }
+
+    /** @param array<string,mixed> $plan @return list<string> */
+    public static function features(array $plan): array
+    {
+        return array_values(array_filter(array_map('trim', explode("\n", (string) ($plan['features'] ?? ''))), static fn(string $l): bool => $l !== ''));
     }
 }

@@ -58,11 +58,29 @@ final class PlansAndSiteTest extends HttpTestCase
         self::assertStringContainsString('noindex', $this->get('/login')->body, 'other pages stay unlisted');
         self::assertStringStartsWith('/login', $this->get('/library')->headers['Location']);
 
+        // Amounts, a yearly price with its saving, the plan to recommend and features that add up.
+        $this->as('admin');
+        $this->post('/platform/plans', ['name' => 'Basic', 'amount_monthly' => '20,000', 'amount_yearly' => '192,000', 'features' => "Question banks\nTimed tests", 'public' => '1']);
+        $this->post('/platform/plans', ['name' => 'Standard', 'amount_monthly' => '40000', 'features' => "Invigilation\n\nGradebook", 'public' => '1', 'featured' => '1', 'includes_previous' => '1']);
+        $this->post('/platform/plans', ['name' => 'Bad', 'amount_monthly' => 'lots']);
+        self::assertStringContainsString('A price is an amount', $this->lastFlash());
+        $this->post('/platform/plans', ['name' => 'Premium', 'amount_monthly' => '60000', 'public' => '1', 'featured' => '1']);
+        self::assertSame(['Premium'], array_column($this->app->db()->all('SELECT name FROM plans WHERE featured = 1'), 'name'), 'one plan is recommended at a time');
+        self::assertSame("Invigilation\nGradebook", $this->db("SELECT features FROM plans WHERE name = 'Standard'"));
+        $this->newSession();
+        $pricing = $this->get('/pricing')->body;
+        foreach (['MWK 20,000', 'MWK 16,000', 'MWK 192,000 billed yearly, save 20%', 'Save up to 20%', 'Most popular', 'Everything in Basic, plus:', 'Gradebook', 'Paid monthly only'] as $text) {
+            self::assertStringContainsString($text, $pricing);
+        }
+        self::assertStringContainsString('Plans that grow with your', $this->get('/')->body, 'the home page shows the plans too');
+        $basic = (string) $this->db("SELECT uuid FROM plans WHERE name = 'Basic'");
+        self::assertStringContainsString('value="' . $basic . '" selected', $this->get('/contact', ['plan' => $basic])->body);
+
         // The contact page: kept, sent to the people who look after institutions, limited.
         $contact = $this->get('/contact')->body;
         self::assertStringContainsString('hello@example.org', $contact);
         self::assertSame(422, $this->post('/contact', ['name' => 'Ann', 'email' => 'not an address', 'message' => 'Hi'])->status);
-        $this->post('/contact', ['name' => 'Ann Phiri', 'email' => 'ann@example.org', 'organisation' => 'Blantyre Skills Centre', 'message' => 'How much for 80 students?']);
+        $this->post('/contact', ['name' => 'Ann Phiri', 'email' => 'ann@example.org', 'organisation' => 'Blantyre Skills Centre', 'plan' => $basic, 'message' => 'How much for 80 students?']);
         $this->post('/contact', ['name' => 'Bot', 'email' => 'bot@example.org', 'message' => 'Buy now', 'website' => 'http://spam.example']);
         self::assertSame(1, (int) $this->db('SELECT COUNT(*) FROM contact_messages'), 'the hidden field catches scripts');
         self::assertStringContainsString('Message sent', $this->get('/contact', ['sent' => '1'])->body);
@@ -76,6 +94,7 @@ final class PlansAndSiteTest extends HttpTestCase
         self::assertSame(1, (int) $this->db("SELECT COUNT(*) FROM notifications n JOIN users u ON u.id = n.user_id WHERE u.username = 'admin' AND n.link = '/platform/messages'"));
         $page = $this->get('/platform/messages')->body;
         self::assertStringContainsString('How much for 80 students?', $page);
+        self::assertStringContainsString('Asks about Basic', $page);
         $uuid = (string) $this->db("SELECT uuid FROM contact_messages WHERE name = 'Ann Phiri'");
         $this->post('/platform/messages/' . $uuid . '/answered');
         self::assertSame('answered', $this->db('SELECT status FROM contact_messages WHERE uuid = ?', [$uuid]));
