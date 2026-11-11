@@ -98,7 +98,7 @@
         box.appendChild(head);
         var dl = document.createElement('dl');
         fieldsOf(p).forEach(function (f) {
-          if (f.type === 'password' || f.type === 'checkbox' || f.type === 'file') return;
+          if (f.type === 'password' || f.type === 'checkbox' || f.type === 'file' || f.hasAttribute('data-review-skip')) return;
           var dt = document.createElement('dt');
           dt.textContent = labelOf(f);
           var dd = document.createElement('dd');

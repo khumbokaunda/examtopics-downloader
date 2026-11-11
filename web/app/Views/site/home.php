@@ -45,17 +45,17 @@ $faq = [
             <?php if ($plans !== []): ?><a class="btn btn-lg site-btn-outline" href="<?= e(url('/pricing')) ?>">See pricing</a><?php endif; ?>
         </div>
 
-        <div class="site-preview" aria-hidden="true">
-            <div class="site-preview-bar"><span></span><span></span><span></span><em>Module test · Question 4 of 20</em></div>
+        <div class="site-preview-wrap"><div class="site-preview site-preview-frame" aria-hidden="true" data-preview>
+            <div class="site-preview-bar"><span></span><span></span><span></span><em>Module test · Question <b data-preview-number>4</b> of 20</em></div>
             <div class="site-preview-body">
                 <div class="site-preview-main">
-                    <div class="site-preview-row"><strong>Question 4</strong><span class="site-preview-timer"><?= icon('stopwatch') ?>24:16</span></div>
+                    <div class="site-preview-row"><strong>Your answer</strong><span class="site-preview-timer"><?= icon('stopwatch') ?><span data-preview-clock>24:16</span></span></div>
                     <p>Which layer of the OSI model decides the path a packet takes?</p>
                     <ul>
-                        <li>Physical</li>
-                        <li class="is-picked"><?= icon('check-circle-fill') ?>Network</li>
-                        <li>Session</li>
-                        <li>Presentation</li>
+                        <li data-preview-choice><?= icon('check-circle-fill') ?>Physical</li>
+                        <li data-preview-choice class="is-picked"><?= icon('check-circle-fill') ?>Network</li>
+                        <li data-preview-choice><?= icon('check-circle-fill') ?>Session</li>
+                        <li data-preview-choice><?= icon('check-circle-fill') ?>Presentation</li>
                     </ul>
                     <div class="site-preview-dots"><?php for ($n = 1; $n <= 20; $n++): ?><i class="<?= $n < 4 ? 'is-done' : ($n === 4 ? 'is-now' : '') ?>"></i><?php endfor; ?></div>
                 </div>
@@ -64,17 +64,17 @@ $faq = [
                     <div class="site-preview-card"><span>Class average</span><div class="site-preview-bars"><i></i><i></i><i></i><i></i><i></i></div></div>
                 </div>
             </div>
-        </div>
+        </div></div>
     </div>
 </section>
 
 <section class="site-section" id="features">
     <div class="site-container">
-        <div class="site-section-head">
+        <div class="site-section-head" data-reveal>
             <span class="site-eyebrow">What you get</span>
             <h2>Everything an assessment needs, from the first question to the certificate</h2>
         </div>
-        <div class="site-feature-grid">
+        <div class="site-feature-grid" data-reveal>
             <?php foreach ($features as [$iconName, $name, $line]): ?>
                 <div class="site-feature"><span class="site-feature-icon"><?= icon($iconName) ?></span><h3><?= e($name) ?></h3><p><?= e($line) ?></p></div>
             <?php endforeach; ?>
@@ -84,18 +84,18 @@ $faq = [
 
 <section class="site-section site-section--alt" id="how-it-works">
     <div class="site-container">
-        <div class="site-section-head">
+        <div class="site-section-head" data-reveal>
             <span class="site-eyebrow">How it works</span>
             <h2>Three steps to your next assessment</h2>
         </div>
-        <ol class="site-steps">
+        <ol class="site-steps" data-reveal>
             <?php foreach ($steps as $n => [$name, $line]): ?>
                 <li><span class="site-step-number"><?= $n + 1 ?></span><h3><?= e($name) ?></h3><p><?= e($line) ?></p></li>
             <?php endforeach; ?>
         </ol>
         <div class="site-points">
-            <?php foreach ($points as [$iconName, $name, $line]): ?>
-                <div class="site-point"><?= icon($iconName) ?><div><strong><?= e($name) ?></strong><p><?= e($line) ?></p></div></div>
+            <?php foreach ($points as $k => [$iconName, $name, $line]): ?>
+                <div class="site-point" data-reveal="<?= $k + 1 ?>"><?= icon($iconName) ?><div><strong><?= e($name) ?></strong><p><?= e($line) ?></p></div></div>
             <?php endforeach; ?>
         </div>
     </div>
@@ -104,7 +104,7 @@ $faq = [
 <?php if ($plans !== []): ?>
 <section class="site-section" id="pricing">
     <div class="site-container">
-        <div class="site-section-head">
+        <div class="site-section-head" data-reveal>
             <span class="site-eyebrow">Pricing</span>
             <h2>Plans that grow with your <span class="site-accent">institution</span></h2>
             <p>Plans are sized by how many students and staff you have at once.</p>
@@ -116,20 +116,20 @@ $faq = [
 
 <section class="site-section<?= $plans !== [] ? ' site-section--alt' : '' ?>" id="questions">
     <div class="site-container site-narrow">
-        <div class="site-section-head">
+        <div class="site-section-head" data-reveal>
             <span class="site-eyebrow">Questions</span>
             <h2>Asked often</h2>
         </div>
-        <div class="site-faq">
+        <div class="site-faq" data-reveal>
             <?php foreach ($faq as [$q, $a]): ?><details><summary><?= e($q) ?><?= icon('plus-lg') ?></summary><p><?= e($a) ?></p></details><?php endforeach; ?>
         </div>
     </div>
 </section>
 
 <section class="site-cta">
-    <div class="site-container site-cta-inner">
+    <div class="site-container"><div class="site-cta-inner" data-reveal>
         <h2>Ready to run your next assessment on <?= e($brand['name']) ?>?</h2>
         <p>Tell us about your institution and we will set you up and show you around.</p>
         <div class="site-actions"><a class="btn btn-primary btn-lg" href="<?= e(url('/contact')) ?>">Ask for a demonstration<?= icon('arrow-right') ?></a></div>
-    </div>
+    </div></div>
 </section>

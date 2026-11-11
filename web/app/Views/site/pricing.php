@@ -27,30 +27,30 @@ $faq = [
                 <a class="btn btn-primary" href="<?= e(url('/contact')) ?>">Ask for a price<?= icon('arrow-right') ?></a></div>
         <?php else: ?>
             <?= $v->partial('site/_pricing', ['plans' => $plans, 'currency' => $currency]) ?>
-            <p class="site-note">Not sure which plan fits? <a href="<?= e(url('/contact')) ?>">Ask for a demonstration<?= icon('arrow-up-right') ?></a></p>
+            <p class="site-note" data-reveal>Not sure which plan fits? <a href="<?= e(url('/contact')) ?>">Ask for a demonstration<?= icon('arrow-up-right') ?></a></p>
         <?php endif; ?>
     </div>
 </section>
 
 <section class="site-section site-section--alt">
     <div class="site-container">
-        <div class="site-section-head">
+        <div class="site-section-head" data-reveal>
             <span class="site-eyebrow">In every plan</span>
             <h2>What every plan includes</h2>
         </div>
         <div class="site-included">
-            <?php foreach ($everyPlan as [$iconName, $label]): ?><div><?= icon($iconName) ?><span><?= e($label) ?></span></div><?php endforeach; ?>
+            <?php foreach ($everyPlan as $k => [$iconName, $label]): ?><div data-reveal="<?= $k % 4 + 1 ?>"><?= icon($iconName) ?><span><?= e($label) ?></span></div><?php endforeach; ?>
         </div>
     </div>
 </section>
 
 <section class="site-section">
     <div class="site-container site-narrow">
-        <div class="site-section-head">
+        <div class="site-section-head" data-reveal>
             <span class="site-eyebrow">Questions</span>
             <h2>About plans and paying</h2>
         </div>
-        <div class="site-faq">
+        <div class="site-faq" data-reveal>
             <?php foreach ($faq as [$q, $a]): ?><details><summary><?= e($q) ?><?= icon('plus-lg') ?></summary><p><?= e($a) ?></p></details><?php endforeach; ?>
         </div>
     </div>

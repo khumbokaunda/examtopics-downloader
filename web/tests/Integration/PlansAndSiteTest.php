@@ -174,4 +174,25 @@ final class PlansAndSiteTest extends HttpTestCase
         $this->post('/platform/institutions/' . $a . '/plan', ['plan' => $tiny]);
         self::assertStringContainsString('not offered any more', $this->lastFlash());
     }
+
+    public function testTheInstitutionFormOffersChoicesAndEveryPageLoadsTheMotionScript(): void
+    {
+        $this->as('olive');
+        $page = $this->get('/institutions/register')->body;
+        // The choices sit over the text box that is sent, which still works without a script.
+        self::assertStringContainsString('data-chip="Cisco networking"', $page);
+        self::assertStringContainsString('data-chip="End-of-course exams"', $page);
+        self::assertMatchesRegularExpression('#<textarea[^>]*name="intended_use"[^>]*required#', $page);
+        self::assertStringContainsString('For example: assessing our CCNA students.', $page, 'the hint for a page without its script');
+        self::assertStringContainsString('/assets/js/motion.js', $page);
+        self::assertStringContainsString('/assets/css/motion.css', $page);
+        self::assertFileExists(dirname(__DIR__, 2) . '/public/assets/js/motion.js');
+
+        // What the choices write is a valid answer.
+        $r = $this->post('/institutions/register', array_replace($this->profile('Zomba Training Centre'), ['services' => 'Cisco networking, CompTIA',
+            'intended_use' => 'End-of-course exams, Practice for certification exams. And our weekend classes']));
+        self::assertSame(303, $r->status);
+        self::assertSame('End-of-course exams, Practice for certification exams. And our weekend classes',
+            $this->db("SELECT intended_use FROM institutions WHERE name = 'Zomba Training Centre'"));
+    }
 }

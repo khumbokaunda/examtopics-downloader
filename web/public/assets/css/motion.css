@@ -1,0 +1,130 @@
+/*
+ * Movement and loading states (with js/motion.js). Everything here is switched off for a
+ * person who asked for less motion: tokens.css stops every animation and transition then.
+ */
+
+@keyframes rise-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pop-in { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes shimmer { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+@keyframes chip-pop { 0% { transform: scale(1); } 40% { transform: scale(1.06); } 100% { transform: scale(1); } }
+@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes grow-up { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes sheen { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
+
+/* --- Pages arrive: the content eases in, a little after one another ------------------------- */
+/* "backwards" so nothing keeps a transform once it has arrived (a transform would trap fixed
+   dialogs inside the page). */
+#page-body > * { animation: rise-in .42s var(--ease-out) backwards; }
+#page-body > *:nth-child(2) { animation-delay: 40ms; }
+#page-body > *:nth-child(3) { animation-delay: 80ms; }
+#page-body > *:nth-child(4) { animation-delay: 120ms; }
+#page-body > *:nth-child(5) { animation-delay: 160ms; }
+#page-body > *:nth-child(n+6) { animation-delay: 200ms; }
+.flash-stack .alert { animation: pop-in .32s var(--ease-out) backwards; }
+.palette:not([hidden]) .palette-panel { animation: pop-in .2s var(--ease-out) backwards; }
+.palette:not([hidden]) .palette-backdrop { animation: fade-in .2s var(--ease-out) backwards; }
+
+/* --- Small responses to touch --------------------------------------------------------------- */
+.btn { transition: background-color var(--dur-sm) var(--ease-out), border-color var(--dur-sm) var(--ease-out), color var(--dur-sm) var(--ease-out),
+  box-shadow var(--dur-sm) var(--ease-out), transform var(--dur-xs) var(--ease-out); }
+.btn:active:not(:disabled):not(.disabled) { transform: scale(.97); }
+.kpi { transition: transform var(--dur-md) var(--ease-out), box-shadow var(--dur-md) var(--ease-out); }
+.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+.form-control, .form-select { transition: border-color var(--dur-sm) var(--ease-out), box-shadow var(--dur-sm) var(--ease-out), background-color var(--dur-sm) var(--ease-out); }
+img { transition: opacity var(--dur-lg) var(--ease-out); }
+img.is-loading { opacity: 0; }
+
+/* --- Loading ----------------------------------------------------------------------------------- */
+.skeleton {
+  display: block; border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--color-surface-alt) 0%, color-mix(in srgb, var(--color-border) 70%, var(--color-surface-alt)) 50%, var(--color-surface-alt) 100%);
+  background-size: 200% 100%; animation: shimmer 1.3s linear infinite;
+}
+.skeleton-line { height: 12px; margin: 10px 0; }
+.skeleton-line.is-short { width: 55%; }
+.skeleton-title { height: 26px; width: 38%; margin-bottom: 14px; border-radius: var(--radius-md); }
+.skeleton-tile { height: 76px; border-radius: var(--radius-lg); }
+.skeleton-block { padding: 4px 0; }
+
+/* The bar along the top while the next page loads. */
+.nav-progress {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 2000; height: 3px; pointer-events: none;
+  background: var(--color-primary); transform-origin: 0 50%; transform: scaleX(0); opacity: 0;
+}
+.nav-progress.is-loading { opacity: 1; transform: scaleX(.85); transition: transform 8s cubic-bezier(.1, .7, .1, 1), opacity .1s; }
+.nav-progress.is-done { opacity: 0; transform: scaleX(1); transition: transform .2s var(--ease-out), opacity .3s .2s; }
+/* A slow page: the one being left gives way to a skeleton of a page. */
+.is-navigating #page-body { display: none; }
+.nav-skeleton { animation: fade-in .25s var(--ease-out) backwards; }
+.nav-skeleton-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-4); margin: var(--space-5) 0; }
+.nav-skeleton-card { border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); padding: var(--space-5); }
+@media (max-width: 720px) { .nav-skeleton-row { grid-template-columns: repeat(2, 1fr); } }
+
+/* --- Choices instead of a text box ------------------------------------------------------------- */
+.chip-picker { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 10px; }
+.chip-option {
+  display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 999px;
+  border: 1px solid var(--color-border-strong); background: var(--color-surface); color: var(--color-text);
+  font-size: var(--text-sm); font-weight: var(--weight-medium); line-height: 1.2; cursor: pointer;
+  transition: background-color var(--dur-sm) var(--ease-out), border-color var(--dur-sm) var(--ease-out), color var(--dur-sm) var(--ease-out), transform var(--dur-xs) var(--ease-out);
+}
+.chip-option .bi { color: var(--color-text-muted); transition: color var(--dur-sm) var(--ease-out); }
+.chip-option:hover { border-color: var(--color-primary); }
+.chip-option:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--color-focus-ring); }
+.chip-option[aria-pressed="true"] { background: var(--color-primary-soft); border-color: var(--color-primary); color: var(--color-primary); }
+.chip-option[aria-pressed="true"] .bi { color: var(--color-primary); }
+.chip-option[aria-pressed="true"]::after { content: "\f272"; font-family: bootstrap-icons; font-size: 12px; margin-left: 2px; }
+.chip-option:active { transform: scale(.96); }
+.chip-option.is-popping { animation: chip-pop .28s var(--ease-out); }
+/* The text box that is sent stays in the form, out of sight. */
+.chip-source { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden; clip: rect(0 0 0 0); border: 0 !important; }
+
+/* --- The public pages -------------------------------------------------------------------------- */
+.js [data-reveal]:not(.is-in) { opacity: 0; transform: translateY(24px); }
+.js [data-reveal] { transition: opacity .6s var(--ease-out), transform .6s var(--ease-out); }
+.js [data-reveal="2"] { transition-delay: 80ms; }
+.js [data-reveal="3"] { transition-delay: 160ms; }
+.js [data-reveal="4"] { transition-delay: 240ms; }
+.js [data-reveal="5"] { transition-delay: 320ms; }
+.js [data-reveal="6"] { transition-delay: 400ms; }
+
+.site-hero-inner > * { animation: rise-in .7s var(--ease-out) backwards; }
+.site-hero-inner > *:nth-child(2) { animation-delay: 90ms; }
+.site-hero-inner > *:nth-child(3) { animation-delay: 180ms; }
+.site-hero-inner > *:nth-child(4) { animation-delay: 270ms; }
+.site-hero-inner > *:nth-child(5) { animation-delay: 380ms; animation-duration: .9s; }
+.site-accent { background-size: 200% 100%; animation: sheen 6s ease-in-out infinite alternate; }
+.site-hero::after { animation: fade-in 1.2s var(--ease-out) backwards; }
+
+.site-bar { transition: box-shadow var(--dur-md) var(--ease-out), background-color var(--dur-md) var(--ease-out); }
+.site-bar.is-scrolled { box-shadow: 0 8px 24px -16px rgba(0, 0, 0, .35); }
+
+.site-preview-frame { animation: float 7s ease-in-out 1.2s infinite; }
+.site-preview-main li { transition: background-color .35s var(--ease-out), border-color .35s var(--ease-out), color .35s var(--ease-out); }
+.site-preview-main li .bi { opacity: 0; transition: opacity .3s var(--ease-out); }
+.site-preview-main li.is-picked .bi { opacity: 1; }
+.site-preview-dots i { transition: background-color .4s var(--ease-out); }
+.site-preview-bars i { transform-origin: bottom; animation: grow-up .9s var(--ease-out) backwards; }
+.site-preview-bars i:nth-child(1) { animation-delay: .9s; }
+.site-preview-bars i:nth-child(2) { animation-delay: 1s; }
+.site-preview-bars i:nth-child(3) { animation-delay: 1.1s; }
+.site-preview-bars i:nth-child(4) { animation-delay: 1.2s; }
+.site-preview-bars i:nth-child(5) { animation-delay: 1.3s; }
+
+.site-feature-icon { transition: transform var(--dur-md) var(--ease-spring, var(--ease-out)), background-color var(--dur-md) var(--ease-out); }
+.site-feature:hover .site-feature-icon { transform: translateY(-3px) rotate(-6deg); }
+.site-point, .site-included > div { transition: transform var(--dur-md) var(--ease-out), border-color var(--dur-md) var(--ease-out); }
+.site-point:hover, .site-included > div:hover { transform: translateY(-3px); border-color: var(--color-primary); }
+.site-step-number { transition: background-color var(--dur-md) var(--ease-out), color var(--dur-md) var(--ease-out); }
+.site-steps li:hover .site-step-number { background: var(--color-primary); color: var(--color-on-accent, #fff); }
+.js .site-steps[data-reveal]::before { transform-origin: left; transition: transform 1s .3s var(--ease-out); }
+.js .site-steps[data-reveal]:not(.is-in)::before { transform: scaleX(0); }
+.site-faq details { transition: border-color var(--dur-md) var(--ease-out); }
+.site-faq details[open] { border-color: var(--color-primary); }
+.plan-card.is-featured .plan-badge .bi { display: inline-block; animation: chip-pop 2.4s ease-in-out infinite; }
+.pricing-switch-input:checked ~ .plan-grid .when-yearly, .pricing-switch-input:not(:checked) ~ .plan-grid .when-monthly { animation: rise-in .35s var(--ease-out); }
+
+/* --- Sign-in, joining and the wizard ----------------------------------------------------------- */
+.auth-wrap { animation: rise-in .5s var(--ease-out) backwards; }
+.auth-brand { animation: fade-in .6s var(--ease-out) backwards; }

@@ -11,7 +11,7 @@ $chosen = (string) ($old['plan'] ?? '');
 </section>
 <section class="site-section site-section--tight">
     <div class="site-container site-contact">
-        <div class="site-contact-form">
+        <div class="site-contact-form" data-reveal>
             <?php if ($sent): ?>
                 <div class="site-empty"><?= icon('check2-circle') ?><h2>Message sent</h2><p>Thank you. We will reply by email.</p>
                     <a class="btn site-btn-outline" href="<?= e(url('/')) ?>">Back to the home page</a></div>
@@ -37,7 +37,7 @@ $chosen = (string) ($old['plan'] ?? '');
             </form>
             <?php endif; ?>
         </div>
-        <aside class="site-contact-side">
+        <aside class="site-contact-side" data-reveal="2">
             <div class="site-contact-card">
                 <h2>What happens next</h2>
                 <ol>
