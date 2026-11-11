@@ -22,7 +22,7 @@ final class PlanController extends Controller
             $editing = $this->s->plans()->find($ref) ?? throw HttpException::notFound('Plan');
         }
         return $this->render('platform/plans', ['title' => 'Plans', 'nav' => 'platform-plans', 'plans' => $this->s->plans()->all(), 'editing' => $editing,
-            'siteOn' => $this->s->publicSite()->on()]);
+            'siteOn' => $this->s->publicSite()->on(), 'currency' => $this->s->billing()->settings()['currency']]);
     }
 
     public function save(string $plan = ''): Response

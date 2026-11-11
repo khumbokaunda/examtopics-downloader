@@ -19,7 +19,8 @@
         <div class="card-header"><span class="card-title"><?= e($m['name']) ?><?= $m['organisation'] !== null ? ', ' . e($m['organisation']) : '' ?></span>
             <span class="small text-muted"><?= e(fmt_time((string) $m['created_at'])) ?></span></div>
         <div class="card-body">
-            <p class="small mb-2"><a href="mailto:<?= e($m['email']) ?>"><?= e($m['email']) ?></a><?= $m['phone'] !== null ? ' · ' . e($m['phone']) : '' ?></p>
+            <p class="small mb-2"><a href="mailto:<?= e($m['email']) ?>"><?= e($m['email']) ?></a><?= $m['phone'] !== null ? ' · ' . e($m['phone']) : '' ?>
+                <?php if ($m['plan_name'] !== null): ?> · <?= chip('Asks about ' . $m['plan_name'], 'primary', 'tags') ?><?php endif; ?></p>
             <div class="text-pre"><?= e($m['body']) ?></div>
             <?php if ($m['status'] === 'new'): ?>
                 <form class="mt-3" method="post" action="<?= e(url('/platform/messages/' . $m['uuid'] . '/answered')) ?>"><?= csrf_field() ?>

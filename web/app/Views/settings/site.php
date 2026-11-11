@@ -1,4 +1,4 @@
-<?php /** @var array{on:bool,headline:string,intro:string,contact_email:string,contact_phone:string,contact_hours:string} $site */ ?>
+<?php /** @var array{on:bool,eyebrow:string,headline:string,highlight:string,intro:string,contact_email:string,contact_phone:string,contact_hours:string} $site */ ?>
 <nav aria-label="breadcrumb"><ol class="breadcrumb">
     <li class="breadcrumb-item"><a href="<?= e(url('/settings')) ?>">Settings</a></li>
     <li class="breadcrumb-item active" aria-current="page">Public site</li>
@@ -19,9 +19,13 @@
                     <label class="form-check-label" for="s-on">Show the public pages</label>
                     <div class="form-text">Off: people who are not signed in see only the sign-in page, as before.</div>
                 </div>
+                <div class="mb-3"><label class="form-label" for="s-eyebrow">Label above the headline</label>
+                    <input class="form-control" id="s-eyebrow" name="eyebrow" maxlength="60" value="<?= e($site['eyebrow']) ?>" placeholder="For colleges and training providers"></div>
                 <div class="mb-3"><label class="form-label" for="s-headline">Headline</label>
-                    <input class="form-control" id="s-headline" name="headline" maxlength="160" value="<?= e($site['headline']) ?>">
-                    <div class="form-text">Leave empty for the system name.</div></div>
+                    <input class="form-control" id="s-headline" name="headline" maxlength="160" value="<?= e($site['headline']) ?>" placeholder="Run every test, mark and result in one place"></div>
+                <div class="mb-3"><label class="form-label" for="s-highlight">Words to highlight</label>
+                    <input class="form-control" id="s-highlight" name="highlight" maxlength="80" value="<?= e($site['highlight']) ?>">
+                    <div class="form-text">Part of the headline, shown in the accent colour. For example: Malawi's first exam library.</div></div>
                 <div class="mb-3"><label class="form-label" for="s-intro">Introduction</label>
                     <textarea class="form-control" id="s-intro" name="intro" rows="3" maxlength="600"><?= e($site['intro']) ?></textarea></div>
                 <h2 class="section-heading">Contact details</h2>

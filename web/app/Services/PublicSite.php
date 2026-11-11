@@ -18,7 +18,7 @@ use RuntimeException;
  */
 final class PublicSite
 {
-    public const FIELDS = ['headline' => 160, 'intro' => 600, 'contact_email' => 190, 'contact_phone' => 40, 'contact_hours' => 120];
+    public const FIELDS = ['eyebrow' => 60, 'headline' => 160, 'highlight' => 80, 'intro' => 600, 'contact_email' => 190, 'contact_phone' => 40, 'contact_hours' => 120];
     /** Contact messages one address may send in an hour. */
     public const MESSAGES_PER_HOUR = 5;
 
@@ -29,13 +29,13 @@ final class PublicSite
     {
     }
 
-    /** @return array{on:bool,headline:string,intro:string,contact_email:string,contact_phone:string,contact_hours:string} */
+    /** @return array{on:bool,eyebrow:string,headline:string,highlight:string,intro:string,contact_email:string,contact_phone:string,contact_hours:string} */
     public function settings(): array
     {
         if ($this->cache !== null) {
             return $this->cache;
         }
-        $values = ['on' => false, 'headline' => '', 'intro' => '', 'contact_email' => '', 'contact_phone' => '', 'contact_hours' => ''];
+        $values = ['on' => false] + array_fill_keys(array_keys(self::FIELDS), '');
         try {
             $repo = new SettingsRepository($this->db);
             $values['on'] = $repo->get('site.public') === '1';
@@ -93,17 +93,19 @@ final class PublicSite
         $uuid = Ids::uuid();
         $org = $line('organisation', 160);
         $phone = $line('phone', 40);
-        $this->db->run('INSERT INTO contact_messages (uuid, name, email, organisation, phone, body, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [$uuid, $name, $email, $org !== '' ? $org : null, $phone !== '' ? $phone : null, $body, Database::now()]);
-        $this->notifier->notifyPermission('institutions.manage', 'institution', 'Message from ' . $name . ($org !== '' ? ', ' . $org : ''),
+        $planUuid = (string) ($in['plan'] ?? '');
+        $plan = Ids::isUuid($planUuid) ? $this->db->one('SELECT id, name FROM plans WHERE uuid = ? AND public = 1 AND archived_at IS NULL', [$planUuid]) : null;
+        $this->db->run('INSERT INTO contact_messages (uuid, name, email, organisation, phone, plan_id, body, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [$uuid, $name, $email, $org !== '' ? $org : null, $phone !== '' ? $phone : null, $plan !== null ? (int) $plan['id'] : null, $body, Database::now()]);
+        $this->notifier->notifyPermission('institutions.manage', 'institution', 'Message from ' . $name . ($org !== '' ? ', ' . $org : '') . ($plan !== null ? ' about ' . $plan['name'] : ''),
             mb_substr(preg_replace('/\s+/u', ' ', $body) ?? '', 0, 200), '/platform/messages', 'contact:' . $uuid, 'contact:' . $uuid);
     }
 
     /** @return list<array<string,mixed>> newest first */
     public function messages(?string $status = null): array
     {
-        return $this->db->all('SELECT m.*, u.username AS handler_username, u.display_name AS handler_name FROM contact_messages m
-                               LEFT JOIN users u ON u.id = m.handled_by' . ($status !== null ? ' WHERE m.status = ?' : '') . ' ORDER BY m.created_at DESC, m.id DESC LIMIT 1000',
+        return $this->db->all('SELECT m.*, u.username AS handler_username, u.display_name AS handler_name, p.name AS plan_name FROM contact_messages m
+                               LEFT JOIN users u ON u.id = m.handled_by LEFT JOIN plans p ON p.id = m.plan_id' . ($status !== null ? ' WHERE m.status = ?' : '') . ' ORDER BY m.created_at DESC, m.id DESC LIMIT 1000',
             $status !== null ? [$status] : []);
     }
 

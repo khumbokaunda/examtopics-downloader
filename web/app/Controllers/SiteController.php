@@ -20,20 +20,21 @@ final class SiteController extends Controller
     public function pricing(): Response
     {
         $this->assertOn();
-        return $this->render('site/pricing', $this->vars('Pricing', 'pricing') + ['plans' => $this->s->plans()->listed()]);
+        return $this->render('site/pricing', $this->vars('Pricing', 'pricing'));
     }
 
     public function contact(): Response
     {
         $this->assertOn();
-        return $this->render('site/contact', $this->vars('Contact', 'contact') + ['old' => [], 'sent' => $this->request->query('sent') === '1']);
+        return $this->render('site/contact', $this->vars('Contact', 'contact') + ['old' => ['plan' => (string) $this->request->query('plan', '')],
+            'sent' => $this->request->query('sent') === '1']);
     }
 
     public function send(): Response
     {
         $this->assertOn();
         $in = ['name' => $this->request->input('name', ''), 'email' => $this->request->input('email', ''), 'organisation' => $this->request->input('organisation', ''),
-            'phone' => $this->request->input('phone', ''), 'message' => $this->request->input('message', '')];
+            'phone' => $this->request->input('phone', ''), 'plan' => $this->request->input('plan', ''), 'message' => $this->request->input('message', '')];
         // A field people cannot see: only a script fills it in.
         if (trim((string) $this->request->input('website', '')) !== '') {
             return $this->redirect('/contact', ['sent' => '1']);
@@ -54,9 +55,16 @@ final class SiteController extends Controller
         }
     }
 
+    /** @return array<string,mixed> what every public page needs */
+    public static function siteVars(\App\Services\Services $s, string $title, string $page): array
+    {
+        return ['title' => $title, 'site' => $s->publicSite()->settings(), 'sitePage' => $page, 'indexable' => true,
+            'plans' => $s->plans()->listed(), 'currency' => $s->billing()->settings()['currency']];
+    }
+
     /** @return array<string,mixed> */
     private function vars(string $title, string $page): array
     {
-        return ['title' => $title, 'site' => $this->s->publicSite()->settings(), 'sitePage' => $page, 'indexable' => true, 'wide' => true];
+        return self::siteVars($this->s, $title, $page);
     }
 }
