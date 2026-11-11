@@ -224,10 +224,11 @@
 .flash-stack .alert:last-child { margin-bottom: 0; }
 
 .page-header {
-  display: flex; align-items: flex-start; justify-content: space-between;
-  gap: var(--space-4); margin-bottom: var(--space-5);
+  display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between;
+  gap: var(--space-3) var(--space-4); margin-bottom: var(--space-5);
 }
-.page-header-text { min-width: 0; }
+/* The title keeps room for itself: actions that do not fit beside it go underneath, never over it. */
+.page-header-text { min-width: 0; flex: 1 1 280px; }
 .page-title { font-size: var(--text-2xl); line-height: var(--lh-2xl); font-weight: var(--weight-semibold); margin: 0; letter-spacing: -0.01em; }
 .page-title .title-meta { font-size: var(--text-sm); font-weight: var(--weight-regular); color: var(--color-text-muted); letter-spacing: 0; }
 .page-subtitle { font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--color-text-muted); margin: var(--space-1) 0 0; max-width: 760px; }
