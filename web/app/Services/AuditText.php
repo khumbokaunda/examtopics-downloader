@@ -242,6 +242,7 @@ final class AuditText
             'institution.grade_marks_released' => [$who . ' released the marks for ' . $named('item') . ' in ' . $named('course') . ' in ' . $named('institution'), 'send', 'primary'],
             'institution.grade_override_set' => [$who . ' set the grade of ' . $named('student') . ' in ' . $named('course') . ' to ' . $named('percent') . '%: ' . $named('reason'), 'pencil', 'warning'],
             'institution.grade_override_removed' => [$who . ' took away the grade set by hand for ' . $named('student') . ' in ' . $named('course') . ': ' . $named('reason'), 'pencil', 'warning'],
+            'institution.modules_completed' => [(int) ($d['students'] ?? 0) . ' student' . ((int) ($d['students'] ?? 0) === 1 ? '' : 's') . ' completed the module of ' . $named('course') . ' in ' . $named('institution') . ' by its final grade', 'patch-check', 'success'],
             'institution.grades_finalised' => [$who . ' made the grades of ' . $named('course') . ' final in ' . $named('institution'), 'lock', 'primary'],
             'institution.grades_reopened' => [$who . ' made the grades of ' . $named('course') . ' provisional again in ' . $named('institution'), 'unlock', 'warning'],
             'institution.material_added' => [$who . ' added ' . $named('title') . ' to the materials of ' . $named('course') . ' in ' . $named('institution'), 'folder-plus', 'neutral'],

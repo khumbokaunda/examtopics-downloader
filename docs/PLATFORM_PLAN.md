@@ -914,10 +914,10 @@ is off for accounts that come through an institution; no runtime names changed.
   pages stay flat. Someone in more than one institution can switch from beside the name.
 - **Identity.** `web/README.md` and the composer description describe ExamLib as it is.
 
-Proposed readiness values, for approval before this is deployed (Decision D), all constants in
-`Readiness`:
+Readiness values (Decision D), all constants in `Readiness`. Proposed here and approved on
+11 November 2026 as proposed:
 
-| Value | Proposed | Why |
+| Value | Approved | Why |
 | --- | --- | --- |
 | Sources that count | all questions, unanswered questions | The other three are lists the candidate makes. |
 | Pool size | at least twice the questions asked | A candidate cannot predict a draw of 30 from 60 or more. It also closes the way round through "unanswered": answering everything except thirty known questions leaves a pool of thirty. |
@@ -1143,3 +1143,18 @@ credentials. What changed, and why each consumer is safe:
     (PHP-FPM with more workers) will do better than the built-in server.
 
 `InstitutionExportTest` (1 test), `BillingTest` (2 tests).
+
+## Decisions taken (11 November 2026)
+
+- **Decision D, readiness:** approved as proposed (the table under Phase 0): only "all" and
+  "unanswered" mocks count, drawn from a pool at least twice the questions asked, sharing at most
+  half with the earlier attempt, which has at least 30 questions.
+- **Module completion follows the course grade** where a course teaches the module. When a
+  course is linked to a module and has a pass mark, making its grades final completes the module
+  for every learner whose course grade reaches the pass mark (`Gradebook::completeModule`,
+  method `course`, with the course kept on the completion; migration `053`). Passing one
+  assessment no longer completes such a module on its own. A module with no such course is
+  completed as before, by passing a linked assessment with published results, or by staff. A
+  completion, once recorded, stays: making grades provisional again does not remove it.
+- **Prices and payment details** are the operator's to enter (Plans, Billing). Until then the
+  pricing page says prices are on request and invoices carry no payment instructions.

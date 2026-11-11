@@ -52,9 +52,9 @@ final class Readiness
     public const WINDOW_DAYS = 60;
     /** Where a mock's questions may be chosen from for it to count (MockController::SOURCES). */
     public const COUNTED_SOURCES = ['all', 'new'];
-    /** The questions must be drawn from at least this many times the number asked. */
+    /** The questions must be drawn from at least this many times the number asked. Decision D, approved 11 Nov 2026. */
     public const POOL_FACTOR = 2;
-    /** At most this share of the attempt's questions may have been in the earlier attempt. */
+    /** At most this share of the attempt's questions may have been in the earlier attempt. Decision D, approved 11 Nov 2026. */
     public const MAX_OVERLAP = 50.0;
 
     public const DISCLAIMER = 'This certificate confirms performance against the stated ExamLib readiness assessment criteria. It is not a professional '

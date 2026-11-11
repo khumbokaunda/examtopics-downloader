@@ -111,6 +111,10 @@ final class AcademicRecords
     /**
      * Record the modules a student completed by passing an assessment whose results are
      * published. Existing completions are left as they are.
+     *
+     * A module taught through a course with a pass mark is not completed this way: there the
+     * final course grade decides (Gradebook::completeModule), so passing one quiz of the course
+     * does not complete the module.
      */
     public function syncCompletions(int $iid, int $membershipId): void
     {
@@ -119,6 +123,7 @@ final class AcademicRecords
                           FROM assessment_sessions s JOIN assessments a ON a.id = s.assessment_id
                          WHERE s.institution_id = ? AND s.membership_id = ? AND a.module_id IS NOT NULL AND a.results_published_at IS NOT NULL
                            AND s.passed = 1 AND s.status <> 'in_progress'
+                           AND NOT EXISTS (SELECT 1 FROM courses c WHERE c.module_id = a.module_id AND c.institution_id = s.institution_id AND c.pass_percent IS NOT NULL)
                          ORDER BY s.submitted_at", [$iid, $membershipId]);
     }
 

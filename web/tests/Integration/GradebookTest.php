@@ -190,4 +190,46 @@ final class GradebookTest extends HttpTestCase
         self::assertNotNull($this->value("SELECT removed_at FROM grade_items WHERE title = 'Practical'"));
         self::assertStringNotContainsString('>Practical<', $this->get($this->course, ['tab' => 'grades'])->body);
     }
+
+    public function testAModuleTaughtThroughACourseIsCompletedByTheFinalCourseGrade(): void
+    {
+        $this->as('olive');
+        $base = '/institutions/' . $this->inst;
+        $this->post($base . '/structure/programmes', ['name' => 'CCNA Programme', 'code' => 'CCNA', 'department' => '']);
+        $pp = $base . '/structure/programmes/' . $this->value('SELECT uuid FROM institution_programmes');
+        $this->post($pp . '/modules', ['code' => 'M1', 'name' => 'Routing', 'required' => '1']);
+        $module = (int) $this->value("SELECT id FROM programme_modules WHERE name = 'Routing'");
+        $this->app->db()->run('UPDATE assessments SET module_id = ?', [$module]);
+        $this->app->db()->run('UPDATE courses SET module_id = ?', [$module]);
+        $this->post($base . '/students/' . $this->member('carol'), ['student_number' => 'ICT001', 'programme' => (string) $this->value('SELECT uuid FROM institution_programmes'),
+            'status' => 'active', 'enrolled_on' => '2026-01-10']);
+
+        // carol passes the test; dan does not. A practical worth as much is marked: carol 2 of 10.
+        $this->sit('carol', ['Which layer' => 'B', 'Which are routing' => 'AC', 'OSPF is' => 'T']);
+        $this->sit('dan', ['Which layer' => 'A', 'Which are routing' => 'A', 'OSPF is' => 'T']);
+        $this->as('olive');
+        $this->post($this->test . '/results/publication', ['action' => 'publish']);
+        $this->post($this->course . '/grades', ['kind' => 'online', 'assessment' => $this->testUuid, 'weight' => '1']);
+        $this->post($this->course . '/grades', ['kind' => 'offline', 'title' => 'Practical', 'max_marks' => '10', 'weight' => '1']);
+        $practical = (string) $this->value("SELECT uuid FROM grade_items WHERE title = 'Practical'");
+        $this->post($this->course . '/grades/' . $practical . '/marks', ['marks' => [$this->member('carol') => '8', $this->member('dan') => '2']]);
+
+        // Passing the test alone does not complete a module the course teaches.
+        $this->get($base . '/students/' . $this->member('carol'));
+        self::assertSame(0, (int) $this->value('SELECT COUNT(*) FROM module_completions'));
+
+        // The final course grade does: carol (100% and 80%) reaches the pass mark of 50, dan does not.
+        $this->post($this->course . '/grades/final', ['final' => '1']);
+        $rows = $this->app->db()->all("SELECT u.username, c.method, c.percent, c.course_id FROM module_completions c JOIN institution_memberships m ON m.id = c.membership_id
+            JOIN users u ON u.id = m.user_id");
+        self::assertCount(1, $rows);
+        self::assertSame(['carol', 'course', '90.00'], [$rows[0]['username'], $rows[0]['method'], $rows[0]['percent']]);
+        self::assertSame((int) $this->value('SELECT id FROM courses'), (int) $rows[0]['course_id']);
+        self::assertStringContainsString(', course grade', $this->get($base . '/students/' . $this->member('carol'))->body);
+
+        // Reopening the grades keeps the completion; finalising again adds no second one.
+        $this->post($this->course . '/grades/final', ['final' => '0']);
+        $this->post($this->course . '/grades/final', ['final' => '1']);
+        self::assertSame(1, (int) $this->value('SELECT COUNT(*) FROM module_completions'));
+    }
 }

@@ -102,7 +102,7 @@ $active = $student['status'] === 'active';
                     <ul class="list-unstyled small mt-2 mb-0">
                         <?php foreach ($p['modules'] as $mod): ?>
                             <li><?= $mod['completed_at'] !== null ? icon('check2-circle') : icon('circle') ?> <?= e($mod['name']) ?><?= $mod['required'] ? '' : ' <span class="text-muted">(optional)</span>' ?>
-                                <span class="text-muted"><?= $mod['completed_at'] !== null ? '· completed ' . e(substr((string) $mod['completed_at'], 0, 10)) . ($mod['percent'] !== null ? ', ' . e(rtrim(rtrim((string) $mod['percent'], '0'), '.')) . '%' : '') . ($mod['method'] === 'manual' ? ', recorded by staff' : '') : '· not completed' ?></span></li>
+                                <span class="text-muted"><?= $mod['completed_at'] !== null ? '· completed ' . e(substr((string) $mod['completed_at'], 0, 10)) . ($mod['percent'] !== null ? ', ' . e(rtrim(rtrim((string) $mod['percent'], '0'), '.')) . '%' : '') . ($mod['method'] === 'manual' ? ', recorded by staff' : ($mod['method'] === 'course' ? ', course grade' : '')) : '· not completed' ?></span></li>
                         <?php endforeach; ?>
                     </ul>
                     <?php endif; ?>
