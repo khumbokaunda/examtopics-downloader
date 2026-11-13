@@ -1207,3 +1207,21 @@ colour.
 - **Less motion**: a person whose device asks for less motion, or who chose it under Appearance,
   gets none of it, and nothing waits to be revealed. Without scripts every section is shown at
   once (the hiding applies only once the head script marks the page as scripted).
+
+## Certificates redesigned, portrait (13 November 2026)
+
+Both certificates (readiness certificates from mock exams, and the credentials institutions
+issue) were a bordered box of text, and credentials came out landscape. Now both are one A4
+portrait page laid out the same way (`certificates/_page.php`):
+
+- **Artwork in the site's brand colour** (`CertificateArt`): diagonal ribbons in two corners
+  fading into a lighter tint, flowing lines, fields of dots, a fine double frame and a gold seal
+  with ribbons in the brand colour. Drawn as pictures with GD because the PDF renderer handles
+  CSS gradients and shapes poorly; each is made once per colour and kept in `storage/tmp/pdf`.
+- **Layout**: the issuer's logo and name; a large spaced CERTIFICATE over "OF COMPLETION" when
+  the title reads "Certificate of ..." (any other title is printed large as it is); the seal;
+  "This certificate is proudly presented to"; the name in large italic serif with a rule; what
+  it is for; who awarded it as a line of text (no signature lines); the dates and number in a row;
+  a QR code with the address that checks it; the template's footer (stored before but never
+  printed) and the fingerprint, or the readiness disclaimer.
+- A revoked or replaced certificate carries a large diagonal stamp.

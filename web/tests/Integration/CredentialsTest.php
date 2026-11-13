@@ -104,6 +104,7 @@ final class CredentialsTest extends HttpTestCase
         $pdf = $this->get('/credentials/' . $c . '/pdf');
         self::assertSame(200, $pdf->status);
         self::assertStringStartsWith('%PDF', $pdf->body);
+        self::assertMatchesRegularExpression('#/MediaBox \[0(\.0+)? 0(\.0+)? 595\.28\d* 841\.89\d*\]#', $pdf->body, 'A4 portrait');
         $this->as('dan');
         self::assertSame(404, $this->get('/credentials/' . $c . '/pdf')->status);
 

@@ -212,11 +212,19 @@ final class InstitutionCredentialController extends TenantController
             }
         }
         $url = $ctl->verifyUrl((string) $c['token']);
-        $qr = (new \chillerlan\QRCode\QRCode(new \chillerlan\QRCode\QROptions(['outputType' => \chillerlan\QRCode\Output\QROutputInterface::GDIMAGE_PNG,
-            'scale' => 4, 'outputBase64' => true])))->render($url);
-        $html = (new View($ctl->app, $ctl->session, null))->render('credentials/pdf', ['credential' => $c, 'institution' => $i, 'logo' => $logo, 'qr' => $qr, 'url' => $url], null);
-        return new Response(\App\Services\Results::pdf($html, $ctl->app->paths()->storage() . '/tmp/pdf', 'landscape'), 200, ['Content-Type' => 'application/pdf',
+        $footer = isset($c['template_id']) && $c['template_id'] !== null
+            ? $ctl->app->db()->value('SELECT footer FROM credential_templates WHERE id = ?', [(int) $c['template_id']]) : null;
+        $html = (new View($ctl->app, $ctl->session, null))->render('credentials/pdf', ['credential' => $c, 'institution' => $i, 'logo' => $logo,
+            'qr' => \App\Services\CertificateArt::qr($url), 'url' => $url, 'footer' => $footer !== null ? (string) $footer : null] + self::art($ctl), null);
+        return new Response(\App\Services\Results::pdf($html, $ctl->app->paths()->storage() . '/tmp/pdf'), 200, ['Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="' . preg_replace('/[^A-Za-z0-9-]/', '', (string) $c['number']) . '.pdf"']);
+    }
+
+    /** The certificate artwork in the site's brand colour. @return array{art:array{page:string,seal:string},primary:string} */
+    public static function art(Controller $ctl): array
+    {
+        $primary = $ctl->s->branding()->pdfCover('')['primary'];
+        return ['art' => (new \App\Services\CertificateArt($ctl->app->paths()->storage() . '/tmp/pdf'))->forColour($primary), 'primary' => $primary];
     }
 
     /** @return array{0:array<string,mixed>,1:array<string,mixed>} for anyone who issues, manages or signs credentials */

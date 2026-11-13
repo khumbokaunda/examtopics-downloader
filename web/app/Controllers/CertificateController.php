@@ -60,7 +60,11 @@ final class CertificateController extends Controller
     {
         $cert = $this->find($uuid);
         $view = new View($this->app, $this->session, $this->auth->user());
-        $html = $view->render('certificates/pdf', ['cert' => $cert, 'verifyUrl' => $this->verifyUrl((string) $cert['token']), 'brand' => $this->s->branding()->get()['name']], null);
+        $url = $this->verifyUrl((string) $cert['token']);
+        $cover = $this->s->branding()->pdfCover('');
+        $html = $view->render('certificates/pdf', ['cert' => $cert, 'verifyUrl' => $url, 'brand' => $cover['name'],
+            'logo' => \App\Services\CertificateArt::logo($cover['logo']), 'qr' => \App\Services\CertificateArt::qr($url)]
+            + InstitutionCredentialController::art($this), null);
         return new Response(\App\Services\Results::pdf($html, $this->app->paths()->storage() . '/tmp/pdf'), 200,
             ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="certificate-' . $cert['number'] . '.pdf"']);
     }
