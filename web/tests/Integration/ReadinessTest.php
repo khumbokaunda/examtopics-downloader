@@ -166,7 +166,9 @@ final class ReadinessTest extends HttpTestCase
         $shown = $this->get('/certificates/' . $cert['uuid']);
         self::assertStringContainsString('not a professional certification', $shown->body);
         self::assertStringContainsString('drawn at random', $shown->body, 'the criteria say how the questions were chosen');
-        self::assertStringStartsWith('%PDF', $this->get('/certificates/' . $cert['uuid'] . '/pdf')->body);
+        $pdf = $this->get('/certificates/' . $cert['uuid'] . '/pdf')->body;
+        self::assertStringStartsWith('%PDF', $pdf);
+        self::assertMatchesRegularExpression('#/MediaBox \[0(\.0+)? 0(\.0+)? 595\.28\d* 841\.89\d*\]#', $pdf, 'A4 portrait');
 
         // An attempt that does not qualify earns nothing.
         $weak = $this->mock(40, 25);
