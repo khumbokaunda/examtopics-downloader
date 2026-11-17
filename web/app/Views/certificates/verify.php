@@ -16,7 +16,7 @@ use App\Services\Readiness;
                 <dt class="col-5">Certificate</dt><dd class="col-7"><?= e($cert['number']) ?></dd>
                 <dt class="col-5">Kind</dt><dd class="col-7">Certificate of Demonstrated Examination Readiness</dd>
                 <dt class="col-5">Holder</dt><dd class="col-7"><?= e($cert['holder_name']) ?></dd>
-                <dt class="col-5">Preparing for</dt><dd class="col-7"><?= e($cert['exam_title']) ?></dd>
+                <dt class="col-5">Preparing for</dt><dd class="col-7"><?= e(\App\Services\Readiness::examTitle((string) $cert['exam_title'])) ?></dd>
                 <dt class="col-5">Result</dt><dd class="col-7"><?= e(Readiness::fmt((float) $cert['percent'])) ?>% of <?= (int) $cert['questions'] ?> questions</dd>
                 <dt class="col-5">Issued</dt><dd class="col-7"><?= e(gmdate('j F Y', (int) strtotime($cert['issued_at'] . ' UTC'))) ?></dd>
             </dl>

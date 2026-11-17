@@ -8,7 +8,7 @@ echo \App\Core\View::current()->partial('certificates/_page', [
     'art' => $art, 'primary' => $primary, 'logo' => $logo, 'issuer' => $brand,
     'title' => 'Certificate of Demonstrated Readiness', 'name' => (string) $cert['holder_name'],
     'lead' => 'This certificate is proudly presented to',
-    'lines' => [['for meeting the readiness criteria in preparation for', false], [(string) $cert['exam_title'], true],
+    'lines' => [['for meeting the readiness criteria in preparation for', false], [Readiness::examTitle((string) $cert['exam_title']), true],
         [Readiness::fmt((float) $cert['percent']) . '% on a timed assessment of ' . (int) $cert['questions'] . ' questions', false]],
     'awardedBy' => null,
     'details' => [['Issued', gmdate('j F Y', (int) strtotime($cert['issued_at'] . ' UTC'))], ['Score', Readiness::fmt((float) $cert['percent']) . '%'],

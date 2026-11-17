@@ -133,6 +133,22 @@ final class Readiness
     }
 
     /**
+     * The exam a certificate is for, as shown. Certificates issued before 17 November 2026 put
+     * the provider before the exam's name, which doubled it when the name already began with it
+     * ("Cisco Cisco Certified ..."). The record is kept as issued; the repeat is left out here.
+     */
+    public static function examTitle(string $stored): string
+    {
+        $words = preg_split('/\s+/u', trim($stored)) ?: [];
+        for ($n = min(4, intdiv(count($words), 2)); $n >= 1; $n--) {
+            if (mb_strtolower(implode(' ', array_slice($words, 0, $n))) === mb_strtolower(implode(' ', array_slice($words, $n, $n)))) {
+                return implode(' ', array_slice($words, $n));
+            }
+        }
+        return trim($stored);
+    }
+
+    /**
      * Issue the certificate a finished mock earned, once: asking again returns the same one.
      *
      * @param array<string,mixed> $mock @param list<array<string,mixed>> $earlier @param array<string,mixed> $user @param array<string,mixed> $exam

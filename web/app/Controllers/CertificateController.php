@@ -29,8 +29,11 @@ final class CertificateController extends Controller
         $exam = $this->app->db()->one('SELECT e.*, p.name AS provider_name, p.slug AS provider_slug FROM exams e JOIN providers p ON p.id = e.provider_id WHERE e.id = ?',
             [(int) $mock['exam_id']]) ?? throw HttpException::notFound('Exam');
         try {
-            $cert = $this->s->readiness()->issue($mock, $this->s->mocks()->history((int) $user['id'], (int) $mock['exam_id'], 50), $user, $exam,
-                provider_name($exam, 'provider_name', 'provider_slug') . ' ' . Editions::title($exam));
+            // The exam's own name ("Cisco Certified Network Associate (CCNA)"); only an exam known
+            // by its code alone gets the provider in front ("Huawei H12-811").
+            $title = trim((string) ($exam['name'] ?? '')) !== '' ? Editions::title($exam)
+                : provider_name($exam, 'provider_name', 'provider_slug') . ' ' . Editions::title($exam);
+            $cert = $this->s->readiness()->issue($mock, $this->s->mocks()->history((int) $user['id'], (int) $mock['exam_id'], 50), $user, $exam, $title);
             $this->flash('success', 'Your certificate is ready. Anyone can check it at the link printed on it.');
             return $this->redirect('/certificates/' . $cert['uuid']);
         } catch (RuntimeException $e) {

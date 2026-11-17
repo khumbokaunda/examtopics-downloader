@@ -14,7 +14,7 @@ use App\Services\Readiness;
         <p class="mb-1 text-muted">This is to record that</p>
         <h1 class="certificate-name"><?= e($cert['holder_name']) ?></h1>
         <p class="mb-1 text-muted">met the stated readiness criteria in preparation for</p>
-        <h2 class="certificate-exam"><?= e($cert['exam_title']) ?></h2>
+        <h2 class="certificate-exam"><?= e(\App\Services\Readiness::examTitle((string) $cert['exam_title'])) ?></h2>
         <p class="mt-3"><?= e(Readiness::fmt((float) $cert['percent'])) ?>% on a timed assessment of <?= (int) $cert['questions'] ?> questions, <?= e(gmdate('j F Y', (int) strtotime($cert['issued_at'] . ' UTC'))) ?></p>
         <p class="small text-muted mb-1">Certificate <?= e($cert['number']) ?> · Verify at</p>
         <p class="small mono certificate-link"><?= e($verifyUrl) ?></p>
