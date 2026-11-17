@@ -159,7 +159,10 @@ final class ReadinessTest extends HttpTestCase
         $r = $this->post('/mock/' . $uuid . '/certificate');
         $cert = $this->app->db()->one('SELECT * FROM certificates');
         self::assertSame('/certificates/' . $cert['uuid'], $r->headers['Location']);
-        self::assertSame(['Thandi Moyo', 'Huawei', '87.50', 'issued'], [$cert['holder_name'], substr($cert['exam_title'], 0, 6), $cert['percent'], $cert['status']]);
+        // The exam's own name, without the provider in front of it.
+        $exam = (array) $this->app->db()->one('SELECT * FROM exams WHERE id = ?', [$this->exam]);
+        self::assertSame(['Thandi Moyo', \App\Services\Editions::title($exam), '87.50', 'issued'], [$cert['holder_name'], $cert['exam_title'], $cert['percent'], $cert['status']]);
+        self::assertStringStartsNotWith('Huawei', $cert['exam_title']);
         self::assertMatchesRegularExpression('/^EL-\d{4}-000001$/', $cert['number']);
         $this->post('/mock/' . $uuid . '/certificate');
         self::assertSame(1, (int) $this->db('SELECT COUNT(*) FROM certificates'), 'asking again gives the same certificate');

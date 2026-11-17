@@ -20,7 +20,7 @@ use App\Services\Readiness;
             <li class="request-row">
                 <div class="row-main"><span class="icon-bubble" data-tone="<?= $c['status'] === 'issued' ? 'success' : 'danger' ?>"><?= icon('award') ?></span><div class="row-text">
                     <div class="row-title"><a href="<?= e(url('/certificates/' . $c['uuid'])) ?>"><?= e($c['number']) ?></a> · <?= e($c['holder_name']) ?> <?= $c['status'] === 'revoked' ? chip('Revoked', 'danger') : '' ?></div>
-                    <div class="row-meta"><?= e($c['exam_title']) ?> · <?= e(Readiness::fmt((float) $c['percent'])) ?>% · <?= e(fmt_time((string) $c['issued_at'])) ?><?= $c['status'] === 'revoked' ? ' · ' . e((string) $c['revoke_reason']) : '' ?></div>
+                    <div class="row-meta"><?= e(Readiness::examTitle((string) $c['exam_title'])) ?> · <?= e(Readiness::fmt((float) $c['percent'])) ?>% · <?= e(fmt_time((string) $c['issued_at'])) ?><?= $c['status'] === 'revoked' ? ' · ' . e((string) $c['revoke_reason']) : '' ?></div>
                 </div></div>
                 <?php if ($c['status'] === 'issued'): ?>
                 <div class="request-actions"><button class="btn btn-sm btn-outline-danger" type="button" data-toggle-panel="rev-<?= e($c['uuid']) ?>"><?= icon('x-octagon') ?>Revoke</button></div>
