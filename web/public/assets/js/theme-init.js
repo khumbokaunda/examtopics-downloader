@@ -1,7 +1,8 @@
 // Runs in <head> before first paint (an external file because the CSP allows no inline
 // script). Signed in, the server renders the saved preferences on <html>; this resolves a
 // "system" theme and mirrors the preferences locally so the sign-in page matches. Signed out,
-// it applies that local copy.
+// it applies that local copy. A theme chosen while signed out is carried into the account when
+// the person signs in, unless they chose another one there more recently.
 (function () {
   'use strict';
   var root = document.documentElement;
@@ -19,6 +20,7 @@
   var prefs = null;
   try {
     if (root.getAttribute('data-prefs') === 'server') {
+      var local = JSON.parse(localStorage.getItem(KEY) || 'null') || {};
       prefs = {
         theme: root.getAttribute('data-theme-choice'),
         accent: root.getAttribute('data-accent'),
@@ -26,6 +28,24 @@
         surface: root.getAttribute('data-surface'),
         motion: root.getAttribute('data-motion') === 'reduced' ? 'reduced' : 'system'
       };
+      // The latest theme choice wins, wherever it was made. A choice made while signed out is
+      // "pending" in this browser until the account has it. It wins (and the page's script saves
+      // it to the account) unless the account's choice changed since this browser last saw it,
+      // which means a later choice was made somewhere else.
+      var at = root.getAttribute('data-theme-at');
+      if (at !== null) {
+        var serverAt = parseInt(at, 10) || 0;
+        var seen = typeof local.seenAt === 'number' ? local.seenAt : null;
+        var pendingWins = local.pending === true && ok('theme', local.theme) && local.theme !== prefs.theme
+          && (seen !== null ? serverAt <= seen : (local.themeAt || 0) >= serverAt * 1000);
+        if (pendingWins) {
+          prefs.theme = local.theme;
+          root.setAttribute('data-theme-sync', local.theme);
+        }
+        prefs.seenAt = serverAt;
+        prefs.pending = pendingWins;
+        prefs.themeAt = pendingWins ? local.themeAt : serverAt * 1000;
+      }
       localStorage.setItem(KEY, JSON.stringify(prefs));
     } else {
       prefs = JSON.parse(localStorage.getItem(KEY) || 'null');

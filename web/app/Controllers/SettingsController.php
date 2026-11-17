@@ -111,7 +111,9 @@ final class SettingsController extends Controller
             }
         }
         $prefs = Appearance::merge(Appearance::forUser($user, $this->s->branding()->get()), $input);
-        $this->s->users()->setPreferences((int) $user['id'], $prefs);
+        // When the theme was chosen, so a later choice made while signed out can be told apart.
+        $chosen = in_array($input['theme'] ?? null, Appearance::OPTIONS['theme'], true);
+        $this->s->users()->setPreferences((int) $user['id'], $prefs + ($chosen ? ['theme_at' => time()] : []));
         return $prefs;
     }
 
