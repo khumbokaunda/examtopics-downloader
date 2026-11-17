@@ -74,6 +74,18 @@ final class Appearance
         return $base;
     }
 
+    /**
+     * When the person last chose their theme (a Unix time, 0 if never). The browser compares it
+     * with a choice made while signed out, so the latest choice wins wherever it was made.
+     *
+     * @param array<string,mixed>|null $user
+     */
+    public static function themeAt(?array $user): int
+    {
+        $stored = json_decode((string) ($user['preferences'] ?? ''), true);
+        return is_array($stored) && is_numeric($stored['theme_at'] ?? null) ? (int) $stored['theme_at'] : 0;
+    }
+
     /** The theme painted before any script runs: a stored "system" is resolved in the browser. */
     public static function initialTheme(array $prefs): string
     {

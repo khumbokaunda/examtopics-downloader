@@ -90,8 +90,11 @@
     // Flip what is on screen, whatever the stored choice ("system" resolving to dark goes light).
     var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
     applyTheme(next);
-    mirror('theme', next);
     var url = btn.getAttribute('data-save-url');
+    mirror('theme', next);
+    mirror('themeAt', Date.now());
+    // Signed out, the choice waits in this browser and is carried into the account at sign-in.
+    mirror('pending', !url);
     if (url) {
       // keepalive: the save still completes if the user navigates away straight after.
       fetch(url, {
@@ -108,6 +111,18 @@
       });
     }
   });
+
+  // A theme chosen while signed out, newer than the account's: save it to the account now
+  // (theme-init.js has already painted the page with it).
+  var syncTheme = root.getAttribute('data-theme-sync');
+  var themeSaveUrl = (document.querySelector('[data-action="theme-toggle"][data-save-url]') || { getAttribute: function () { return null; } }).getAttribute('data-save-url');
+  if (syncTheme && themeSaveUrl) {
+    fetch(themeSaveUrl, {
+      method: 'POST', credentials: 'same-origin', keepalive: true,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrf, Accept: 'application/json' },
+      body: new URLSearchParams({ theme: syncTheme })
+    }).then(function (r) { if (r.ok) mirror('pending', false); }).catch(function () { /* tried again on the next page */ });
+  }
 
   // Live preview on the appearance form; saving is a normal form submit.
   var appearanceForm = document.querySelector('form[data-appearance]');

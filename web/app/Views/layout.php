@@ -68,6 +68,7 @@ $flashIcons = ['success' => 'check-circle', 'info' => 'info-circle', 'warning' =
       data-prefs="server"
       data-theme="<?= e(Appearance::initialTheme($prefs)) ?>"
       data-theme-choice="<?= e($prefs['theme']) ?>"
+      data-theme-at="<?= Appearance::themeAt($user) ?>"
       data-accent="<?= e($accent) ?>"
       data-density="<?= e($prefs['density']) ?>"
       data-surface="<?= e($prefs['surface']) ?>"<?= $prefs['motion'] === 'reduced' ? ' data-motion="reduced"' : '' ?><?php else: ?>

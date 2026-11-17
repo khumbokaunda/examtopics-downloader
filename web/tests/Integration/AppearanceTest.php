@@ -106,4 +106,20 @@ final class AppearanceTest extends HttpTestCase
         $this->login('second', 'another long password');
         self::assertStringContainsString('data-theme-choice="system"', $this->html());
     }
+
+    public function testThePageSaysWhenTheThemeWasChosenSoTheLatestChoiceWins(): void
+    {
+        self::assertStringContainsString('data-theme-at="0"', $this->html(), 'never chosen');
+        $before = time();
+        $this->post('/api/appearance', ['theme' => 'dark']);
+        preg_match('#data-theme-at="(\d+)"#', $this->html(), $m);
+        self::assertGreaterThanOrEqual($before, (int) $m[1]);
+        // Saving something else keeps the time the theme was chosen.
+        $this->app->db()->run("UPDATE users SET preferences = JSON_SET(preferences, '$.theme_at', 1000) WHERE username = 'admin'");
+        $this->post('/api/appearance', ['density' => 'compact']);
+        self::assertStringContainsString('data-theme-at="1000"', $this->html());
+        // The script that carries a signed-out choice into the account is on every page.
+        self::assertStringContainsString('/assets/js/theme-init.js', $this->get('/')->body);
+        self::assertStringContainsString("data-theme-sync", (string) file_get_contents(dirname(__DIR__, 2) . '/public/assets/js/theme-init.js'));
+    }
 }
