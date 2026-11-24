@@ -28,8 +28,29 @@ abstract class Controller
     /** The public address of a certificate or credential's verification page, from its token. */
     protected function verifyUrl(string $token): string
     {
-        $path = '/verify/' . $token;
-        return $this->s->mailer()->link($path) ?? View::buildUrl((string) $this->app->config()->get('base_path', ''), $path);
+        return $this->absoluteUrl('/verify/' . $token);
+    }
+
+    /**
+     * A full address for something printed or sent (a certificate's check link, its QR code):
+     * the site address from Settings > Email (or the config's app_url), else the address this
+     * request came in on. A path alone would leave a QR code that opens nothing.
+     */
+    protected function absoluteUrl(string $path): string
+    {
+        $configured = $this->s->mailer()->link($path);
+        if ($configured !== null) {
+            return $configured;
+        }
+        $relative = View::buildUrl((string) $this->app->config()->get('base_path', ''), $path);
+        $host = (string) ($this->request->server['HTTP_HOST'] ?? '');
+        if (preg_match('/^[A-Za-z0-9.-]+(:\d{1,5})?$/', $host) !== 1) {
+            return $relative;
+        }
+        // Behind a proxy that took HTTPS (Cloudflare, a load balancer) the request arrives as plain HTTP.
+        $https = $this->request->isHttps() || strtolower((string) $this->request->header('X-Forwarded-Proto')) === 'https'
+            || str_contains((string) $this->request->header('CF-Visitor'), '"https"');
+        return ($https ? 'https://' : 'http://') . strtolower($host) . $relative;
     }
 
     /** The signed-in person's timezone: theirs if they chose one, else the system's. */

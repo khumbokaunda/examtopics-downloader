@@ -168,6 +168,14 @@ final class ReadinessTest extends HttpTestCase
         self::assertSame(1, (int) $this->db('SELECT COUNT(*) FROM certificates'), 'asking again gives the same certificate');
         $shown = $this->get('/certificates/' . $cert['uuid']);
         self::assertStringContainsString('not a professional certification', $shown->body);
+        // With no site address set, the check link (and its QR code) is still a full address:
+        // the one this request came in on, HTTPS when a proxy says so. A bad host is not used.
+        $at = fn(array $server) => $this->kernel()->handle(new \App\Core\Http\Request('GET', '/certificates/' . $cert['uuid'], [], [],
+            ['REMOTE_ADDR' => '127.0.0.1'] + $server))->body;
+        self::assertStringContainsString('https://examlib.example.org/verify/' . $cert['token'],
+            $at(['HTTP_HOST' => 'ExamLib.example.org', 'HTTP_X_FORWARDED_PROTO' => 'https']));
+        self::assertStringContainsString('http://localhost:8099/verify/' . $cert['token'], $at(['HTTP_HOST' => 'localhost:8099']));
+        self::assertStringNotContainsString('evil', $at(['HTTP_HOST' => 'evil.example/"><script>']));
         self::assertStringContainsString('drawn at random', $shown->body, 'the criteria say how the questions were chosen');
         $pdf = $this->get('/certificates/' . $cert['uuid'] . '/pdf')->body;
         self::assertStringStartsWith('%PDF', $pdf);
