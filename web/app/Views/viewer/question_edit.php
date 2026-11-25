@@ -5,7 +5,7 @@
  *
  * @var array $item a question with its corrections applied @var string $base @var array $version
  * @var int $page @var string $q @var bool $review @var bool $reported @var array<string,string> $localImages
- * @var bool $pictures the reader shows questions whose picture looks missing: the editor opens
+ * @var bool $missingFilter the reader shows questions whose picture looks missing: the editor opens
  */
 use App\Controllers\QuestionController;
 use App\Services\Documents\QuestionView;
@@ -28,7 +28,7 @@ $accept = implode(',', array_keys(MediaStore::TYPES));
 $pictures = ['question' => ['Question pictures', (array) ($item['question_images'] ?? [])], 'answer' => ['Answer pictures', (array) ($item['answer_images'] ?? [])]];
 ?>
 <?php $missing = QuestionView::pictureMayBeMissing($item); ?>
-<details class="answer-edit question-edit"<?= !empty($pictures) && $missing ? ' open' : '' ?>>
+<details class="answer-edit question-edit"<?= !empty($missingFilter) && $missing ? ' open' : '' ?>>
     <summary><?= icon('pencil') ?><?= $edited !== null ? 'Change your edit of this question' : 'Edit this question' ?></summary>
     <div class="answer-edit-body">
         <form method="post" action="<?= e(url($base . '/questions')) ?>" enctype="multipart/form-data" data-once data-busy="Saving…">
@@ -64,15 +64,17 @@ $pictures = ['question' => ['Question pictures', (array) ($item['question_images
                             <?php endforeach; ?>
                         </div>
                     <?php endif; ?>
-                    <label class="form-label small text-muted mb-1" for="qimg-<?= $prefix ?>-<?= $n ?>">Add a picture <span class="fw-normal">(PNG, JPEG, GIF or WebP)</span></label>
-                    <input class="form-control form-control-sm" type="file" id="qimg-<?= $prefix ?>-<?= $n ?>" name="<?= $prefix ?>_image" accept="<?= e($accept) ?>">
+                    <div class="picture-zone" data-picture-zone>
+                        <label class="form-label small text-muted mb-1" for="qimg-<?= $prefix ?>-<?= $n ?>">Add a picture <span class="fw-normal">(PNG, JPEG, GIF or WebP; choose, drop or paste one)</span></label>
+                        <input class="form-control form-control-sm" type="file" id="qimg-<?= $prefix ?>-<?= $n ?>" name="<?= $prefix ?>_image" accept="<?= e($accept) ?>">
+                    </div>
                     <?php if ($prefix === 'question'): ?>
                         <?php $standIns = QuestionView::standIns($item); $rows = max(1, count($standIns)); ?>
                         <div class="place-pictures mt-3" data-place-pictures>
                             <div class="form-label small mb-1">Pictures in place of words</div>
                             <?php if ($missing): ?><div class="form-text text-warning-emphasis mt-0 mb-2"><?= icon('image') ?> This question points at a picture it does not have<?= $standIns !== [] ? ': the words below look like they stand in for ' . (count($standIns) === 1 ? 'it' : 'them') : '' ?>.</div><?php endif; ?>
                             <?php for ($k = 1; $k <= QuestionController::MAX_PLACES; $k++): $spare = $k > $rows; ?>
-                                <div class="place-row<?= $spare ? ' is-spare' : '' ?>">
+                                <div class="place-row<?= $spare ? ' is-spare' : '' ?>" data-picture-zone data-paste-order="<?= $k ?>">
                                     <div class="input-group input-group-sm">
                                         <input class="form-control" type="text" id="qplace-<?= $n ?>-<?= $k ?>" name="place_text_<?= $k ?>" maxlength="500" value="<?= e($standIns[$k - 1] ?? '') ?>" placeholder="Words the picture replaces, such as sampleXML/xmlfile" aria-label="Words picture <?= $k ?> replaces" autocomplete="off">
                                         <button class="btn btn-outline-secondary" type="button" data-use-selection="qtext-<?= $n ?>" data-into="qplace-<?= $n ?>-<?= $k ?>" title="Select the words in the question first"><?= icon('cursor-text') ?>Use selected text</button>
@@ -81,7 +83,7 @@ $pictures = ['question' => ['Question pictures', (array) ($item['question_images
                                 </div>
                             <?php endfor; ?>
                             <button class="btn btn-sm btn-link px-0" type="button" data-action="place-another" hidden><?= icon('plus-lg') ?>Another picture</button>
-                            <div class="form-text">One row per picture: the words the question shows instead of it, and the picture. Each picture goes where its words are, whatever the file is called. A picture with no words goes after the text.</div>
+                            <div class="form-text">One row per picture: the words the question shows instead of it, and the picture. Each picture goes where its words are, whatever the file is called. A picture with no words goes after the text. Drop a picture on a row, or paste one (Ctrl+V): it goes to the row you are in, or the first row without a picture.</div>
                         </div>
                     <?php endif; ?>
                 </fieldset>

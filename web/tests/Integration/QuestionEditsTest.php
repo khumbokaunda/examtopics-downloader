@@ -192,6 +192,7 @@ final class QuestionEditsTest extends HttpTestCase
         self::assertMatchesRegularExpression('#Pictures missing \(\d+\)#', $page);
         self::assertStringContainsString('name="place_text_1" maxlength="500" value="sampleXML/xmlfile"', $page, 'the words are offered');
         self::assertStringContainsString('name="place_image_' . QuestionController::MAX_PLACES . '"', $page);
+        self::assertStringNotContainsString('<details class="answer-edit question-edit" open>', $page, 'closed, outside the list of missing pictures');
         $listed = $this->get(self::BASE . '/view', ['version' => $this->version['version'], 'pictures' => '1'])->body;
         self::assertStringContainsString('with a picture that looks missing', $listed);
         self::assertStringContainsString('id="question-1"', $listed);
