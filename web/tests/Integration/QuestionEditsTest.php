@@ -117,7 +117,7 @@ final class QuestionEditsTest extends HttpTestCase
         // An empty question, an empty choice or a file that is not a picture: nothing is saved.
         $this->save('1-1', ['text' => '   ', 'choice_A' => 'OSPFv3']);
         $flash = $this->flashes()[0];
-        self::assertSame('warning', $flash['type']);
+        self::assertSame('danger', $flash['type'], 'a refusal, so the form keeps what was typed');
         self::assertStringContainsString('nothing was saved. The question cannot be left empty', $flash['message']);
         $this->save('1-1', ['choice_C' => '']);
         self::assertStringContainsString('Choice C cannot be left empty.', $this->flashes()[0]['message']);
@@ -179,12 +179,92 @@ final class QuestionEditsTest extends HttpTestCase
         self::assertArrayHasKey('uploads', \App\Services\Backup::AREAS);
     }
 
+    /**
+     * Some collected questions show words where their picture was ("sampleXML/xmlfile"). Each
+     * picture is uploaded beside its words, so a file's name never has to match them, and the
+     * reader lists questions whose picture looks missing so they can be found.
+     */
+    public function testAPictureTakesThePlaceOfTheWordsStandingInForIt(): void
+    {
+        $this->save('1-1', ['text' => "Refer to the exhibit.\n\nsampleXML/xmlfile\n\nWhich protocol is shown?"]);
+        $page = $this->reader();
+        self::assertStringContainsString('picture missing?', $page);
+        self::assertMatchesRegularExpression('#Pictures missing \(\d+\)#', $page);
+        self::assertStringContainsString('name="place_text_1" maxlength="500" value="sampleXML/xmlfile"', $page, 'the words are offered');
+        self::assertStringContainsString('name="place_image_' . QuestionController::MAX_PLACES . '"', $page);
+        $listed = $this->get(self::BASE . '/view', ['version' => $this->version['version'], 'pictures' => '1'])->body;
+        self::assertStringContainsString('with a picture that looks missing', $listed);
+        self::assertStringContainsString('id="question-1"', $listed);
+        self::assertStringContainsString('<details class="answer-edit question-edit" open>', $listed, 'the editor is open, ready for the picture');
+        self::assertStringContainsString('<input type="hidden" name="pictures" value="1">', $listed, 'and saving comes back to the same list');
+
+        // Words that are not in the question: nothing is saved. Words with no picture (offered
+        // by the editor) never stop the rest of an edit.
+        $file = $this->png(7);
+        $this->postFiles(self::BASE . '/questions', ['key' => '1-1', 'version' => $this->version['version'], 'place_text_1' => 'not there'],
+            ['place_image_1' => self::upload($file, 'whatever-it-is-called.png')]);
+        $flash = $this->flashes()[0];
+        self::assertSame('danger', $flash['type']);
+        self::assertStringContainsString('"not there" is not in the question\'s wording', $flash['message']);
+        $this->save('1-1', ['place_text_1' => 'sampleXML/xmlfile', 'choice_A' => 'OSPFv3']);
+        self::assertSame('success', $this->flashes()[0]['type']);
+        self::assertNull($this->s->questionEdits()->forExam((int) $this->version['exam_id'])['1-1']['question_images']);
+
+        // The picture goes where the words were, and the words go. Copied from the page, the
+        // words may differ in case and spacing; the file's own name plays no part.
+        $r = $this->postFiles(self::BASE . '/questions', ['key' => '1-1', 'version' => $this->version['version'], 'pictures' => '1',
+            'place_text_1' => 'samplexml/XMLFILE'], ['place_image_1' => self::upload($file, 'IMG_0042.png')]);
+        self::assertStringContainsString('pictures=1', $r->headers['Location']);
+        self::assertSame('Question 1: the wording, a picture added. Documents made before this can be rebuilt on the exam page.', $this->flashes()[0]['message']);
+        $edit = $this->s->questionEdits()->forExam((int) $this->version['exam_id'])['1-1'];
+        self::assertSame("Refer to the exhibit.\n\n//IMG//\n\nWhich protocol is shown?", $edit['text']);
+        self::assertSame(['upload:' . hash_file('sha256', $file)], $edit['question_images']);
+        $page = $this->reader();
+        self::assertMatchesRegularExpression('#Refer to the exhibit\.</p></div>\s*<img class="q-image" src="/media/' . hash_file('sha256', $file) . '"[^>]*>\s*<div class="q-text"><p>Which protocol is shown\?#', $page);
+        self::assertStringNotContainsString('sampleXML/xmlfile</', $page);
+    }
+
+    /** Several pictures in one save, each beside its words, in whatever order the rows are filled. */
+    public function testSeveralPicturesEachTakeTheirOwnWordsPlace(): void
+    {
+        $data = $this->s->cache()->load($this->version);
+        $two = null;
+        foreach ($data['questions'] as $item) {
+            if (\App\Services\Documents\QuestionView::key($item) === '1-2') {
+                $two = \App\Services\Documents\QuestionView::normalize($item);
+            }
+        }
+        self::assertNotNull($two);
+        $collected = \App\Services\Documents\QuestionView::questionImages($two);
+        self::assertNotEmpty($collected);
+        $text = "Router A:\n\nsample/routerA\n\nRouter B:\n\nexhibit-b.png\n\n" . \App\Services\Documents\QuestionView::editorText($two);
+        $this->save('1-2', ['text' => $text]);
+        self::assertStringContainsString('value="sample/routerA"', $this->reader());
+        self::assertStringContainsString('value="exhibit-b.png"', $this->reader());
+
+        // Filled in the other order, with files named nothing like the words.
+        $a = $this->png(11);
+        $b = $this->png(12);
+        $this->postFiles(self::BASE . '/questions', ['key' => '1-2', 'version' => $this->version['version'],
+            'place_text_1' => 'exhibit-b.png', 'place_text_2' => 'sample/routerA'],
+            ['place_image_1' => self::upload($b, 'scan2.png'), 'place_image_2' => self::upload($a, 'scan1.png')]);
+        self::assertSame('Question 2: the wording, 2 pictures added. Documents made before this can be rebuilt on the exam page.', $this->flashes()[0]['message']);
+        $edit = $this->s->questionEdits()->forExam((int) $this->version['exam_id'])['1-2'];
+        self::assertSame(array_merge(['upload:' . hash_file('sha256', $a), 'upload:' . hash_file('sha256', $b)], $collected), $edit['question_images']);
+        self::assertStringStartsWith("Router A:\n\n//IMG//\n\nRouter B:\n\n//IMG//\n\n", (string) $edit['text']);
+        $page = $this->reader();
+        self::assertLessThan(strpos($page, '/media/' . hash_file('sha256', $b)), strpos($page, '/media/' . hash_file('sha256', $a)));
+        self::assertStringNotContainsString('value="exhibit-b.png"', $page, 'no words left standing in');
+    }
+
     public function testOnlyPeopleWhoMayCorrectAnswersCanEditQuestions(): void
     {
         $this->s->users()->create('member', 'member password long', Access::MEMBER);
         $this->newSession();
         $this->login('member', 'member password long');
         self::assertStringNotContainsString('Edit this question', $this->reader());
+        self::assertStringNotContainsString('picture missing?', $this->reader());
+        self::assertStringNotContainsString('Pictures missing', $this->reader());
         self::assertSame(403, $this->save('1-1', ['text' => 'Changed'])->status);
         self::assertSame(403, $this->get('/integrity')->status);
         self::assertSame(0, (int) $this->app->db()->value('SELECT COUNT(*) FROM question_edits'));

@@ -790,6 +790,48 @@
     });
   });
 
+  // --- A picture in place of the words that stand in for it ---------------------------------
+  // "Use selected text" copies what is selected in the question's text box (or in the question
+  // as shown on the page) into the "In place of this text" box.
+  document.addEventListener('mousedown', function (e) {
+    // Pressing the button clears the page's selection before its click: keep what it was.
+    if (e.target.closest && e.target.closest('[data-use-selection]')) e.preventDefault();
+  });
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest ? e.target.closest('[data-use-selection]') : null;
+    if (!btn) return;
+    var area = document.getElementById(btn.getAttribute('data-use-selection'));
+    var into = document.getElementById(btn.getAttribute('data-into'));
+    if (!area || !into) return;
+    var picked = area.value.slice(area.selectionStart, area.selectionEnd).trim();
+    if (picked === '') {
+      picked = window.getSelection ? String(window.getSelection()).trim() : '';
+    }
+    if (picked === '') {
+      into.placeholder = 'Select the words in the question first';
+      area.focus();
+      return;
+    }
+    into.value = picked.replace(/\s+/g, ' ').slice(0, 500);
+    into.focus();
+  });
+
+  // One row per picture; spare rows appear one at a time with "Another picture".
+  onEach('[data-place-pictures]', function (box) {
+    var more = box.querySelector('[data-action="place-another"]');
+    if (!more) return;
+    var spare = function () { return box.querySelector('.place-row.is-spare'); };
+    more.hidden = !spare();
+    more.addEventListener('click', function () {
+      var row = spare();
+      if (!row) return;
+      row.classList.remove('is-spare');
+      var words = row.querySelector('input[type="text"]');
+      if (words) words.focus();
+      more.hidden = !spare();
+    });
+  });
+
   // --- Question editor: only the fields for the chosen kind of question ---------------------
   // Without JavaScript every field shows and the server reads the ones the kind uses.
   onEach('[data-question-form]', function (form) {

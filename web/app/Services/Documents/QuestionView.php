@@ -472,6 +472,88 @@ final class QuestionView
     /** A line on its own in the editor's text that stands for a picture's place. */
     public const PICTURE_LINE = '[picture]';
 
+    /** Wording that points at a picture: an exhibit, "the diagram below", "the following output". */
+    private const POINTS_AT_PICTURE = '/\b(exhibit|(refer to|see|look at|study|review) the (diagram|figure|graphic|image|picture|topology|output|screenshot|screen ?shot|network)'
+        . '|(shown|displayed|depicted|illustrated|configured as shown) (below|above|in the (diagram|figure|graphic|image|picture|exhibit|screenshot|topology))'
+        . '|(following|below|above|this) (diagram|figure|graphic|image|picture|topology|screenshot|screen ?shot|exhibit|network diagram)'
+        . '|(answer|hot) area)\b/i';
+
+    /**
+     * Does the question look as if its picture is missing? Its wording points at one (an
+     * exhibit, "the diagram below", a hot area) but it has none, or a picture of its wording
+     * has gone. A hint for the people who correct questions, never shown to readers.
+     *
+     * @param array<string,mixed> $q a normalized question, with its edits applied
+     */
+    public static function pictureMayBeMissing(array $q): bool
+    {
+        $text = (string) ($q['text'] ?? '');
+        $images = self::questionImages($q);
+        // More picture marks in the wording than pictures, or words standing in for one.
+        if (substr_count($text, self::IMG_MARK) > count($images) || self::standIns($q) !== []) {
+            return true;
+        }
+        return $images === [] && preg_match(self::POINTS_AT_PICTURE, str_replace(self::IMG_MARK, ' ', $text)) === 1;
+    }
+
+    /**
+     * Lines of the wording that look like the words a collected page left where a picture was:
+     * one word with a slash ("sampleXML/xmlfile") or a picture's file name ("exhibit1.png"),
+     * alone on its line. Offered to the person who uploads the pictures, who can change them.
+     *
+     * @param array<string,mixed> $q a normalized question
+     * @return list<string>
+     */
+    public static function standIns(array $q): array
+    {
+        $out = [];
+        foreach (preg_split('/\R/', str_replace(self::IMG_MARK, "\n", (string) ($q['text'] ?? ''))) ?: [] as $line) {
+            $line = trim($line);
+            if (mb_strlen($line) > 80 || preg_match('#^(https?:|www\.)#i', $line) === 1) {
+                continue;
+            }
+            if (preg_match('#^[\w.-]+(/[\w.-]+)+$#u', $line) === 1 || preg_match('#^[\w.-]+\.(png|jpe?g|gif|bmp|webp|svg)$#iu', $line) === 1) {
+                $out[$line] = true;
+            }
+        }
+        return array_keys($out);
+    }
+
+    /**
+     * The editor's text with a picture line in place of the first time $standIn appears (any
+     * case), and which of the question's pictures that line is (the pictures follow their lines
+     * in order). Null when the words are not in the text.
+     *
+     * @return array{text:string,index:int}|null
+     */
+    public static function placePicture(string $editorText, string $standIn): ?array
+    {
+        $standIn = trim($standIn);
+        if ($standIn === '') {
+            return null;
+        }
+        $at = mb_stripos($editorText, $standIn);
+        if ($at === false) {
+            // Copied from the page, the words can differ from the editor's text in spacing only.
+            $pattern = '/' . implode('\s+', array_map(static fn(string $w) => preg_quote($w, '/'), preg_split('/\s+/', $standIn) ?: [])) . '/iu';
+            if (preg_match($pattern, $editorText, $m, PREG_OFFSET_CAPTURE) !== 1) {
+                return null;
+            }
+            $before = substr($editorText, 0, $m[0][1]);
+            $after = substr($editorText, $m[0][1] + strlen($m[0][0]));
+        } else {
+            $before = mb_substr($editorText, 0, $at);
+            $after = mb_substr($editorText, $at + mb_strlen($standIn));
+        }
+        $index = 0;
+        foreach (preg_split('/\R/', $before) ?: [] as $line) {
+            if (strcasecmp(trim($line), self::PICTURE_LINE) === 0) {
+                $index++;
+            }
+        }
+        return ['text' => rtrim($before) . "\n\n" . self::PICTURE_LINE . "\n\n" . ltrim($after), 'index' => $index];
+    }
+
     /**
      * The question's wording for the editor: the text with a "[picture]" line where each of
      * its pictures sits, so correcting the wording keeps the pictures in place.

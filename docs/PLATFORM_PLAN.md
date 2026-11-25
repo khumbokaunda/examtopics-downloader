@@ -1277,3 +1277,28 @@ drawn again, the scroll position lost. Ported from the same work on the SIMS pro
   still turns, slowly, because it is the only sign the press was taken.
 - `tests/Unit/InPlacePagesTest.php` holds what loads where, what forces a full load, that set-up
   runs again on content put in place, and that the movement stays short.
+
+## Missing pictures, uploaded where they belong (25 November 2026)
+
+Some collected questions show words where their picture was (for example `sampleXML/xmlfile`).
+Pictures could already be uploaded in **Edit this question**, but a new one went after the text,
+and putting it in the right place meant editing `[picture]` lines by hand.
+
+- **Pictures in place of words**, in the editor: one row per picture, each the words that stand
+  in for it and the picture itself. The pairing is the person's, row by row, so a file's name
+  never has to match the words, and several pictures go in one save (**Another picture** adds a
+  row, up to 8). Lines that look like stand-ins (one word with a slash, such as
+  `sampleXML/xmlfile`, or a picture's file name, alone on a line) are offered already filled in;
+  **Use selected text** copies words selected in the question. On save each set of words becomes
+  a picture line and its picture takes that place, in the order the lines fall in the question,
+  whatever order the rows were filled in. Case and spacing need not match exactly. Words that are
+  not in the question save nothing and say why beside the form (the refusal is now a red message,
+  so the in-place form keeps what was typed). Words with no picture chosen are left alone, so the
+  offered words never stop another edit being saved. A picture with no words goes after the text.
+- **Pictures missing (N)** above the questions, for people who correct questions: the questions
+  whose wording points at a picture (an exhibit, "refer to the diagram", "the following output",
+  a hot area) but that have none, that have more picture marks than pictures, or that still show
+  words that look like a stand-in. Each opens with
+  its editor ready, carries a "picture missing?" mark in the reader, and saving returns to the same
+  list, so the list shrinks as pictures are added. A hint only; readers never see it.
+- `QuestionView::placePicture()`, `standIns()` and `pictureMayBeMissing()`; tested in `QuestionEditsTest`.
