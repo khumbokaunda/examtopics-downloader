@@ -12,16 +12,26 @@
 @keyframes grow-up { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 @keyframes sheen { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
 
-/* --- Pages arrive: the content eases in, a little after one another ------------------------- */
-/* "backwards" so nothing keeps a transform once it has arrived (a transform would trap fixed
-   dialogs inside the page). */
-#page-body > * { animation: rise-in .42s var(--ease-out) backwards; }
-#page-body > *:nth-child(2) { animation-delay: 40ms; }
-#page-body > *:nth-child(3) { animation-delay: 80ms; }
-#page-body > *:nth-child(4) { animation-delay: 120ms; }
-#page-body > *:nth-child(5) { animation-delay: 160ms; }
-#page-body > *:nth-child(n+6) { animation-delay: 200ms; }
+/* --- Pages arrive ------------------------------------------------------------------------------ */
+/* Short, and never from nothing: the content is readable from the first frame and only settles
+   into place. Starting from transparent with a long stagger made a page that arrived in 50 ms
+   look as if it took half a second. "backwards" so nothing keeps a transform once it has
+   arrived (a transform would trap fixed dialogs inside the page). */
+#page-body > *:not(script):not(style) { animation: settle-in var(--dur-md) var(--ease-out) backwards; }
+#page-body > *:nth-child(2) { animation-delay: 20ms; }
+#page-body > *:nth-child(n+3) { animation-delay: 40ms; }
+@keyframes settle-in { from { opacity: .5; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+/* Rows of a table settle in, again after a sort or a new page of a table; all at once, so the
+   last row is not late. */
+.table > tbody > tr { animation: row-in var(--dur-sm) var(--ease-out) backwards; }
+@keyframes row-in { from { opacity: .4; } to { opacity: 1; } }
 .flash-stack .alert { animation: pop-in .32s var(--ease-out) backwards; }
+
+/* Headline figures count up from 0 (motion.js). Until it has seen one, it is hidden, so it does
+   not show its value, drop to 0 and count up again; theme-init.js sets count-wait only when
+   motion is on, and takes it off after 3 seconds whatever happens. */
+html.count-wait .kpi-value:not([data-counted]),
+html.count-wait [data-count-up]:not([data-counted]) { visibility: hidden; }
 .palette:not([hidden]) .palette-panel { animation: pop-in .2s var(--ease-out) backwards; }
 .palette:not([hidden]) .palette-backdrop { animation: fade-in .2s var(--ease-out) backwards; }
 
@@ -29,8 +39,8 @@
 .btn { transition: background-color var(--dur-sm) var(--ease-out), border-color var(--dur-sm) var(--ease-out), color var(--dur-sm) var(--ease-out),
   box-shadow var(--dur-sm) var(--ease-out), transform var(--dur-xs) var(--ease-out); }
 .btn:active:not(:disabled):not(.disabled) { transform: scale(.97); }
-.kpi { transition: transform var(--dur-md) var(--ease-out), box-shadow var(--dur-md) var(--ease-out); }
-.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+.kpi, a.card, .card.is-link { transition: transform var(--dur-md) var(--ease-out), box-shadow var(--dur-md) var(--ease-out), border-color var(--dur-sm) var(--ease-out); }
+.kpi:hover, a.card:hover, .card.is-link:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
 .form-control, .form-select { transition: border-color var(--dur-sm) var(--ease-out), box-shadow var(--dur-sm) var(--ease-out), background-color var(--dur-sm) var(--ease-out); }
 img { transition: opacity var(--dur-lg) var(--ease-out); }
 img.is-loading { opacity: 0; }
@@ -60,6 +70,74 @@ img.is-loading { opacity: 0; }
 .nav-skeleton-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-4); margin: var(--space-5) 0; }
 .nav-skeleton-card { border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); padding: var(--space-5); }
 @media (max-width: 720px) { .nav-skeleton-row { grid-template-columns: repeat(2, 1fr); } }
+
+/* --- Pages put in place (swap.js, skeleton.js) ------------------------------------------------ */
+/* An outline shaped like the coming page stands in for the content while it loads. A learnt
+   outline keeps the page's own layout classes, so cards, rows and tables sit where they will;
+   only words and fields are drawn as grey shapes. */
+.app-content.is-loading > :not(.live-skeleton) { display: none; }
+.live-skeleton { animation: fade-in var(--dur-md) var(--ease-out) backwards; }
+.live-skeleton .sk-t { display: inline-block; height: .8em; vertical-align: middle; border-radius: 4px; max-width: 100%; }
+.live-skeleton .sk-h1 { height: 1.4em; }
+.live-skeleton .sk-w1 { width: 2ch; }  .live-skeleton .sk-w2 { width: 5ch; }  .live-skeleton .sk-w3 { width: 8ch; }
+.live-skeleton .sk-w4 { width: 11ch; } .live-skeleton .sk-w5 { width: 14ch; } .live-skeleton .sk-w6 { width: 17ch; }
+.live-skeleton .sk-w7 { width: 20ch; } .live-skeleton .sk-w8 { width: 24ch; } .live-skeleton .sk-w9 { width: 28ch; }
+.live-skeleton .sk-w10 { width: 32ch; } .live-skeleton .sk-w11 { width: 36ch; } .live-skeleton .sk-w12 { width: 40ch; }
+.live-skeleton .sk-field { display: block; height: 38px; width: 100%; border-radius: var(--radius-sm); margin-top: 4px; }
+.live-skeleton .sk-area { height: 76px; }
+.live-skeleton .sk-check { display: inline-block; width: 16px; height: 16px; border-radius: 4px; vertical-align: middle; }
+.live-skeleton .sk-btn { display: inline-block; height: 34px; min-width: 70px; border-radius: var(--radius-md); vertical-align: middle; }
+.live-skeleton .sk-tab { display: inline-block; height: 1em; min-width: 50px; margin: .6em .5em; border-radius: 4px; }
+.live-skeleton .sk-pill { display: inline-block; height: 1.1em; min-width: 36px; border-radius: 999px; vertical-align: middle; }
+.live-skeleton .sk-icon { display: inline-block; width: 36px; height: 36px; border-radius: var(--radius-md); flex-shrink: 0; }
+.live-skeleton .sk-media { display: block; width: 100%; min-height: 48px; border-radius: var(--radius-md); }
+.live-skeleton .sk-chart { height: 200px; margin-top: var(--space-3); }
+.live-skeleton .table > tbody > tr { animation: none; }
+
+/* A button whose request is out. */
+.btn.is-busy { cursor: progress; opacity: .85; }
+.btn-spin { margin-right: .45em; vertical-align: -.15em; }
+.btn-spin:only-child { margin-right: 0; }
+/* A spinner still turns, slowly, for a person who asked for less motion: it is the only sign the
+   press was taken. */
+@media (prefers-reduced-motion: reduce) { .btn .spinner-border { animation: spinner-border 1.6s linear infinite !important; } }
+:root[data-motion="reduced"] .btn .spinner-border { animation: spinner-border 1.6s linear infinite !important; }
+
+/* Being deleted: faded at once, back if the server refuses. */
+.live-removing { opacity: .3; pointer-events: none; filter: grayscale(1); transition: opacity var(--dur-md) ease, filter var(--dur-md) ease; }
+.live-removing td { text-decoration: line-through; text-decoration-color: var(--color-text-muted); }
+
+/* The server's messages, docked at the top right. */
+.live-dock {
+  position: fixed; z-index: 1900; top: calc(var(--topbar-h, 56px) + 12px); right: 16px;
+  width: min(440px, calc(100vw - 32px)); display: flex; flex-direction: column; gap: var(--space-2); pointer-events: none;
+}
+.live-dock-item {
+  pointer-events: auto; margin: 0; box-shadow: var(--shadow-lg);
+  background: linear-gradient(var(--bs-alert-bg), var(--bs-alert-bg)), var(--color-surface);
+  animation: dock-in var(--dur-lg) var(--ease-spring) backwards;
+}
+.live-dock-item.is-leaving { opacity: 0; transform: translateY(-6px); transition: opacity var(--dur-md) ease, transform var(--dur-md) ease; }
+@keyframes dock-in { from { opacity: 0; transform: translateY(-8px) scale(.98); } to { opacity: 1; transform: none; } }
+/* A refusal beside the form nudges, so the eye finds it. */
+.live-form-error { animation: nudge var(--dur-lg) var(--ease-out) backwards; }
+@keyframes nudge { 0% { opacity: 0; transform: translateX(-6px); } 40% { opacity: 1; transform: translateX(4px); } 70% { transform: translateX(-2px); } 100% { transform: none; } }
+
+/* Pages that still load in full (prints, pages that run for the whole visit) fade across where
+   the browser supports it, and the shell stays put. */
+@view-transition { navigation: auto; }
+.app-sidebar { view-transition-name: app-sidebar; }
+.app-topbar { view-transition-name: app-topbar; }
+/* The logo moves from the sign-in card into the sidebar (page-transition.css names the other end). */
+.sidebar-brand .brand-logo, .sidebar-brand .brand-mark { view-transition-name: brand-logo; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: var(--dur-md); }
+@media (prefers-reduced-motion: reduce) { @view-transition { navigation: none; } }
+:root[data-motion="reduced"]::view-transition-old(root),
+:root[data-motion="reduced"]::view-transition-new(root),
+:root[data-motion="reduced"]::view-transition-group(*) { animation: none; }
+
+/* Leaving a public page where the browser has no page transitions (motion.js). */
+body.is-leaving > * { opacity: 0; transform: translateY(-8px); transition: opacity .18s ease-in, transform .18s ease-in; }
 
 /* --- Choices instead of a text box ------------------------------------------------------------- */
 .chip-picker { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 10px; }

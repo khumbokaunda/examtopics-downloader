@@ -371,6 +371,11 @@ removes old working files, stale sign-up codes and unused images.
 - Light and dark themes (or follow the device), six accent colours, three densities, two surface
   styles, and reduced motion, chosen per person on the account page and saved to their account.
 - Works on phones: tables turn into cards, and no page scrolls sideways.
+- Pages open and forms save in place: the sidebar stays, the content changes, and a save keeps
+  the reader where they were. While a page loads, an outline shaped like it stands in; a save's
+  button says what it is doing; the server's messages slide in at the top right; a refused form
+  keeps what was typed and says why beside it. Files, prints, sign-in and pages that run for the
+  whole visit (a timed exam, practice) load as ordinary pages.
 - Every list is a sortable, searchable table with column choices and CSV export, its settings
   remembered per person.
 - Times are shown in each person's own timezone.
