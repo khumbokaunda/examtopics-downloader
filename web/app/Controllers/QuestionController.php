@@ -23,6 +23,8 @@ final class QuestionController extends Controller
     private const MAX_CHOICE = 4000;
     /** Most pictures a question or its answer can have. */
     private const MAX_IMAGES = 30;
+    /** Pictures that can be put in place of words in one save (the editor's rows). */
+    public const MAX_PLACES = 8;
 
     public function save(string $provider, string $exam): Response
     {
@@ -64,9 +66,41 @@ final class QuestionController extends Controller
         $current = QuestionView::applyQuestionEdit($collected, $existing);
         $problems = [];
 
+        // Pictures in place of the words that stand in for them ("sampleXML/xmlfile" where the
+        // collected page had a picture). The editor pairs each picture with its words, row by
+        // row, so a file's name never matters. The words become a picture line, and the picture
+        // takes that line's place among the question's pictures.
+        $sent = $this->request->input('text');
+        $placements = [];
+        $editorText = $sent ?? QuestionView::editorText($current);
+        $moved = false;
+        for ($k = 1; $k <= self::MAX_PLACES; $k++) {
+            $words = trim(mb_substr((string) $this->request->input('place_text_' . $k, ''), 0, 500));
+            $upload = $this->request->file('place_image_' . $k);
+            // Words with no picture chosen wait: the editor offers likely words by itself, and
+            // they must not stop the rest of an edit being saved.
+            if ($upload === null) {
+                continue;
+            }
+            if ($words === '') {
+                $placements[] = [null, $upload];
+                continue;
+            }
+            $placed = QuestionView::placePicture($editorText, $words);
+            if ($placed === null) {
+                $problems[] = '"' . $words . '" is not in the question\'s wording, so its picture had nowhere to go. Copy the words exactly as they appear.';
+                continue;
+            }
+            $editorText = $placed['text'];
+            $moved = true;
+            $placements[] = [$placed['index'], $upload];
+        }
+        if ($moved) {
+            $sent = $editorText;
+        }
+
         // Wording. A field the form did not send keeps what was saved before.
         $text = $existing['text'] ?? null;
-        $sent = $this->request->input('text');
         if ($sent !== null) {
             $new = QuestionView::fromEditorText(mb_substr($sent, 0, self::MAX_TEXT));
             $original = QuestionView::fromEditorText(QuestionView::editorText($collected));
@@ -109,6 +143,20 @@ final class QuestionController extends Controller
                     $list[] = (string) $url;
                 }
             }
+            // Pictures put in place of words, each where its words were.
+            if ($prefix === 'question') {
+                foreach ($placements as [$at, $placeUpload]) {
+                    $stored = $this->storeUpload($placeUpload);
+                    if (is_string($stored)) {
+                        $problems[] = $stored;
+                    } elseif (count($list) >= self::MAX_IMAGES) {
+                        $problems[] = 'A question or its answer can have up to ' . self::MAX_IMAGES . ' pictures.';
+                    } else {
+                        array_splice($list, $at === null ? count($list) : min($at, count($list)), 0, [$stored['url']]);
+                        $added++;
+                    }
+                }
+            }
             $upload = $this->request->file($prefix . '_image');
             if ($upload !== null) {
                 $stored = $this->storeUpload($upload);
@@ -127,7 +175,7 @@ final class QuestionController extends Controller
         if ($problems !== []) {
             // Nothing is saved, so a half-made edit never shows; an uploaded picture is kept on
             // the server and can be added again.
-            $this->flash('warning', "Question $n: nothing was saved. " . implode(' ', $problems));
+            $this->flash('danger', "Question $n: nothing was saved. " . implode(' ', $problems));
             return $this->backToReader($p, $e, $v, $n);
         }
         ksort($choices);

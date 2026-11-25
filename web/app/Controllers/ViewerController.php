@@ -45,6 +45,12 @@ final class ViewerController extends Controller
         $editor = $mode === 'study' && $this->auth->can('answers.edit');
         $reports = $editor ? $this->s->reports()->open((int) $e['id']) : [];
         $reported = $editor && $this->request->query('reported') === '1';
+        // Questions whose picture looks missing, so it can be found and uploaded (study mode).
+        $missingPictures = $editor ? count(array_filter($questions, [QuestionView::class, 'pictureMayBeMissing'])) : 0;
+        $pictures = $editor && $this->request->query('pictures') === '1';
+        if ($pictures) {
+            $questions = array_values(array_filter($questions, [QuestionView::class, 'pictureMayBeMissing']));
+        }
         if ($reported) {
             $questions = array_values(array_filter($questions, static fn(array $item) => isset($reports[QuestionView::key($item)])));
         }
@@ -86,7 +92,7 @@ final class ViewerController extends Controller
             $questions = array_values(array_filter($questions, static fn(array $item) => ($objectiveOf[QuestionView::key($item)] ?? 0) === (int) $objective['id']));
         }
         $openReports = $this->s->objectives()->reported((int) $e['id']);
-        $filtered = $review || $mistakes || $reported || $due || $bookmarked || $objective !== null;
+        $filtered = $review || $mistakes || $reported || $pictures || $due || $bookmarked || $objective !== null;
         if ($q !== '') {
             $needle = mb_strtolower($q);
             $questions = array_values(array_filter($questions, static function (array $item) use ($needle): bool {
@@ -125,6 +131,8 @@ final class ViewerController extends Controller
             'review' => $review,
             'reported' => $reported,
             'reports' => $reports,
+            'pictures' => $pictures,
+            'missingPictures' => $missingPictures,
             'objectives' => $objectives,
             'objective' => $objective,
             'objectiveOf' => $objectiveOf,

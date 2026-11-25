@@ -340,6 +340,11 @@ body.dialog-open { overflow: hidden; }
 .edit-choice-letter { flex: 0 0 1.5rem; margin: 0; padding-top: 7px; font-family: var(--font-mono); font-weight: var(--weight-semibold); color: var(--color-text-muted); }
 .edit-choice textarea { min-height: 0; }
 .edit-images { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-2); }
+/* Pictures in place of words: the words and their picture side by side, one row per picture.
+   Spare rows wait out of sight until "Another picture" (shown all at once without scripts). */
+.place-row { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--space-2); margin-bottom: var(--space-2); align-items: center; }
+.js .place-row.is-spare { display: none; }
+@media (max-width: 640px) { .place-row { grid-template-columns: minmax(0, 1fr); gap: var(--space-1); } }
 .edit-image {
   display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 6px; max-width: 168px;
   border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface);

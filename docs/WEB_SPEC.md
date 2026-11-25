@@ -280,7 +280,14 @@ another answer; members here voted otherwise. **To check** in the reader shows o
 ### Editing questions
 **Edit this question** fixes the wording and each choice, removes broken pictures and uploads
 new ones (PNG, JPEG, GIF or WebP, up to 5 MB) for the question or its answer. A `[picture]` line
-keeps a picture in place when the wording changes. Edits behave like corrections: shown over the
+keeps a picture in place when the wording changes. Where a collected question shows words instead of its
+picture (such as `sampleXML/xmlfile`), **Pictures in place of words** takes one row per picture:
+the words (typed, offered by the editor, or copied with **Use selected text**) and the picture.
+Each picture goes where its words are and the words are removed, whatever the file is called;
+several can go in one save, and **Another picture** adds a row. **Pictures missing** above the
+questions lists those whose wording points at a picture (an exhibit, "the diagram below", a hot
+area, or words that look like a stand-in) but that have none, with the editor open; each is
+marked "picture missing?". Edits behave like corrections: shown over the
 collected data, kept across collections, used in documents, and listed on the Corrections page,
 where **Put back** shows the question as collected again.
 

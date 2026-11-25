@@ -242,7 +242,7 @@ abstract class Controller
         if ($search !== '') {
             $query['q'] = $search;
         }
-        foreach (['review', 'reported', 'mistakes', 'due', 'bookmarked'] as $filter) {
+        foreach (['review', 'reported', 'mistakes', 'due', 'bookmarked', 'pictures'] as $filter) {
             if ($this->request->input($filter) === '1') {
                 $query[$filter] = '1';
             }

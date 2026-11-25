@@ -5,6 +5,7 @@
  *  @var array<string,int> $history recorded changes to each question's corrections (people who correct questions)
  *  @var bool $bookmarked @var int $bookmarks @var array<string,array{note:?string,bookmarked:bool}> $notes this person's, by question key
  *  @var array<string,list<array>> $reports open reports by question key (people who correct questions, study mode)
+ *  @var bool $pictures only questions whose picture looks missing @var int $missingPictures how many (people who correct questions)
  *  @var array<string,list<array>> $discussion members' comments by question key (study mode)
  *  @var array{answered:int,correct:int,mistakes:int,last_at:?string} $progress this person's progress in the exam
  *  @var list<array> $objectives the exam's objectives @var array|null $objective the one shown, if any
@@ -17,11 +18,11 @@ use App\Services\StudyProgress;
 $base = '/library/' . rawurlencode($provider['slug']) . '/' . rawurlencode($exam['code']);
 $editor = can('answers.edit');
 // The filter in use: it carries over to the next page, the search, and every form on this one.
-$filters = array_filter(['review' => $review, 'mistakes' => $mistakes, 'reported' => $reported, 'due' => $due, 'bookmarked' => $bookmarked]);
+$filters = array_filter(['review' => $review, 'mistakes' => $mistakes, 'reported' => $reported, 'pictures' => $pictures, 'due' => $due, 'bookmarked' => $bookmarked]);
 $filters = array_map(static fn() => '1', $filters);
 $objectiveField = $objective !== null ? '<input type="hidden" name="objective" value="' . e((string) $objective['uuid']) . '">' : '';
 $params = ['version' => $version['version'], 'mode' => $mode === 'practice' ? 'practice' : '', 'q' => $q] + $filters + ($objective !== null ? ['objective' => (string) $objective['uuid']] : []);
-$filterFields = implode('', array_map(static fn(string $f) => '<input type="hidden" name="' . $f . '" value="1">', array_keys(array_intersect_key($filters, ['due' => 1, 'bookmarked' => 1])))) . $objectiveField;
+$filterFields = implode('', array_map(static fn(string $f) => '<input type="hidden" name="' . $f . '" value="1">', array_keys(array_intersect_key($filters, ['due' => 1, 'bookmarked' => 1, 'pictures' => 1])))) . $objectiveField;
 $objectiveNames = array_column($objectives, 'name', 'id');
 // Everything a form needs to come back to this page at its question.
 $keep = static fn(array $item): string => csrf_field()
@@ -55,6 +56,7 @@ $img = static function (string $url, string $alt) use ($localImages): string {
         <p class="page-subtitle"><?= e($total . match (true) {
             $review => ' answers to check, of ',
             $reported => ' reported by members, of ',
+            $pictures => ' with a picture that looks missing, of ',
             $mistakes => ' of your mistakes, of ',
             $due => ' due for review today, of ',
             $bookmarked => ' bookmarked, of ',
@@ -107,6 +109,9 @@ $img = static function (string $url, string $alt) use ($localImages): string {
         <?php if ($toCheck > 0 && $editor && !$practice): ?>
             <a class="btn btn-outline-warning" href="<?= e(url($base . '/view', ['version' => $version['version'], 'review' => '1'])) ?>" title="Answers that look doubtful and that you have not corrected or checked yet"><?= icon('exclamation-triangle') ?>To check (<?= $toCheck ?>)</a>
         <?php endif; ?>
+        <?php if ($missingPictures > 0 && !$practice): ?>
+            <a class="btn btn-outline-secondary" href="<?= e(url($base . '/view', ['version' => $version['version'], 'pictures' => '1'])) ?>" title="Questions that point at a picture but have none, so one can be uploaded"><?= icon('image') ?>Pictures missing (<?= $missingPictures ?>)</a>
+        <?php endif; ?>
         <?php if ($reports !== []): ?>
             <a class="btn btn-outline-danger" href="<?= e(url($base . '/view', ['version' => $version['version'], 'reported' => '1'])) ?>" title="Questions members reported a problem with"><?= icon('flag') ?>Reported (<?= count($reports) ?>)</a>
         <?php endif; ?>
@@ -117,11 +122,12 @@ $img = static function (string $url, string $alt) use ($localImages): string {
     <div class="card"><div class="card-body"><?= $review && $q === ''
         ? empty_state('check2-all', 'Nothing left to check', 'All doubtful answers are done.', null, true)
         : ($reported && $q === '' ? empty_state('check2-all', 'No reports waiting', 'Every problem members reported has been dealt with.', null, true)
+        : ($pictures && $q === '' ? empty_state('image', 'No missing pictures found', 'Every question that points at a picture has one.', null, true)
         : ($due && $q === '' ? empty_state('calendar-check', 'Nothing due today', 'Come back tomorrow.', ['Practise all questions', url($base . '/view', ['mode' => 'practice'])], true)
         : ($bookmarked && $q === '' ? empty_state('bookmark', 'No bookmarked questions', 'Bookmark a question with the bookmark beside its number.', null, true)
         : ($mistakes && $q === ''
             ? empty_state('check2-all', 'No mistakes to go over', 'Every question you checked, you last answered right.', ['Practise all questions', url($base . '/view', ['mode' => 'practice'])], true)
-            : empty_state('search', 'No questions match', 'Try fewer words.', null, true))))) ?></div></div>
+            : empty_state('search', 'No questions match', 'Try fewer words.', null, true)))))) ?></div></div>
 <?php endif; ?>
 
 <?php if ($practice && $questions !== []): ?>
@@ -138,7 +144,7 @@ $img = static function (string $url, string $alt) use ($localImages): string {
     <article class="card question-card" id="question-<?= $n ?>"<?= $practice ? ' data-q="' . $n . '" data-picks="' . (int) ($item['picks'] ?? 1) . '" data-attempt-url="' . e(url('/api/library/' . rawurlencode($provider['slug']) . '/' . rawurlencode($exam['code']) . '/' . rawurlencode($version['version']) . '/questions/' . $n . '/attempt')) . '"' : '' ?>>
         <div class="card-body">
             <div class="q-head">
-                <h2 class="q-number"><span class="num">Question <?= $n ?></span><?php $kind = QuestionView::kind($item); if ($kind !== null): ?><?= chip($kind === 'drag-drop' ? 'Drag and drop' : 'Hot area', 'info', $kind === 'drag-drop' ? 'arrows-move' : 'cursor') ?><?php endif; ?><?php if (!$practice && isset($item['question_edit'])): ?><?= chip('edited', 'primary', 'pencil') ?><?php endif; ?></h2>
+                <h2 class="q-number"><span class="num">Question <?= $n ?></span><?php $kind = QuestionView::kind($item); if ($kind !== null): ?><?= chip($kind === 'drag-drop' ? 'Drag and drop' : 'Hot area', 'info', $kind === 'drag-drop' ? 'arrows-move' : 'cursor') ?><?php endif; ?><?php if (!$practice && isset($item['question_edit'])): ?><?= chip('edited', 'primary', 'pencil') ?><?php endif; ?><?php if (!$practice && $editor && QuestionView::pictureMayBeMissing($item)): ?><?= chip('picture missing?', 'warning', 'image') ?><?php endif; ?></h2>
                 <span class="q-tools">
                     <span class="q-meta"><?= e(QuestionView::meta($item)) ?></span>
                     <?php $qKey = QuestionView::key($item); $trust = Objectives::trust($item, isset($openReports[$qKey]));
@@ -276,7 +282,7 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                     </div>
                 </details>
                 <?= \App\Core\View::current()->partial('viewer/question_edit', ['item' => $item, 'base' => $base, 'version' => $version,
-                    'page' => $page, 'q' => $q, 'review' => $review, 'reported' => $reported, 'localImages' => $localImages, 'filterFields' => $filterFields]) ?>
+                    'page' => $page, 'q' => $q, 'review' => $review, 'reported' => $reported, 'pictures' => $pictures, 'localImages' => $localImages, 'filterFields' => $filterFields]) ?>
                 <?php endif; ?>
                 <?php foreach ((array) ($item['answer_images'] ?? []) as $i => $u): ?><?= $img((string) $u, 'Answer image ' . ($i + 1)) ?><?php endforeach; ?>
                 <?php if (trim((string) ($item['explanation'] ?? '')) !== ''): ?>
