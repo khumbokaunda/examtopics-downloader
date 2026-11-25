@@ -1302,3 +1302,24 @@ and putting it in the right place meant editing `[picture]` lines by hand.
   its editor ready, carries a "picture missing?" mark in the reader, and saving returns to the same
   list, so the list shrinks as pictures are added. A hint only; readers never see it.
 - `QuestionView::placePicture()`, `standIns()` and `pictureMayBeMissing()`; tested in `QuestionEditsTest`.
+
+## Pictures dropped or pasted into the question editor (25 November 2026)
+
+- Every picture field in **Edit this question** (each row of **Pictures in place of words**, and
+  **Add a picture** for the question and for the answer) takes a picture dragged onto it, as if
+  chosen with its button, and lights up while one is held over it. Something else dropped is
+  refused with a message, and a file dropped beside the fields is ignored rather than opening in
+  place of the page.
+- **Paste** (Ctrl+V or Cmd+V) a screenshot or a copied picture: it goes to the field being typed
+  in, or else to the first row without a picture (a spare row appears for it), then to **Add a
+  picture**. Pasting several fills the rows in turn, each beside the words it is for; with nothing
+  focused, it goes to the editor last worked in. Text pasted into a text box stays text.
+- Each field shows the picture it holds, with a button to take it out, so a picture can be
+  checked against its words before saving. The preview is read into a `data:` address, which the
+  Content Security Policy allows (a `blob:` address it does not).
+- The saving is unchanged: the picture is in the field's file input, and the form is sent as
+  before. Without scripts the fields are plain file pickers.
+- Fixed on the way: the editor of every question with a missing picture opened by itself on any
+  reader page, not only in the **Pictures missing** list (the template's own `$pictures` hid the
+  list's flag).
+- `tests/Unit/PictureDropTest.php`.

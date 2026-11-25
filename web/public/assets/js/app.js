@@ -832,6 +832,137 @@
     });
   });
 
+  // --- Pictures dropped or pasted into the question editor ----------------------------------
+  // A picture dragged onto a picture field (a row of "Pictures in place of words", or an "Add a
+  // picture" field) goes into it, as if chosen with its button. One pasted (Ctrl+V) goes to the
+  // row being typed in, or else to the first row without a picture, so pasting several fills the
+  // rows in turn. Each field then shows the picture, to check before saving. Without this script
+  // the fields are ordinary file pickers.
+  var PICTURE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+  var canAssign = (function () { try { return typeof DataTransfer === 'function' && !!new DataTransfer().items; } catch (e) { return false; } })();
+  function pictureOf(list) {
+    for (var i = 0; i < (list ? list.length : 0); i++) {
+      var f = list[i] && list[i].kind === 'file' ? list[i].getAsFile() : list[i];
+      if (f && PICTURE_TYPES.indexOf(f.type) !== -1) return f;
+    }
+    return null;
+  }
+  function hasFiles(dt) { return !!dt && Array.prototype.indexOf.call(dt.types || [], 'Files') !== -1; }
+  function showPicture(zone) {
+    var input = zone.querySelector('input[type="file"]');
+    var old = zone.querySelector('.picture-preview');
+    if (old) old.remove();
+    var file = input && input.files && input.files[0];
+    if (!file || PICTURE_TYPES.indexOf(file.type) === -1) return;
+    var box = el('span', 'picture-preview');
+    var img = el('img');
+    img.alt = 'The picture to be saved';
+    var clear = el('button', 'picture-clear');
+    clear.type = 'button';
+    clear.setAttribute('aria-label', 'Take this picture out');
+    clear.title = 'Take this picture out';
+    clear.appendChild(icon('x-lg'));
+    clear.addEventListener('click', function () { input.value = ''; box.remove(); });
+    box.appendChild(img);
+    box.appendChild(clear);
+    zone.appendChild(box);
+    var reader = new FileReader();
+    reader.onload = function () { img.src = String(reader.result); };
+    reader.readAsDataURL(file);
+  }
+  function putPicture(zone, file) {
+    var input = zone.querySelector('input[type="file"]');
+    if (!input || !canAssign) return false;
+    var named = file.name && file.name !== 'image.png' ? file : new File([file], 'pasted-picture.' + (file.type.split('/')[1] || 'png'), { type: file.type });
+    var dt = new DataTransfer();
+    dt.items.add(named);
+    input.files = dt.files;
+    // A spare row comes into view when a picture lands in it.
+    if (zone.classList.contains('is-spare')) {
+      zone.classList.remove('is-spare');
+      var rows = zone.closest('[data-place-pictures]');
+      var more = rows && rows.querySelector('[data-action="place-another"]');
+      if (more) more.hidden = !rows.querySelector('.place-row.is-spare');
+    }
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    zone.classList.add('is-filled');
+    setTimeout(function () { zone.classList.remove('is-filled'); }, 700);
+    return true;
+  }
+  function refusePicture() { showFlash('warning', 'Only PNG, JPEG, GIF and WebP pictures can be added.'); }
+
+  onEach('[data-picture-zone]', function (zone) {
+    var depth = 0;
+    zone.addEventListener('dragenter', function (e) {
+      if (!hasFiles(e.dataTransfer)) return;
+      depth++;
+      zone.classList.add('is-dragging');
+    });
+    zone.addEventListener('dragover', function (e) {
+      if (!hasFiles(e.dataTransfer)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    });
+    zone.addEventListener('dragleave', function () {
+      depth = Math.max(0, depth - 1);
+      if (depth === 0) zone.classList.remove('is-dragging');
+    });
+    zone.addEventListener('drop', function (e) {
+      if (!hasFiles(e.dataTransfer)) return;
+      e.preventDefault();
+      depth = 0;
+      zone.classList.remove('is-dragging');
+      var file = pictureOf(e.dataTransfer.files);
+      if (!file) { refusePicture(); return; }
+      putPicture(zone, file);
+    });
+  });
+  // A picture chosen with the button shows too.
+  document.addEventListener('change', function (e) {
+    var zone = e.target.matches && e.target.matches('input[type="file"]') ? e.target.closest('[data-picture-zone]') : null;
+    if (zone) showPicture(zone);
+  });
+  // A file dropped beside a field in the editor would open in place of the page, and lose
+  // what was typed: it is ignored instead.
+  ['dragover', 'drop'].forEach(function (type) {
+    document.addEventListener(type, function (e) {
+      if (hasFiles(e.dataTransfer) && e.target.closest && e.target.closest('.question-edit') && !e.target.closest('[data-picture-zone]')) e.preventDefault();
+    });
+  });
+  var lastEditor = null;
+  ['focusin', 'pointerdown'].forEach(function (type) {
+    document.addEventListener(type, function (e) {
+      var f = e.target && e.target.closest ? e.target.closest('.question-edit form') : null;
+      if (f) lastEditor = f;
+    });
+  });
+  document.addEventListener('paste', function (e) {
+    var cd = e.clipboardData;
+    var file = cd ? pictureOf(cd.items) : null;
+    if (!file) return;
+    var target = e.target && e.target.closest ? e.target : null;
+    var form = target ? target.closest('.question-edit form') : null;
+    if (!form) {
+      // Pasted with nothing in particular focused: the editor last worked in, if still open.
+      var open = Array.prototype.slice.call(document.querySelectorAll('.question-edit[open] form'));
+      form = lastEditor && open.indexOf(lastEditor) !== -1 ? lastEditor : (open.length === 1 ? open[0] : null);
+    }
+    if (!form) return;
+    // Text copied with a picture (from a document) pastes as text into a text box.
+    if (target && target.matches('textarea, input[type="text"]') && cd.types && Array.prototype.indexOf.call(cd.types, 'text/plain') !== -1) return;
+    var zone = target ? target.closest('[data-picture-zone]') : null;
+    if (!zone) {
+      var zones = Array.prototype.slice.call(form.querySelectorAll('.place-row[data-picture-zone]')).concat(Array.prototype.slice.call(form.querySelectorAll('.picture-zone[data-picture-zone]')));
+      zone = zones.filter(function (z) { var i = z.querySelector('input[type="file"]'); return i && !(i.files && i.files.length); })[0] || null;
+    }
+    if (!zone) { showFlash('warning', 'Every picture field is taken. Take a picture out, or save these first.'); e.preventDefault(); return; }
+    e.preventDefault();
+    if (putPicture(zone, file)) {
+      var words = zone.querySelector('input[type="text"]');
+      if (words && words.value === '' && document.activeElement !== words) words.focus();
+    }
+  });
+
   // --- Question editor: only the fields for the chosen kind of question ---------------------
   // Without JavaScript every field shows and the server reads the ones the kind uses.
   onEach('[data-question-form]', function (form) {

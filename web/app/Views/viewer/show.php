@@ -282,7 +282,7 @@ $img = static function (string $url, string $alt) use ($localImages): string {
                     </div>
                 </details>
                 <?= \App\Core\View::current()->partial('viewer/question_edit', ['item' => $item, 'base' => $base, 'version' => $version,
-                    'page' => $page, 'q' => $q, 'review' => $review, 'reported' => $reported, 'pictures' => $pictures, 'localImages' => $localImages, 'filterFields' => $filterFields]) ?>
+                    'page' => $page, 'q' => $q, 'review' => $review, 'reported' => $reported, 'missingFilter' => $pictures, 'localImages' => $localImages, 'filterFields' => $filterFields]) ?>
                 <?php endif; ?>
                 <?php foreach ((array) ($item['answer_images'] ?? []) as $i => $u): ?><?= $img((string) $u, 'Answer image ' . ($i + 1)) ?><?php endforeach; ?>
                 <?php if (trim((string) ($item['explanation'] ?? '')) !== ''): ?>

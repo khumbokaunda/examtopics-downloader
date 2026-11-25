@@ -284,7 +284,9 @@ keeps a picture in place when the wording changes. Where a collected question sh
 picture (such as `sampleXML/xmlfile`), **Pictures in place of words** takes one row per picture:
 the words (typed, offered by the editor, or copied with **Use selected text**) and the picture.
 Each picture goes where its words are and the words are removed, whatever the file is called;
-several can go in one save, and **Another picture** adds a row. **Pictures missing** above the
+several can go in one save, and **Another picture** adds a row. A picture can be chosen, dropped onto a row or an
+**Add a picture** field, or pasted (Ctrl+V): a pasted one goes to the field being typed in, or the
+first without a picture. Each field shows the picture it holds, with a button to take it out. **Pictures missing** above the
 questions lists those whose wording points at a picture (an exhibit, "the diagram below", a hot
 area, or words that look like a stand-in) but that have none, with the editor open; each is
 marked "picture missing?". Edits behave like corrections: shown over the
