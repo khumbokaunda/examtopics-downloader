@@ -159,9 +159,12 @@
         panel.hidden = !panel.hidden;
         toggle.setAttribute('aria-expanded', String(!panel.hidden));
       });
-      document.addEventListener('click', function (e) {
+      var closeMenu = function (e) {
+        // Gone with its page (swap.js put another in): stop listening.
+        if (!menu.isConnected) { document.removeEventListener('click', closeMenu); return; }
         if (!panel.hidden && !menu.contains(e.target)) { panel.hidden = true; toggle.setAttribute('aria-expanded', 'false'); }
-      });
+      };
+      document.addEventListener('click', closeMenu);
       menu.appendChild(toggle);
       menu.appendChild(panel);
       tools.appendChild(menu);
@@ -413,5 +416,10 @@
     done(ok);
   };
 
-  document.querySelectorAll('table[data-table]').forEach(function (t, i) { t.dataTable = new DataTable(t, i); });
+  // Every table on the page, and again on a page swap.js puts in place.
+  var setUp = function (scope) {
+    scope.querySelectorAll('table[data-table]').forEach(function (t, i) { if (!t.dataTable) t.dataTable = new DataTable(t, i); });
+  };
+  setUp(document);
+  document.addEventListener('examlib:load', function (e) { setUp((e.detail && e.detail.root) || document); });
 })();

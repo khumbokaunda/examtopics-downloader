@@ -7,12 +7,15 @@
   'use strict';
 
   // A repeated password must match the first.
-  document.querySelectorAll('[data-same-as]').forEach(function (el) {
-    var other = document.getElementById(el.getAttribute('data-same-as'));
-    if (!other) return;
-    var check = function () { el.setCustomValidity(el.value !== '' && el.value !== other.value ? 'The passwords do not match.' : ''); };
-    el.addEventListener('input', check);
-    other.addEventListener('input', check);
+  // One listener, so a form put in place by swap.js is checked too.
+  document.addEventListener('input', function (e) {
+    var t = e.target;
+    if (!t.id && !t.hasAttribute('data-same-as')) return;
+    var pairs = t.hasAttribute('data-same-as') ? [t] : Array.prototype.slice.call(document.querySelectorAll('[data-same-as="' + CSS.escape(t.id) + '"]'));
+    pairs.forEach(function (el) {
+      var other = document.getElementById(el.getAttribute('data-same-as'));
+      if (other) el.setCustomValidity(el.value !== '' && el.value !== other.value ? 'The passwords do not match.' : '');
+    });
   });
 
   // Extra profile fields asked only of some kinds of institution follow the chosen kind.

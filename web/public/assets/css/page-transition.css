@@ -1,0 +1,27 @@
+/*
+ * Moving between the public pages and the sign-in pages (loaded only when signed out). A
+ * transition from one page to the next needs both pages to ask for it, and its animations come
+ * from the stylesheets of the page being opened, so every signed-out page loads this file.
+ *
+ * The page being left slides up and fades, the new one rises in, and the logo and name move
+ * from the top bar into the sign-in card (and back, and into the sidebar after signing in),
+ * because they carry the same transition names. Browsers without these transitions get the
+ * short fade of motion.js and the card's own entrance instead.
+ */
+@view-transition { navigation: auto; }
+
+.site-bar .site-brand .brand-logo, .site-bar .site-brand .brand-mark,
+.auth-brand .brand-logo-lg, .auth-brand .brand-mark-lg { view-transition-name: brand-logo; }
+.site-bar .site-brand-name, .auth-brand .name { view-transition-name: brand-name; }
+.site-bar { view-transition-name: site-bar; }
+
+::view-transition-group(*) { animation-duration: 460ms; animation-timing-function: var(--ease-out); }
+::view-transition-old(root) { animation: 240ms ease-in both page-out; }
+::view-transition-new(root) { animation: 460ms var(--ease-out) 60ms both page-in; }
+@keyframes page-out { to { opacity: 0; transform: translateY(-14px) scale(.99); } }
+@keyframes page-in { from { opacity: 0; transform: translateY(18px); } }
+
+@media (prefers-reduced-motion: reduce) { @view-transition { navigation: none; } }
+:root[data-motion="reduced"]::view-transition-group(*),
+:root[data-motion="reduced"]::view-transition-old(root),
+:root[data-motion="reduced"]::view-transition-new(root) { animation: none; }

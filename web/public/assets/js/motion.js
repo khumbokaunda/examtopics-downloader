@@ -2,10 +2,14 @@
 //
 //  - Choice chips for the open questions of the institution form (a script-free page keeps the
 //    plain text boxes).
-//  - A progress bar and, on a slow page, a skeleton of the next page while it loads.
-//  - Figures that count up as the page appears, and pictures that fade in.
+//  - Outside the signed-in app (where swap.js does it): a progress bar and, on a slow page, a
+//    skeleton of the next page while it loads.
+//  - Figures that count up as the page appears, and pictures that fade in, again on every page
+//    swap.js puts in place.
 //  - On the public pages: sections that rise into view, the drawing of a sitting playing, the
-//    questions that open smoothly and a top bar that lifts once the page scrolls.
+//    questions that open smoothly, a top bar that lifts once the page scrolls, links to a part
+//    of the page that glide there, and a short fade on the way to the sign-in page where the
+//    browser cannot move between pages with a transition (page-transition.css).
 //
 // Nothing here is needed to use a page. A person who asked for less motion (their device or
 // their appearance settings) gets the same pages without it.
@@ -21,12 +25,15 @@
     if (text !== undefined) n.textContent = text;
     return n;
   };
+  var swapping = function () { return !!(window.ExamLib && window.ExamLib.swapping); };
 
   // --- Choice chips -------------------------------------------------------------------------
   // The text box stays the field that is sent: tapping chips writes "A, B" into it, and what is
   // typed in the extra box follows after a full stop. An answer saved earlier is read back the
   // same way, so editing shows the chips already chosen.
-  document.querySelectorAll('[data-chip-field]').forEach(function (box) {
+  var setUpChips = function (box) {
+    if (box.hasAttribute('data-chips-ready')) return;
+    box.setAttribute('data-chips-ready', '');
     var area = box.querySelector('textarea');
     var picker = box.querySelector('[data-chip-options]');
     if (!area || !picker) return;
@@ -93,9 +100,11 @@
     picker.hidden = false;
     write();
     if (area.classList.contains('is-invalid')) other.classList.add('is-invalid');
-  });
+  };
 
   // --- A progress bar, and a skeleton of the next page when it is slow ----------------------
+  // Only where swap.js is not running: inside the app it shows its own, shaped like the page.
+  if (!swapping()) (function () {
   var bar = el('div', 'nav-progress');
   bar.setAttribute('aria-hidden', 'true');
   document.body.appendChild(bar);
@@ -158,6 +167,7 @@
     if (form.hasAttribute('data-no-progress') || (form.target && form.target !== '_self')) return;
     setTimeout(function () { if (!e.defaultPrevented) leaving(); }, 0);
   });
+  })();
 
   // --- Figures count up, pictures fade in ----------------------------------------------------
   var countUp = function (node) {
@@ -174,28 +184,38 @@
       return m[1] + s + m[3];
     };
     var start = null;
-    var dur = Math.min(1100, 500 + target * 2);
+    // Quick: a figure that takes its time to arrive reads as a slow page.
+    var dur = Math.min(700, 380 + String(Math.round(target)).length * 50);
+    node.setAttribute('aria-label', text);
     var step = function (t) {
       if (start === null) start = t;
       var p = Math.min(1, (t - start) / dur);
-      node.textContent = fmt(target * (1 - Math.pow(1 - p, 3)));
-      if (p < 1) requestAnimationFrame(step); else node.textContent = text;
+      node.textContent = p < 1 ? fmt(target * (1 - Math.pow(1 - p, 3))) : text;
+      if (p < 1) requestAnimationFrame(step); else node.removeAttribute('aria-label');
     };
     node.textContent = fmt(0);
     requestAnimationFrame(step);
   };
-  if (!reduced()) {
-    document.querySelectorAll('.kpi-value, [data-count-up]').forEach(function (n) {
-      if (n.children.length === 0) countUp(n);
+  var arrive = function (scope) {
+    scope.querySelectorAll('[data-chip-field]').forEach(setUpChips);
+    scope.querySelectorAll('.kpi-value, [data-count-up]').forEach(function (n) {
+      if (n.hasAttribute('data-counted')) return;
+      n.setAttribute('data-counted', '');
+      if (!reduced() && n.children.length === 0) countUp(n);
     });
-  }
-  document.querySelectorAll('#page-body img, .site-main img').forEach(function (img) {
-    if (img.complete) return;
-    img.classList.add('is-loading');
-    var done = function () { img.classList.remove('is-loading'); };
-    img.addEventListener('load', done);
-    img.addEventListener('error', done);
-  });
+    // Every figure has been seen: none waits hidden any longer (motion.css, theme-init.js).
+    root.classList.remove('count-wait');
+    scope.querySelectorAll('#page-body img, .site-main img, img').forEach(function (img) {
+      if (img.complete || img.hasAttribute('data-faded')) return;
+      img.setAttribute('data-faded', '');
+      img.classList.add('is-loading');
+      var done = function () { img.classList.remove('is-loading'); };
+      img.addEventListener('load', done);
+      img.addEventListener('error', done);
+    });
+  };
+  arrive(document);
+  document.addEventListener('examlib:load', function (e) { arrive((e.detail && e.detail.root) || document); });
 
   // --- The public pages ------------------------------------------------------------------------
   var reveals = document.querySelectorAll('[data-reveal]');
@@ -219,6 +239,45 @@
     var lift = function () { siteBar.classList.toggle('is-scrolled', window.scrollY > 8); };
     window.addEventListener('scroll', lift, { passive: true });
     lift();
+  }
+
+  // Links to a part of the page glide there, stopping clear of the fixed top bar, and the
+  // address keeps the part so Back returns to it.
+  if (siteBar) {
+    document.addEventListener('click', function (ev) {
+      var a = ev.target.closest ? ev.target.closest('a[href*="#"]') : null;
+      if (!a || ev.defaultPrevented || ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+      var url = new URL(a.href, location.href);
+      if (url.origin !== location.origin || url.pathname !== location.pathname || url.search !== location.search || url.hash.length < 2) return;
+      var target = document.getElementById(decodeURIComponent(url.hash.slice(1)));
+      if (!target) return;
+      ev.preventDefault();
+      var top = target.getBoundingClientRect().top + window.scrollY - siteBar.offsetHeight - 16;
+      window.scrollTo({ top: Math.max(0, top), behavior: reduced() ? 'auto' : 'smooth' });
+      if (location.hash !== url.hash) history.pushState(null, '', url.hash);
+      if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+      target.focus({ preventScroll: true });
+    });
+  }
+
+  // On the way to another page of the public site or to sign in: where the browser moves
+  // between pages with a transition (page-transition.css) it does the work; elsewhere the page
+  // fades out briefly instead of cutting away.
+  if (document.body.classList.contains('is-signed-out') && !('CSSViewTransitionRule' in window)) {
+    document.addEventListener('click', function (ev) {
+      var a = ev.target.closest ? ev.target.closest('a[href]') : null;
+      if (!a || ev.defaultPrevented || reduced() || ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+      if ((a.target && a.target !== '_self') || a.hasAttribute('download')) return;
+      var url;
+      try { url = new URL(a.href, location.href); } catch (err) { return; }
+      if (url.origin !== location.origin || (url.pathname === location.pathname && url.search === location.search)) return;
+      if (/\.(pdf|csv|zip|json|txt|png|jpe?g|gif|webp|svg)$/i.test(url.pathname)) return;
+      ev.preventDefault();
+      document.body.classList.add('is-leaving');
+      setTimeout(function () { location.href = url.href; }, 180);
+    });
+    // Back to this page from the browser's memory, faded: undo it.
+    window.addEventListener('pageshow', function () { document.body.classList.remove('is-leaving'); });
   }
 
   // Questions and answers open and close smoothly.

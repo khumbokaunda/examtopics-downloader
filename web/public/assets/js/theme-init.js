@@ -68,4 +68,13 @@
   try {
     if (localStorage.getItem('examtopics.sidebar') === 'collapsed') root.setAttribute('data-sidebar-init', 'collapsed');
   } catch (e) { /* ignore */ }
+
+  // Headline figures count up from 0 (motion.js). The browser paints before that script runs,
+  // so a figure would show, drop to 0 and count up again; until motion.js has seen it, it is
+  // hidden (motion.css). Only when motion is on, and never for more than 3 seconds.
+  var still = root.getAttribute('data-motion') === 'reduced' || !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  if (!still) {
+    root.classList.add('count-wait');
+    setTimeout(function () { root.classList.remove('count-wait'); }, 3000);
+  }
 })();

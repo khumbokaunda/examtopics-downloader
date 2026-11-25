@@ -1225,3 +1225,55 @@ portrait page laid out the same way (`certificates/_page.php`):
   a QR code with the address that checks it; the template's footer (stored before but never
   printed) and the fingerprint, or the readiness disclaimer.
 - A revoked or replaced certificate carries a large diagonal stamp.
+
+## Pages and saves in place, outlines of the coming page (25 November 2026)
+
+Moving between pages and saving a form reloaded the whole window: a white flash, the sidebar
+drawn again, the scroll position lost. Ported from the same work on the SIMS project.
+
+- **`js/swap.js`** (signed in only) keeps the sidebar and top bar and replaces only the content:
+  - **Links and filters** (a GET form, a filter that sends itself on change, the command palette)
+    fetch the page and put its content in place. A bar runs along the top at once and, after
+    220 ms, an outline of the coming page. The tab title, the top bar's title, the inbox bell, the
+    CSRF token and the sidebar's current page follow. Back and Forward work and return to where
+    the reader was.
+  - **Saves** are sent in the background. The pressed button spins and says what it is doing
+    ("Saving...", "Deleting...", from its own words; `data-busy-label` on the button or
+    `data-busy` on the form sets them). When the server answers, the page is put in place where
+    the reader was, and its messages slide in at the top right: good news leaves after 6 s, a
+    problem stays until dismissed.
+  - **A refusal** (a red message and no green one, back on the same page) keeps everything typed
+    and says why on a line above the form's buttons, with a nudge. A form that is a lone button
+    (in a table row) says it at the top right instead. A form sent back with its errors (422) is
+    put in place as the server drew it. An HTTP error or a lost connection says that nothing was
+    saved.
+  - **Deleting a row** behind a red confirmation fades it at once; it comes back if refused.
+  - **Ordinary loads**, as before: files, prints, PDFs, exports, the sign-in pages, a sitting,
+    a page whose content carries a script of its own (then loaded in full from that point on, in
+    that tab), a page with something that runs for the whole visit (a timed exam, practice, an
+    upload sent in pieces, the registration steps, live invigilation; leaving one is a full load
+    too), and anything marked `data-no-live`.
+- **`js/skeleton.js`**: after a page settles, its outline is kept in this browser (every word a
+  grey bar, every field a grey box; only layout classes kept, no text, value or link) against the
+  kind of address (an id becomes `:id`), and shown the next time that kind of page is loading. A
+  page not yet opened in this browser gets an outline for its kind: a list, a record, a form or
+  the home page.
+- **Scripts that set things up on the page** (`app.js`, `data-table.js`, `motion.js`) run again
+  on content put in place (the `examlib:load` event), never twice on one element. The
+  confirmation dialog, sending a form once, filters that send themselves and the shelf search
+  listen once for the whole document. Anything that polls (a job's progress, its chip, its log, a
+  document being built, the integrity figures) stops once its page is gone, and reloads in place.
+- **Motion, lighter**: content arrives readable and settles in 220 ms with at most 40 ms between
+  parts (it used to start transparent and stagger for 200 ms); table rows fade in together, again
+  after a sort; tiles that are links lift; figures count up in at most 700 ms and no longer show,
+  drop to 0 and count again (the head script hides an unseen figure for at most 3 s, only when
+  motion is on). Pages that still load in full cross-fade with the sidebar and top bar held still.
+- **The public pages and sign-in** (`css/page-transition.css`, signed out only): moving between
+  them, the page being left slides up and the next rises in, and the logo and name move from the
+  top bar into the sign-in card and back, and into the sidebar after signing in. Where the browser
+  has no page transitions, the page fades out briefly instead. Links to a part of a page glide
+  there, stopping clear of the top bar.
+- **Less motion**: none of the movement, no cross-fades, and no hidden figures. A save's spinner
+  still turns, slowly, because it is the only sign the press was taken.
+- `tests/Unit/InPlacePagesTest.php` holds what loads where, what forces a full load, that set-up
+  runs again on content put in place, and that the movement stays short.

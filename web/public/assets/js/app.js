@@ -6,7 +6,9 @@
 
   var root = document.documentElement;
   var app = document.querySelector('.app');
-  var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+  var ExamLib = (window.ExamLib = window.ExamLib || {});
+  // Read when used: a page put in place by swap.js can carry a new token.
+  function csrf() { return (document.querySelector('meta[name="csrf-token"]') || {}).content || ''; }
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -46,6 +48,7 @@
 
   // A message in the flash area, like the server's flash messages.
   function showFlash(type, text) {
+    if (ExamLib.announce) { ExamLib.announce(type, text); return; }
     var stack = document.querySelector('.flash-stack');
     if (!stack) return;
     var icons = { success: 'check-circle', info: 'info-circle', warning: 'exclamation-triangle', danger: 'exclamation-octagon' };
@@ -62,6 +65,26 @@
     stack.appendChild(alert);
     stack.hidden = false;
   }
+
+  // Set-up for things on the page: runs once at start and again on content that swap.js puts
+  // in place (the examlib:load event), never twice on the same element.
+  var binders = [];
+  var bound = typeof WeakMap === 'function' ? new WeakMap() : null;
+  function onEach(selector, fn) { binders.push([selector, fn]); }
+  function bindAll(scope) {
+    binders.forEach(function (b) {
+      scope.querySelectorAll(b[0]).forEach(function (node) {
+        var done = bound ? bound.get(node) : node.__examlibBound;
+        if (!done) { done = {}; if (bound) bound.set(node, done); else node.__examlibBound = done; }
+        if (done[b[0]]) return;
+        done[b[0]] = true;
+        b[1](node);
+      });
+    });
+  }
+  // The page again: in place where swap.js runs, otherwise a reload.
+  function reloadPage() { if (ExamLib.refresh) ExamLib.refresh(); else location.reload(); }
+  function go(path) { if (ExamLib.navigate) ExamLib.navigate(path); else location.href = path; }
 
   function store(key, value) {
     try { localStorage.setItem(key, value); } catch (e) { /* storage unavailable */ }
@@ -99,7 +122,7 @@
       // keepalive: the save still completes if the user navigates away straight after.
       fetch(url, {
         method: 'POST', credentials: 'same-origin', keepalive: true,
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrf, Accept: 'application/json' },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrf(), Accept: 'application/json' },
         body: new URLSearchParams({ theme: next })
       }).then(function (r) {
         if (r.ok) return;
@@ -119,22 +142,19 @@
   if (syncTheme && themeSaveUrl) {
     fetch(themeSaveUrl, {
       method: 'POST', credentials: 'same-origin', keepalive: true,
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrf, Accept: 'application/json' },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrf(), Accept: 'application/json' },
       body: new URLSearchParams({ theme: syncTheme })
     }).then(function (r) { if (r.ok) mirror('pending', false); }).catch(function () { /* tried again on the next page */ });
   }
 
   // Live preview on the appearance form; saving is a normal form submit.
-  var appearanceForm = document.querySelector('form[data-appearance]');
-  if (appearanceForm) {
-    appearanceForm.addEventListener('change', function (e) {
-      var t = e.target;
-      if (!t.name) return;
-      if (t.name === 'theme') applyTheme(t.value);
-      else if (t.name === 'motion') { if (t.value === 'reduced') root.setAttribute('data-motion', 'reduced'); else root.removeAttribute('data-motion'); }
-      else if (['accent', 'density', 'surface'].indexOf(t.name) !== -1) root.setAttribute('data-' + t.name, t.value);
-    });
-  }
+  document.addEventListener('change', function (e) {
+    var t = e.target;
+    if (!t.name || !t.closest || !t.closest('form[data-appearance]')) return;
+    if (t.name === 'theme') applyTheme(t.value);
+    else if (t.name === 'motion') { if (t.value === 'reduced') root.setAttribute('data-motion', 'reduced'); else root.removeAttribute('data-motion'); }
+    else if (['accent', 'density', 'surface'].indexOf(t.name) !== -1) root.setAttribute('data-' + t.name, t.value);
+  });
 
   // --- Sidebar: collapse on desktop, drawer below 992px ---------------------------------------
   var narrow = window.matchMedia('(max-width: 991.98px)');
@@ -261,7 +281,7 @@
       if (e.target.closest('[data-action="palette-open"]')) { e.preventDefault(); openPalette(); return; }
       if (e.target.closest('[data-action="palette-close"]')) { closePalette(); return; }
       var item = e.target.closest('.palette-item');
-      if (item && !palette.hidden) window.location.href = item.getAttribute('data-path');
+      if (item && !palette.hidden) { closePalette(); go(item.getAttribute('data-path')); }
     });
     paletteInput.addEventListener('input', function () { filterPalette(paletteInput.value); });
     palette.addEventListener('mousemove', function (e) {
@@ -320,25 +340,26 @@
       (opts.tone === 'danger' ? cancel : ok).focus();
     });
   }
-  document.querySelectorAll('form[data-confirm]').forEach(function (form) {
-    form.addEventListener('submit', function (ev) {
-      if (form.dataset.confirmed === '1') { form.dataset.confirmed = ''; return; }
-      ev.preventDefault();
-      var submitter = ev.submitter || null;
-      confirmDialog({
-        title: form.getAttribute('data-confirm-title') || 'Are you sure?',
-        message: form.getAttribute('data-confirm'),
-        confirmText: form.getAttribute('data-confirm-button') || 'Continue',
-        tone: form.getAttribute('data-confirm-tone') || 'primary'
-      }).then(function (yes) {
-        if (!yes) return;
-        form.dataset.confirmed = '1';
-        if (!form.requestSubmit) form.submit();
-        else if (submitter && submitter.form === form) form.requestSubmit(submitter);
-        else form.requestSubmit();
-      });
+  document.addEventListener('submit', function (ev) {
+    var form = ev.target;
+    if (!(form instanceof HTMLFormElement) || !form.hasAttribute('data-confirm')) return;
+    if (form.dataset.confirmed === '1') { form.dataset.confirmed = ''; return; }
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    var submitter = ev.submitter || null;
+    confirmDialog({
+      title: form.getAttribute('data-confirm-title') || 'Are you sure?',
+      message: form.getAttribute('data-confirm'),
+      confirmText: form.getAttribute('data-confirm-button') || 'Continue',
+      tone: form.getAttribute('data-confirm-tone') || 'primary'
+    }).then(function (yes) {
+      if (!yes) return;
+      form.dataset.confirmed = '1';
+      if (!form.requestSubmit) form.submit();
+      else if (submitter && submitter.form === form) form.requestSubmit(submitter);
+      else form.requestSubmit();
     });
-  });
+  }, true);
 
   // --- Keyboard: Escape closes, Tab stays inside a dialog, Ctrl K opens the palette ------------
   document.addEventListener('keydown', function (e) {
@@ -361,7 +382,7 @@
       else if (e.key === 'Enter') {
         e.preventDefault();
         var active = paletteItems().filter(function (li) { return !li.hidden && li.classList.contains('is-active'); })[0];
-        if (active) window.location.href = active.getAttribute('data-path');
+        if (active) { closePalette(); go(active.getAttribute('data-path')); }
       }
       return;
     }
@@ -424,6 +445,7 @@
     }, 1000);
 
     function poll() {
+      if (!node.isConnected) { clearInterval(tick); return; }
       getJSON(url).then(function (j) {
         node.querySelector('[data-field="status"]').replaceChildren(statusChip(j.status));
         node.querySelector('[data-field="phase"]').textContent = j.phase ? j.phase.replace(/_/g, ' ') : '';
@@ -443,7 +465,7 @@
                 if (err && err.status === 401) location.assign(signedOut); else location.reload();
               });
             }, 1200);
-          } else if (node.getAttribute('data-reload-on-finish') === '1') setTimeout(function () { location.reload(); }, 1200);
+          } else if (node.getAttribute('data-reload-on-finish') === '1') setTimeout(function () { if (node.isConnected) reloadPage(); }, 1200);
           return;
         }
         setTimeout(poll, 2000);
@@ -454,7 +476,7 @@
     }
     setTimeout(poll, 1500);
   }
-  document.querySelectorAll('[data-job-progress]').forEach(initJob);
+  onEach('[data-job-progress]', initJob);
 
   // --- Job chips: a job's status where the button that started it was ------------------------
   // "In the queue", "Running, 54%", then "Done" or "Failed". The text comes from the server
@@ -470,6 +492,7 @@
     if (FINAL_JOB.indexOf(node.getAttribute('data-status')) !== -1) return;
     var url = node.getAttribute('data-status-url');
     var poll = function () {
+      if (!node.isConnected) return;
       getJSON(url).then(function (job) {
         updateJobChip(node, job);
         if (!job.final) setTimeout(poll, 2500);
@@ -497,7 +520,7 @@
     updateJobChip(n, answer.job);
     return n;
   }
-  document.querySelectorAll('[data-job-chip]').forEach(initJobChip);
+  onEach('[data-job-chip]', initJobChip);
 
   // A form that starts a job (collect, refresh an inventory) stays on the page: the job shows
   // in place of its button, so several can be started one after another. Without JavaScript
@@ -512,7 +535,7 @@
     var done = function () { if (btn) { btn.disabled = false; spinner.remove(); } };
     fetch(form.action, {
       method: 'POST', credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrf, Accept: 'application/json' },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrf(), Accept: 'application/json' },
       body: new URLSearchParams(new FormData(form))
     }).then(function (r) {
       return r.json().catch(function () { return { ok: false, tone: 'danger', message: 'The server did not answer as expected. Reload the page and try again.' }; });
@@ -571,11 +594,12 @@
   }
 
   // --- Live tool output on the job page ------------------------------------------------------
-  document.querySelectorAll('[data-live-log]').forEach(function (box) {
+  onEach('[data-live-log]', function (box) {
     var dot = document.querySelector('[data-live-indicator]');
     box.scrollTop = box.scrollHeight;
     if (box.getAttribute('data-final') === '1') return;
     var poll = function () {
+      if (!box.isConnected) return;
       getJSON(box.getAttribute('data-live-log')).then(function (d) {
         // Follow the end only when the reader is already there, so scrolling back stays put.
         var atEnd = box.scrollHeight - box.scrollTop - box.clientHeight < 24;
@@ -601,20 +625,21 @@
   });
 
   // --- Documents being built in the background -----------------------------------------------
-  document.querySelectorAll('[data-doc-status]').forEach(function (el) {
+  onEach('[data-doc-status]', function (el) {
     var label = el.querySelector('[data-field="progress"]');
     var poll = function () {
+      if (!el.isConnected) return;
       getJSON(el.getAttribute('data-doc-status')).then(function (d) {
-        if (d.status !== 'building') { window.location.reload(); return; }
+        if (d.status !== 'building') { reloadPage(); return; }
         if (label && d.total) label.textContent = d.percent + '% (' + d.done + ' of ' + d.total + ' questions)';
         setTimeout(poll, 2000);
-      }).catch(function () { window.location.reload(); });
+      }).catch(function () { if (el.isConnected) reloadPage(); });
     };
     setTimeout(poll, 2000);
   });
 
   // --- Mock exam setup: the time follows the number of questions until it is changed by hand ---
-  document.querySelectorAll('.mock-setup').forEach(function (f) {
+  onEach('.mock-setup', function (f) {
     var count = f.querySelector('[data-mock-count]');
     var minutes = f.querySelector('[data-mock-minutes]');
     var timed = f.querySelector('input[name="timed"]');
@@ -678,7 +703,7 @@
       if (state) { state.textContent = 'Saving…'; state.classList.remove('is-error'); }
       var body = 'key=' + encodeURIComponent(q.getAttribute('data-key')) + '&picks=' + encodeURIComponent(picksOf(q)) + '&flagged=' + (flagged(q) ? '1' : '0');
       fetch(saveUrl, { method: 'POST', credentials: 'same-origin', body: body,
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrf, Accept: 'application/json' } })
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrf(), Accept: 'application/json' } })
         .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
         .then(function (res) {
           pending--;
@@ -734,15 +759,16 @@
 
   // --- Integrity figures worked out in the background -----------------------------------------
   // The page shows what it has; it asks how many exams are left and reloads when none are.
-  document.querySelectorAll('[data-integrity-wait]').forEach(function (el) {
+  onEach('[data-integrity-wait]', function (el) {
     var line = el.querySelector('[data-field="waiting"]');
     var poll = function () {
+      if (!el.isConnected) return;
       getJSON(el.getAttribute('data-integrity-wait')).then(function (d) {
-        if (d.waiting === 0) { window.location.reload(); return; }
+        if (d.waiting === 0) { reloadPage(); return; }
         if (line && d.line) line.textContent = d.line;
         setTimeout(poll, d.running ? 3000 : 15000);
       }).catch(function (err) {
-        if (err && err.status === 401) { window.location.reload(); return; }
+        if (err && err.status === 401) { location.reload(); return; }
         setTimeout(poll, 15000);
       });
     };
@@ -750,7 +776,7 @@
   });
 
   // --- Panels opened by a button (an answer form under a row, for example) -------------------
-  document.querySelectorAll('[data-toggle-panel]').forEach(function (btn) {
+  onEach('[data-toggle-panel]', function (btn) {
     var panel = document.getElementById(btn.getAttribute('data-toggle-panel'));
     if (!panel) return;
     btn.setAttribute('aria-expanded', 'false');
@@ -766,7 +792,7 @@
 
   // --- Question editor: only the fields for the chosen kind of question ---------------------
   // Without JavaScript every field shows and the server reads the ones the kind uses.
-  document.querySelectorAll('[data-question-form]').forEach(function (form) {
+  onEach('[data-question-form]', function (form) {
     var select = form.querySelector('[data-question-type]');
     if (!select) return;
     function show() {
@@ -839,7 +865,7 @@
       var data = arguments.length > 1 ? arguments[1] : {};
       return fetch(url, {
         method: 'POST', credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrf, Accept: 'application/json' },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrf(), Accept: 'application/json' },
         body: new URLSearchParams(data)
       }).then(function (r) {
         return r.json().catch(function () { return {}; }).then(function (d) { d.httpStatus = r.status; return d; });
@@ -853,7 +879,7 @@
         var xhr = new XMLHttpRequest();
         u.xhr = xhr;
         xhr.open('POST', u.base + '?offset=' + offset);
-        xhr.setRequestHeader('X-CSRF-Token', csrf);
+        xhr.setRequestHeader('X-CSRF-Token', csrf());
         xhr.setRequestHeader('Accept', 'application/json');
         xhr.upload.onprogress = function (e) { if (e.lengthComputable) progress(u, offset + Math.min(e.loaded, length)); };
         xhr.onload = function () {
@@ -966,56 +992,107 @@
 
   // --- QR codes (setting up two-step sign-in) -----------------------------------------------
   // Drawn here from the vendored qrcode-generator, loaded only on the page that needs it.
-  if (typeof window.qrcode === 'function') {
-    document.querySelectorAll('img[data-qr]').forEach(function (img) {
-      var qr = window.qrcode(0, 'M');
-      qr.addData(img.getAttribute('data-qr'));
-      qr.make();
-      img.src = qr.createDataURL(5, 4);
-    });
-  }
+  onEach('img[data-qr]', function (img) {
+    if (typeof window.qrcode !== 'function') return;
+    var qr = window.qrcode(0, 'M');
+    qr.addData(img.getAttribute('data-qr'));
+    qr.make();
+    img.src = qr.createDataURL(5, 4);
+  });
 
   // --- Forms ------------------------------------------------------------------------------
   // Prevent duplicate submissions while a request is being initiated.
-  document.querySelectorAll('form[data-once]').forEach(function (form) {
-    form.addEventListener('submit', function (ev) {
-      if (ev.defaultPrevented) return;
-      if (form.dataset.submitted === '1') { ev.preventDefault(); return; }
-      form.dataset.submitted = '1';
-      // A disabled button is left out of what the form sends, so the clicked button's own
-      // choice (such as "declined") is copied into a hidden field before buttons are disabled.
-      var submitter = ev.submitter;
-      if (submitter && submitter.name) {
-        var keep = document.createElement('input');
-        keep.type = 'hidden';
-        keep.name = submitter.name;
-        keep.value = submitter.value;
-        form.appendChild(keep);
-      }
-      form.querySelectorAll('button[type="submit"]').forEach(function (b) {
-        b.disabled = true;
-        var busy = form.getAttribute('data-busy');
-        if (busy) b.textContent = busy;
-        else b.insertAdjacentElement('afterbegin', el('span', 'spinner-border spinner-border-sm'));
-      });
+  // A button that is working: a spinner, and words for what it is doing ("Saving...").
+  // data-busy-label on the button (or data-busy on its form) gives the words.
+  var DOING = { save: 'Saving', delete: 'Deleting', remove: 'Removing', add: 'Adding', create: 'Creating', send: 'Sending',
+    update: 'Updating', upload: 'Uploading', approve: 'Approving', reject: 'Rejecting', publish: 'Publishing', import: 'Importing',
+    sign: 'Signing in', join: 'Joining', register: 'Registering', invite: 'Inviting', issue: 'Issuing', revoke: 'Revoking',
+    restore: 'Restoring', start: 'Starting', submit: 'Sending', apply: 'Applying', change: 'Changing', reset: 'Resetting',
+    accept: 'Accepting', decline: 'Declining', confirm: 'Confirming', record: 'Recording', mark: 'Marking', move: 'Moving',
+    copy: 'Copying', archive: 'Archiving', enable: 'Turning on', disable: 'Turning off', turn: 'Turning', set: 'Setting',
+    request: 'Requesting', search: 'Searching', filter: 'Filtering', check: 'Checking', run: 'Running', collect: 'Collecting',
+    refresh: 'Refreshing', generate: 'Making', make: 'Making', build: 'Building', grade: 'Grading', finish: 'Finishing',
+    hand: 'Handing in', pay: 'Recording', merge: 'Merging', open: 'Opening', close: 'Closing', cancel: 'Cancelling', pause: 'Pausing' };
+  function busyLabel(btn) {
+    var own = btn.getAttribute('data-busy-label') || (btn.form && btn.form.getAttribute('data-busy'));
+    if (own) return own;
+    var words = (btn.textContent || btn.value || '').trim().split(/\s+/);
+    var first = (words[0] || '').toLowerCase();
+    return DOING[first] ? DOING[first] + '...' : '';
+  }
+  ExamLib.buttonBusy = function (btn, on) {
+    if (!btn) return;
+    if (on) {
+      if (btn.classList.contains('is-busy')) return;
+      btn.classList.add('is-busy');
+      btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
+      var spin = el('span', 'spinner-border spinner-border-sm btn-spin');
+      spin.setAttribute('aria-hidden', 'true');
+      var label = busyLabel(btn);
+      var iconOnly = !(btn.textContent || '').trim();
+      if (btn.tagName === 'INPUT') { btn.dataset.idleLabel = btn.value; if (label) btn.value = label; return; }
+      btn.__idle = Array.prototype.slice.call(btn.childNodes);
+      btn.replaceChildren(spin);
+      if (label && !iconOnly) btn.appendChild(document.createTextNode(label));
+      else if (!iconOnly) btn.__idle.forEach(function (n) { if (!(n.classList && n.classList.contains('bi'))) btn.appendChild(n.cloneNode(true)); });
+      return;
+    }
+    if (!btn.classList.contains('is-busy')) return;
+    btn.classList.remove('is-busy');
+    btn.disabled = false;
+    btn.removeAttribute('aria-busy');
+    if (btn.tagName === 'INPUT') { if (btn.dataset.idleLabel !== undefined) btn.value = btn.dataset.idleLabel; return; }
+    if (btn.__idle) { btn.replaceChildren.apply(btn, btn.__idle); btn.__idle = null; }
+  };
+  // A form handed back (refused, or sent in the background): usable again.
+  ExamLib.release = function (form) {
+    if (!form) return;
+    delete form.dataset.submitted;
+    form.querySelectorAll('input[data-once-copy]').forEach(function (n) { n.remove(); });
+    form.querySelectorAll('button.is-busy, input.is-busy').forEach(function (b) { ExamLib.buttonBusy(b, false); });
+    form.querySelectorAll('[data-once-held]').forEach(function (b) { b.disabled = false; b.removeAttribute('data-once-held'); });
+  };
+
+  // Prevent duplicate submissions while a request is being initiated.
+  document.addEventListener('submit', function (ev) {
+    var form = ev.target;
+    if (!(form instanceof HTMLFormElement) || !form.hasAttribute('data-once')) return;
+    if (ev.defaultPrevented) return;
+    if (form.dataset.submitted === '1') { ev.preventDefault(); return; }
+    form.dataset.submitted = '1';
+    // A disabled button is left out of what the form sends, so the clicked button's own
+    // choice (such as "declined") is copied into a hidden field before buttons are disabled.
+    var submitter = ev.submitter;
+    if (submitter && submitter.name) {
+      var keep = document.createElement('input');
+      keep.type = 'hidden';
+      keep.name = submitter.name;
+      keep.value = submitter.value;
+      keep.setAttribute('data-once-copy', '');
+      form.appendChild(keep);
+    }
+    // The pressed button says what it is doing; the others wait.
+    form.querySelectorAll('button[type="submit"], button:not([type])').forEach(function (b) {
+      if (b === submitter || (!submitter && b === form.querySelector('button[type="submit"], button:not([type])'))) ExamLib.buttonBusy(b, true);
+      else { b.disabled = true; b.setAttribute('data-once-held', ''); }
     });
   });
   // A page restored from the back/forward cache must not keep forms locked.
   window.addEventListener('pageshow', function (e) {
-    if (e.persisted && document.querySelector('form[data-once][data-submitted="1"]')) location.reload();
+    if (e.persisted) document.querySelectorAll('form[data-once][data-submitted="1"]').forEach(ExamLib.release);
   });
 
-  document.querySelectorAll('select[data-autosubmit]').forEach(function (sel) {
-    sel.addEventListener('change', function () { if (sel.form) sel.form.submit(); });
-  });
-  // A file picker that sends its form as soon as a file is chosen (one upload slot per document).
-  document.querySelectorAll('input[type="file"][data-autosubmit]').forEach(function (inp) {
-    inp.addEventListener('change', function () {
-      if (!inp.files || !inp.files.length || !inp.form) return;
-      var label = inp.closest('label');
+  function send(form) { if (form.requestSubmit) form.requestSubmit(); else form.submit(); }
+  document.addEventListener('change', function (e) {
+    var t = e.target;
+    if (t.matches && t.matches('select[data-autosubmit]') && t.form) { send(t.form); return; }
+    // A file picker that sends its form as soon as a file is chosen (one upload slot per document).
+    if (t.matches && t.matches('input[type="file"][data-autosubmit]') && t.form && t.files && t.files.length) {
+      var label = t.closest('label');
       if (label) label.classList.add('is-busy');
-      if (inp.form.requestSubmit) inp.form.requestSubmit(); else inp.form.submit();
-    });
+      send(t.form);
+    }
   });
 
   // --- Save an exam to your own shelf without leaving the page --------------------------------
@@ -1028,7 +1105,7 @@
     btn.disabled = true;
     fetch(form.action, {
       method: 'POST', credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrf, Accept: 'application/json' },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrf(), Accept: 'application/json' },
       body: new URLSearchParams(new FormData(form))
     }).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -1052,31 +1129,31 @@
   // --- Library shelves: the search box narrows the cards as you type -------------------------
   // Every word typed must appear in a card's names, codes or provider. A shelf with nothing
   // left is hidden; Enter still searches on the server.
-  var shelfSearch = document.querySelector('[data-shelf-search]');
-  if (shelfSearch) {
-    var shelves = Array.prototype.slice.call(document.querySelectorAll('[data-shelf]'));
-    var shelfEmpty = document.querySelector('[data-shelf-empty]');
-    var filterShelves = function () {
-      var words = shelfSearch.value.toLowerCase().split(/\s+/).filter(Boolean);
-      var shown = 0;
-      shelves.forEach(function (shelf) {
-        var n = 0;
-        shelf.querySelectorAll('[data-shelf-card]').forEach(function (card) {
-          var hay = card.getAttribute('data-search') || '';
-          var match = words.every(function (w) { return hay.indexOf(w) !== -1; });
-          card.hidden = !match;
-          if (match) n += Number(card.getAttribute('data-count')) || 1; // exams, editions included
-        });
-        shelf.hidden = n === 0;
-        var count = shelf.querySelector('[data-shelf-count]');
-        if (count) count.textContent = String(n);
-        shown += n;
+  var filterShelves = function (box) {
+    var scope = box.closest('#page-body') || document;
+    var shelves = Array.prototype.slice.call(scope.querySelectorAll('[data-shelf]'));
+    var shelfEmpty = scope.querySelector('[data-shelf-empty]');
+    var words = box.value.toLowerCase().split(/\s+/).filter(Boolean);
+    var shown = 0;
+    shelves.forEach(function (shelf) {
+      var n = 0;
+      shelf.querySelectorAll('[data-shelf-card]').forEach(function (card) {
+        var hay = card.getAttribute('data-search') || '';
+        var match = words.every(function (w) { return hay.indexOf(w) !== -1; });
+        card.hidden = !match;
+        if (match) n += Number(card.getAttribute('data-count')) || 1; // exams, editions included
       });
-      if (shelfEmpty) shelfEmpty.hidden = shown > 0;
-    };
-    shelfSearch.addEventListener('input', filterShelves);
-    if (shelfSearch.value) filterShelves();
-  }
+      shelf.hidden = n === 0;
+      var count = shelf.querySelector('[data-shelf-count]');
+      if (count) count.textContent = String(n);
+      shown += n;
+    });
+    if (shelfEmpty) shelfEmpty.hidden = shown > 0;
+  };
+  document.addEventListener('input', function (e) {
+    if (e.target.matches && e.target.matches('[data-shelf-search]')) filterShelves(e.target);
+  });
+  onEach('[data-shelf-search]', function (box) { if (box.value) filterShelves(box); });
 
   // --- Practice mode: reveal one question's answer on demand ---------------------------------
   // Text as paragraphs (blank lines separate them), keeping single line breaks, like the
@@ -1333,7 +1410,7 @@
       if (!url || !picked.length) return;
       fetch(url, {
         method: 'POST', credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrf, Accept: 'application/json' },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrf(), Accept: 'application/json' },
         body: new URLSearchParams({ picks: picked.join('') })
       }).then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) {
@@ -1464,4 +1541,6 @@
     }
     summary();
   }
+  bindAll(document);
+  document.addEventListener('examlib:load', function (e) { bindAll((e.detail && e.detail.root) || document); });
 })();

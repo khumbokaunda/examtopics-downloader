@@ -91,6 +91,7 @@ $flashIcons = ['success' => 'check-circle', 'info' => 'info-circle', 'warning' =
     <link rel="stylesheet" href="<?= e(asset('/assets/css/dark.css')) ?>">
     <?php if (isset($site, $sitePage)): ?><link rel="stylesheet" href="<?= e(asset('/assets/css/site.css')) ?>"><?php endif; ?>
     <link rel="stylesheet" href="<?= e(asset('/assets/css/motion.css')) ?>">
+    <?php if (!$user): ?><link rel="stylesheet" href="<?= e(asset('/assets/css/page-transition.css')) ?>"><?php endif; ?>
     <?php if ($brand['accent'] === 'custom'): ?><link rel="stylesheet" href="<?= e(url('/branding/theme.css', ['v' => substr(md5($brand['color']), 0, 8)])) ?>"><?php endif; ?>
     <script src="<?= e(asset('/assets/js/theme-init.js')) ?>"></script>
 </head>
@@ -205,7 +206,7 @@ $flashIcons = ['success' => 'check-circle', 'info' => 'info-circle', 'warning' =
 <body class="is-signed-out is-site">
 <header class="site-bar">
     <div class="site-container site-bar-inner">
-        <a class="site-brand" href="<?= e(url('/')) ?>"><?php if ($logoUrl !== null): ?><img class="brand-logo" src="<?= e($logoUrl) ?>" alt=""><?php else: ?><span class="brand-mark"><?= icon('mortarboard-fill') ?></span><?php endif; ?><span><?= e($appName) ?></span></a>
+        <a class="site-brand" href="<?= e(url('/')) ?>"><?php if ($logoUrl !== null): ?><img class="brand-logo" src="<?= e($logoUrl) ?>" alt=""><?php else: ?><span class="brand-mark"><?= icon('mortarboard-fill') ?></span><?php endif; ?><span class="site-brand-name"><?= e($appName) ?></span></a>
         <nav class="site-nav" aria-label="Site">
             <?php foreach (['home' => ['/', 'Product'], 'pricing' => ['/pricing', 'Pricing'], 'contact' => ['/contact', 'Contact']] as $key => [$href, $label]): ?>
                 <a href="<?= e(url($href)) ?>"<?= $sitePage === $key ? ' aria-current="page"' : '' ?>><?= e($label) ?></a>
@@ -252,6 +253,8 @@ $flashIcons = ['success' => 'check-circle', 'info' => 'info-circle', 'warning' =
 <script src="<?= e(asset('/assets/js/data-table.js')) ?>"></script>
 <script src="<?= e(asset('/assets/js/live.js')) ?>"></script>
 <script src="<?= e(asset('/assets/js/wizard.js')) ?>"></script>
+<?php if ($user): ?><script src="<?= e(asset('/assets/js/skeleton.js')) ?>"></script>
+<script src="<?= e(asset('/assets/js/swap.js')) ?>"></script><?php endif; ?>
 <script src="<?= e(asset('/assets/js/motion.js')) ?>"></script>
 </body>
 </html>
